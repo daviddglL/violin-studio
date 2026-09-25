@@ -8,7 +8,7 @@ y Violin-master (`daviddglL/Violin` @ `9163c12`).
 
 ## Requisitos
 
-JDK 21, Android SDK 36, Node 20, Firebase CLI (`npm i -g firebase-tools`).
+JDK 21, Android SDK 36, Node 22, Firebase CLI (`npm i -g firebase-tools`).
 
 Los `google-services.json` no están en git: descárgalos de la consola de Firebase a
 `app/src/dev/` y `app/src/prod/`. Dev y prod usan actualmente el mismo proyecto,
