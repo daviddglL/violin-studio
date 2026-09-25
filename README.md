@@ -39,5 +39,7 @@ Multimódulo (`app`, `core/*`, y `feature/*` desde la fase 3) con MVI: cada pant
 ## App Check en prod
 
 Play Integrity solo valida apps instaladas desde Google Play. Mientras la app se reparta por
-App Distribution, crea `functions/.env.violin-app-795ee` con `ENFORCE_APP_CHECK=false` antes de
-desplegar Functions (ese fichero no se versiona).
+App Distribution, crea `functions/.env.violin-app-dev-f0b55` con `ENFORCE_APP_CHECK=false` antes
+de desplegar Functions (ese fichero no se versiona). Firebase carga `.env.<project-id>` según el
+proyecto activo: el nombre sigue el id de prod actual (`violin-app-dev-f0b55`, el mismo que dev
+por ahora); cámbialo cuando exista un proyecto de producción real.
