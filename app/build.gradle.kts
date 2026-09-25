@@ -53,6 +53,10 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfigs.findByName("release")?.let { signingConfig = it }
+            // Solo CI debe subir el mapping de ofuscación; una release local no tiene por qué.
+            firebaseCrashlytics {
+                mappingFileUploadEnabled = providers.environmentVariable("CI").isPresent
+            }
         }
     }
 }
