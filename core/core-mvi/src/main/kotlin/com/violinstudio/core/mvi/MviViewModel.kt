@@ -17,6 +17,9 @@ import kotlinx.coroutines.launch
  *   bloquear intents posteriores tiene que lanzar su propia coroutine desde [handleIntent].
  * - [setState] es atómico.
  * - Cada efecto se entrega exactamente una vez; si no hay colector se guarda hasta que lo haya.
+ * - Una excepción lanzada desde [handleIntent] (incluida una CancellationException espuria)
+ *   termina el bucle de intents para siempre; las implementaciones deben convertir sus propios
+ *   fallos en estado (como hace HomeViewModel con Result) en lugar de dejarlos propagarse.
  */
 abstract class MviViewModel<S : UiState, I : UiIntent, E : UiEffect>(initial: S) : ViewModel() {
     private val _state = MutableStateFlow(initial)
