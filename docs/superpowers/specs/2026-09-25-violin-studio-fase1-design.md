@@ -51,7 +51,6 @@ violin-studio/
 │   ├── core-ui/          tema Material 3 unificado + componentes comunes
 │   ├── core-model/       modelos de dominio puros (Kotlin/JVM, sin Android)
 │   ├── core-data/        repositorios + fuentes de datos Firebase
-│   ├── core-database/    Room (versión 1, sin entidades de negocio en fase 1)
 │   ├── core-firebase/    DI de Firebase, selección de emuladores por flavor
 │   └── core-testing/     reglas de coroutines, fakes, helper testMvi, utilidades Robolectric/Roborazzi
 ├── functions/            Cloud Functions (TypeScript)
@@ -59,14 +58,16 @@ violin-studio/
 └── docs/superpowers/
 ```
 
-Los módulos `feature/*` se crean en la fase que los introduce. Reglas de dependencia:
+Los módulos `feature/*` se crean en la fase que los introduce. `core-database` se crea en la fase 3 con la primera entidad (Room exige al menos una entidad por base de datos). Reglas de dependencia:
 
 - `feature-*` → `core-mvi`, `core-ui`, `core-model`, `core-data` (nunca otra `feature-*`).
-- `core-data` → `core-model`, `core-firebase`, `core-database`.
+- `core-data` → `core-model`, `core-firebase` (y `core-database` cuando exista).
 - `core-model` y `core-mvi` no dependen de Compose.
 - `app` → todo lo anterior; es el único que conoce la navegación entre features.
 
 ### 3.1 Plugins de convención (`build-logic`)
+
+`violin.android.feature` (library + compose + hilt + dependencias `core-*`) se añade en la fase 3 junto con el primer módulo `feature-*` que lo usa.
 
 | Plugin | Aplica |
 |---|---|
@@ -75,7 +76,6 @@ Los módulos `feature/*` se crean en la fase que los introduce. Reglas de depend
 | `violin.android.compose` | Compose compiler plugin + BOM + Roborazzi |
 | `violin.android.hilt` | Hilt + KSP |
 | `violin.jvm.library` | Kotlin/JVM (para `core-model`) + JUnit5 + ktlint |
-| `violin.android.feature` | library + compose + hilt + dependencias `core-*` estándar |
 
 ### 3.2 Versiones
 
@@ -86,7 +86,7 @@ Los módulos `feature/*` se crean en la fase que los introduce. Reglas de depend
 | KSP | la compatible con Kotlin 2.2.10 |
 | compileSdk / targetSdk | 36 |
 | minSdk | 26 |
-| JDK de compilación | 21 (bytecode Java 17) |
+| JDK de compilación y bytecode | 21 (Robolectric necesita JDK 21 para SDK 36) |
 | Hilt | 2.59 |
 | Room | 2.7.x |
 | Compose BOM | la estable más reciente compatible con Kotlin 2.2.10 |
@@ -141,16 +141,17 @@ Ambos originales son MVVM. Al portar una feature (fases 2–5): se conservan cas
 
 - `google-services.json` **fuera de git** (`app/src/dev/` y `app/src/prod/`, en `.gitignore`). En CI se decodifican desde los secretos `GOOGLE_SERVICES_DEV_BASE64` y `GOOGLE_SERVICES_PROD_BASE64`.
 - `firebase.json` con emuladores Auth (9099), Firestore (8080), Storage (9199), Functions (5001) y UI.
-- Flavor `dev`: `BuildConfig.USE_EMULATORS = true` en debug; `core-firebase` apunta a `10.0.2.2` desde el emulador Android.
+- Flavor `dev`: `BuildConfig.USE_EMULATORS = true`; `core-firebase` apunta a `10.0.2.2` desde el emulador Android (configurable con la propiedad Gradle `violin.emulatorHost` para móviles físicos). El flavor `dev` permite tráfico HTTP en claro, que exigen los emuladores.
 - `firestore.rules` y `storage.rules`: deny-all en fase 1.
-- App Check: Play Integrity en `prod`, debug provider en `dev`.
+- App Check: Play Integrity en builds `release`, debug provider en builds `debug`.
 - Crashlytics, Analytics y Performance inicializados desde el arranque. Crashlytics desactivado en `dev`.
 - Remote Config y FCM: fuera de la fase 1.
 
 ### 5.1 Cloud Functions (`functions/`)
 
 - TypeScript, Node 20, `firebase-functions` v2.
-- Función `health` (callable, `enforceAppCheck: true`) → `{ status: "ok", version }`.
+- Función `health` (callable, región `europe-west1`) → `{ status: "ok", version }`.
+- `enforceAppCheck` es `true` salvo en el emulador (`FUNCTIONS_EMULATOR=true`) o si el parámetro de entorno `ENFORCE_APP_CHECK=false`. Play Integrity solo da veredictos válidos a apps instaladas desde Google Play; mientras la app se distribuya por App Distribution, prod necesita `ENFORCE_APP_CHECK=false` o tokens de depuración por tester.
 - Tests: Jest + `firebase-functions-test` contra el emulador.
 - ESLint + `tsc --noEmit` en CI.
 - **Prerequisito manual (usuario):** activar el plan Blaze en `violin-app-795ee` y `violin-app-dev`.
@@ -175,7 +176,7 @@ Un único workflow `.github/workflows/ci.yml`:
 | `functions` | PR y push | `npm ci`, lint, build, tests con el emulador |
 | `rules` | PR y push | Tests de `firestore.rules` y `storage.rules` con `@firebase/rules-unit-testing` en el emulador |
 | `e2e` | PR (`continue-on-error: true` al principio) | Emulador Android (API 34, x86_64) + emuladores Firebase; test instrumentado de la pantalla Home |
-| `release` | push a `main` | `bundleProdRelease` firmado → fastlane `deploy_firebase` → App Distribution (grupo `testers`) |
+| `release` | push a `main` | `assembleProdRelease` + `bundleProdRelease` firmados → fastlane `deploy_firebase` sube el **APK** a App Distribution (grupo `testers`); el AAB se guarda como artefacto. App Distribution solo acepta AAB si el proyecto está vinculado a Google Play |
 
 Secretos de GitHub: `KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, `GOOGLE_SERVICES_DEV_BASE64`, `GOOGLE_SERVICES_PROD_BASE64`, `FIREBASE_SERVICE_ACCOUNT_JSON`.
 
@@ -214,7 +215,7 @@ Se sigue TDD estricto: cada tarea del plan empieza con un test que falla.
 4. `functions`: test de `health` en verde contra el emulador.
 5. `rules`: test que confirma que el deny-all rechaza lecturas y escrituras en Firestore y Storage.
 6. E2E: la app arranca en el emulador Android contra los emuladores Firebase y muestra `Ok(version)`.
-7. Push a `main` produce un AAB firmado publicado en App Distribution.
+7. Push a `main` produce un APK firmado publicado en App Distribution y un AAB firmado como artefacto de CI.
 8. `secrets-guard` en verde.
 
 ## 10. Fuera de alcance de la fase 1
