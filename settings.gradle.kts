@@ -25,6 +25,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "violin-studio"
 
+include(":app")
 include(":core:core-model")
 include(":core:core-mvi")
 include(":core:core-testing")

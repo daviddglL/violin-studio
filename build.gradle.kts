@@ -20,4 +20,5 @@ tasks.register("coverage") {
     dependsOn(":core:core-model:coverageVerification")
     dependsOn(":core:core-mvi:coverageVerification")
     dependsOn(":core:core-data:coverageVerification")
+    dependsOn(":app:coverageVerification")
 }
