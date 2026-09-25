@@ -43,3 +43,14 @@ App Distribution, crea `functions/.env.violin-app-dev-f0b55` con `ENFORCE_APP_CH
 de desplegar Functions (ese fichero no se versiona). Firebase carga `.env.<project-id>` según el
 proyecto activo: el nombre sigue el id de prod actual (`violin-app-dev-f0b55`, el mismo que dev
 por ahora); cámbialo cuando exista un proyecto de producción real.
+
+## Primer despliegue de Functions
+
+Antes de desplegar Functions por primera vez:
+
+1. Confirma que el proyecto (`violin-app-dev-f0b55`) está en el plan Blaze (Functions lo requiere).
+2. Crea `functions/.env.violin-app-dev-f0b55` con `ENFORCE_APP_CHECK=false` (no se versiona)
+   mientras la app se reparta por App Distribution.
+3. `npm --prefix functions run build`
+4. `firebase deploy --only functions --project violin-app-dev-f0b55`
+5. Verifica el despliegue con "Comprobar servidor" en la app.
