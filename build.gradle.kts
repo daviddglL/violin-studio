@@ -19,4 +19,5 @@ tasks.register("coverage") {
     description = "Verifica el umbral de cobertura en todos los módulos que lo tienen."
     dependsOn(":core:core-model:coverageVerification")
     dependsOn(":core:core-mvi:coverageVerification")
+    dependsOn(":core:core-data:coverageVerification")
 }
