@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "violin-app-dev",
+    "dev": "violin-app-dev",
+    "prod": "violin-app-795ee"
+  }
+}
