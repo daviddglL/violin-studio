@@ -1,0 +1,28 @@
+.gradle/
+build/
+.kotlin/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+
+# Secretos: nunca en git
+google-services.json
+*.jks
+*.keystore
+keystore/
+.env
+.env.*
+!.env.example
+
+# Node / Firebase
+node_modules/
+functions/lib/
+*.log
+
+# fastlane
+fastlane/report.xml
+
+# SDD workspace: nunca en git
+.superpowers/
