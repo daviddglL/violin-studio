@@ -28,3 +28,4 @@ rootProject.name = "violin-studio"
 include(":core:core-model")
 include(":core:core-mvi")
 include(":core:core-testing")
+include(":core:core-firebase")
