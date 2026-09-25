@@ -2,6 +2,7 @@ import com.android.build.api.dsl.ApplicationExtension
 import com.violinstudio.buildlogic.COMPILE_SDK
 import com.violinstudio.buildlogic.JAVA_VERSION
 import com.violinstudio.buildlogic.MIN_SDK
+import com.violinstudio.buildlogic.configureAndroidKtlintCli
 import com.violinstudio.buildlogic.configureJUnit5
 import com.violinstudio.buildlogic.configureKotlinToolchain
 import org.gradle.api.Plugin
@@ -39,6 +40,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             }
             configureKotlinToolchain()
             configureJUnit5()
+            configureAndroidKtlintCli()
         }
     }
 }
