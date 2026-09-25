@@ -11,7 +11,8 @@ y Violin-master (`daviddglL/Violin` @ `9163c12`).
 JDK 21, Android SDK 36, Node 20, Firebase CLI (`npm i -g firebase-tools`).
 
 Los `google-services.json` no están en git: descárgalos de la consola de Firebase a
-`app/src/dev/` (proyecto `violin-app-dev`) y `app/src/prod/` (proyecto `violin-app-795ee`).
+`app/src/dev/` y `app/src/prod/`. Dev y prod usan actualmente el mismo proyecto,
+`violin-app-dev-f0b55`, hasta que exista un proyecto de producción.
 
 ## Comandos
 
@@ -20,7 +21,7 @@ Los `google-services.json` no están en git: descárgalos de la consola de Fireb
 ./gradlew :app:recordRoborazziDevDebug       # regrabar capturas
 ./gradlew :app:verifyRoborazziDevDebug       # comparar capturas
 npm --prefix functions test                  # tests unitarios de Functions
-firebase emulators:start --only functions --project violin-app-dev
+firebase emulators:start --only functions --project violin-app-dev-f0b55
 ./gradlew :app:connectedDevDebugAndroidTest  # E2E (con el emulador anterior arrancado)
 bash scripts/secrets-guard.sh                # comprueba que no hay secretos en git
 ```

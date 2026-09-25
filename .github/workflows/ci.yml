@@ -90,7 +90,7 @@ jobs:
       - run: npm i -g firebase-tools
       - name: Arrancar el emulador de Functions
         run: |
-          nohup firebase emulators:start --only functions --project violin-app-dev > emulators.log 2>&1 &
+          nohup firebase emulators:start --only functions --project violin-app-dev-f0b55 > emulators.log 2>&1 &
           npx --yes wait-on tcp:127.0.0.1:5001 -t 120000
       - name: Habilitar KVM
         run: |
