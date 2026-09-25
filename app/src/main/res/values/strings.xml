@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Violin Studio</string>
+    <string name="home_status_idle">Pulsa el botón para comprobar el servidor</string>
+    <string name="home_status_ok">Servidor OK · v%1$s</string>
+    <string name="home_check_health">Comprobar servidor</string>
+    <string name="error_unknown">Error desconocido</string>
 </resources>
