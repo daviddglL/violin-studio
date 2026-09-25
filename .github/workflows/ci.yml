@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/test-secrets-guard.sh
+      - run: bash scripts/secrets-guard.sh
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: google-services.json
+        env:
+          GS_DEV: ${{ secrets.GOOGLE_SERVICES_DEV_BASE64 }}
+          GS_PROD: ${{ secrets.GOOGLE_SERVICES_PROD_BASE64 }}
+        run: |
+          mkdir -p app/src/dev app/src/prod
+          echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
+          echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
+      - run: ./gradlew check coverage --continue
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: "**/build/reports/"
+
+  functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: npm, cache-dependency-path: functions/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - run: npm ci --prefix functions
+      - run: npm --prefix functions run lint
+      - run: npm --prefix functions run build
+      - run: npm --prefix functions test
+      - run: npm i -g firebase-tools
+      - run: firebase emulators:exec --only functions --project demo-violin-studio "npm --prefix functions run test:integration"
+
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: npm, cache-dependency-path: rules-tests/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - run: npm ci --prefix rules-tests
+      - run: npm i -g firebase-tools
+      - run: firebase emulators:exec --only firestore,storage --project demo-violin-studio "npm --prefix rules-tests test"
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true # pasa a bloquear cuando sea estable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: google-services.json
+        env:
+          GS_DEV: ${{ secrets.GOOGLE_SERVICES_DEV_BASE64 }}
+          GS_PROD: ${{ secrets.GOOGLE_SERVICES_PROD_BASE64 }}
+        run: |
+          mkdir -p app/src/dev app/src/prod
+          echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
+          echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
+      - run: npm ci --prefix functions && npm --prefix functions run build
+      - run: npm i -g firebase-tools
+      - name: Arrancar el emulador de Functions
+        run: |
+          nohup firebase emulators:start --only functions --project violin-app-dev > emulators.log 2>&1 &
+          npx --yes wait-on tcp:127.0.0.1:5001 -t 120000
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          script: ./gradlew :app:connectedDevDebugAndroidTest
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: emulators-log, path: emulators.log }
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [secrets-guard, android, functions, rules]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KEYSTORE_PATH: ${{ github.workspace }}/../upload.jks
+      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: google-services.json y keystore
+        env:
+          GS_DEV: ${{ secrets.GOOGLE_SERVICES_DEV_BASE64 }}
+          GS_PROD: ${{ secrets.GOOGLE_SERVICES_PROD_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p app/src/dev app/src/prod
+          echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
+          echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+      - run: ./gradlew assembleProdRelease bundleProdRelease
+      - name: Verificar firma
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          "$apksigner" verify --print-certs app/build/outputs/apk/prod/release/app-prod-release.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: release-aab, path: app/build/outputs/bundle/prodRelease/ }
+      - uses: ruby/setup-ruby@v1
+        with: { ruby-version: "3.3" }
+      - run: bundle install
+      - name: Publicar en App Distribution
+        env:
+          FIREBASE_APP_ID_PROD: ${{ vars.FIREBASE_APP_ID_PROD }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          export FIREBASE_SERVICE_ACCOUNT_PATH="$RUNNER_TEMP/sa.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$FIREBASE_SERVICE_ACCOUNT_PATH"
+          bundle exec fastlane android deploy_firebase
