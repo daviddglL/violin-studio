@@ -25,7 +25,9 @@ abstract class MviViewModel<S : UiState, I : UiIntent, E : UiEffect>(initial: S)
     private val _state = MutableStateFlow(initial)
     val state: StateFlow<S> = _state.asStateFlow()
 
-    private val _effects = Channel<E>(Channel.BUFFERED)
+    // UNLIMITED: con un buffer acotado, trySend descartaría en silencio los efectos que se
+    // acumulan mientras no hay colector, rompiendo la garantía de entrega.
+    private val _effects = Channel<E>(Channel.UNLIMITED)
     val effects: Flow<E> = _effects.receiveAsFlow()
 
     private val intents = Channel<I>(Channel.UNLIMITED)

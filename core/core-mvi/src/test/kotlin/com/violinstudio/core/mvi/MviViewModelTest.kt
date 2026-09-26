@@ -84,4 +84,17 @@ class MviViewModelTest {
         }
         vm.effects.test { expectNoEvents() } // un segundo colector no lo recibe otra vez
     }
+
+    @Test
+    fun `los efectos acumulados sin colector no se descartan aunque superen el buffer por defecto`() =
+        runTest(dispatcher) {
+            val vm = TestViewModel()
+            repeat(100) { vm.onIntent(TestIntent.Emit("$it")) }
+            advanceUntilIdle()
+
+            vm.effects.test {
+                repeat(100) { assertEquals(TestEffect("$it"), awaitItem()) }
+                expectNoEvents()
+            }
+        }
 }
