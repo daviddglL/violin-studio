@@ -74,3 +74,9 @@ test("el callable identityConfig reevalúa (granted con versión anterior a la v
   expect((await perfil(uid)).consentStatus).toBe("pending");
   expect((await auth.getUser(uid)).customClaims?.consentOk).toBe(false);
 });
+
+test("un documento con deletion en curso no se reevalúa (queda intacto)", async () => {
+  const uid = await granted(1, { deletion: { state: "in_progress" } });
+  await reevaluateConsent({ db, auth, currentVersion: 2 }, uid);
+  expect(await perfil(uid)).toMatchObject({ consentStatus: "granted", policyVersion: 1, deletion: { state: "in_progress" } });
+});
