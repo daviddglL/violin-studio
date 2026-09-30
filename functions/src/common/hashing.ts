@@ -4,8 +4,13 @@ export function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+export const MIN_PEPPER_LENGTH = 32;
+
 /** HMAC-SHA256 del email normalizado (trim + minúsculas): no guarda el email del tutor en claro. */
 export function hmacEmail(pepper: string, email: string): string {
+  if (pepper.length < MIN_PEPPER_LENGTH) {
+    throw new Error(`El pepper debe tener al menos ${MIN_PEPPER_LENGTH} caracteres`);
+  }
   return createHmac("sha256", pepper).update(email.trim().toLowerCase(), "utf8").digest("hex");
 }
 

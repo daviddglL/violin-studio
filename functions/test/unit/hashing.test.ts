@@ -6,15 +6,20 @@ describe("sha256Hex", () => {
   });
 });
 
+const P = "p".repeat(32);
+
 describe("hmacEmail", () => {
+  test.each([[""], ["corto"], ["x".repeat(31)]])("pepper de longitud insuficiente %p lanza", (pepper) => {
+    expect(() => hmacEmail(pepper, "x@y.z")).toThrow();
+  });
   test("normaliza espacios y mayúsculas", () => {
-    expect(hmacEmail("pepper", "  Ana@Example.COM ")).toBe(hmacEmail("pepper", "ana@example.com"));
+    expect(hmacEmail(P, "  Ana@Example.COM ")).toBe(hmacEmail(P, "ana@example.com"));
   });
   test("depende del pepper", () => {
-    expect(hmacEmail("a", "x@y.z")).not.toBe(hmacEmail("b", "x@y.z"));
+    expect(hmacEmail("a".repeat(32), "x@y.z")).not.toBe(hmacEmail("b".repeat(32), "x@y.z"));
   });
   test("es hex de 64 caracteres", () => {
-    expect(hmacEmail("p", "x@y.z")).toMatch(/^[0-9a-f]{64}$/);
+    expect(hmacEmail(P, "x@y.z")).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 
