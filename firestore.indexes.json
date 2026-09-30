@@ -1,0 +1,17 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "consentStatus", "order": "ASCENDING" },
+        { "fieldPath": "guardian.requestedAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "mail", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "guardianRequests", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "guardianEmailLimits", "fieldPath": "expireAt", "ttl": true, "indexes": [] }
+  ]
+}
