@@ -20,6 +20,8 @@ export interface RegisterProfileDeps {
   auth: Auth;
   clock: Clock;
   guardianFlowEnabled: boolean;
+  /** Sumidero de logs sin PII; por defecto `logger.info` de Functions. */
+  log?: (message: string, data: Record<string, unknown>) => void;
 }
 
 export interface RegisterProfileInput {
@@ -99,6 +101,6 @@ export async function registerProfileHandler(
   });
 
   await syncClaims({ db: deps.db, auth: deps.auth }, uid);
-  logger.info("registerProfile", { created, isMinor: result.isMinor });
+  (deps.log ?? ((m, d) => logger.info(m, d)))("registerProfile", { created, isMinor: result.isMinor });
   return result;
 }

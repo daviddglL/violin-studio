@@ -79,3 +79,22 @@ test("un role enviado por el cliente se ignora: role=independent (U2)", async ()
   expect((await leer(uid)).data()).toMatchObject({ role: "independent", consentStatus: "pending" });
   expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
 });
+
+test("los logs no contienen birthDate, displayName ni email (P2)", async () => {
+  const { uid } = await nuevoUsuario();
+  const entradas: unknown[] = [];
+  await registerProfileHandler(
+    deps({ log: (mensaje, datos) => entradas.push({ mensaje, datos }) }),
+    uid,
+    payload({ displayName: "Ana Secreta" }),
+  );
+  const logs = JSON.stringify(entradas);
+  expect(entradas.length).toBeGreaterThan(0);
+  for (const secreto of ["1996-05-10", "Ana Secreta", "@example.com"]) expect(logs).not.toContain(secreto);
+});
+
+test("tras el alta los claims son {role:independent, consentOk:false} (P5)", async () => {
+  const { uid } = await nuevoUsuario();
+  await registerProfileHandler(deps(), uid, payload());
+  expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
+});
