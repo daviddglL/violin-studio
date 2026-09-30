@@ -1,0 +1,16 @@
+default_platform(:android)
+
+platform :android do
+  desc "Publica el APK prodRelease en Firebase App Distribution (grupo testers)"
+  lane :deploy_firebase do
+    # APK y no AAB: App Distribution solo acepta AAB con el proyecto vinculado a Google Play.
+    firebase_app_distribution(
+      app: ENV.fetch("FIREBASE_APP_ID_PROD"),
+      android_artifact_type: "APK",
+      android_artifact_path: "app/build/outputs/apk/prod/release/app-prod-release.apk",
+      service_credentials_file: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_PATH"),
+      groups: "testers",
+      release_notes: "CI ##{ENV['GITHUB_RUN_NUMBER']} - #{last_git_commit[:abbreviated_commit_hash]}"
+    )
+  end
+end

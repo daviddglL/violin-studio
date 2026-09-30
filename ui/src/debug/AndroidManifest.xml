@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tests de Robolectric/Roborazzi: mismo tema que la app (sin ActionBar) para que las capturas
+     coincidan con la pantalla real. Igual que en app/src/main, así que no choca al fusionar. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:theme="@android:style/Theme.Material.NoActionBar" />
+</manifest>

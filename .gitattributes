@@ -1,0 +1,14 @@
+# Auto detect text files and normalize line endings
+* text=auto
+
+# Gradle wrapper and shell scripts must always use LF, even on Windows,
+# or the CI runner (Linux) fails to execute them.
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Windows batch files must always use CRLF.
+*.bat text eol=crlf
+
+# Binary files: never diff or normalize line endings.
+*.jar binary
+*.png binary

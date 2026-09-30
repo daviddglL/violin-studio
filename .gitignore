@@ -1,0 +1,44 @@
+.gradle/
+build/
+.kotlin/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+
+# Secretos: nunca en git
+google-services.json
+*.jks
+*.keystore
+keystore/
+.env
+.env.*
+!.env.example
+
+# Node / Firebase
+node_modules/
+functions/lib/
+*.log
+
+# fastlane
+fastlane/report.xml
+
+# Datos derivados de la IA (agentes, SDD, planes y specs generados): nunca en git
+.claude/
+.superpowers/
+.atl/
+.agent/
+.agents/
+.gemini/
+.cursor/
+.codex/
+.engram/
+.windsurf/
+.aider*
+openspec/
+docs/superpowers/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
