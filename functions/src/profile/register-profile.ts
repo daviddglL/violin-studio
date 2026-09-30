@@ -32,9 +32,11 @@ export interface RegisterProfileInput {
 }
 
 /** Sin caracteres de control ni de formato (categoría Unicode C: NUL, saltos de línea, U+200B); los espacios normales se permiten. */
-const DISPLAY_NAME_PATTERN = /^[^\p{C}]+$/u;
+// Lista blanca idéntica a validEditable en firestore.rules: si difieren, un perfil creado aquí
+// podría no volver a pasar las reglas al editar otro campo.
+const DISPLAY_NAME_PATTERN = /^[\p{L}\p{M}\p{N}\p{P}\p{S} ]+$/u;
 
-/** Recorta, exige 1–40 puntos de código (no unidades UTF-16) y rechaza control/formato; devuelve el valor recortado. */
+/** Recorta, exige 1–40 puntos de código (no unidades UTF-16) y solo admite la lista blanca; devuelve el valor recortado. */
 function requireDisplayName(obj: Record<string, unknown>): string {
   const raw = obj.displayName;
   if (typeof raw !== "string") return requireString(obj, "displayName", { min: 1, max: DISPLAY_NAME_MAX });

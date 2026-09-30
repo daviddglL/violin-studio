@@ -48,6 +48,11 @@ describe("campos de perfil inválidos (P3)", () => {
     ["displayName con carácter de control", { displayName: "a\u0000b" }],
     ["displayName con espacio de ancho cero", { displayName: "\u200B" }],
     ["displayName de 41 puntos de código", { displayName: "😀".repeat(41) }],
+    // Misma lista blanca que firestore.rules: solo el espacio ASCII como separador.
+    ["displayName con espacio de no separación", { displayName: "Ana María" }],
+    ["displayName con espacio ideográfico", { displayName: "Ana　María" }],
+    ["displayName con separador de línea", { displayName: "Ana María" }],
+    ["displayName con carácter sin asignar", { displayName: "Ana͸" }],
     ["instrument fuera de lista", { instrument: "guitar" }],
     ["locale inválido", { locale: "espanol" }],
     ["locale con minúscula en región", { locale: "es-es" }],

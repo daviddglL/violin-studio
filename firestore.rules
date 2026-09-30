@@ -15,7 +15,8 @@ service cloud.firestore {
     // `trim()` de las reglas solo recorta ASCII, y RE2 no soporta \\p{Cn} (sin asignar) ni cubre con \\p{C}
     // los separadores Unicode. Por eso se usa una lista blanca: letras, marcas, números, puntuación, símbolos y
     // el espacio ASCII. Rechaza control/formato, sin asignar y NBSP/U+2003/U+2028... en cualquier posición.
-    // Residuo: el servidor admite esos separadores dentro del nombre; las reglas son más estrictas (nunca más laxas).
+    // registerProfile usa la misma lista blanca: si difieren, un perfil válido para el servidor no podría
+    // editarse después. Única diferencia restante: la longitud (UTF-16 aquí, puntos de código allí).
     function validDisplayName(n) {
       return n is string && n == n.trim() && n.size() >= 1 && n.size() <= 40
         && n.matches('^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S} ]+$');
