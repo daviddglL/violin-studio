@@ -28,10 +28,10 @@ describe.each([["pending"], ["revoked"]])("adulto en estado %s", (estado) => {
     const res = await recordConsentHandler(deps(), uid, { policyVersion: 1 });
     expect(res).toEqual({ consentStatus: "granted" });
     const c = await consents(uid);
-    expect(Object.keys(c).sort()).toEqual(["privacy_policy_v1_self", "terms_v1_self"]);
-    expect(c.privacy_policy_v1_self).toMatchObject({ type: "privacy_policy", version: 1, grantedBy: "self" });
-    expect(Object.keys(c.terms_v1_self).sort()).toEqual(["grantedBy", "timestamp", "type", "version"]);
-    const ts = c.terms_v1_self.timestamp as Timestamp;
+    expect(Object.keys(c).sort()).toEqual(["privacy_policy_v1_self_e0", "terms_v1_self_e0"]);
+    expect(c.privacy_policy_v1_self_e0).toMatchObject({ type: "privacy_policy", version: 1, grantedBy: "self" });
+    expect(Object.keys(c.terms_v1_self_e0).sort()).toEqual(["grantedBy", "timestamp", "type", "version"]);
+    const ts = c.terms_v1_self_e0.timestamp as Timestamp;
     expect(ts).toBeInstanceOf(Timestamp);
     expect(Math.abs(ts.toMillis() - antes)).toBeLessThan(60_000);
     expect(await perfil(uid)).toMatchObject({ consentStatus: "granted", policyVersion: 1 });
@@ -42,7 +42,7 @@ describe.each([["pending"], ["revoked"]])("adulto en estado %s", (estado) => {
 test("el timestamp lo pone el servidor aunque el cliente mande otro", async () => {
   const uid = await usuario();
   await recordConsentHandler(deps(), uid, { policyVersion: 1, timestamp: "2000-01-01T00:00:00Z" });
-  const ts = (await consents(uid)).terms_v1_self.timestamp as Timestamp;
+  const ts = (await consents(uid)).terms_v1_self_e0.timestamp as Timestamp;
   expect(ts.toDate().getUTCFullYear()).toBeGreaterThanOrEqual(2026);
 });
 
@@ -59,7 +59,7 @@ test("idempotencia: repetir no duplica documentos ni cambia el estado", async ()
 test("llamadas simultáneas convergen: dos documentos y granted", async () => {
   const uid = await usuario();
   await Promise.all([recordConsentHandler(deps(), uid, { policyVersion: 1 }), recordConsentHandler(deps(), uid, { policyVersion: 1 })]);
-  expect(Object.keys(await consents(uid)).sort()).toEqual(["privacy_policy_v1_self", "terms_v1_self"]);
+  expect(Object.keys(await consents(uid)).sort()).toEqual(["privacy_policy_v1_self_e0", "terms_v1_self_e0"]);
   expect((await perfil(uid)).consentStatus).toBe("granted");
 });
 
@@ -69,8 +69,8 @@ test("re-consentimiento: granted v1 con vigente 2 añade consents nuevos y conse
   const antiguos = await consents(uid);
   await recordConsentHandler(deps(2), uid, { policyVersion: 2 });
   const c = await consents(uid);
-  expect(Object.keys(c).sort()).toEqual(["privacy_policy_v1_self", "privacy_policy_v2_self", "terms_v1_self", "terms_v2_self"]);
-  expect(c.privacy_policy_v1_self).toEqual(antiguos.privacy_policy_v1_self);
+  expect(Object.keys(c).sort()).toEqual(["privacy_policy_v1_self_e0", "privacy_policy_v2_self_e0", "terms_v1_self_e0", "terms_v2_self_e0"]);
+  expect(c.privacy_policy_v1_self_e0).toEqual(antiguos.privacy_policy_v1_self_e0);
   expect(await perfil(uid)).toMatchObject({ consentStatus: "granted", policyVersion: 2 });
   expect((await auth.getUser(uid)).customClaims?.consentOk).toBe(true);
 });
@@ -80,7 +80,7 @@ test("R-e: decide el doc, no el claim (claim consentOk=true obsoleto con doc de 
   await auth.setCustomUserClaims(uid, { role: "independent", consentOk: true });
   await recordConsentHandler(deps(2), uid, { policyVersion: 2 });
   expect(await perfil(uid)).toMatchObject({ consentStatus: "granted", policyVersion: 2 });
-  expect(Object.keys(await consents(uid))).toContain("terms_v2_self");
+  expect(Object.keys(await consents(uid))).toContain("terms_v2_self_e0");
 });
 
 test("menor: permission-denied/GUARDIAN_REQUIRED, sin consents y consentOk sigue falso", async () => {
@@ -107,4 +107,37 @@ test("versión antigua: POLICY_OUTDATED sin consent", async () => {
     code: "failed-precondition", details: { reason: "POLICY_OUTDATED", currentVersion: 2 },
   });
   expect(await consents(uid)).toEqual({});
+});
+
+describe("época de concesión (traza append-only tras revocar)", () => {
+  test("reintento dentro de la misma época no duplica ni crea ids nuevos", async () => {
+    const uid = await usuario();
+    await recordConsentHandler(deps(), uid, { policyVersion: 1 });
+    const c1 = await consents(uid);
+    await recordConsentHandler(deps(), uid, { policyVersion: 1 });
+    expect(await consents(uid)).toEqual(c1);
+    expect(Object.keys(c1).sort()).toEqual(["privacy_policy_v1_self_e0", "terms_v1_self_e0"]);
+  });
+
+  test("tras revocar (época 1) volver a consentir la misma versión crea registros _e1 y respeta los _e0", async () => {
+    const uid = await usuario();
+    await recordConsentHandler(deps(), uid, { policyVersion: 1 });
+    const e0 = await consents(uid);
+    // Simula la revocación de 2b: sube la época y deja el estado como no concedido.
+    await db.collection("users").doc(uid).update({ consentStatus: "revoked", consentEpoch: 1 });
+    await recordConsentHandler(deps(), uid, { policyVersion: 1 });
+    const c = await consents(uid);
+    expect(Object.keys(c).sort()).toEqual([
+      "privacy_policy_v1_self_e0", "privacy_policy_v1_self_e1", "terms_v1_self_e0", "terms_v1_self_e1",
+    ]);
+    expect(c.privacy_policy_v1_self_e0).toEqual(e0.privacy_policy_v1_self_e0);
+    expect(c.terms_v1_self_e0).toEqual(e0.terms_v1_self_e0);
+    expect(await perfil(uid)).toMatchObject({ consentStatus: "granted", consentEpoch: 1 });
+  });
+
+  test("simultáneas en la nueva época convergen sin duplicados", async () => {
+    const uid = await usuario({ consentStatus: "revoked", consentEpoch: 1, policyVersion: 1 });
+    await Promise.all([recordConsentHandler(deps(), uid, { policyVersion: 1 }), recordConsentHandler(deps(), uid, { policyVersion: 1 })]);
+    expect(Object.keys(await consents(uid)).sort()).toEqual(["privacy_policy_v1_self_e1", "terms_v1_self_e1"]);
+  });
 });

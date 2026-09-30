@@ -19,7 +19,7 @@ async function granted(version: number, extra: Record<string, unknown> = {}) {
     role: "independent", isMinor: false, consentStatus: "granted", policyVersion: version,
     birthDate: "1990-01-01", displayName: "Ana", ...extra,
   });
-  await db.collection("users").doc(uid).collection("consents").doc(`terms_v${version}_self`).set({ type: "terms", version, grantedBy: "self" });
+  await db.collection("users").doc(uid).collection("consents").doc(`terms_v${version}_self_e0`).set({ type: "terms", version, grantedBy: "self" });
   await auth.setCustomUserClaims(uid, { role: "independent", consentOk: true });
   return uid;
 }

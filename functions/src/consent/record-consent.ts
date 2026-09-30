@@ -6,7 +6,7 @@ import { ErrorReason, fail } from "../common/errors";
 import { requireObject } from "../common/validation";
 import { CURRENT_POLICY_VERSION } from "../config/identity";
 import { syncClaims } from "../identity/claims";
-import { buildConsentDoc, consentDocId, ConsentType } from "./consent-docs";
+import { buildConsentDoc, consentDocId, consentEpochOf, ConsentType } from "./consent-docs";
 
 export interface RecordConsentDeps {
   db: Firestore;
@@ -39,7 +39,7 @@ function parseVersion(data: unknown, current: number): number {
 /**
  * Registra el consentimiento de un adulto. La decisión se toma contra el documento `users/{uid}`
  * (nunca contra el claim). Un menor (o con `isMinor` no booleano: fail-closed) no puede consentir.
- * Idempotente: los ids de consent son deterministas y no se sobrescribe ninguno existente.
+ * Idempotente: los ids de consent son deterministas por época de concesión y no se sobrescribe ninguno existente.
  */
 export async function recordConsentHandler(
   deps: RecordConsentDeps,
@@ -58,7 +58,8 @@ export async function recordConsentHandler(
     if (doc.isMinor !== false) throw fail("permission-denied", ErrorReason.GUARDIAN_REQUIRED);
     if (doc.consentStatus === "granted" && doc.policyVersion === version) return false;
 
-    const refs = ADULT_TYPES.map((type) => consentsRef.doc(consentDocId(type, version, "self")));
+    const epoch = consentEpochOf(doc);
+    const refs = ADULT_TYPES.map((type) => consentsRef.doc(consentDocId(type, version, "self", epoch)));
     const existing = await tx.getAll(...refs);
     ADULT_TYPES.forEach((type, i) => {
       if (!existing[i].exists) tx.create(refs[i], buildConsentDoc(type, version, "self"));

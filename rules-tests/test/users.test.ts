@@ -107,6 +107,15 @@ describe("users/{uid}: update del dueño", () => {
       await assertFails(update({ displayName: "Alicia", ...data }));
     });
 
+    test("deniega escribir consentEpoch (solo Functions), solo o junto a un campo permitido", async () => {
+      await assertFails(update({ consentEpoch: 5 }));
+      await assertFails(update({ consentEpoch: 0, displayName: "Alicia" }));
+      // Con la época ya presente, tampoco se puede borrar ni rebajar.
+      await seed(env, "users/alice", { ...userDoc(), consentEpoch: 2 });
+      await assertFails(update({ consentEpoch: deleteField() }));
+      await assertFails(update({ consentEpoch: 0 }));
+    });
+
     test("deniega escalar a teacher, solo o con campo permitido", async () => {
       await assertFails(update({ role: "teacher" }));
       await assertFails(update({ role: "teacher", displayName: "Alicia" }));
