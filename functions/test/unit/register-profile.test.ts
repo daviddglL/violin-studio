@@ -1,5 +1,5 @@
 import { HttpsError } from "firebase-functions/v2/https";
-import { registerProfileHandler, RegisterProfileDeps } from "../../src/profile/register-profile";
+import { parseRegisterProfileInput, registerProfileHandler, RegisterProfileDeps } from "../../src/profile/register-profile";
 
 // La validación ocurre antes de tocar Firestore/Auth: cualquier acceso a deps prueba que se creó algo.
 const explota = () => {
@@ -43,6 +43,11 @@ describe("campos de perfil inválidos (P3)", () => {
     ["displayName vacío", { displayName: "" }],
     ["displayName de 41 caracteres", { displayName: "a".repeat(41) }],
     ["displayName no texto", { displayName: 5 }],
+    ["displayName solo espacios", { displayName: "   " }],
+    ["displayName solo salto de línea", { displayName: "\n" }],
+    ["displayName con carácter de control", { displayName: "a\u0000b" }],
+    ["displayName con espacio de ancho cero", { displayName: "\u200B" }],
+    ["displayName de 41 puntos de código", { displayName: "😀".repeat(41) }],
     ["instrument fuera de lista", { instrument: "guitar" }],
     ["locale inválido", { locale: "espanol" }],
     ["locale con minúscula en región", { locale: "es-es" }],
@@ -53,5 +58,19 @@ describe("campos de perfil inválidos (P3)", () => {
 
   test("el payload debe ser un objeto", async () => {
     expect((await rechazo("hola")).code).toBe("invalid-argument");
+  });
+});
+
+describe("displayName normalizado", () => {
+  const hoy = new Date("2026-09-30T12:00:00Z");
+  test("se recorta y se guarda sin espacios laterales", () => {
+    expect(parseRegisterProfileInput({ ...valido, displayName: " Ana " }, hoy).displayName).toBe("Ana");
+  });
+  test("40 emoji (puntos de código) se aceptan", () => {
+    const nombre = "😀".repeat(40);
+    expect(parseRegisterProfileInput({ ...valido, displayName: nombre }, hoy).displayName).toBe(nombre);
+  });
+  test("los espacios internos son válidos", () => {
+    expect(parseRegisterProfileInput({ ...valido, displayName: "Ana María" }, hoy).displayName).toBe("Ana María");
   });
 });

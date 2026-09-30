@@ -31,6 +31,21 @@ export interface RegisterProfileInput {
   locale: string;
 }
 
+/** Sin caracteres de control ni de formato (categoría Unicode C: NUL, saltos de línea, U+200B); los espacios normales se permiten. */
+const DISPLAY_NAME_PATTERN = /^[^\p{C}]+$/u;
+
+/** Recorta, exige 1–40 puntos de código (no unidades UTF-16) y rechaza control/formato; devuelve el valor recortado. */
+function requireDisplayName(obj: Record<string, unknown>): string {
+  const raw = obj.displayName;
+  if (typeof raw !== "string") return requireString(obj, "displayName", { min: 1, max: DISPLAY_NAME_MAX });
+  const trimmed = raw.trim();
+  const length = [...trimmed].length;
+  if (length < 1 || length > DISPLAY_NAME_MAX || !DISPLAY_NAME_PATTERN.test(trimmed)) {
+    throw fail("invalid-argument", ErrorReason.INVALID_ARGUMENT, { field: "displayName" });
+  }
+  return trimmed;
+}
+
 /** Valida el payload; ignora cualquier otro campo (p. ej. `role`), que nunca se acepta del cliente. */
 export function parseRegisterProfileInput(data: unknown, today: Date): RegisterProfileInput {
   const obj = requireObject(data);
@@ -38,7 +53,7 @@ export function parseRegisterProfileInput(data: unknown, today: Date): RegisterP
   parseBirthDate(birthDate, today);
   return {
     birthDate,
-    displayName: requireString(obj, "displayName", { min: 1, max: DISPLAY_NAME_MAX }),
+    displayName: requireDisplayName(obj),
     instrument: requireEnum(obj, "instrument", INSTRUMENTS),
     locale: requireString(obj, "locale", { min: 2, max: 5, pattern: LOCALE_PATTERN }),
   };
