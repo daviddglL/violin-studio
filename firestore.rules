@@ -1,7 +1,17 @@
 rules_version = '2';
-// Fase 1: todo cerrado. Cada fase abre solo las colecciones que necesita, con su test.
+// Fase 2: se abre solo lo necesario para identidad; todo lo demás sigue cerrado.
+// Convención: cada colección tiene un `match` explícito, aunque sea deny, para que el test de registro (7a) la detecte.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    match /users/{uid} {
+      // También en parental_pending (pantalla de espera): sin gating por email ni consentimiento.
+      allow get: if isOwner(uid);
+      allow list, create, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
