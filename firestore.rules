@@ -32,6 +32,8 @@ service cloud.firestore {
       // Escritura crítica (R-e): claim al día Y estado real en el doc, no solo el token.
       allow update: if isOwner(uid) && emailVerified() && hasConsent()
         && resource.data.consentStatus == 'granted'
+        // Borrado en curso (design: users.deletion): el claim puede ir desfasado, se mira el doc.
+        && !('deletion' in resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'instrument', 'locale'])
         && validEditable(request.resource.data);
       allow list, create, delete: if false;

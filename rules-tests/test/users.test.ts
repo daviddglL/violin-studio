@@ -1,5 +1,5 @@
 import { assertFails, assertSucceeds, RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
+import { collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { createEnv, OK, seed, userDoc } from "./helpers";
 
 let env: RulesTestEnvironment;
@@ -234,6 +234,13 @@ describe("users/{uid}: gating por email y consentimiento", () => {
   test("doc en granted pero token antiguo sin consentOk: denegado hasta refrescar", async () => {
     await assertFails(update({ instrument: "viola" }, dbWith({ email_verified: true })));
     await assertSucceeds(update({ instrument: "viola" }, dbWith(OK)));
+  });
+});
+
+describe("users/{uid}: borrado en curso", () => {
+  test("deniega editar con deletion en curso aunque el claim esté desfasado con consentOk:true", async () => {
+    await seed(env, "users/alice", userDoc({ deletion: { state: "in_progress", startedAt: new Date("2026-02-01T00:00:00Z") } }));
+    await assertFails(update({ displayName: "Alicia" }));
   });
 });
 
