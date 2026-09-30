@@ -1,1 +1,1 @@
-module.exports = { preset: "ts-jest", testEnvironment: "node", testTimeout: 20000 };
+module.exports = { preset: "ts-jest", testEnvironment: "node", testTimeout: 20000, maxWorkers: 1 };

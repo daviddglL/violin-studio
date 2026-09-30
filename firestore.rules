@@ -1,7 +1,56 @@
 rules_version = '2';
-// Fase 1: todo cerrado. Cada fase abre solo las colecciones que necesita, con su test.
+// Fase 2: se abre solo lo necesario para identidad; todo lo demás sigue cerrado.
+// Convención: cada colección tiene un `match` explícito, aunque sea deny, para que el test de registro (7a) la detecte.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function emailVerified() { return request.auth.token.email_verified == true; }
+    // Lectura de negocio: usa el claim, nunca el cuerpo del cliente.
+    function hasConsent() { return request.auth.token.consentOk == true; }
+
+    // Espeja a registerProfile (functions/src/profile). El servidor es la validación autoritativa:
+    // las reglas cuentan unidades UTF-16 (un emoji cuenta 2) y `matches` no ofrece puntos de código,
+    // así que aquí el límite de 40 es más estricto para caracteres fuera del BMP.
+    // `trim()` de las reglas solo recorta ASCII, y RE2 no soporta \\p{Cn} (sin asignar) ni cubre con \\p{C}
+    // los separadores Unicode. Por eso se usa una lista blanca: letras, marcas, números, puntuación, símbolos y
+    // el espacio ASCII. Rechaza control/formato, sin asignar y NBSP/U+2003/U+2028... en cualquier posición.
+    // registerProfile usa la misma lista blanca: si difieren, un perfil válido para el servidor no podría
+    // editarse después. Única diferencia restante: la longitud (UTF-16 aquí, puntos de código allí).
+    function validDisplayName(n) {
+      return n is string && n == n.trim() && n.size() >= 1 && n.size() <= 40
+        && n.matches('^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S} ]+$');
+    }
+    function validEditable(d) {
+      return validDisplayName(d.displayName)
+        && d.instrument in ['violin', 'viola', 'cello', 'double_bass', 'other']
+        && d.locale is string && d.locale.matches('^[a-z]{2}(-[A-Z]{2})?$');
+    }
+
+    match /users/{uid} {
+      // También en parental_pending (pantalla de espera): sin gating por email ni consentimiento.
+      allow get: if isOwner(uid);
+      // Escritura crítica (R-e): claim al día Y estado real en el doc, no solo el token.
+      allow update: if isOwner(uid) && emailVerified() && hasConsent()
+        && resource.data.consentStatus == 'granted'
+        // Borrado en curso (design: users.deletion): el claim puede ir desfasado, se mira el doc.
+        && !('deletion' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'instrument', 'locale'])
+        && validEditable(request.resource.data);
+      allow list, create, delete: if false;
+
+      // Append-only y solo Functions: el dueño únicamente lee.
+      match /consents/{id} {
+        allow get, list: if isOwner(uid);
+        allow write: if false;
+      }
+    }
+
+    // Colecciones del servidor (solo Admin SDK): deny explícito para que el test de registro las detecte.
+    match /guardianRequests/{id} { allow read, write: if false; }
+    match /guardianEmailLimits/{id} { allow read, write: if false; }
+    match /mail/{id} { allow read, write: if false; }
+
     match /{document=**} {
       allow read, write: if false;
     }
