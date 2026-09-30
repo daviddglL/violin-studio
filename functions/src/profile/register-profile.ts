@@ -1,8 +1,13 @@
 import { Auth } from "firebase-admin/auth";
-import { Firestore } from "firebase-admin/firestore";
-import { requireEnum, requireIsoDate, requireObject, requireString } from "../common/validation";
+import { Firestore, Timestamp } from "firebase-admin/firestore";
+import { logger } from "firebase-functions/v2";
 import { Clock } from "../common/clock";
-import { parseBirthDate } from "../identity/age";
+import { COLLECTIONS } from "../common/collections";
+import { ErrorReason, fail } from "../common/errors";
+import { requireEnum, requireIsoDate, requireObject, requireString } from "../common/validation";
+import { CURRENT_POLICY_VERSION } from "../config/identity";
+import { isMinor, parseBirthDate } from "../identity/age";
+import { syncClaims } from "../identity/claims";
 
 export const INSTRUMENTS = ["violin", "viola", "cello", "double_bass", "other"] as const;
 export type Instrument = (typeof INSTRUMENTS)[number];
@@ -37,7 +42,63 @@ export function parseRegisterProfileInput(data: unknown, today: Date): RegisterP
   };
 }
 
-export async function registerProfileHandler(deps: RegisterProfileDeps, _uid: string, data: unknown): Promise<never> {
-  parseRegisterProfileInput(data, deps.clock());
-  throw new Error("no implementado");
+export interface RegisterProfileResult {
+  isMinor: boolean;
+  consentStatus: string;
+  requiredPolicyVersion: number;
+}
+
+/**
+ * Crea `users/{uid}` de forma idempotente. Si el perfil ya existe (aunque llegue otra `birthDate`)
+ * devuelve el existente sin modificar nada, para que reenviar la petición no permita eludir la edad.
+ * El `role` nunca sale del cliente. Los logs no llevan datos personales.
+ */
+export async function registerProfileHandler(
+  deps: RegisterProfileDeps,
+  uid: string,
+  data: unknown,
+): Promise<RegisterProfileResult> {
+  const now = deps.clock();
+  const input = parseRegisterProfileInput(data, now);
+  const minor = isMinor(parseBirthDate(input.birthDate, now), now);
+  const ref = deps.db.collection(COLLECTIONS.users).doc(uid);
+
+  const { result, created } = await deps.db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) {
+      const d = snap.data() ?? {};
+      return {
+        created: false,
+        result: {
+          isMinor: d.isMinor === true,
+          consentStatus: String(d.consentStatus),
+          requiredPolicyVersion: CURRENT_POLICY_VERSION,
+        },
+      };
+    }
+    if (minor && !deps.guardianFlowEnabled) {
+      throw fail("failed-precondition", ErrorReason.UNDERAGE_NOT_ALLOWED);
+    }
+    const stamp = Timestamp.fromDate(now);
+    tx.create(ref, {
+      displayName: input.displayName,
+      instrument: input.instrument,
+      locale: input.locale,
+      role: "independent",
+      birthDate: input.birthDate,
+      isMinor: minor,
+      consentStatus: "pending",
+      policyVersion: null,
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+    return {
+      created: true,
+      result: { isMinor: minor, consentStatus: "pending", requiredPolicyVersion: CURRENT_POLICY_VERSION },
+    };
+  });
+
+  await syncClaims({ db: deps.db, auth: deps.auth }, uid);
+  logger.info("registerProfile", { created, isMinor: result.isMinor });
+  return result;
 }
