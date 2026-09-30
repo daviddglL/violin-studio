@@ -1,0 +1,6 @@
+{
+  "name": "violin-studio-functions-spike",
+  "private": true,
+  "main": "../lib/erasure/on-user-deleted.js",
+  "engines": { "node": "22" }
+}
