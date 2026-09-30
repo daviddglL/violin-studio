@@ -24,5 +24,21 @@ functions/lib/
 # fastlane
 fastlane/report.xml
 
-# SDD workspace: nunca en git
+# Datos derivados de la IA (agentes, SDD, planes y specs generados): nunca en git
+.claude/
 .superpowers/
+.atl/
+.agent/
+.agents/
+.gemini/
+.cursor/
+.codex/
+.engram/
+.windsurf/
+.aider*
+openspec/
+docs/superpowers/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md

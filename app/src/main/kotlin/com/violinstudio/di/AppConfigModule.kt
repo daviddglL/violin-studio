@@ -1,7 +1,7 @@
 package com.violinstudio.di
 
 import com.violinstudio.BuildConfig
-import com.violinstudio.core.firebase.EmulatorConfig
+import com.violinstudio.data.commons.firebase.EmulatorConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

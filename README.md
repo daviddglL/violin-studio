@@ -31,9 +31,18 @@ y arrancar los emuladores con `--host 0.0.0.0` (o `"host": "0.0.0.0"` en `fireba
 
 ## Arquitectura
 
-Multimódulo (`app`, `core/*`, y `feature/*` desde la fase 3) con MVI: cada pantalla tiene
-`Contract` (State/Intent/Effect), `Reducer` puro, `ViewModel` que extiende `MviViewModel` y
-`Screen` sin estado. Backend en Firebase; la lógica que debe aplicarse en servidor va en
+Clean Architecture en cuatro módulos:
+
+- `app`: `Application`, arranque de Firebase/App Check y configuración por flavor. Ensambla el resto.
+- `ui` (→ `domain`): `MainActivity`, navegación y `feature/<nombre>/{view,viewmodel}`; en `commons/`
+  el tema, componentes compartidos y la base MVI.
+- `domain` (JVM puro): `feature/<nombre>/{model,repository,usecase,failure}`. Los repositorios son
+  interfaces; cada caso de uso es una clase en `usecase/`.
+- `data` (→ `domain`): `feature/<nombre>/{datasource,dto,repository,utils}` con las
+  implementaciones de los repositorios; en `commons/` la DI y la configuración de Firebase.
+
+MVI en `ui`: cada pantalla tiene `Contract` (State/Intent/Effect), `Reducer` puro, `ViewModel` que
+extiende `MviViewModel` y usa casos de uso, y `Screen` sin estado. Backend en Firebase; la lógica que debe aplicarse en servidor va en
 `functions/`.
 
 ## App Check en prod

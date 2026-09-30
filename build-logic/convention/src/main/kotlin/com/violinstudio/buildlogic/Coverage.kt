@@ -16,7 +16,7 @@ private val COVERAGE_EXCLUDES = listOf(
     "**/BuildConfig.*",
     "**/Manifest*.*",
     "**/di/**",
-    "**/remote/firebase/**",
+    "**/datasource/firebase/**",
     "**/*_Factory*.class",
     "**/*_HiltModules*.class",
     "**/*_MembersInjector*.class",
@@ -27,7 +27,7 @@ private val COVERAGE_EXCLUDES = listOf(
 
 /**
  * Registra `coverageVerification` (LINE >= [minimum]) sobre las clases que casan con [classPaths]
- * (patrones de ruta de .class, p. ej. para el paquete com.violinstudio.core.mvi) y la engancha a
+ * (patrones de ruta de .class, p. ej. para el paquete com.violinstudio.ui.commons.mvi) y la engancha a
  * `check`.
  *
  * Falla si no encuentra ninguna clase: JaCoCo aprueba en vacío cuando no hay clases, y eso

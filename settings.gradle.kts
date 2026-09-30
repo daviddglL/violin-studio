@@ -26,9 +26,6 @@ dependencyResolutionManagement {
 rootProject.name = "violin-studio"
 
 include(":app")
-include(":core:core-model")
-include(":core:core-mvi")
-include(":core:core-testing")
-include(":core:core-firebase")
-include(":core:core-data")
-include(":core:core-ui")
+include(":ui")
+include(":data")
+include(":domain")

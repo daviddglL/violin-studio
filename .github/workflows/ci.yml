@@ -36,12 +36,14 @@ jobs:
           mkdir -p app/src/dev app/src/prod
           echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
           echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
-      - run: ./gradlew check coverage assembleDevDebug --continue
+      - run: ./gradlew check coverage assembleDevDebug --continue -Proborazzi.test.verify=true
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: android-reports
-          path: "**/build/reports/"
+          path: |
+            **/build/reports/
+            **/build/outputs/roborazzi/
 
   functions:
     runs-on: ubuntu-latest
