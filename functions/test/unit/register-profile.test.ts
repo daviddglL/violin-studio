@@ -1,0 +1,57 @@
+import { HttpsError } from "firebase-functions/v2/https";
+import { registerProfileHandler, RegisterProfileDeps } from "../../src/profile/register-profile";
+
+// La validación ocurre antes de tocar Firestore/Auth: cualquier acceso a deps prueba que se creó algo.
+const explota = () => {
+  throw new Error("no debe tocar el backend con una entrada inválida");
+};
+const deps: RegisterProfileDeps = {
+  db: { collection: explota, runTransaction: explota } as never,
+  auth: { getUser: explota, setCustomUserClaims: explota } as never,
+  clock: () => new Date("2026-09-30T12:00:00Z"),
+  guardianFlowEnabled: true,
+};
+
+const valido = { birthDate: "1996-05-10", displayName: "Ana", instrument: "violin", locale: "es-ES" };
+
+async function rechazo(data: unknown): Promise<HttpsError> {
+  try {
+    await registerProfileHandler(deps, "u1", data);
+  } catch (e) {
+    return e as HttpsError;
+  }
+  throw new Error("se esperaba un rechazo");
+}
+
+describe("fecha de nacimiento inválida (P2)", () => {
+  test.each([
+    ["futura", "2027-01-01"],
+    ["inexistente", "2023-02-30"],
+    ["implausible", "1800-01-01"],
+    ["mal formada", "10/05/1996"],
+    ["tipo erróneo", 19960510],
+    ["ausente", undefined],
+  ])("%s -> invalid-argument/INVALID_BIRTH_DATE", async (_n, birthDate) => {
+    const e = await rechazo({ ...valido, birthDate });
+    expect(e.code).toBe("invalid-argument");
+    expect(e.details).toMatchObject({ reason: "INVALID_BIRTH_DATE" });
+  });
+});
+
+describe("campos de perfil inválidos (P3)", () => {
+  test.each([
+    ["displayName vacío", { displayName: "" }],
+    ["displayName de 41 caracteres", { displayName: "a".repeat(41) }],
+    ["displayName no texto", { displayName: 5 }],
+    ["instrument fuera de lista", { instrument: "guitar" }],
+    ["locale inválido", { locale: "espanol" }],
+    ["locale con minúscula en región", { locale: "es-es" }],
+  ])("%s -> invalid-argument", async (_n, parche) => {
+    const e = await rechazo({ ...valido, ...parche });
+    expect(e.code).toBe("invalid-argument");
+  });
+
+  test("el payload debe ser un objeto", async () => {
+    expect((await rechazo("hola")).code).toBe("invalid-argument");
+  });
+});
