@@ -58,7 +58,7 @@ jobs:
       - run: npm --prefix functions run build
       - run: npm --prefix functions test
       - run: npm i -g firebase-tools@15.20.0
-      - run: firebase emulators:exec --only functions --project demo-violin-studio "npm --prefix functions run test:integration"
+      - run: firebase emulators:exec --config firebase.test.json --only functions,auth,firestore,storage --project demo-violin-studio "npm --prefix functions run test:integration"
 
   rules:
     runs-on: ubuntu-latest
@@ -96,8 +96,8 @@ jobs:
       - run: npm i -g firebase-tools@15.20.0
       - name: Arrancar el emulador de Functions
         run: |
-          nohup firebase emulators:start --only functions --project violin-app-dev-f0b55 > emulators.log 2>&1 &
-          npx --yes wait-on@9 tcp:127.0.0.1:5001 -t 120000
+          nohup firebase emulators:start --only functions,auth,firestore,storage --project violin-app-dev-f0b55 > emulators.log 2>&1 &
+          npx --yes wait-on@9 tcp:127.0.0.1:5001 tcp:127.0.0.1:9099 tcp:127.0.0.1:8080 tcp:127.0.0.1:9199 -t 120000
       - name: Habilitar KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

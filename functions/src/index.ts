@@ -1,10 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
-import { shouldEnforceAppCheck } from "./appcheck";
+import { callableOptions } from "./config/runtime";
 import { VERSION } from "./version";
 
-export const REGION = "europe-west1";
+export { REGION } from "./config/runtime";
 
-export const health = onCall(
-  { region: REGION, enforceAppCheck: shouldEnforceAppCheck(process.env) },
-  () => ({ status: "ok", version: VERSION }),
-);
+export const health = onCall(callableOptions(), () => ({ status: "ok", version: VERSION }));
