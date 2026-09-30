@@ -48,6 +48,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+javax-inject = { module = "javax.inject:javax.inject", version = "1" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
@@ -74,7 +75,7 @@ androidx-test-runner = { module = "androidx.test:runner", version.ref = "android
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
 # Solo para build-logic
 # ktlintCli pinned to the same version org.jlleitschuh.gradle.ktlint:12.2.0 resolves by default
-# for JVM modules (verified via `:core:core-model:dependencies --configuration ktlint`), so
+# for JVM modules (verified via `:domain:dependencies --configuration ktlint`), so
 # Android modules (linted directly with the CLI; see KtlintCli.kt) enforce identical style rules.
 ktlint-cli = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlintCli" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }

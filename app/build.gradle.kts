@@ -1,10 +1,7 @@
-import com.violinstudio.buildlogic.configureCoverage
-
 plugins {
     alias(libs.plugins.violin.android.application)
     alias(libs.plugins.violin.android.compose)
     alias(libs.plugins.violin.android.hilt)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
 }
@@ -61,22 +58,12 @@ android {
     }
 }
 
-configureCoverage(classPaths = listOf("com/violinstudio/**/*Reducer*.class"), variant = "devDebug")
-
 dependencies {
-    implementation(project(":core:core-mvi"))
-    implementation(project(":core:core-ui"))
-    implementation(project(":core:core-model"))
-    implementation(project(":core:core-data"))
-    implementation(project(":core:core-firebase"))
+    implementation(project(":ui"))
+    implementation(project(":data"))
+    implementation(project(":domain"))
 
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.hilt.navigation.compose)
-    implementation(libs.kotlinx.serialization.json)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
@@ -84,8 +71,6 @@ dependencies {
     implementation(libs.firebase.perf)
     implementation(libs.firebase.appcheck.playintegrity)
     debugImplementation(libs.firebase.appcheck.debug)
-
-    testImplementation(project(":core:core-testing"))
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

@@ -25,7 +25,7 @@ import org.gradle.kotlin.dsl.register
  * the comment. Describe the glob in prose instead of spelling it out literally.
  *
  * Pinned to ktlint-cli 1.0.1: the exact version org.jlleitschuh.gradle.ktlint:12.2.0 resolves by
- * default for JVM modules (confirmed via `./gradlew :core:core-model:dependencies --configuration
+ * default for JVM modules (confirmed via `./gradlew :domain:dependencies --configuration
  * ktlint`), so both linting paths enforce identical rules. `.editorconfig` is honoured
  * automatically -- ktlint walks up from each linted file to find it -- no flag needed.
  */
