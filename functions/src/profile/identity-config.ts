@@ -1,4 +1,5 @@
 import { HttpsError } from "firebase-functions/v2/https";
+import { ReevaluateDeps, reevaluateConsent } from "../consent/reevaluate";
 import {
   CURRENT_POLICY_VERSION,
   DIGITAL_CONSENT_AGE,
@@ -13,11 +14,18 @@ export interface IdentityConfig {
   guardianFlowEnabled: boolean;
 }
 
-/** Política vigente para la UI. Exige sesión pero no email verificado ni consentimiento. */
-export function identityConfigHandler(req: { auth?: unknown }): IdentityConfig {
+/**
+ * Política vigente para la UI. Exige sesión pero no email verificado ni consentimiento.
+ * Antes de responder reevalúa el consentimiento del usuario (D3): si subió la versión, vuelve a `pending`.
+ */
+export async function identityConfigHandler(
+  req: { auth?: { uid: string } },
+  deps: ReevaluateDeps,
+): Promise<IdentityConfig> {
   if (!req.auth) throw new HttpsError("unauthenticated", "Se requiere sesión");
+  await reevaluateConsent(deps, req.auth.uid);
   return {
-    policyVersion: CURRENT_POLICY_VERSION,
+    policyVersion: deps.currentVersion ?? CURRENT_POLICY_VERSION,
     policyUrl: POLICY_URL,
     digitalConsentAge: DIGITAL_CONSENT_AGE,
     guardianFlowEnabled: GUARDIAN_FLOW_ENABLED,

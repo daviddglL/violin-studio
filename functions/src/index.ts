@@ -6,6 +6,7 @@ import { requireVerifiedUser } from "./common/auth-guard";
 import { systemClock } from "./common/clock";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
 import { callableOptions } from "./config/runtime";
+import { recordConsentHandler } from "./consent/record-consent";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
 import { VERSION } from "./version";
@@ -26,4 +27,13 @@ export const registerProfile = onCall(callableOptions(), async (request) => {
   );
 });
 
-export const identityConfig = onCall(callableOptions(), (request) => identityConfigHandler(request));
+export const identityConfig = onCall(callableOptions(), (request) => {
+  const app = admin();
+  return identityConfigHandler(request, { db: getFirestore(app), auth: getAuth(app) });
+});
+
+export const recordConsent = onCall(callableOptions(), async (request) => {
+  const { uid } = requireVerifiedUser(request);
+  const app = admin();
+  return recordConsentHandler({ db: getFirestore(app), auth: getAuth(app) }, uid, request.data);
+});
