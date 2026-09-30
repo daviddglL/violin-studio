@@ -118,3 +118,45 @@ test("recuperación: si la sincronización de claims falla tras crear el perfil,
   expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: 1 });
   expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
 });
+
+describe("límites de edad a nivel de handler (reloj inyectable)", () => {
+  const en = (iso: string) => deps({ clock: () => new Date(iso) });
+
+  test("cumple exactamente 14 hoy -> isMinor=false", async () => {
+    const { uid } = await nuevoUsuario();
+    const res = await registerProfileHandler(en("2026-09-30T00:00:00Z"), uid, payload({ birthDate: "2012-09-30" }));
+    expect(res.isMinor).toBe(false);
+    expect((await leer(uid)).data()!.isMinor).toBe(false);
+  });
+
+  test("le falta un día para cumplir 14 -> isMinor=true", async () => {
+    const { uid } = await nuevoUsuario();
+    const res = await registerProfileHandler(en("2026-09-30T23:59:59Z"), uid, payload({ birthDate: "2012-10-01" }));
+    expect(res.isMinor).toBe(true);
+  });
+
+  test("nacido un 29-feb: el 28-feb del año no bisiesto en que cumple 14 aún es menor", async () => {
+    const { uid } = await nuevoUsuario();
+    const res = await registerProfileHandler(en("2026-02-28T12:00:00Z"), uid, payload({ birthDate: "2012-02-29" }));
+    expect(res.isMinor).toBe(true);
+  });
+
+  test("nacido un 29-feb: el 1-mar del año no bisiesto en que cumple 14 ya es adulto", async () => {
+    const { uid } = await nuevoUsuario();
+    const res = await registerProfileHandler(en("2026-03-01T12:00:00Z"), uid, payload({ birthDate: "2012-02-29" }));
+    expect(res.isMinor).toBe(false);
+  });
+});
+
+test("concurrencia: dos altas paralelas con distinta birthDate crean un único doc y devuelven el mismo perfil", async () => {
+  const { uid } = await nuevoUsuario();
+  const [a, b] = await Promise.all([
+    registerProfileHandler(deps(), uid, payload({ birthDate: "1990-01-01" })),
+    registerProfileHandler(deps(), uid, payload({ birthDate: "2015-01-01" })),
+  ]);
+  expect(a).toEqual(b);
+  const d = (await leer(uid)).data()!;
+  expect(a.isMinor).toBe(d.isMinor);
+  expect(["1990-01-01", "2015-01-01"]).toContain(d.birthDate);
+  expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
+});
