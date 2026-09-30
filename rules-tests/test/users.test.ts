@@ -244,6 +244,27 @@ describe("users/{uid}: borrado en curso", () => {
   });
 });
 
+describe("users/{uid}: subcolecciones desconocidas, collection group y updatedAt", () => {
+  test("el dueño no lee ni escribe una subcolección desconocida", async () => {
+    await seed(env, "users/alice", userDoc());
+    await seed(env, "users/alice/unknownSub/x", { a: 1 });
+    await assertFails(getDoc(doc(ownerDb(), "users/alice/unknownSub/x")));
+    await assertFails(setDoc(doc(ownerDb(), "users/alice/unknownSub/y"), { a: 1 }));
+    await assertFails(getDocs(collection(ownerDb(), "users/alice/unknownSub")));
+  });
+
+  test("collectionGroup('consents') denegado a otro usuario y al dueño", async () => {
+    await seed(env, "users/alice/consents/terms_v1_self", { uid: "alice", version: 1 });
+    await assertFails(getDocs(query(collectionGroup(env.authenticatedContext("bob", OK).firestore(), "consents"), where("uid", "==", "alice"))));
+    await assertFails(getDocs(query(collectionGroup(ownerDb(), "consents"), where("uid", "==", "alice"))));
+  });
+
+  test("updatedAt es del servidor: denegado también con serverTimestamp()", async () => {
+    await seed(env, "users/alice", userDoc());
+    await assertFails(update({ displayName: "Alicia", updatedAt: serverTimestamp() }));
+  });
+});
+
 describe("users/{uid}: diferencia documentada con el servidor", () => {
   test("las reglas cuentan unidades UTF-16: 20 emoji (40 unidades) pasan y 21 no; el servidor cuenta puntos de código", async () => {
     await seed(env, "users/alice", userDoc());
