@@ -98,3 +98,23 @@ test("tras el alta los claims son {role:independent, consentOk:false} (P5)", asy
   await registerProfileHandler(deps(), uid, payload());
   expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
 });
+
+test("recuperación: si la sincronización de claims falla tras crear el perfil, el reintento la completa", async () => {
+  const { uid } = await nuevoUsuario();
+  let fallos = 1;
+  const authFlaky = Object.create(auth, {
+    setCustomUserClaims: {
+      value: (u: string, c: object) => {
+        if (fallos-- > 0) return Promise.reject(new Error("fallo transitorio de Auth"));
+        return auth.setCustomUserClaims(u, c);
+      },
+    },
+  });
+  await expect(registerProfileHandler(deps({ auth: authFlaky }), uid, payload())).rejects.toThrow("fallo transitorio");
+  expect((await leer(uid)).exists).toBe(true);
+  expect((await auth.getUser(uid)).customClaims ?? {}).toEqual({});
+
+  const res = await registerProfileHandler(deps({ auth: authFlaky }), uid, payload());
+  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: 1 });
+  expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
+});
