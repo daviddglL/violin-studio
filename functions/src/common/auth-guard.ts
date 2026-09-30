@@ -18,7 +18,10 @@ export function requireVerifiedUser(req: Pick<CallableRequest, "auth">): Verifie
   return { uid: req.auth.uid, token };
 }
 
-/** Reautenticación reciente: rechaza si han pasado 300 s o más (o si falta `auth_time`). */
+/** Tolerancia de desfase de reloj: un `auth_time` más allá de `now + 60 s` es inválido. */
+export const CLOCK_SKEW_SECONDS = 60;
+
+/** Reautenticación reciente: rechaza si han pasado 300 s o más, si falta `auth_time` o si está en el futuro más allá de la tolerancia. */
 export function requireRecentAuth(
   token: { auth_time?: unknown },
   now: Date,
@@ -28,7 +31,8 @@ export function requireRecentAuth(
   if (typeof authTime !== "number" || !Number.isFinite(authTime)) {
     throw fail("failed-precondition", ErrorReason.REAUTH_REQUIRED);
   }
-  if (now.getTime() / 1000 - authTime >= maxAgeSeconds) {
+  const ageSeconds = now.getTime() / 1000 - authTime;
+  if (ageSeconds >= maxAgeSeconds || ageSeconds < -CLOCK_SKEW_SECONDS) {
     throw fail("failed-precondition", ErrorReason.REAUTH_REQUIRED);
   }
 }

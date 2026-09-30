@@ -1,5 +1,5 @@
 import { HttpsError } from "firebase-functions/v2/https";
-import { requireRecentAuth, requireVerifiedUser } from "../../src/common/auth-guard";
+import { CLOCK_SKEW_SECONDS, requireRecentAuth, requireVerifiedUser } from "../../src/common/auth-guard";
 
 function fallo(fn: () => unknown): HttpsError {
   try {
@@ -52,7 +52,13 @@ describe("requireRecentAuth", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(fallo(() => requireRecentAuth({ auth_time: "1" } as any, now)).code).toBe("failed-precondition");
   });
-  test("auth_time en el futuro (reloj desfasado) se acepta", () => {
+  test("auth_time en el futuro dentro de la tolerancia (reloj desfasado) se acepta", () => {
     expect(() => requireRecentAuth({ auth_time: nowSec + 5 }, now)).not.toThrow();
+    expect(() => requireRecentAuth({ auth_time: nowSec + CLOCK_SKEW_SECONDS }, now)).not.toThrow();
+  });
+  test("auth_time en el futuro más allá de la tolerancia rechaza", () => {
+    const err = fallo(() => requireRecentAuth({ auth_time: nowSec + CLOCK_SKEW_SECONDS + 1 }, now));
+    expect(err.code).toBe("failed-precondition");
+    expect((err.details as { reason: string }).reason).toBe("REAUTH_REQUIRED");
   });
 });
