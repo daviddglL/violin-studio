@@ -8,3 +8,5 @@ export const health = onCall(
   { region: REGION, enforceAppCheck: shouldEnforceAppCheck(process.env) },
   () => ({ status: "ok", version: VERSION }),
 );
+
+export { onUserDeleted } from "./erasure/on-user-deleted";
