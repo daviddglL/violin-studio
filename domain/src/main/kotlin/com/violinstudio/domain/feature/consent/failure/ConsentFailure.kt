@@ -11,6 +11,9 @@ sealed class ConsentFailure(message: String, cause: Throwable? = null) : Excepti
     data object NoActiveConsent : ConsentFailure("No hay consentimiento activo")
     data object AlreadyGranted : ConsentFailure("Consentimiento ya concedido")
     data object EmailNotVerified : ConsentFailure("Email sin verificar")
+
+    /** `INVALID_ARGUMENT` del servidor; [field] viene de `details.field` (p. ej. `policyVersion`, `guardianEmail`). */
+    class InvalidArgument(val field: String?) : ConsentFailure("Argumento inválido")
     data object Network : ConsentFailure("Sin conexión")
     class Unknown(cause: Throwable? = null) : ConsentFailure("Error de consentimiento desconocido", cause)
 }

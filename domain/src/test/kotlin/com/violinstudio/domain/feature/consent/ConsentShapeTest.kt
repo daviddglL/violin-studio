@@ -18,6 +18,7 @@ class ConsentShapeTest {
         ConsentFailure.NoActiveConsent -> "no-consent"
         ConsentFailure.AlreadyGranted -> "granted"
         ConsentFailure.EmailNotVerified -> "unverified"
+        is ConsentFailure.InvalidArgument -> "invalid-argument"
         ConsentFailure.Network -> "network"
         is ConsentFailure.Unknown -> "unknown"
     }
@@ -42,6 +43,8 @@ class ConsentShapeTest {
         assertEquals(90L, ConsentFailure.RateLimited(retryAfterSeconds = 90).retryAfterSeconds)
         assertEquals("rate", label(ConsentFailure.RateLimited(null)))
         assertEquals("guardian", label(ConsentFailure.GuardianRequired))
+        assertEquals("policyVersion", ConsentFailure.InvalidArgument(field = "policyVersion").field)
+        assertEquals("invalid-argument", label(ConsentFailure.InvalidArgument(null)))
     }
 
     @Test
