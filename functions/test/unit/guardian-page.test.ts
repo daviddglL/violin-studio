@@ -1,3 +1,5 @@
+import vm from "node:vm";
+import { generateToken } from "../../src/guardian/token";
 import { makeNonce, renderDonePage, renderInvalidPage, renderValidPage, securityHeaders } from "../../src/guardian/page";
 
 const input = (over: Partial<Parameters<typeof renderValidPage>[0]> = {}) => ({
@@ -57,11 +59,12 @@ describe("securityHeaders", () => {
   test("CSP con nonce y resto de cabeceras, sin cookies", () => {
     const h = securityHeaders("NONCE1");
     expect(h["Content-Security-Policy"]).toBe(
-      "default-src 'none'; script-src 'nonce-NONCE1'; style-src 'unsafe-inline'; form-action 'self'",
+      "default-src 'none'; script-src 'nonce-NONCE1'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
     );
     expect(h["Cache-Control"]).toBe("no-store");
     expect(h["Referrer-Policy"]).toBe("no-referrer");
     expect(h["X-Frame-Options"]).toBe("DENY");
+    expect(h["X-Content-Type-Options"]).toBe("nosniff");
     expect(h["Content-Type"]).toBe("text/html; charset=utf-8");
     expect(Object.keys(h).map((k) => k.toLowerCase())).not.toContain("set-cookie");
   });
@@ -71,4 +74,39 @@ test("makeNonce: base64url de 16 bytes y distinto cada vez", () => {
   const n = makeNonce();
   expect(n).toMatch(/^[\w-]{22}$/);
   expect(makeNonce()).not.toBe(n);
+});
+
+describe("script inline (ejecutado de verdad)", () => {
+  const run = (hash: string) => {
+    const script = renderValidPage(input()).match(/<script nonce="NONCE1">([\s\S]*?)<\/script>/)![1];
+    const field = { value: "" };
+    const replaced: unknown[][] = [];
+    vm.runInNewContext(script, {
+      location: { hash, pathname: "/tutor", search: "?r=req123" },
+      document: { getElementById: (id: string) => (id === "t" ? field : null) },
+      history: { replaceState: (...a: unknown[]) => void replaced.push(a) },
+    });
+    return { field, replaced };
+  };
+
+  test("copia el token completo del fragmento y limpia la URL", () => {
+    const t = generateToken();
+    const { field, replaced } = run(`#t=${t}`);
+    expect(field.value).toBe(t);
+    expect(replaced).toEqual([[null, "", "/tutor?r=req123"]]);
+  });
+
+  test("con otros parámetros en el fragmento (#a=reject&t=...) también", () => {
+    const t = generateToken();
+    expect(run(`#a=reject&t=${t}&x=1`).field.value).toBe(t);
+  });
+
+  test("sin token en el fragmento deja el campo vacío", () => {
+    expect(run("").field.value).toBe("");
+  });
+});
+
+test("policyUrl debe ser https (error de configuración si no)", () => {
+  expect(() => renderValidPage(input({ policyUrl: "http://x.app/p" }))).toThrow(/https/);
+  expect(() => renderValidPage(input({ policyUrl: "javascript:alert(1)" }))).toThrow(/https/);
 });

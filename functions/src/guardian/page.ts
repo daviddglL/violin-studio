@@ -19,7 +19,8 @@ export function securityHeaders(nonce: string): Record<string, string> {
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer",
     "X-Frame-Options": "DENY",
-    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; form-action 'self'`,
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
   };
 }
 
@@ -46,12 +47,13 @@ const TEXT = {
   },
 };
 
-/** El token va en el fragmento (`#t=`), que el navegador nunca envía: el script lo copia al campo oculto y limpia la URL. */
+/** El script va en una plantilla JS: sin barras invertidas (`\w` se convertiría en `w`); por eso clase explícita. El token va en el fragmento (`#t=`), que el navegador nunca envía: el script lo copia al campo oculto y limpia la URL. */
 export function renderValidPage(i: ValidPageInput): string {
+  if (!i.policyUrl.startsWith("https://")) throw new Error("policyUrl debe empezar por https://");
   const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
   const t = TEXT[lang];
   const script =
-    `var m=/(?:^#|&)t=([\w-]+)/.exec(location.hash);if(m){document.getElementById("t").value=m[1]}` +
+    `var m=/(?:^#|&)t=([A-Za-z0-9_-]+)/.exec(location.hash);if(m){document.getElementById("t").value=m[1]}` +
     `history.replaceState(null,"",location.pathname+location.search);`;
   return shell(
     lang,
