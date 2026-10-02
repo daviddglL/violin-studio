@@ -10,6 +10,7 @@ import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
 import { callableOptions, REGION } from "./config/runtime";
 import { recordConsentHandler } from "./consent/record-consent";
 import { revokeConsentCore } from "./consent/revoke-consent";
+import { resolveBucketName } from "./erasure/bucket";
 import { deleteAccountHandler } from "./erasure/delete-account";
 import { eraseUserData } from "./erasure/erase-user-data";
 import { onUserDeletedHandler } from "./erasure/on-user-deleted";
@@ -23,7 +24,7 @@ const admin = () => getApps()[0] ?? initializeApp();
 
 const erasureDeps = () => {
   const app = admin();
-  return { db: getFirestore(app), auth: getAuth(app), bucket: getStorage(app).bucket() };
+  return { db: getFirestore(app), auth: getAuth(app), bucket: getStorage(app).bucket(resolveBucketName(app.options)) };
 };
 
 export const health = onCall(callableOptions(), () => ({ status: "ok", version: VERSION }));
@@ -55,7 +56,7 @@ export const revokeConsent = onCall(callableOptions(), async (request) => {
   return revokeConsentCore({ db: getFirestore(app), auth: getAuth(app) }, uid, "self");
 });
 
-export const deleteAccount = onCall(callableOptions(), (request) =>
+export const deleteAccount = onCall({ ...callableOptions(), timeoutSeconds: 300 }, (request) =>
   deleteAccountHandler({ erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, request),
 );
 

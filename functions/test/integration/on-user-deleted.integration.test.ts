@@ -6,7 +6,7 @@ import { COLLECTIONS } from "../../src/common/collections";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
 import { onUserDeletedHandler } from "../../src/erasure/on-user-deleted";
 
-// Spike 1a.1: el emulador de Auth dispara onDelete (v1); el trigger real se carga desde la codebase default (lib/).
+// El emulador de Auth dispara onDelete (v1); el trigger se carga desde la codebase default (lib/).
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
 const auth = getAuth(app);

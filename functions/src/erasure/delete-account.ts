@@ -13,6 +13,9 @@ export interface DeleteAccountDeps {
 }
 
 /**
+ * Si la cascada falla, la cuenta queda deshabilitada y con sesiones revocadas, así que el usuario no puede
+ * reintentar: es intencionado; la purga 7b.3 reanuda los borrados atascados con `deleteAuth:true`.
+ *
  * Borrado de cuenta iniciado por el usuario. Solo exige sesión y reautenticación reciente (D1): no
  * `email_verified` ni consentimiento, para que cualquier estado pueda borrar su cuenta.
  */
