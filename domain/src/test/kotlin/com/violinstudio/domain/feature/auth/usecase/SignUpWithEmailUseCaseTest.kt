@@ -30,7 +30,7 @@ class SignUpWithEmailUseCaseTest {
         val result = SignUpWithEmailUseCase(auth)("a@b.com", "secret123")
         assertEquals(AuthFailure.EmailAlreadyInUse, result.exceptionOrNull())
         assertEquals(listOf("signUpWithEmail:a@b.com"), auth.calls)
-        assertEquals(null, auth.user.value)
+        assertEquals(null, auth.user)
     }
 
     @Test

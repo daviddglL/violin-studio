@@ -8,6 +8,9 @@ sealed interface SessionState {
     /** Resolviendo la sesión (arranque, o borrado de cuenta en curso). */
     data object Loading : SessionState
 
+    /** No se pudo obtener la configuración o el perfil (sin red...); se reintenta solo con espera exponencial. */
+    data object Unavailable : SessionState
+
     data object LoggedOut : SessionState
 
     data class EmailUnverified(val email: String?) : SessionState {

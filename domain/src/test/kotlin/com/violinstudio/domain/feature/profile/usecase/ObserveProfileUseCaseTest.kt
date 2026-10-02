@@ -24,12 +24,12 @@ class ObserveProfileUseCaseTest {
 
     @Test
     fun `con sesion observa el perfil del uid y reemite sus cambios`() = runTest {
-        auth.user.value = verifiedUser
+        auth.user = verifiedUser
         ObserveProfileUseCase(auth, repo)().test {
             assertEquals(null, awaitItem())
             repo.profile.value = userProfile()
             assertEquals(userProfile(), awaitItem())
-            auth.user.value = null
+            auth.user = null
             assertEquals(null, awaitItem())
         }
         assertEquals(listOf("observe:u1"), repo.calls)

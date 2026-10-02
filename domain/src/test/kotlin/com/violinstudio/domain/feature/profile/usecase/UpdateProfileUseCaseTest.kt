@@ -18,7 +18,7 @@ class UpdateProfileUseCaseTest {
 
     @Test
     fun `actualiza el perfil del usuario con sesion`() = runTest {
-        auth.user.value = verifiedUser
+        auth.user = verifiedUser
         assertEquals(Result.success(Unit), useCase(edit))
         assertEquals(listOf("update:u1"), repo.calls)
         assertEquals(edit, repo.lastUpdate)
@@ -32,7 +32,7 @@ class UpdateProfileUseCaseTest {
 
     @Test
     fun `propaga el fallo del repositorio`() = runTest {
-        auth.user.value = verifiedUser
+        auth.user = verifiedUser
         repo.updateResult = Result.failure(ProfileFailure.Network)
         assertEquals(ProfileFailure.Network, useCase(edit).exceptionOrNull())
     }

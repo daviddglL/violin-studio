@@ -1,5 +1,6 @@
 package com.violinstudio.domain.feature.session.usecase
 
+import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.auth.model.AuthUser
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
@@ -27,7 +28,8 @@ class ObserveSessionStateUseCase @Inject constructor(
     private val auth: AuthRepository,
     private val profile: ProfileRepository,
     private val consent: ConsentRepository,
-    private val resolver: SessionStateResolver
+    private val resolver: SessionStateResolver,
+    private val backoff: RetryBackoff
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(): Flow<SessionState> = auth.authUser
