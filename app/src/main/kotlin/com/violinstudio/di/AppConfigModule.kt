@@ -22,6 +22,7 @@ object AppConfigModule {
      * trae un cliente OAuth web. Se busca por nombre en tiempo de ejecución: si falta (build de CI o proyecto sin
      * Google habilitado) no rompe la compilación; el botón de Google queda como proveedor no disponible.
      */
+    @Suppress("DiscouragedApi") // El recurso puede no existir en el build; `R.string` no compilaría sin él.
     @Provides
     fun provideGoogleSignInConfig(@ApplicationContext context: Context): GoogleSignInConfig {
         val id = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)

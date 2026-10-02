@@ -30,6 +30,14 @@ data class GoogleIdRequestSpec(
     val autoSelectEnabled: Boolean
 )
 
+/**
+ * Diagnóstico de fallos de Google. Solo recibe un motivo sin datos personales: el nombre de la clase de la excepción,
+ * nunca su mensaje (puede llevar el email o el token).
+ */
+fun interface GoogleSignInDiagnostics {
+    fun report(reason: String)
+}
+
 /** Costura fina sobre Credential Manager: devuelve el ID token de Google o lanza la excepción de Credential Manager. */
 fun interface GoogleCredentialSource {
     suspend fun fetch(context: Context, spec: GoogleIdRequestSpec): String
@@ -66,11 +74,15 @@ object GoogleIdOptionFactory {
 
 class CredentialManagerGoogleIdTokenRequester(
     private val config: GoogleSignInConfig,
-    private val source: GoogleCredentialSource = CredentialManagerSource
+    private val source: GoogleCredentialSource = CredentialManagerSource,
+    private val diagnostics: GoogleSignInDiagnostics = GoogleSignInDiagnostics {}
 ) : GoogleIdTokenRequester {
     override suspend fun request(context: Context): GoogleIdTokenResult {
         val serverClientId = config.serverClientId?.takeIf { it.isNotBlank() }
-            ?: return GoogleIdTokenResult.ProviderUnavailable
+        if (serverClientId == null) {
+            diagnostics.report("serverClientId missing")
+            return GoogleIdTokenResult.ProviderUnavailable
+        }
         return try {
             val rawNonce = GoogleIdOptionFactory.newNonce()
             val spec = GoogleIdOptionFactory.create(serverClientId, rawNonce)
@@ -84,8 +96,9 @@ class CredentialManagerGoogleIdTokenRequester(
             throw e
         } catch (_: GetCredentialCancellationException) {
             GoogleIdTokenResult.Cancelled
-        } catch (_: Throwable) {
-            // NoCredential, proveedor no disponible, interrupciones y desconocidos: sin causa (puede llevar datos).
+        } catch (e: Throwable) {
+            // NoCredential, interrupciones y desconocidos: el usuario ve lo mismo; el diagnóstico solo lleva la clase.
+            diagnostics.report(e.javaClass.simpleName)
             GoogleIdTokenResult.ProviderUnavailable
         }
     }

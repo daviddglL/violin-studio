@@ -1,8 +1,11 @@
 package com.violinstudio.di
 
+import android.util.Log
+import com.violinstudio.BuildConfig
 import com.violinstudio.ui.commons.auth.CredentialManagerGoogleIdTokenRequester
 import com.violinstudio.ui.commons.auth.GoogleIdTokenRequester
 import com.violinstudio.ui.commons.auth.GoogleSignInConfig
+import com.violinstudio.ui.commons.auth.GoogleSignInDiagnostics
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -12,7 +15,18 @@ import dagger.hilt.components.SingletonComponent
 @Module
 @InstallIn(SingletonComponent::class)
 object GoogleSignInModule {
+    private const val TAG = "GoogleSignIn"
+
+    /** Solo en debug y solo el motivo (clase de la excepción): nunca mensajes, tokens ni emails. */
     @Provides
-    fun provideGoogleIdTokenRequester(config: GoogleSignInConfig): GoogleIdTokenRequester =
-        CredentialManagerGoogleIdTokenRequester(config)
+    fun provideGoogleSignInDiagnostics(): GoogleSignInDiagnostics = GoogleSignInDiagnostics { reason ->
+        if (BuildConfig.DEBUG) Log.w(TAG, "Google sign-in unavailable: $reason")
+    }
+
+    @Provides
+    fun provideGoogleIdTokenRequester(
+        config: GoogleSignInConfig,
+        diagnostics: GoogleSignInDiagnostics
+    ): GoogleIdTokenRequester =
+        CredentialManagerGoogleIdTokenRequester(config, diagnostics = diagnostics)
 }

@@ -2,6 +2,7 @@ package com.violinstudio.ui.commons.auth
 
 import android.content.Context
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialInterruptedException
 import androidx.credentials.exceptions.GetCredentialUnknownException
 import androidx.credentials.exceptions.NoCredentialException
 import io.mockk.mockk
@@ -94,6 +95,39 @@ class CredentialManagerGoogleIdTokenRequesterTest {
                 assertTrue(source.options.isEmpty())
             }
         }
+
+    @Test
+    fun `failures are reported by exception class name only, never by message`() = runTest {
+        val reports = mutableListOf<String>()
+        val diagnostics = GoogleSignInDiagnostics { reports += it }
+        val failures = listOf<Throwable>(
+            NoCredentialException("ana@example.test token-abc"),
+            GetCredentialInterruptedException("secret-msg"),
+            IllegalStateException("another secret")
+        )
+        for (failure in failures) {
+            val source = RecordingSource { throw failure }
+            CredentialManagerGoogleIdTokenRequester(GoogleSignInConfig("id"), source, diagnostics).request(context)
+        }
+        assertEquals(
+            listOf("NoCredentialException", "GetCredentialInterruptedException", "IllegalStateException"),
+            reports
+        )
+    }
+
+    @Test
+    fun `a missing client id is reported once without reaching Credential Manager`() = runTest {
+        val reports = mutableListOf<String>()
+        val source = RecordingSource { "jwt" }
+        val requester = CredentialManagerGoogleIdTokenRequester(
+            GoogleSignInConfig(null),
+            source,
+            GoogleSignInDiagnostics { reports += it }
+        )
+        requester.request(context)
+        assertEquals(listOf("serverClientId missing"), reports)
+        assertTrue(source.options.isEmpty())
+    }
 
     @Test
     fun `coroutine cancellation is never swallowed`() = runTest {
