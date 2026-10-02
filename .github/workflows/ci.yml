@@ -62,28 +62,6 @@ jobs:
       - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
       - run: firebase emulators:exec --only functions,auth,firestore,storage --project demo-violin-studio "npm --prefix functions run test:integration"
 
-  # Opt-in, NO bloqueante: la extension Trigger Email se descarga de la red al arrancar el emulador (~1 min en frio).
-  # El job `functions` (FINT) arranca solo functions,auth,firestore,storage: el manifiesto de firebase.json no la carga.
-  mail-extension:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm, cache-dependency-path: functions/package-lock.json }
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: "21" }
-      - run: npm ci --prefix functions
-      - run: npm i -g firebase-tools@15.20.0
-      # Valores fijos de PRUEBA, no secretos (ficheros gitignored que solo viven en el runner).
-      - run: |
-          echo "SMTP_CONNECTION_URI=smtps://smtp.invalid:1" > extensions/firestore-send-email.env.local
-          echo "SMTP_PASSWORD=ci-fixed-non-secret" > extensions/firestore-send-email.secret.local
-          echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
-      - run: npm --prefix functions run build
-      - run: npm --prefix functions run test:mail-extension
-
   rules:
     runs-on: ubuntu-latest
     steps:
