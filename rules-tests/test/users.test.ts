@@ -246,6 +246,24 @@ describe("users/{uid}: gating por email y consentimiento", () => {
   });
 });
 
+describe("users/{uid}: menor confirmado por el tutor (3b.15)", () => {
+  const minor = { isMinor: true, consentStatus: "granted", policyVersion: 1, guardian: { emailMasked: "t***@e***.com", requestId: "r1" } };
+  const dbWith = (claims: Record<string, unknown>) => env.authenticatedContext("alice", claims).firestore();
+  beforeEach(async () => {
+    await seed(env, "users/alice", userDoc(minor));
+  });
+
+  test("con el claim refrescado puede editar; con el token antiguo (consentOk falso) no", async () => {
+    await assertSucceeds(update({ displayName: "Alicia" }, dbWith(OK)));
+    await assertFails(update({ displayName: "Alicia" }, dbWith({ email_verified: true, consentOk: false })));
+  });
+
+  test("no puede tocar los campos del flujo del tutor ni su estado", async () => {
+    await assertFails(update({ consentStatus: "pending" }, dbWith(OK)));
+    await assertFails(update({ guardian: { emailMasked: "x" } }, dbWith(OK)));
+  });
+});
+
 describe("users/{uid}: borrado en curso", () => {
   test("deniega editar con deletion en curso aunque el claim esté desfasado con consentOk:true", async () => {
     await seed(env, "users/alice", userDoc({ deletion: { state: "in_progress", startedAt: new Date("2026-02-01T00:00:00Z") } }));
