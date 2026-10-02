@@ -14,7 +14,7 @@ describe("fail", () => {
   test("el enum de razones es estable", () => {
     expect(Object.values(ErrorReason).sort()).toEqual(
       [
-        "EMAIL_NOT_VERIFIED", "INVALID_BIRTH_DATE", "UNDERAGE_NOT_ALLOWED", "NO_PROFILE", "GUARDIAN_REQUIRED",
+        "EMAIL_NOT_VERIFIED", "INVALID_BIRTH_DATE", "UNDERAGE_NOT_ALLOWED", "NO_PROFILE", "NO_ACTIVE_CONSENT", "GUARDIAN_REQUIRED",
         "POLICY_OUTDATED", "NOT_MINOR", "GUARDIAN_EMAIL_INVALID", "RATE_LIMITED", "REAUTH_REQUIRED",
         "ERASURE_FAILED", "INVALID_ARGUMENT",
       ].sort(),

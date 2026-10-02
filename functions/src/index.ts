@@ -7,6 +7,7 @@ import { systemClock } from "./common/clock";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
 import { callableOptions } from "./config/runtime";
 import { recordConsentHandler } from "./consent/record-consent";
+import { revokeConsentCore } from "./consent/revoke-consent";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
 import { VERSION } from "./version";
@@ -36,4 +37,10 @@ export const recordConsent = onCall(callableOptions(), async (request) => {
   const { uid } = requireVerifiedUser(request);
   const app = admin();
   return recordConsentHandler({ db: getFirestore(app), auth: getAuth(app) }, uid, request.data);
+});
+
+export const revokeConsent = onCall(callableOptions(), async (request) => {
+  const { uid } = requireVerifiedUser(request);
+  const app = admin();
+  return revokeConsentCore({ db: getFirestore(app), auth: getAuth(app) }, uid, "self");
 });
