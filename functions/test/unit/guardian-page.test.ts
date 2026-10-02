@@ -1,6 +1,6 @@
 import vm from "node:vm";
 import { generateToken } from "../../src/guardian/token";
-import { makeNonce, renderDonePage, renderRejectConfirmPage, renderInvalidPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "../../src/guardian/page";
+import { makeNonce, renderDonePage, renderRejectConfirmPage, renderInvalidPage, renderRetryPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "../../src/guardian/page";
 
 const input = (over: Partial<Parameters<typeof renderValidPage>[0]> = {}) => ({
   requestId: "req123",
@@ -165,5 +165,29 @@ describe("renderRevokePage (revocación del tutor)", () => {
     expect(done).toBe(renderRevokedPage());
     expect(done).not.toContain("<script");
     expect(done).not.toMatch(/Ana|req123/);
+  });
+});
+
+describe("variantes de las páginas finales (W2, W3, transitorio)", () => {
+  test("renderDonePage: con enlace de revocación (por defecto) no avisa; sin él dice que NO se recibió y cómo revocar", () => {
+    expect(renderDonePage()).toBe(renderDonePage(true));
+    expect(renderDonePage()).not.toMatch(/revoc/i);
+    const sin = renderDonePage(false);
+    expect(sin).not.toBe(renderDonePage());
+    expect(sin).toContain("Gracias");
+    expect(sin).toMatch(/no has recibido/i);
+    expect(sin).toMatch(/you did not receive/i);
+    expect(sin).toMatch(/app/);
+    expect(sin).not.toContain("<script");
+  });
+  test("renderRetryPage es estática y pide reintentar", () => {
+    expect(renderRetryPage()).toBe(renderRetryPage());
+    expect(renderRetryPage()).toMatch(/de nuevo/i);
+    expect(renderRetryPage()).toMatch(/try again/i);
+    expect(renderRetryPage()).not.toBe(renderInvalidPage());
+  });
+  test("la página genérica sigue siendo estática y añade la alternativa (el menor puede revocar desde la app) sin revelar nada del enlace", () => {
+    expect(renderInvalidPage()).toMatch(/app/);
+    expect(renderInvalidPage()).not.toMatch(/Ana|req123/);
   });
 });

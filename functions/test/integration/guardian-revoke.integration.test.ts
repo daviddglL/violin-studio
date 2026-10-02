@@ -1,13 +1,21 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { renderInvalidPage, renderRevokedPage } from "../../src/guardian/page";
+import { renderDonePage, renderInvalidPage, renderRetryPage, renderRevokedPage } from "../../src/guardian/page";
+import { revokeConsentCore } from "../../src/consent/revoke-consent";
+import { guardianConsentHandler } from "../../src/guardian/confirm";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
 import { deleteAccountHandler } from "../../src/erasure/delete-account";
 import { requestGuardianConsentHandler } from "../../src/guardian/request";
 import { hashToken } from "../../src/guardian/token";
-import { auth, authExists, bucket, db, erased, get, PEPPER, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
+import { auth, authExists, bucket, db, deps, erased, get, PEPPER, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
 
 const DAY = 24 * 3600_000;
-beforeEach(() => { resetState(); erased.length = 0; });
+const revTokens: string[] = [];
+beforeEach(() => { resetState(); erased.length = 0; revTokens.length = 0; });
+// Item 7: el token de revocación en claro (y el de aceptación) no aparece jamás en los logs capturados, pase lo que pase.
+afterEach(() => {
+  const logs = JSON.stringify(state.logs);
+  for (const t of revTokens) expect(logs).not.toContain(t);
+});
 
 const accept = (s: { r: string; t: string }) => post({ r: s.r, t: s.t, action: "accept", declaration: "on" });
 const mails = async (uid: string, kind: string) => (await db.collection("mail").where("uid", "==", uid).where("kind", "==", kind).get()).docs;
@@ -17,6 +25,7 @@ async function accepted() {
   expect((await accept(s)).status).toBe(200);
   const [m] = await mails(s.uid, "guardian_revoke");
   const [, , rev] = m.data().message.text.match(/\/tutor\?r=(\S+)#t=([\w-]+)&a=revoke/)!;
+  revTokens.push(rev as string, s.t);
   return { ...s, rev: rev as string, mail: m };
 }
 
@@ -194,7 +203,7 @@ describe("3c.5 POST revoke", () => {
     for (const x of [pendiente, a, b]) expect((await perfil(x.uid)).consentStatus).not.toBe("revoked");
   });
 
-  test("caducado, ya revocado por el menor, estado no granted, deletion o solicitud nueva del menor -> genérico sin escribir ni contar", async () => {
+  test("caducado, ya revocado por el menor, estado no granted, deletion o solicitud nueva del menor -> genérico sin escribir (con token correcto no se cuenta ni un intento)", async () => {
     const casos: Array<(s: Awaited<ReturnType<typeof accepted>>) => Promise<void>> = [
       async () => { state.now = new Date(state.now.getTime() + 30 * DAY); },
       async (s) => void (await db.collection("users").doc(s.uid).update({ consentStatus: "revoked" })),
@@ -291,5 +300,96 @@ describe("3c.7 borrado interno", () => {
     expect((await db.collection("mail").where("uid", "==", s.uid).get()).size).toBe(0);
     expect((await db.collection("guardianRequests").doc(otro.r).get()).exists).toBe(true);
     expect((await mails(otro.uid, "guardian_revoke"))).toHaveLength(1);
+  });
+});
+
+const withRevoke = (revokeFn: unknown, body: Record<string, unknown>) =>
+  guardianConsentHandler({ ...deps(), revokeCore: revokeFn as never }, { method: "POST", query: {}, body });
+const unavailable = () => Object.assign(new Error("ruta con uid"), { code: "unavailable" });
+const askAgain = async (uid: string) =>
+  requestGuardianConsentHandler(
+    { db, pepper: PEPPER, linkBaseUrl: "https://x.app", guardianFlowEnabled: true, clock: () => state.now, log: () => undefined },
+    uid, (await auth.getUser(uid)).email, { guardianEmail: `n${Date.now()}${Math.random()}@example.com` },
+  );
+
+describe("revisión 3c-bis", () => {
+  test("W1: entre la verificación del enlace A y el núcleo el menor pasa a la solicitud B -> el consentimiento de B queda intacto y la página es genérica", async () => {
+    const a = await accepted();
+    const interleaved = async (d: Parameters<typeof revokeConsentCore>[0], uid: string, by: "self" | "guardian", opts?: { expectGuardianRequestId?: string }) => {
+      // El menor revoca, pide a otro tutor y B acepta, justo antes de que corra el núcleo del enlace A.
+      await revokeConsentCore(d, uid, "self");
+      await askAgain(uid);
+      const p = await perfil(uid);
+      const [, r2, t2] = (await mails(uid, "guardian_consent")).map((m) => m.data()).find((m) => m.message.text.includes(p.guardian.requestId))!.message.text.match(/\/tutor\?r=(\S+)#t=([\w-]+)/)!;
+      expect((await post({ r: r2, t: t2, action: "accept", declaration: "on" })).status).toBe(200);
+      return revokeConsentCore(d, uid, by, opts);
+    };
+    const res = await withRevoke(interleaved, { r: a.r, t: a.rev, action: "revoke" });
+    expect([res.status, res.body]).toEqual([404, INVALID]);
+    const p = await perfil(a.uid);
+    expect([p.consentStatus, p.consentEpoch]).toEqual(["granted", 1]); // solo la revocación del menor; la de B no se tocó
+    expect((await consents(a.uid)).filter((c) => c.startsWith("revocation"))).toEqual(["revocation_v1_self_e0"]);
+    expect((await auth.getUser(a.uid)).customClaims?.consentOk).toBe(true);
+  });
+
+  test("W3: aceptar sin poder generar el enlace de revocación -> página que lo dice y cómo revocar", async () => {
+    const s = await setup();
+    const [first] = await mails(s.uid, "guardian_consent");
+    await first.ref.delete();
+    const res = await accept(s);
+    expect(res.body).toBe(renderDonePage(false));
+    expect(res.body).not.toBe(renderDonePage());
+  });
+
+  test("transitorio tras verificar el token -> 503 con cabeceras de seguridad, sin quemar el token y sin PII; permanente -> 404", async () => {
+    const s = await accepted();
+    const res = await withRevoke(() => Promise.reject(unavailable()), { r: s.r, t: s.rev, action: "revoke" });
+    expect([res.status, res.body]).toEqual([503, renderRetryPage()]);
+    expect(res.headers["Cache-Control"]).toBe("no-store");
+    expect(res.headers["Content-Security-Policy"]).toContain("default-src 'none'");
+    expect(JSON.stringify(state.logs)).not.toContain(s.uid);
+    expect((await perfil(s.uid)).consentStatus).toBe("granted");
+    expect((await revoke(s)).status).toBe(200); // el tutor puede reintentar
+    // permanente / precondición -> genérico
+    const p = await accepted();
+    const perm = await withRevoke(() => Promise.reject(Object.assign(new Error("x"), { code: "failed-precondition" })), { r: p.r, t: p.rev, action: "revoke" });
+    expect([perm.status, perm.body]).toEqual([404, INVALID]);
+    // token erróneo con núcleo roto: nunca llega al núcleo -> 404, no 503 (no es oráculo de fallos)
+    const w = await withRevoke(() => Promise.reject(unavailable()), { r: p.r, t: "mal", action: "revoke" });
+    expect(w.status).toBe(404);
+  });
+
+  test("token erróneo con el usuario ya no granted: se cuenta el intento (comportamiento conservador fijado) y sigue genérico", async () => {
+    const s = await accepted();
+    await db.collection("users").doc(s.uid).update({ consentStatus: "revoked" });
+    expect((await revoke({ r: s.r, rev: "mal" })).body).toBe(INVALID);
+    expect((await req(s.r)).revokeAttempts).toBe(1);
+  });
+
+  test("tutor y menor revocan a la vez: exactamente una revocación efectiva y estado coherente", async () => {
+    const s = await accepted();
+    const d = { db, auth, log: () => undefined };
+    const [g, m] = await Promise.allSettled([revoke(s), revokeConsentCore(d, s.uid, "self")]);
+    const guardianWon = g.status === "fulfilled" && g.value.status === 200;
+    const selfWon = m.status === "fulfilled";
+    expect([guardianWon, selfWon].filter(Boolean)).toHaveLength(1); // decisión: la segunda recibe el rechazo, no hay doble revocación
+    const p = await perfil(s.uid);
+    expect([p.consentStatus, p.consentEpoch]).toEqual(["revoked", 1]);
+    const revs = (await consents(s.uid)).filter((c) => c.startsWith("revocation"));
+    expect(revs).toEqual([guardianWon ? "revocation_v1_guardian_e0" : "revocation_v1_self_e0"]);
+    expect((await auth.getUser(s.uid)).customClaims?.consentOk).toBe(false);
+  });
+
+  test("el enlace A no puede revocar un consentimiento concedido por la solicitud B (secuencial y en paralelo con el ciclo del menor)", async () => {
+    const a = await accepted();
+    const d = { db, auth, log: () => undefined };
+    await Promise.allSettled([
+      revoke(a),
+      (async () => { await new Promise((r) => setTimeout(r, 5)); await revokeConsentCore(d, a.uid, "self"); })(),
+    ]);
+    const p = await perfil(a.uid);
+    const revs = (await consents(a.uid)).filter((c) => c.startsWith("revocation"));
+    expect(revs).toHaveLength(p.consentEpoch); // invariante: una época cerrada por cada revocación registrada
+    expect(p.consentStatus).toBe("revoked");
   });
 });

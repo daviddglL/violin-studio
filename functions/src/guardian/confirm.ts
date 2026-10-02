@@ -7,11 +7,12 @@ import { safeErrorCode } from "../common/errors";
 import { sha256Hex } from "../common/hashing";
 import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, GUARDIAN_REVOKE_LINK_TTL_DAYS, POLICY_URL } from "../config/identity";
 import { buildConsentDoc, consentDocId, consentEpochOf } from "../consent/consent-docs";
+import { isPermanent } from "../erasure/erase-user-data";
 import { revokeConsentCore } from "../consent/revoke-consent";
 import { syncClaims } from "../identity/claims";
 import { guardianLinkBaseUrl } from "./config";
 import { buildGuardianRevokeMail } from "./mail";
-import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "./page";
+import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderRetryPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "./page";
 import { generateToken, hashToken, verifyToken } from "./token";
 
 export interface GuardianHttpRequest {
@@ -34,6 +35,8 @@ export interface GuardianConsentDeps {
   linkBaseUrl?: string;
   /** Borrado completo del menor (cascada eraseUserData con deleteAuth:true); inyectado para probarlo y no acoplar el handler al bucket. */
   erase: (uid: string) => Promise<unknown>;
+  /** Núcleo de revocación; inyectable solo para probar entrelazados y fallos transitorios. */
+  revokeCore?: typeof revokeConsentCore;
   /** Sumidero de logs sin PII (solo uidHash y códigos); por defecto `logger.info`. */
   log?: (message: string, data: Record<string, unknown>) => void;
 }
@@ -241,7 +244,7 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
   }
   if (noRevokeLink) log("guardianConsent.noRevokeLink", { uidHash });
   log("guardianConsent.accepted", { uidHash });
-  return respond(200, renderDonePage());
+  return respond(200, renderDonePage(!noRevokeLink));
 }
 
 /**
@@ -262,6 +265,9 @@ async function renderRejectConfirm(deps: GuardianConsentDeps, requestId: string,
  * Revocación del tutor (un solo paso: la página GET ya es la confirmación y el efecto es reversible, el menor puede volver
  * a pedir consentimiento; el rechazo, irreversible, sí va en dos pasos). El token de revocación es DISTINTO del de aceptación
  * y tiene su propio contador (`revokeAttempts`): agotar los intentos de aceptar no bloquea la revocación y viceversa.
+ * Bloqueo: 5 tokens erróneos inhabilitan el enlace de forma permanente (aceptado, igual que en aceptar; cualquiera con `r` puede
+ * provocarlo). Alternativas del tutor: pedir al menor que revoque desde la app (2b permite a un menor autorrevocar) o que reinicie
+ * el ciclo con una solicitud nueva; la página genérica lo indica con una frase estática que no revela nada del enlace.
  * Verificación en una transacción (con `revokeAttempts++` si el token es erróneo); si es válido se llama a
  * `revokeConsentCore(..., "guardian")` fuera de ella (su propia transacción comprueba `granted`: de dos peticiones simultáneas
  * gana una y la otra recibe NO_ACTIVE_CONSENT -> genérico). El token no se quema antes de revocar: si el núcleo falla de forma
@@ -285,10 +291,12 @@ async function revoke(deps: GuardianConsentDeps, requestId: string, token: strin
   const log = deps.log ?? ((m, d) => logger.info(m, d));
   const uidHash = sha256Hex(uid).slice(0, 12);
   try {
-    await revokeConsentCore({ db: deps.db, auth: deps.auth, currentVersion: deps.currentVersion, log }, uid, "guardian");
+    await (deps.revokeCore ?? revokeConsentCore)({ db: deps.db, auth: deps.auth, currentVersion: deps.currentVersion, log }, uid, "guardian", { expectGuardianRequestId: requestId });
   } catch (e) {
     log("guardianConsent.revokeFailed", { uidHash, code: safeErrorCode(e) });
-    return invalid();
+    // El tutor ya demostró poseer el token: ante un fallo transitorio se le dice que reintente (503) en vez de "enlace no válido".
+    // Los permanentes y las precondiciones (p. ej. NO_ACTIVE_CONSENT) siguen siendo el genérico.
+    return isPermanent(e) ? invalid() : respond(503, renderRetryPage(), { "Retry-After": "60" });
   }
   try {
     await requestRef.update({ revokedAt: Timestamp.fromDate((deps.clock ?? systemClock)()) });

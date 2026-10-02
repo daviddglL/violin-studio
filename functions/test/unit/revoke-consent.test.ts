@@ -139,3 +139,24 @@ describe("revokeConsentCore", () => {
     }
   });
 });
+
+describe("W1: precondición de solicitud del tutor (dentro de la transacción)", () => {
+  const granted = (requestId: string) => ({ isMinor: true, consentStatus: "granted", policyVersion: 3, guardian: { requestId } });
+  test("requestId distinto del activo -> NO_ACTIVE_CONSENT sin escrituras", async () => {
+    const { db, writes } = fakeDb(granted("B"));
+    const e = await captura(revokeConsentCore(mk(db), "u1", "guardian", { expectGuardianRequestId: "A" }));
+    expect(e).toMatchObject({ code: "failed-precondition", details: { reason: "NO_ACTIVE_CONSENT" } });
+    expect(writes).toEqual([]);
+  });
+  test("requestId coincidente revoca; sin opción (self) el comportamiento no cambia", async () => {
+    const a = fakeDb(granted("A"));
+    expect(await revokeConsentCore(mk(a.db), "u1", "guardian", { expectGuardianRequestId: "A" })).toEqual({ consentStatus: "revoked" });
+    const b = fakeDb(granted("B"));
+    expect(await revokeConsentCore(mk(b.db), "u1", "self")).toEqual({ consentStatus: "revoked" });
+  });
+  test("sin guardian.requestId en el doc y con precondición -> rechazo sin escrituras", async () => {
+    const { db, writes } = fakeDb({ isMinor: true, consentStatus: "granted", policyVersion: 3 });
+    expect(await captura(revokeConsentCore(mk(db), "u1", "guardian", { expectGuardianRequestId: "A" }))).toBeDefined();
+    expect(writes).toEqual([]);
+  });
+});

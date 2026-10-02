@@ -77,13 +77,31 @@ const BILINGUAL = (title: string, es: string, en: string) => shell("en", title, 
 
 /** Respuesta única para cualquier causa de rechazo: no distingue inexistente, caducada, usada, bloqueada ni token erróneo. */
 export const renderInvalidPage = (): string =>
-  BILINGUAL("Violin Studio", "Este enlace no es válido o ha caducado.", "This link is not valid or has expired.");
+  shell(
+    "en",
+    "Violin Studio",
+    `<h1>Violin Studio</h1><p>${esc("Este enlace no es válido o ha caducado.")}</p><p>${esc("This link is not valid or has expired.")}</p>` +
+      `<p>${esc("Si quieres retirar un consentimiento, el menor puede revocarlo desde la app.")}</p><p>${esc("To withdraw a consent, the minor can revoke it from the app.")}</p>`,
+  );
 
 export const renderDeclarationPage = (): string =>
   BILINGUAL("Violin Studio", "Debes marcar la declaración para continuar. Vuelve atrás e inténtalo de nuevo.", "You must tick the declaration to continue. Go back and try again.");
 
-export const renderDonePage = (): string =>
-  BILINGUAL("Violin Studio", "Gracias. Hemos registrado tu consentimiento.", "Thank you. Your consent has been recorded.");
+/** `revokeLinkSent=false`: no se pudo generar el enlace de revocación; se avisa y se indica la alternativa (el menor puede revocar desde la app, C5). */
+export const renderDonePage = (revokeLinkSent = true): string =>
+  revokeLinkSent
+    ? BILINGUAL("Violin Studio", "Gracias. Hemos registrado tu consentimiento.", "Thank you. Your consent has been recorded.")
+    : shell(
+        "en",
+        "Violin Studio",
+        `<h1>Violin Studio</h1><p>${esc("Gracias. Hemos registrado tu consentimiento.")}</p><p>${esc("Thank you. Your consent has been recorded.")}</p>` +
+          `<p><strong>${esc("No has recibido un enlace para revocarlo. Si más adelante quieres retirar tu consentimiento, pide al menor que lo revoque desde la app o que elimine su cuenta.")}</strong></p>` +
+          `<p><strong>${esc("You did not receive a link to revoke it. If you later want to withdraw your consent, ask the minor to revoke it from the app or to delete their account.")}</strong></p>`,
+      );
+
+/** Fallo transitorio tras demostrar posesión del token: se puede reintentar (503). */
+export const renderRetryPage = (): string =>
+  BILINGUAL("Violin Studio", "No hemos podido completar la operación. Inténtalo de nuevo en unos minutos.", "We could not complete the operation. Please try again in a few minutes.");
 
 export const renderRejectedPage = (): string =>
   BILINGUAL("Violin Studio", "Hemos registrado tu rechazo y se eliminan la cuenta y los datos del menor.", "Your refusal has been recorded and the minor's account and data are being deleted.");
