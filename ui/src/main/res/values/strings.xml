@@ -8,4 +8,16 @@
     <string name="session_loading">Cargando sesión</string>
     <string name="offline_title">Sin conexión</string>
     <string name="offline_message">Estamos reintentando. Puedes cerrar sesión mientras tanto.</string>
+    <string name="verify_email_title">Verifica tu email</string>
+    <string name="verify_email_message">Te hemos enviado un enlace de verificación a %1$s. Ábrelo y vuelve aquí.</string>
+    <string name="verify_email_message_no_email">Te hemos enviado un enlace de verificación. Ábrelo y vuelve aquí.</string>
+    <string name="verify_email_check">Ya lo he verificado</string>
+    <string name="verify_email_checking">Comprobando…</string>
+    <string name="verify_email_resend">Reenviar email</string>
+    <string name="verify_email_resend_wait">Reenviar en %1$d s</string>
+    <string name="verify_email_not_verified_yet">Aún no consta como verificado. Abre el enlace del email e inténtalo de nuevo.</string>
+    <string name="verify_email_resend_sent">Email enviado. Revisa también la carpeta de spam.</string>
+    <string name="verify_email_wait_too_many">Demasiados intentos. Espera un minuto antes de reenviar.</string>
+    <string name="verify_email_network">Sin conexión. Inténtalo de nuevo.</string>
+    <string name="verify_email_unknown">No se ha podido completar la acción. Inténtalo de nuevo.</string>
 </resources>
