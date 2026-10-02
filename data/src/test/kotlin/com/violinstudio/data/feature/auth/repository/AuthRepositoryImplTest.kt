@@ -99,8 +99,8 @@ class AuthRepositoryImplTest {
     @Test
     fun `signInWithGoogle envia el valor del token y conserva Google como proveedor`() = runTest {
         remote.user = AuthUserDto("u2", "g@b.co", false, listOf("google.com"))
-        val user = repo.signInWithGoogle(GoogleIdToken("tok")).getOrThrow()
-        assertEquals(listOf("google:tok"), remote.calls)
+        val user = repo.signInWithGoogle(GoogleIdToken("tok", "raw-nonce")).getOrThrow()
+        assertEquals(listOf("google:tok:raw-nonce"), remote.calls)
         assertTrue(user.emailVerified)
         remote.failure = FirebaseAuthException("ERROR_INVALID_CREDENTIAL", "x")
         assertSame(AuthFailure.ProviderUnavailable, repo.signInWithGoogle(GoogleIdToken("tok")).exceptionOrNull())
@@ -128,7 +128,8 @@ class AuthRepositoryImplTest {
     @Test
     fun `reautenticacion mapea contrasena erronea y login reciente`() = runTest {
         assertTrue(repo.reauthenticateWithPassword("pw").isSuccess)
-        assertTrue(repo.reauthenticateWithGoogle(GoogleIdToken("t")).isSuccess)
+        assertTrue(repo.reauthenticateWithGoogle(GoogleIdToken("t", "raw-2")).isSuccess)
+        assertEquals(listOf("reauthGoogle:t:raw-2"), remote.calls.takeLast(1))
         remote.failure = FirebaseAuthException("ERROR_WRONG_PASSWORD", "x")
         assertSame(AuthFailure.InvalidCredentials, repo.reauthenticateWithPassword("bad").exceptionOrNull())
         remote.failure = FirebaseAuthException("ERROR_REQUIRES_RECENT_LOGIN", "x")

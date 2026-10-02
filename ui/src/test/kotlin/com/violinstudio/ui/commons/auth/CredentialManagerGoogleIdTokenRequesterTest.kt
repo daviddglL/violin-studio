@@ -32,9 +32,18 @@ class CredentialManagerGoogleIdTokenRequesterTest {
     fun `the options carry the injected server client id and an explicit sign-in policy`() {
         val option = GoogleIdOptionFactory.create("web-client.apps.test", "nonce-1")
         assertEquals("web-client.apps.test", option.serverClientId)
-        assertEquals("nonce-1", option.nonce)
+        assertEquals(GoogleIdOptionFactory.sha256Hex("nonce-1"), option.nonce)
+        assertNotEquals("nonce-1", option.nonce)
         assertFalse(option.filterByAuthorizedAccounts)
         assertFalse(option.autoSelectEnabled)
+    }
+
+    @Test
+    fun `the nonce is sent as the lowercase hex SHA-256 of the raw nonce`() {
+        assertEquals(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            GoogleIdOptionFactory.sha256Hex("abc")
+        )
     }
 
     @Test
@@ -51,6 +60,10 @@ class CredentialManagerGoogleIdTokenRequesterTest {
         val first = requester.request(context)
         requester.request(context)
         assertEquals("jwt", (first as GoogleIdTokenResult.Token).token.value)
+        val firstToken = (first as GoogleIdTokenResult.Token).token
+        val rawNonce = checkNotNull(firstToken.rawNonce)
+        assertEquals(source.options[0].nonce, GoogleIdOptionFactory.sha256Hex(rawNonce))
+        assertNotEquals(rawNonce, source.options[0].nonce)
         assertEquals(2, source.options.size)
         assertNotEquals(source.options[0].nonce, source.options[1].nonce)
         assertEquals("web-client.apps.test", source.options[0].serverClientId)

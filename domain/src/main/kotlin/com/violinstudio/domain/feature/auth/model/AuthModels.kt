@@ -18,8 +18,11 @@ data class AuthUser(
 /** Claims del token: `role` es nulo si el servidor envía un valor que el cliente no conoce. */
 data class SessionClaims(val role: Role?, val consentOk: Boolean)
 
-/** Token de Google; nunca aparece en `toString` para que no llegue a logs. */
-class GoogleIdToken(val value: String) {
+/**
+ * Token de Google y el nonce SIN hash con el que se pidió (Firebase lo verifica contra el `nonce` hasheado del token).
+ * Ni el token ni el nonce aparecen en `toString`, para que no lleguen a logs.
+ */
+class GoogleIdToken(val value: String, val rawNonce: String? = null) {
     init {
         require(value.isNotBlank()) { "GoogleIdToken vacío" }
     }

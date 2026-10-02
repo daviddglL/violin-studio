@@ -24,6 +24,9 @@ class AuthModelTest {
     fun `GoogleIdToken no admite valor vacio y no se filtra en toString`() {
         assertThrows<IllegalArgumentException> { GoogleIdToken(" ") }
         assertFalse(GoogleIdToken("secreto").toString().contains("secreto"))
+        val text = GoogleIdToken("secreto", "nonce-secreto").toString()
+        assertFalse(text.contains("secreto"))
+        assertEquals("nonce-secreto", GoogleIdToken("t", "nonce-secreto").rawNonce)
     }
 
     @Test
