@@ -32,7 +32,11 @@ class SendPasswordResetUseCaseTest {
 
     @Test
     fun `el resto de fallos se informan como errores`() = runTest {
-        for (failure in listOf(AuthFailure.ProviderUnavailable, AuthFailure.InvalidCredentials, AuthFailure.Unknown())) {
+        for (failure in listOf(
+            AuthFailure.ProviderUnavailable,
+            AuthFailure.InvalidCredentials,
+            AuthFailure.Unknown()
+        )) {
             auth.resetResult = Result.failure(failure)
             assertEquals(failure, SendPasswordResetUseCase(auth)("a@b.com").exceptionOrNull())
         }

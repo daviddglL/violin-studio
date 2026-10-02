@@ -1,8 +1,8 @@
 package com.violinstudio.domain.feature.consent.usecase
 
 import com.violinstudio.domain.common.RetryBackoff
-import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
+import com.violinstudio.domain.feature.auth.usecase.isNetworkLike
 import com.violinstudio.domain.feature.auth.usecase.refreshClaims
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
@@ -16,12 +16,12 @@ class AcceptPolicyUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(policyVersion: Int): Result<Unit> {
         consent.recordConsent(policyVersion).onFailure { return Result.failure(it) }
-        return auth.refreshClaims(backoff).fold(
+        return auth.refreshClaims(backoff) { it.consentOk }.fold(
             onSuccess = { Result.success(Unit) },
             onFailure = { Result.failure(it.toConsentFailure()) }
         )
     }
 
     private fun Throwable.toConsentFailure(): ConsentFailure =
-        if (this is AuthFailure.Network) ConsentFailure.Network else ConsentFailure.Unknown(this)
+        if (isNetworkLike()) ConsentFailure.Network else ConsentFailure.Unknown(this)
 }

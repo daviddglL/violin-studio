@@ -10,11 +10,13 @@ import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.ProfileRegistration
 import com.violinstudio.domain.feature.profile.model.Role
 import java.time.LocalDate
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RegisterProfileUseCaseTest {
     private val auth = FakeAuthRepository()
     private val repo = FakeProfileRepository()

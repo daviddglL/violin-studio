@@ -1,8 +1,8 @@
 package com.violinstudio.domain.feature.profile.usecase
 
 import com.violinstudio.domain.common.RetryBackoff
-import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
+import com.violinstudio.domain.feature.auth.usecase.isNetworkLike
 import com.violinstudio.domain.feature.auth.usecase.refreshClaims
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.model.ProfileRegistration
@@ -20,12 +20,12 @@ class RegisterProfileUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(registration: ProfileRegistration): Result<Unit> {
         profile.register(registration).onFailure { return Result.failure(it) }
-        return auth.refreshClaims(backoff).fold(
+        return auth.refreshClaims(backoff) { it.role != null }.fold(
             onSuccess = { Result.success(Unit) },
             onFailure = { Result.failure(it.toProfileFailure()) }
         )
     }
 
     private fun Throwable.toProfileFailure(): ProfileFailure =
-        if (this is AuthFailure.Network) ProfileFailure.Network else ProfileFailure.Unknown(this)
+        if (isNetworkLike()) ProfileFailure.Network else ProfileFailure.Unknown(this)
 }

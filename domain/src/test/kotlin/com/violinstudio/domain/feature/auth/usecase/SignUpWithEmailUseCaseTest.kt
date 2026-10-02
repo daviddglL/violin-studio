@@ -43,7 +43,10 @@ class SignUpWithEmailUseCaseTest {
 
     @Test
     fun `un email con formato invalido no llama al repositorio`() = runTest {
-        assertEquals(AuthFailure.InvalidEmail, SignUpWithEmailUseCase(auth)("sin-arroba", "secret123").exceptionOrNull())
+        assertEquals(
+            AuthFailure.InvalidEmail,
+            SignUpWithEmailUseCase(auth)("sin-arroba", "secret123").exceptionOrNull()
+        )
         assertEquals(emptyList<String>(), auth.calls)
     }
 }

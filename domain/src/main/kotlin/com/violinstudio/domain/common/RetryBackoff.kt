@@ -8,10 +8,18 @@ class RetryBackoff(private val initialMillis: Long, private val maxMillis: Long)
     constructor() : this(DEFAULT_INITIAL_MILLIS, DEFAULT_MAX_MILLIS)
 
     /** Espera previa al reintento número [attempt] (0 = el primer reintento). */
-    fun delayFor(attempt: Int): Long = 0L
+    fun delayFor(attempt: Int): Long {
+        var value = initialMillis
+        repeat(minOf(attempt, MAX_DOUBLINGS)) {
+            if (value >= maxMillis) return maxMillis
+            value *= 2
+        }
+        return minOf(value, maxMillis)
+    }
 
     companion object {
         const val DEFAULT_INITIAL_MILLIS = 1_000L
         const val DEFAULT_MAX_MILLIS = 30_000L
+        private const val MAX_DOUBLINGS = 62
     }
 }
