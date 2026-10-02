@@ -165,3 +165,98 @@ test("7b.6 un fallo en un usuario no detiene el lote: se registra sin PII y el r
   expect(logs.find((l) => l.message === "purge.userFailed")?.data).toMatchObject({ category: "parentalPending", code: "unavailable", uidHash: expect.any(String) });
   expect(logs.find((l) => l.message === "purge.done")?.data).toMatchObject({ parentalPending: { found: 3, erased: 2, failed: 1 } });
 });
+
+describe("revision 7b: carreras, exencion, presupuesto y fronteras", () => {
+  const minor = (now: Date, requestedAgo: number) => user({ consentStatus: "parental_pending", isMinor: true, guardian: { requestedAt: ago(now, requestedAgo) } });
+
+  test("W2 (a): si entre la consulta y el borrado el menor pasa a granted, NO se borra (skipped)", async () => {
+    const now = new Date();
+    const uid = await minor(now, 8 * DAY);
+    const beforeErase = async (_c: string, u: string) => void (await users.doc(u).update({ consentStatus: "granted" }));
+    const s = await purgeIdentityHandler(deps({ beforeErase }), now);
+    expect(calls).toEqual([]);
+    expect(s.parentalPending).toMatchObject({ found: 1, erased: 0, skipped: 1 });
+    expect(uid).toBeTruthy();
+  });
+
+  test("W2 (b): si el borrado atascado deja de serlo (startedAt reciente), NO se reanuda (skipped)", async () => {
+    const now = new Date();
+    await user({ consentStatus: "granted", deletion: { state: "in_progress", startedAt: ago(now, 2 * HOUR) } });
+    const beforeErase = async (_c: string, u: string) => void (await users.doc(u).update({ "deletion.startedAt": ago(now, MIN) }));
+    const s = await purgeIdentityHandler(deps({ beforeErase }), now);
+    expect(calls).toEqual([]);
+    expect(s.stuckDeletion).toMatchObject({ found: 1, erased: 0, skipped: 1 });
+  });
+
+  test("W3 (a): D4 re-comprueba que no exista el perfil justo antes de borrar", async () => {
+    const { uid } = await auth.createUser({ email: `race-${Date.now()}@example.com` });
+    const beforeErase = async (_c: string, u: string) => void (await users.doc(u).set({ consentStatus: "pending", isMinor: false }));
+    const s = await purgeIdentityHandler(deps({ beforeErase }), new Date(Date.now() + 8 * DAY));
+    expect(calls).toEqual([]);
+    expect(s.orphanAuth).toMatchObject({ found: 1, erased: 0, skipped: 1 });
+    expect(uid).toBeTruthy();
+  });
+
+  test("W3 (b): una cuenta Auth con el claim purgeExempt:true nunca se borra por D4", async () => {
+    const exenta = (await auth.createUser({ email: `ex-${Date.now()}@example.com` })).uid;
+    await auth.setCustomUserClaims(exenta, { purgeExempt: true });
+    const normal = (await auth.createUser({ email: `no-${Date.now()}@example.com` })).uid;
+    await purgeIdentityHandler(deps(), new Date(Date.now() + 8 * DAY));
+    expect(erased()).toEqual([normal]);
+  });
+
+  test("W4: el presupuesto de tiempo agotado deja de empezar borrados, registra purge.budgetExhausted y NO lanza", async () => {
+    const now = new Date();
+    await minor(now, 8 * DAY);
+    let t = 0;
+    const s = await purgeIdentityHandler(deps({ budgetMs: 0, nowMs: () => (t += 100) }), now);
+    expect(calls).toEqual([]);
+    expect(s.budgetExhausted).toBe(true);
+    expect(logs.find((l) => l.message === "purge.budgetExhausted")?.data).toMatchObject({ parentalPending: { found: 0 } });
+  });
+
+  test("W4: orden de prioridad (b) atascados, (3b) huerfanos, (a) parental_pending, (D4) Auth sin perfil; con presupuesto para 2 borrados solo caen los dos primeros", async () => {
+    const now = new Date(Date.now() + 8 * DAY);
+    const atascado = await user({ consentStatus: "granted", deletion: { state: "in_progress", startedAt: ago(now, 2 * HOUR) } });
+    const huerfano = await user({ consentStatus: "granted", createdAt: ago(now, 2 * HOUR) }, false);
+    await minor(now, 8 * DAY);
+    await auth.createUser({ email: `prio-${Date.now()}@example.com` });
+    const order: string[] = [];
+    let t = 0;
+    await purgeIdentityHandler(deps({ budgetMs: 250, nowMs: () => (t += 100), beforeErase: async (c: string) => void order.push(c) }), now);
+    expect(order).toEqual(["stuckDeletion", "orphanProfiles"]);
+    expect(erased()).toEqual([atascado, huerfano].sort());
+  });
+
+  test("S5: el barrido cuenta cada escritura fallida, no solo la primera", async () => {
+    const now = new Date();
+    for (let i = 0; i < 3; i++) await db.collection(COLLECTIONS.mail).doc(`old${i}`).set({ expireAt: ago(now, DAY) });
+    const writer = { delete: () => Promise.reject(Object.assign(new Error("x"), { code: "unavailable" })), close: async () => undefined };
+    const proxied = new Proxy(db, {
+      get: (t, p) => (p === "bulkWriter" ? () => writer : typeof (t as never)[p] === "function" ? ((t as never)[p] as () => unknown).bind(t) : (t as never)[p]),
+    });
+    const s = await purgeIdentityHandler(deps({ db: proxied }), now);
+    expect(s.expired.mail).toBe(0);
+    expect(s.expiredFailed.mail).toBe(3);
+  });
+
+  test("S11 fronteras inclusivas: exactamente 7 d y exactamente 1 h se procesan; expireAt == now no se barre; se registra scanned", async () => {
+    const now = new Date();
+    const pend = await minor(now, 7 * DAY);
+    const atascado = await user({ consentStatus: "granted", deletion: { state: "in_progress", startedAt: ago(now, HOUR) } });
+    const huerfano = await user({ consentStatus: "granted", createdAt: ago(now, HOUR) }, false);
+    await db.collection(COLLECTIONS.mail).doc("justo").set({ expireAt: Timestamp.fromMillis(now.getTime()) });
+    const s = await purgeIdentityHandler(deps(), now);
+    expect(erased()).toEqual([pend, atascado, huerfano].sort());
+    expect((await db.collection(COLLECTIONS.mail).doc("justo").get()).exists).toBe(true);
+    expect(s.scannedProfiles).toBeGreaterThanOrEqual(1);
+    expect(logs.find((l) => l.message === "purge.done")?.data).toMatchObject({ scannedProfiles: s.scannedProfiles });
+  });
+
+  test("S11 D4: una cuenta de exactamente 7 d se borra", async () => {
+    const { uid } = await auth.createUser({ email: `edge-${Date.now()}@example.com` });
+    const creado = Date.parse((await auth.getUser(uid)).metadata.creationTime);
+    await purgeIdentityHandler(deps(), new Date(creado + 7 * DAY));
+    expect(erased()).toEqual([uid]);
+  });
+});
