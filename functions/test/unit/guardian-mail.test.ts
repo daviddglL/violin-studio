@@ -4,10 +4,10 @@ const now = new Date("2026-03-01T10:00:00Z");
 const base = { to: "tutor@example.com", link: "https://x.app/tutor?r=abc#t=tok", displayName: "Ana", uid: "u1", now };
 
 describe("buildGuardianMail", () => {
-  test("doc mail/ con to, message, uid, kind y expireAt = now + 24 h", () => {
+  test("doc mail/ con to, message, uid, kind y expireAt = now + 72 h (validez del enlace)", () => {
     const m = buildGuardianMail({ ...base, locale: "es" });
     expect(m).toMatchObject({ to: "tutor@example.com", uid: "u1", kind: "guardian_consent" });
-    expect(m.expireAt.getTime()).toBe(now.getTime() + 24 * 3600_000);
+    expect(m.expireAt.getTime()).toBe(now.getTime() + 72 * 3600_000);
     expect(m.message.subject).toContain("Ana");
     for (const part of [m.message.text, m.message.html]) expect(part).toContain(base.link);
   });
@@ -15,6 +15,12 @@ describe("buildGuardianMail", () => {
     expect(buildGuardianMail({ ...base, locale: "es-ES" }).message.text).toContain("tutor");
     expect(buildGuardianMail({ ...base, locale: "en" }).message.text).toContain("guardian");
     expect(buildGuardianMail({ ...base, locale: "fr" }).message.text).toContain("guardian");
+  });
+  test("nombre hostil: escapado en el HTML", () => {
+    const m = buildGuardianMail({ ...base, locale: "en", displayName: "<script>alert(1)</script> \"&'" });
+    expect(m.message.html).not.toContain("<script");
+    expect(m.message.html).toContain("&lt;script&gt;");
+    expect(m.message.html).toContain("&quot;&amp;&#39;");
   });
   test("escapa el HTML del nombre", () => {
     const m = buildGuardianMail({ ...base, locale: "en", displayName: `<img src=x onerror="a()">&` });

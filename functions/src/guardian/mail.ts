@@ -1,4 +1,6 @@
-const DAY_MS = 24 * 3600_000;
+import { GUARDIAN_LINK_TTL_HOURS } from "../config/identity";
+
+const LINK_TTL_MS = GUARDIAN_LINK_TTL_HOURS * 3600_000;
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -12,7 +14,11 @@ export interface GuardianMailInput {
   now: Date;
 }
 
-/** Doc de `mail/` (Trigger Email). `uid` es el propietario para la cascada de borrado; el enlace lleva el token en el fragmento. */
+/**
+ * Doc de `mail/` (Trigger Email). `uid` es el propietario para la cascada de borrado (que borra también el token
+ * en claro). El enlace lleva el token en el fragmento y vive en `mail/` hasta `expireAt`, alineado con la validez
+ * del enlace (72 h) para que la TTL no retire un envío pendiente o en reintento antes de que el enlace caduque.
+ */
 export function buildGuardianMail({ to, locale, link, displayName, uid, now }: GuardianMailInput) {
   const es = locale.toLowerCase().startsWith("es");
   const subject = es
@@ -26,7 +32,7 @@ export function buildGuardianMail({ to, locale, link, displayName, uid, now }: G
     to,
     uid,
     kind: "guardian_consent" as const,
-    expireAt: new Date(now.getTime() + DAY_MS),
+    expireAt: new Date(now.getTime() + LINK_TTL_MS),
     message: {
       subject,
       text: `${intro}\n${link}\n\n${ignore}`,
