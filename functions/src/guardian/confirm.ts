@@ -5,11 +5,13 @@ import { Clock, systemClock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
 import { safeErrorCode } from "../common/errors";
 import { sha256Hex } from "../common/hashing";
-import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, POLICY_URL } from "../config/identity";
+import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, GUARDIAN_REVOKE_LINK_TTL_DAYS, POLICY_URL } from "../config/identity";
 import { buildConsentDoc, consentDocId, consentEpochOf } from "../consent/consent-docs";
 import { syncClaims } from "../identity/claims";
+import { guardianLinkBaseUrl } from "./config";
+import { buildGuardianRevokeMail } from "./mail";
 import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderValidPage, securityHeaders } from "./page";
-import { verifyToken } from "./token";
+import { generateToken, hashToken, verifyToken } from "./token";
 
 export interface GuardianHttpRequest {
   method: string;
@@ -27,6 +29,8 @@ export interface GuardianConsentDeps {
   auth: Auth;
   clock?: Clock;
   currentVersion?: number;
+  /** Base del enlace de revocación (Hosting); por defecto `guardianLinkBaseUrl()`. */
+  linkBaseUrl?: string;
   /** Borrado completo del menor (cascada eraseUserData con deleteAuth:true); inyectado para probarlo y no acoplar el handler al bucket. */
   erase: (uid: string) => Promise<unknown>;
   /** Sumidero de logs sin PII (solo uidHash y códigos); por defecto `logger.info`. */
@@ -34,6 +38,7 @@ export interface GuardianConsentDeps {
 }
 
 /** Formato real de los ids (autoId de Firestore, 20 alfanuméricos): se valida antes de cualquier `.doc()`. */
+const DAY_MS = 24 * 3600_000;
 const REQUEST_ID = /^[A-Za-z0-9]{20}$/;
 /** Hash ficticio: el token se compara siempre, exista o no la solicitud, para que el coste de la comparación sea uniforme. */
 const DUMMY_HASH = sha256Hex("guardian-dummy-token-hash");
@@ -113,6 +118,12 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
   const nowMs = now.getTime();
   const version = deps.currentVersion ?? CURRENT_POLICY_VERSION;
   const requestRef = deps.db.collection(COLLECTIONS.guardianRequests).doc(requestId);
+  // Token de revocación: solo su hash se guarda en la solicitud; el claro viaja únicamente en el segundo `mail/`.
+  const revokeToken = generateToken();
+  const revokeMailRef = deps.db.collection(COLLECTIONS.mail).doc();
+  let revokeBase: string | undefined;
+  if (!rejecting) revokeBase = deps.linkBaseUrl ?? guardianLinkBaseUrl();
+  let noRevokeLink = false;
 
   const uid = await deps.db.runTransaction(async (tx): Promise<string | null> => {
     const r = (await tx.get(requestRef)).data();
@@ -136,6 +147,8 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
       tx.update(userRef, { deletion: { state: "in_progress", startedAt: Timestamp.fromDate(now) } });
       return r.uid;
     }
+    // Lectura (antes de cualquier escritura): destinatario del primer correo.
+    const firstMail = !rejecting && typeof r.mailId === "string" && r.mailId ? (await tx.get(deps.db.collection(COLLECTIONS.mail).doc(r.mailId))).data() : undefined;
     const consentRef: DocumentReference = userRef
       .collection(COLLECTIONS.consents)
       .doc(consentDocId("guardian_privacy_policy", version, "guardian", consentEpochOf(user)));
@@ -144,7 +157,35 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
       guardianEmailHmac: r.guardianEmailHmac,
       declaration: "legal_guardian",
     });
-    tx.update(requestRef, { usedAt: Timestamp.fromDate(now), outcome: "accepted" });
+    const revokeExpiresAt = Timestamp.fromMillis(nowMs + GUARDIAN_REVOKE_LINK_TTL_DAYS * DAY_MS);
+    const to = firstMail?.to;
+    // Sin correo origen (solicitud anterior a esta versión, o ya retirado) no hay destinatario: se acepta igualmente, sin revocación por enlace.
+    const revoke =
+      typeof to === "string" && to !== ""
+        ? {
+            revokeTokenHash: hashToken(revokeToken),
+            revokeExpiresAt,
+            revokeAttempts: 0,
+            revokedAt: null,
+            // La TTL no puede retirar la solicitud antes de que el enlace de revocación deje de valer.
+            expireAt: Timestamp.fromMillis(revokeExpiresAt.toMillis() + 7 * DAY_MS),
+          }
+        : null;
+    noRevokeLink = !revoke;
+    if (revoke) {
+      tx.create(
+        revokeMailRef,
+        buildGuardianRevokeMail({
+          to: to as string,
+          locale: String(user.locale ?? "en"),
+          link: `${revokeBase}/tutor?r=${requestId}#t=${revokeToken}&a=revoke`,
+          displayName: String(user.displayName ?? ""),
+          uid: r.uid,
+          now,
+        }),
+      );
+    }
+    tx.update(requestRef, { usedAt: Timestamp.fromDate(now), outcome: "accepted", ...revoke });
     tx.update(userRef, { consentStatus: "granted", policyVersion: version, updatedAt: FieldValue.serverTimestamp() });
     return r.uid;
   });
@@ -168,6 +209,7 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
     // El consentimiento ya está confirmado; `identityConfig` cura los claims en el siguiente arranque del menor.
     log("guardianConsent.syncFailed", { uidHash, code: safeErrorCode(e) });
   }
+  if (noRevokeLink) log("guardianConsent.noRevokeLink", { uidHash });
   log("guardianConsent.accepted", { uidHash });
   return respond(200, renderDonePage());
 }
