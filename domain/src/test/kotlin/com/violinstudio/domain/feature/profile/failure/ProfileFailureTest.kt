@@ -10,6 +10,7 @@ class ProfileFailureTest {
         is ProfileFailure.InvalidInput -> "input"
         ProfileFailure.NoProfile -> "no-profile"
         ProfileFailure.EmailNotVerified -> "email"
+        ProfileFailure.NotAllowed -> "not-allowed"
         ProfileFailure.Network -> "network"
         is ProfileFailure.Unknown -> "unknown"
     }
@@ -22,10 +23,11 @@ class ProfileFailureTest {
             ProfileFailure.InvalidInput(ProfileField.LOCALE),
             ProfileFailure.NoProfile,
             ProfileFailure.EmailNotVerified,
+            ProfileFailure.NotAllowed,
             ProfileFailure.Network,
             ProfileFailure.Unknown()
         )
-        assertEquals(7, all.map(::label).toSet().size)
+        assertEquals(8, all.map(::label).toSet().size)
     }
 
     @Test
