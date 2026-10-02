@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.auth.view
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -13,6 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.auth.model.GoogleIdToken
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.auth.FakeGoogleIdTokenRequester
+import com.violinstudio.ui.commons.auth.GoogleIdTokenRequester
 import com.violinstudio.ui.commons.auth.GoogleIdTokenResult
 import com.violinstudio.ui.commons.auth.LocalGoogleIdTokenRequester
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
@@ -21,6 +23,7 @@ import com.violinstudio.ui.feature.auth.viewmodel.LoginIntent
 import com.violinstudio.ui.feature.auth.viewmodel.LoginState
 import com.violinstudio.ui.feature.auth.viewmodel.RegisterIntent
 import com.violinstudio.ui.feature.auth.viewmodel.RegisterState
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -107,6 +110,34 @@ class AuthGoogleButtonTest {
     fun loginGoogleButtonIsDisabledWhileLoading() {
         showLogin(GoogleIdTokenResult.Cancelled, LoginState(isLoading = true))
         compose.onNodeWithTag(AUTH_GOOGLE_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun aDoubleTapLaunchesOneRequestAndTheButtonWorksAgainAfterwards() {
+        val gate = CompletableDeferred<GoogleIdTokenResult>()
+        var calls = 0
+        val requester = object : GoogleIdTokenRequester {
+            override suspend fun request(context: Context): GoogleIdTokenResult {
+                calls++
+                return gate.await()
+            }
+        }
+        compose.setContent {
+            ViolinStudioTheme {
+                CompositionLocalProvider(LocalGoogleIdTokenRequester provides requester) {
+                    LoginScreen(LoginState(), { loginIntents += it }, {}, {})
+                }
+            }
+        }
+        compose.onNodeWithTag(AUTH_GOOGLE_TAG).performClick()
+        compose.onNodeWithTag(AUTH_GOOGLE_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals(1, calls)
+        gate.complete(GoogleIdTokenResult.Cancelled)
+        compose.waitForIdle()
+        compose.onNodeWithTag(AUTH_GOOGLE_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals(2, calls)
     }
 
     @Test

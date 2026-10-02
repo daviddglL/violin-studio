@@ -26,9 +26,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -152,15 +154,24 @@ internal fun GoogleSignInButton(enabled: Boolean, onToken: (GoogleIdToken) -> Un
     val requester = LocalGoogleIdTokenRequester.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var inFlight by remember { mutableStateOf(false) }
     val currentOnToken by rememberUpdatedState(onToken)
     val currentOnFailed by rememberUpdatedState(onFailed)
     OutlinedButton(
         onClick = {
-            scope.launch {
-                when (val result = requester.request(context.findActivity())) {
-                    is GoogleIdTokenResult.Token -> currentOnToken(result.token)
-                    GoogleIdTokenResult.Cancelled -> Unit
-                    GoogleIdTokenResult.ProviderUnavailable -> currentOnFailed()
+            // Un segundo toque mientras la hoja de Google sigue abierta no lanza otra petición.
+            if (!inFlight) {
+                inFlight = true
+                scope.launch {
+                    try {
+                        when (val result = requester.request(context.findActivity())) {
+                            is GoogleIdTokenResult.Token -> currentOnToken(result.token)
+                            GoogleIdTokenResult.Cancelled -> Unit
+                            GoogleIdTokenResult.ProviderUnavailable -> currentOnFailed()
+                        }
+                    } finally {
+                        inFlight = false
+                    }
                 }
             }
         },
