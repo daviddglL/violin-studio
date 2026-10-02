@@ -1,12 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { join, relative, resolve } from "node:path";
 
 const SRC = resolve(__dirname, "../../src");
-/**
- * Provisional del spike 1a.1 (colección propia de pruebas `spikeMarkers`, con clave uid y que eraseUserData NO borra).
- * TODO(7a-bis): reescribir `onUserDeleted` y quitar esta excepción.
- */
-const ALLOWED = ["erasure/on-user-deleted.ts"];
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
@@ -21,7 +16,6 @@ const hasLiteral = (src: string) => LITERAL.test(src);
 
 test("src no usa collection()/collectionGroup()/doc('a/b') con literales fuera de COLLECTIONS", () => {
   const offenders = files(SRC)
-    .filter((f) => !ALLOWED.includes(relative(SRC, f).split(sep).join("/")))
     .filter((f) => hasLiteral(readFileSync(f, "utf8")))
     .map((f) => relative(SRC, f));
   expect(offenders).toEqual([]);

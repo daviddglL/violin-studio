@@ -1,16 +1,10 @@
-import { getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import * as functionsV1 from "firebase-functions/v1";
-import { REGION } from "../config/runtime";
+import { eraseUserData, ErasureDeps, ErasureResult } from "./erase-user-data";
 
 /**
- * PROVISIONAL (spike 1a.1): escribe un marcador en Firestore cuando se borra un usuario de Auth.
- * Se reescribe en el slice 7a con la limpieza real de datos.
+ * Limpieza de datos cuando una cuenta Auth desaparece por una vía externa (consola, Admin SDK, purga).
+ * La cuenta ya no existe, así que no se borra Auth. Si el borrado vino de `deleteAccount`, la cascada
+ * ya limpió todo y esto es un no-op idempotente.
  */
-export const onUserDeleted = functionsV1
-  .region(REGION)
-  .auth.user()
-  .onDelete(async (user) => {
-    const app = getApps()[0] ?? initializeApp();
-    await getFirestore(app).collection("spikeMarkers").doc(user.uid).set({ deleted: true });
-  });
+export function onUserDeletedHandler(deps: ErasureDeps, uid: string): Promise<ErasureResult> {
+  return eraseUserData(deps, uid, { deleteAuth: false });
+}
