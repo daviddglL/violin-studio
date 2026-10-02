@@ -16,6 +16,8 @@ object LoginReducer {
                 isLoading = emailError == null && passwordError == null
             )
         }
+        LoginMutation.GoogleStarted -> state.copy(isLoading = true)
+        LoginMutation.GoogleCancelled -> state.copy(isLoading = false)
         LoginMutation.ScreenLeft -> LoginState(email = state.email, isLoading = state.isLoading)
         LoginMutation.Succeeded -> state.copy(isLoading = false, succeeded = true, password = "")
         is LoginMutation.Failed -> state.copy(

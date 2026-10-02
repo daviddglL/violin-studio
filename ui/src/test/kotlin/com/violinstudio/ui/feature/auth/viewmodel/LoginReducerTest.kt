@@ -81,4 +81,13 @@ class LoginReducerTest {
         )
         assertEquals(LoginState(email = "a@b.co"), reduce(s, LoginMutation.ScreenLeft))
     }
+
+    @Test
+    fun `google sign-in blocks submit while it runs and a cancellation restores the state`() {
+        val before = LoginState(email = "ana@example.test", password = "secret", error = LoginError.NETWORK)
+        val started = reduce(before, LoginMutation.GoogleStarted)
+        assertTrue(started.isLoading)
+        assertFalse(started.canSubmit)
+        assertEquals(before, reduce(started, LoginMutation.GoogleCancelled))
+    }
 }

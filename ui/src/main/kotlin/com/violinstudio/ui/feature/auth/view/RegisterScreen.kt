@@ -68,4 +68,6 @@ private fun RegisterError.textRes() = when (this) {
     RegisterError.TOO_MANY_REQUESTS -> R.string.auth_error_too_many
     RegisterError.NETWORK -> R.string.auth_error_network
     RegisterError.UNKNOWN -> R.string.auth_error_unknown
+    RegisterError.GOOGLE_UNAVAILABLE -> R.string.auth_google_unavailable
+    RegisterError.ACCOUNT_EXISTS_OTHER_PROVIDER -> R.string.auth_google_other_provider
 }

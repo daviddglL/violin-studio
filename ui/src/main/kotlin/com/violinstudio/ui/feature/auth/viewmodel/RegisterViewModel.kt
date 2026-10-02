@@ -1,6 +1,8 @@
 package com.violinstudio.ui.feature.auth.viewmodel
 
 import com.violinstudio.domain.feature.auth.failure.AuthFailure
+import com.violinstudio.domain.feature.auth.model.GoogleIdToken
+import com.violinstudio.domain.feature.auth.usecase.SignInWithGoogleUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignUpWithEmailUseCase
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,7 +16,8 @@ import kotlinx.coroutines.CancellationException
  */
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val signUpWithEmail: SignUpWithEmailUseCase
+    private val signUpWithEmail: SignUpWithEmailUseCase,
+    private val signInWithGoogle: SignInWithGoogleUseCase
 ) : MviViewModel<RegisterState, RegisterIntent, RegisterEffect>(RegisterState()) {
     private var submitPending = false
 
@@ -31,6 +34,8 @@ class RegisterViewModel @Inject constructor(
         is RegisterIntent.PasswordChanged -> reduce(RegisterMutation.PasswordChanged(intent.value))
         RegisterIntent.Submit -> onSubmit()
         RegisterIntent.ScreenLeft -> reduce(RegisterMutation.ScreenLeft)
+        is RegisterIntent.GoogleTokenReceived -> onGoogleToken(intent.token)
+        RegisterIntent.GoogleFailed -> reduce(RegisterMutation.Failed(RegisterError.GOOGLE_UNAVAILABLE))
     }
 
     private suspend fun onSubmit() {
@@ -51,6 +56,31 @@ class RegisterViewModel @Inject constructor(
         } finally {
             submitPending = false
         }
+    }
+
+    // Cancelar la hoja de Google no es un error (el caso de uso devuelve `null`): el estado queda como estaba.
+    private suspend fun onGoogleToken(token: GoogleIdToken) {
+        reduce(RegisterMutation.GoogleStarted)
+        val result = try {
+            signInWithGoogle(token)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            Result.failure(AuthFailure.Unknown())
+        }
+        result.fold(
+            onSuccess = {
+                reduce(if (it == null) RegisterMutation.GoogleCancelled else RegisterMutation.Succeeded)
+            },
+            onFailure = { reduce(RegisterMutation.Failed(it.toGoogleError())) }
+        )
+    }
+
+    private fun Throwable.toGoogleError() = when (this) {
+        AuthFailure.AccountExistsWithOtherProvider -> RegisterError.ACCOUNT_EXISTS_OTHER_PROVIDER
+        AuthFailure.TooManyRequests -> RegisterError.TOO_MANY_REQUESTS
+        AuthFailure.Network -> RegisterError.NETWORK
+        else -> RegisterError.GOOGLE_UNAVAILABLE
     }
 
     private fun Throwable.toMutation(): RegisterMutation = when (this) {

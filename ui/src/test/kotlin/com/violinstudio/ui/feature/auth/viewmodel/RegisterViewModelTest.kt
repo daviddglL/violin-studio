@@ -23,7 +23,7 @@ class RegisterViewModelTest {
     private val signUp = mockk<SignUpWithEmailUseCase>()
     private val user = AuthUser("uid", "ana@example.test", false, setOf(AuthProvider.PASSWORD))
 
-    private fun viewModel() = RegisterViewModel(signUp)
+    private fun viewModel() = RegisterViewModel(signUp, mockk())
 
     private fun answers(result: Result<AuthUser>) {
         coEvery { signUp(any(), any()) } coAnswers {

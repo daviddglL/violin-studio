@@ -29,6 +29,9 @@
     <string name="auth_error_too_many">Demasiados intentos. Espera un momento e inténtalo de nuevo.</string>
     <string name="auth_error_network">Sin conexión. Inténtalo de nuevo.</string>
     <string name="auth_error_unknown">No se ha podido completar la acción. Inténtalo de nuevo.</string>
+    <string name="auth_google_button">Continuar con Google</string>
+    <string name="auth_google_unavailable">No se ha podido acceder con Google. Puedes usar tu email y contraseña.</string>
+    <string name="auth_google_other_provider">Ya existe una cuenta con ese email creada con otro método. Inicia sesión con tu email y contraseña; no hemos vinculado nada.</string>
     <string name="auth_back_to_login">Volver a iniciar sesión</string>
     <string name="login_title">Inicia sesión</string>
     <string name="login_submit">Entrar</string>
