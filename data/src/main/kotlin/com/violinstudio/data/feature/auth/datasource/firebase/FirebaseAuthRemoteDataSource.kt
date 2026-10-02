@@ -59,6 +59,10 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
         currentUser().reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).await()
     }
 
+    override suspend fun reloadCurrentUser() {
+        currentUser().reload().await()
+    }
+
     override fun signOut() = auth.signOut()
 
     private fun currentUser(): FirebaseUser = checkNotNull(auth.currentUser) { "Sin sesión" }

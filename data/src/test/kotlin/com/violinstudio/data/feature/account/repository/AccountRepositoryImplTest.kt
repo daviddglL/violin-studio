@@ -1,6 +1,7 @@
 package com.violinstudio.data.feature.account.repository
 
 import app.cash.turbine.test
+import com.google.firebase.auth.FirebaseAuthException
 import com.violinstudio.data.commons.firebase.FunctionsCallException
 import com.violinstudio.data.feature.auth.datasource.FakeAuthRemoteDataSource
 import com.violinstudio.data.feature.auth.dto.AuthUserDto
@@ -49,10 +50,48 @@ class AccountRepositoryImplTest {
     }
 
     @Test
-    fun `unauthenticated en un reintento cuenta como cuenta ya borrada y cierra la sesion`() = runTest {
+    fun `unauthenticated con la cuenta desaparecida cuenta como ya borrada y cierra la sesion`() = runTest {
         functions.failure = failure("UNAUTHENTICATED")
+        auth.reloadFailure = FirebaseAuthException("ERROR_USER_NOT_FOUND", "x")
         assertTrue(repo.deleteAccount().isSuccess)
-        assertEquals(listOf("signOut"), auth.calls)
+        assertEquals(listOf("reloadCurrentUser", "signOut"), auth.calls)
+    }
+
+    @Test
+    fun `unauthenticated con usuario deshabilitado (borrado a medias) tambien cuenta como borrado`() = runTest {
+        functions.failure = failure("UNAUTHENTICATED")
+        auth.reloadFailure = FirebaseAuthException("ERROR_USER_DISABLED", "x")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertTrue(auth.calls.contains("signOut"))
+    }
+
+    @Test
+    fun `unauthenticated con la cuenta existente es Unauthenticated y mantiene la sesion`() = runTest {
+        functions.failure = failure("UNAUTHENTICATED")
+        assertEquals(AccountFailure.Unauthenticated, repo.deleteAccount().exceptionOrNull())
+        assertFalse(auth.calls.contains("signOut"))
+    }
+
+    @Test
+    fun `unauthenticated sin poder verificar la cuenta falla sin cerrar la sesion`() = runTest {
+        functions.failure = failure("UNAUTHENTICATED")
+        auth.reloadFailure = IOException("sin red")
+        assertTrue(repo.deleteAccount().exceptionOrNull() is AccountFailure.Unknown)
+        auth.reloadFailure = IllegalStateException("Sin sesión")
+        assertTrue(repo.deleteAccount().exceptionOrNull() is AccountFailure.Unknown)
+        assertFalse(auth.calls.contains("signOut"))
+    }
+
+    @Test
+    fun `un signOut que lanza no invalida un borrado ya hecho`() = runTest {
+        auth.signOutFailure = IllegalStateException("boom")
+        assertTrue(repo.deleteAccount().isSuccess)
+    }
+
+    @Test
+    fun `un signOut cancelado se propaga`() = runTest {
+        auth.signOutFailure = CancellationException("cancelada")
+        assertThrows<CancellationException> { repo.deleteAccount() }
     }
 
     @Test
