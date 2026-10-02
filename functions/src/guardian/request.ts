@@ -103,6 +103,8 @@ export async function requestGuardianConsentHandler(
       outcome: null,
       supersededAt: null,
       attempts: 0,
+      // Al aceptar, 3c-bis lee el destinatario del primer correo (el email en claro no se guarda en la solicitud, solo su HMAC).
+      mailId: mailRef.id,
     });
     tx.create(
       mailRef,

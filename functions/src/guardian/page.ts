@@ -49,14 +49,16 @@ const TEXT = {
   },
 };
 
-/** El script va en una plantilla JS: sin barras invertidas (`\w` se convertiría en `w`); por eso clase explícita. El token va en el fragmento (`#t=`), que el navegador nunca envía: el script lo copia al campo oculto y limpia la URL. */
+/** El script va en una plantilla JS: sin barras invertidas (clase explícita en vez de la abreviatura de palabra). El token va en el fragmento (#t=), que el navegador nunca envía: el script lo copia al campo oculto y limpia la URL. Lo comparten la página de aceptar/rechazar y la de revocar. */
+const TOKEN_SCRIPT =
+  `var m=/(?:^#|&)t=([A-Za-z0-9_-]+)/.exec(location.hash);if(m){document.getElementById("t").value=m[1]}` +
+  `history.replaceState(null,"",location.pathname+location.search);`;
+
 export function renderValidPage(i: ValidPageInput): string {
   if (!i.policyUrl.startsWith("https://")) throw new Error("policyUrl debe empezar por https://");
   const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
   const t = TEXT[lang];
-  const script =
-    `var m=/(?:^#|&)t=([A-Za-z0-9_-]+)/.exec(location.hash);if(m){document.getElementById("t").value=m[1]}` +
-    `history.replaceState(null,"",location.pathname+location.search);`;
+  const script = TOKEN_SCRIPT;
   return shell(
     lang,
     t.title,
@@ -75,13 +77,31 @@ const BILINGUAL = (title: string, es: string, en: string) => shell("en", title, 
 
 /** Respuesta única para cualquier causa de rechazo: no distingue inexistente, caducada, usada, bloqueada ni token erróneo. */
 export const renderInvalidPage = (): string =>
-  BILINGUAL("Violin Studio", "Este enlace no es válido o ha caducado.", "This link is not valid or has expired.");
+  shell(
+    "en",
+    "Violin Studio",
+    `<h1>Violin Studio</h1><p>${esc("Este enlace no es válido o ha caducado.")}</p><p>${esc("This link is not valid or has expired.")}</p>` +
+      `<p>${esc("Si quieres retirar un consentimiento, el menor puede revocarlo desde la app.")}</p><p>${esc("To withdraw a consent, the minor can revoke it from the app.")}</p>`,
+  );
 
 export const renderDeclarationPage = (): string =>
   BILINGUAL("Violin Studio", "Debes marcar la declaración para continuar. Vuelve atrás e inténtalo de nuevo.", "You must tick the declaration to continue. Go back and try again.");
 
-export const renderDonePage = (): string =>
-  BILINGUAL("Violin Studio", "Gracias. Hemos registrado tu consentimiento.", "Thank you. Your consent has been recorded.");
+/** `revokeLinkSent=false`: no se pudo generar el enlace de revocación; se avisa y se indica la alternativa (el menor puede revocar desde la app, C5). */
+export const renderDonePage = (revokeLinkSent = true): string =>
+  revokeLinkSent
+    ? BILINGUAL("Violin Studio", "Gracias. Hemos registrado tu consentimiento.", "Thank you. Your consent has been recorded.")
+    : shell(
+        "en",
+        "Violin Studio",
+        `<h1>Violin Studio</h1><p>${esc("Gracias. Hemos registrado tu consentimiento.")}</p><p>${esc("Thank you. Your consent has been recorded.")}</p>` +
+          `<p><strong>${esc("No has recibido un enlace para revocarlo. Si más adelante quieres retirar tu consentimiento, pide al menor que lo revoque desde la app o que elimine su cuenta.")}</strong></p>` +
+          `<p><strong>${esc("You did not receive a link to revoke it. If you later want to withdraw your consent, ask the minor to revoke it from the app or to delete their account.")}</strong></p>`,
+      );
+
+/** Fallo transitorio tras demostrar posesión del token: se puede reintentar (503). */
+export const renderRetryPage = (): string =>
+  BILINGUAL("Violin Studio", "No hemos podido completar la operación. Inténtalo de nuevo en unos minutos.", "We could not complete the operation. Please try again in a few minutes.");
 
 export const renderRejectedPage = (): string =>
   BILINGUAL("Violin Studio", "Hemos registrado tu rechazo y se eliminan la cuenta y los datos del menor.", "Your refusal has been recorded and the minor's account and data are being deleted.");
@@ -105,3 +125,26 @@ export function renderRejectConfirmPage(i: { requestId: string; token: string; d
       `<p><a href="/tutor?r=${encodeURIComponent(i.requestId)}">${esc(t.cancel)}</a></p>`,
   );
 }
+
+const REVOKE = {
+  es: { title: "Revocar el consentimiento", warn: (n: string) => `Vas a retirar tu consentimiento para que ${n} use Violin Studio. Su cuenta perderá el acceso a la app hasta que vuelva a pedirte consentimiento; no se borran sus datos.`, button: "Revocar el consentimiento", noscript: TEXT.es.noscript },
+  en: { title: "Revoke consent", warn: (n: string) => `You are about to withdraw your consent for ${n} to use Violin Studio. Their account will lose access to the app until they ask for your consent again; their data is not deleted.`, button: "Revoke consent", noscript: TEXT.en.noscript },
+};
+
+/** Página de revocación del tutor: es en sí la confirmación (explica el efecto, que es reversible; el único botón revoca). GET sin efectos. */
+export function renderRevokePage(i: { requestId: string; displayName: string; locale: string; nonce: string }): string {
+  const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
+  const t = REVOKE[lang];
+  return shell(
+    lang,
+    t.title,
+    `<h1>${esc(t.title)}</h1><p>${esc(t.warn(i.displayName))}</p>` +
+      `<form method="post" action=""><input type="hidden" name="r" value="${esc(i.requestId)}">` +
+      `<input type="hidden" name="t" id="t" value="">` +
+      `<button type="submit" name="action" value="revoke">${esc(t.button)}</button></form>` +
+      `<noscript><p>${esc(t.noscript)}</p></noscript><script nonce="${esc(i.nonce)}">${TOKEN_SCRIPT}</script>`,
+  );
+}
+
+export const renderRevokedPage = (): string =>
+  BILINGUAL("Violin Studio", "Hemos registrado la revocación: la cuenta del menor ya no tiene acceso.", "Your revocation has been recorded: the minor's account no longer has access.");

@@ -42,6 +42,7 @@ export async function revokeConsentCore(
   deps: RevokeConsentDeps,
   uid: string,
   by: GrantedBy,
+  opts: { expectGuardianRequestId?: string } = {},
 ): Promise<RevokeConsentResult> {
   const userRef = deps.db.collection(COLLECTIONS.users).doc(uid);
   const log = deps.log ?? ((m, d) => logger.info(m, d));
@@ -51,6 +52,11 @@ export async function revokeConsentCore(
     const doc = snap.data();
     if (!snap.exists || !doc || doc.deletion) throw fail("failed-precondition", ErrorReason.NO_PROFILE);
     if (doc.consentStatus !== "granted") return { revoked: false as const };
+    // Precondición del tutor, DENTRO de la transacción: el consentimiento activo debe ser el de la solicitud cuyo enlace
+    // se usa (si el menor revocó y otro tutor concedió por otra solicitud, un enlace viejo no puede revocarlo). Mismo rechazo sin escrituras.
+    if (opts.expectGuardianRequestId !== undefined && (doc.guardian as { requestId?: unknown } | undefined)?.requestId !== opts.expectGuardianRequestId) {
+      return { revoked: false as const };
+    }
 
     const closing = consentEpochOf(doc);
     // Nunca se bloquea una revocación: una versión ilegible se registra como 0 y se marca como anomalía.

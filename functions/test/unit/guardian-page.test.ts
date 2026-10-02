@@ -1,6 +1,6 @@
 import vm from "node:vm";
 import { generateToken } from "../../src/guardian/token";
-import { makeNonce, renderDonePage, renderRejectConfirmPage, renderInvalidPage, renderValidPage, securityHeaders } from "../../src/guardian/page";
+import { makeNonce, renderDonePage, renderRejectConfirmPage, renderInvalidPage, renderRetryPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "../../src/guardian/page";
 
 const input = (over: Partial<Parameters<typeof renderValidPage>[0]> = {}) => ({
   requestId: "req123",
@@ -125,5 +125,69 @@ describe("renderRejectConfirmPage (rechazo en dos pasos, sin JS)", () => {
     expect(html).toContain('href="/tutor?r=req123"');
     expect(html).toMatch(/elimin/i);
     expect(html).not.toContain("<script");
+  });
+});
+
+describe("renderRevokePage (revocación del tutor)", () => {
+  const html = renderRevokePage({ requestId: "req123", displayName: "Ana <i>", locale: "es", nonce: "NONCE1" });
+
+  test("confirma sin cambiar nada: avisa de que el menor pierde el acceso, escapa el nombre y solo ofrece revocar", () => {
+    expect(html).toContain("Ana &lt;i&gt;");
+    expect(html).not.toContain("<i>");
+    expect(html).toContain('method="post"');
+    expect(html).toContain('name="r" value="req123"');
+    expect(html).toMatch(/<input type="hidden" name="t" id="t" value="">/);
+    expect(html).toContain('name="action" value="revoke"');
+    expect(html).not.toContain('value="accept"');
+    expect(html).not.toContain('value="reject"');
+    expect(html).not.toContain('name="declaration"');
+    expect(html).toMatch(/acceso/i);
+    expect(renderRevokePage({ requestId: "r", displayName: "A", locale: "en", nonce: "N" })).toContain('lang="en"');
+  });
+
+  test("su script (nonce) copia el token del fragmento #t=...&a=revoke y limpia la URL", () => {
+    expect(html).toContain('<script nonce="NONCE1">');
+    const script = html.match(/<script nonce="NONCE1">([\s\S]*?)<\/script>/)![1];
+    const t = generateToken();
+    const field = { value: "" };
+    const replaced: unknown[][] = [];
+    vm.runInNewContext(script, {
+      location: { hash: `#t=${t}&a=revoke`, pathname: "/tutor", search: "?r=req123" },
+      document: { getElementById: (id: string) => (id === "t" ? field : null) },
+      history: { replaceState: (...a: unknown[]) => void replaced.push(a) },
+    });
+    expect(field.value).toBe(t);
+    expect(replaced).toEqual([[null, "", "/tutor?r=req123"]]);
+  });
+
+  test("la página de revocada es estática y no contiene datos del menor", () => {
+    const done = renderRevokedPage();
+    expect(done).toBe(renderRevokedPage());
+    expect(done).not.toContain("<script");
+    expect(done).not.toMatch(/Ana|req123/);
+  });
+});
+
+describe("variantes de las páginas finales (W2, W3, transitorio)", () => {
+  test("renderDonePage: con enlace de revocación (por defecto) no avisa; sin él dice que NO se recibió y cómo revocar", () => {
+    expect(renderDonePage()).toBe(renderDonePage(true));
+    expect(renderDonePage()).not.toMatch(/revoc/i);
+    const sin = renderDonePage(false);
+    expect(sin).not.toBe(renderDonePage());
+    expect(sin).toContain("Gracias");
+    expect(sin).toMatch(/no has recibido/i);
+    expect(sin).toMatch(/you did not receive/i);
+    expect(sin).toMatch(/app/);
+    expect(sin).not.toContain("<script");
+  });
+  test("renderRetryPage es estática y pide reintentar", () => {
+    expect(renderRetryPage()).toBe(renderRetryPage());
+    expect(renderRetryPage()).toMatch(/de nuevo/i);
+    expect(renderRetryPage()).toMatch(/try again/i);
+    expect(renderRetryPage()).not.toBe(renderInvalidPage());
+  });
+  test("la página genérica sigue siendo estática y añade la alternativa (el menor puede revocar desde la app) sin revelar nada del enlace", () => {
+    expect(renderInvalidPage()).toMatch(/app/);
+    expect(renderInvalidPage()).not.toMatch(/Ana|req123/);
   });
 });

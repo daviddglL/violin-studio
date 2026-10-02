@@ -1,4 +1,4 @@
-import { buildGuardianMail, maskEmail } from "../../src/guardian/mail";
+import { buildGuardianMail, buildGuardianRevokeMail, maskEmail } from "../../src/guardian/mail";
 
 const now = new Date("2026-03-01T10:00:00Z");
 const base = { to: "tutor@example.com", link: "https://x.app/tutor?r=abc#t=tok", displayName: "Ana", uid: "u1", now };
@@ -36,4 +36,21 @@ describe("maskEmail", () => {
     ["a@b.co.uk", "a***@b***.uk"],
     ["x@localhost", "x***@l***"],
   ])("%s -> %s", (e, masked) => expect(maskEmail(e)).toBe(masked));
+});
+
+describe("buildGuardianRevokeMail", () => {
+  const link = "https://x.app/tutor?r=abc#t=rev&a=revoke";
+  test("doc mail/ con uid, kind guardian_revoke, enlace de revocación y expireAt = now + 72 h (ventana de entrega, no validez del enlace)", () => {
+    const m = buildGuardianRevokeMail({ ...base, link, locale: "es" });
+    expect(m).toMatchObject({ to: "tutor@example.com", uid: "u1", kind: "guardian_revoke" });
+    expect(m.expireAt.getTime()).toBe(now.getTime() + 72 * 3600_000);
+    expect(m.message.text).toContain(link);
+    expect(m.message.html).toContain(link.replace("&", "&amp;")); // el & del enlace va escapado en el HTML
+    expect(m.message.text).toContain("30");
+  });
+  test("es / en y nombre hostil escapado", () => {
+    expect(buildGuardianRevokeMail({ ...base, link, locale: "es" }).message.subject).toContain("Ana");
+    expect(buildGuardianRevokeMail({ ...base, link, locale: "fr" }).message.text).toContain("revoke");
+    expect(buildGuardianRevokeMail({ ...base, link, locale: "en", displayName: "<b>x</b>" }).message.html).not.toContain("<b>");
+  });
 });
