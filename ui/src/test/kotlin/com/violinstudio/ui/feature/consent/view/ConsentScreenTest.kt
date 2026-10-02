@@ -50,10 +50,8 @@ class ConsentScreenTest {
         ViolinStudioTheme { ConsentScreen(state) { intents += it } }
     }
 
-    private fun loaded(
-        config: IdentityConfig = v1,
-        reason: ConsentReason = ConsentReason.FIRST
-    ) = ConsentState(config = config, reason = reason)
+    private fun loaded(config: IdentityConfig = v1, reason: ConsentReason = ConsentReason.FIRST) =
+        ConsentState(config = config, reason = reason)
 
     @Test
     fun `first consent shows the intro, the policy version and the three actions`() {
@@ -143,18 +141,20 @@ class ConsentScreenTest {
         assertAssertive(text(R.string.consent_error_network), loaded().copy(error = ConsentError.NETWORK))
 
     @Test
-    fun `a policy changed notice names the new version and is assertive`() =
+    fun `a policy changed notice names the new version and is assertive`() {
         assertAssertive(
             text(R.string.consent_error_policy_changed, 2),
             loaded(v2).copy(error = ConsentError.POLICY_CHANGED)
         )
+    }
 
     @Test
-    fun `an unavailable policy is assertive`() =
+    fun `an unavailable policy is assertive`() {
         assertAssertive(
             text(R.string.consent_error_policy_unavailable),
             loaded().copy(error = ConsentError.POLICY_UNAVAILABLE)
         )
+    }
 
     @Test
     fun `a guardian required answer is assertive`() =

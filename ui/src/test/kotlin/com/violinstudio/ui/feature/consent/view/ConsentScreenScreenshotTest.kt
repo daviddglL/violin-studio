@@ -39,8 +39,7 @@ class ConsentScreenScreenshotTest {
     @Test fun policyUpdated() =
         capture(ConsentState(config = v2, reason = ConsentReason.POLICY_UPDATED), "consent_policy_updated")
 
-    @Test fun revoked() =
-        capture(ConsentState(config = v2, reason = ConsentReason.REVOKED), "consent_revoked")
+    @Test fun revoked() = capture(ConsentState(config = v2, reason = ConsentReason.REVOKED), "consent_revoked")
 
     @Test fun policyChanged() = capture(
         ConsentState(config = v2, error = ConsentError.POLICY_CHANGED),

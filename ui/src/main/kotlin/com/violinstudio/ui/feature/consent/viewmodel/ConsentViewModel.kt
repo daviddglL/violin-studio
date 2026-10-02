@@ -89,11 +89,13 @@ class ConsentViewModel @Inject constructor(
     }
 
     /** El servidor dice que la versión es antigua: se recarga la política vigente y se pide aceptarla de nuevo. */
-    private suspend fun reloadPolicy(): ConsentMutation =
-        runCatchingNonCancellation { getConfig() }.fold(
+    private suspend fun reloadPolicy(): ConsentMutation {
+        val result = runCatchingNonCancellation { getConfig() }
+        return result.fold(
             onSuccess = { ConsentMutation.PolicyOutdated(it) },
             onFailure = { ConsentMutation.Failed(ConsentError.POLICY_UNAVAILABLE) }
         )
+    }
 
     private suspend fun onDelete() {
         try {

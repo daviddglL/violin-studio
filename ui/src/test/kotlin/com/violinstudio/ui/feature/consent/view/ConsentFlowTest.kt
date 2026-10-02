@@ -57,7 +57,9 @@ class ConsentFlowTest {
     private val v1 = IdentityConfig(1, "https://example.test/policy/1", 14, true)
     private val v2 = IdentityConfig(2, "https://example.test/policy/2", 14, true)
     private val ready = SessionState.Ready(
-        UserProfile("u1", "Ana", Instrument.VIOLIN, "es", Role.INDEPENDENT, false, ConsentStatus.GRANTED, 1, null, false)
+        UserProfile(
+            "u1", "Ana", Instrument.VIOLIN, "es", Role.INDEPENDENT, false, ConsentStatus.GRANTED, 1, null, false
+        )
     )
 
     private val accept = mockk<AcceptPolicyUseCase>()

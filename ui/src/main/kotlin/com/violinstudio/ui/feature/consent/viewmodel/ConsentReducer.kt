@@ -18,7 +18,12 @@ object ConsentReducer {
         ConsentMutation.Succeeded -> state.copy(isLoading = false, succeeded = true)
         // La política recargada manda: hay que leerla y aceptarla de nuevo.
         is ConsentMutation.PolicyOutdated ->
-            state.copy(config = mutation.config, checked = false, isLoading = false, error = ConsentError.POLICY_CHANGED)
+            state.copy(
+                config = mutation.config,
+                checked = false,
+                isLoading = false,
+                error = ConsentError.POLICY_CHANGED
+            )
         is ConsentMutation.Failed -> state.copy(isLoading = false, error = mutation.error)
         ConsentMutation.DeleteStarted -> state.copy(isDeleting = true, deleteError = null)
         ConsentMutation.DeleteSucceeded -> state.copy(isDeleting = false)
