@@ -166,7 +166,6 @@ class AuthScreensTest {
         assertEquals(listOf("back"), calls)
     }
 
-
     @Test
     fun loginFieldsDeclareAutofillTypes() {
         showLogin()
