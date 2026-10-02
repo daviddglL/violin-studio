@@ -12,8 +12,8 @@ object ConsentResponseParser {
             policyVersion = map.int("identityConfig", "policyVersion"),
             policyUrl = map.string("identityConfig", "policyUrl"),
             digitalConsentAge = map.int("identityConfig", "digitalConsentAge"),
-            guardianFlowEnabled = map["guardianFlowEnabled"] as? Boolean
-                ?: throw MalformedResponseException("identityConfig: falta 'guardianFlowEnabled' o no es booleano")
+            // Ausente = sin flujo de tutor (valor seguro); un tipo erróneo sí es respuesta malformada.
+            guardianFlowEnabled = map.guardianFlow()
         )
     }
 
@@ -32,5 +32,11 @@ object ConsentResponseParser {
         val range = Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble()
         val whole = number?.toDouble()?.takeIf { it % 1.0 == 0.0 && it in range }
         return whole?.toInt() ?: throw MalformedResponseException("$op: falta '$key' o no es un entero")
+    }
+
+    private fun Map<*, *>.guardianFlow(): Boolean {
+        if ("guardianFlowEnabled" !in this) return false
+        return this["guardianFlowEnabled"] as? Boolean
+            ?: throw MalformedResponseException("identityConfig: 'guardianFlowEnabled' no es booleano")
     }
 }
