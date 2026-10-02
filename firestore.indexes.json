@@ -7,6 +7,14 @@
         { "fieldPath": "consentStatus", "order": "ASCENDING" },
         { "fieldPath": "guardian.requestedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletion.state", "order": "ASCENDING" },
+        { "fieldPath": "deletion.startedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

@@ -18,6 +18,17 @@ describe("firestore.indexes.json", () => {
     });
   });
 
+  test("indice compuesto users(deletion.state, deletion.startedAt) para reanudar borrados atascados (7b.3)", () => {
+    expect(cfg.indexes).toContainEqual({
+      collectionGroup: "users",
+      queryScope: "COLLECTION",
+      fields: [
+        { fieldPath: "deletion.state", order: "ASCENDING" },
+        { fieldPath: "deletion.startedAt", order: "ASCENDING" },
+      ],
+    });
+  });
+
   test.each(["mail", "guardianRequests", "guardianEmailLimits"])("TTL sobre %s.expireAt", (coleccion) => {
     expect(cfg.fieldOverrides).toContainEqual({
       collectionGroup: coleccion,
