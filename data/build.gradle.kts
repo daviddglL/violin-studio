@@ -13,8 +13,8 @@ dependencies {
     implementation(project(":domain"))
 
     api(platform(libs.firebase.bom))
-    api(libs.firebase.auth)
-    api(libs.firebase.firestore)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
     api(libs.firebase.functions)
     implementation(libs.kotlinx.coroutines.play.services)
 }
