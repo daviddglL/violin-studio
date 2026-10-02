@@ -21,6 +21,7 @@ import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.feature.auth.view.AuthRoute
 import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.home.view.HomeRoute
+import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
 import com.violinstudio.ui.feature.session.view.PlaceholderScreen
 import com.violinstudio.ui.feature.session.view.SplashScreen
@@ -48,7 +49,7 @@ fun SessionNavHost(
     home: @Composable () -> Unit = { HomeRoute() },
     auth: @Composable () -> Unit = { AuthRoute() },
     verifyEmail: @Composable (email: String?) -> Unit = { VerifyEmailRoute(it) },
-    onboarding: @Composable () -> Unit = { PlaceholderScreen("onboarding") },
+    onboarding: @Composable () -> Unit = { OnboardingRoute() },
     consent: @Composable () -> Unit = { PlaceholderScreen("consent") },
     guardianWait: @Composable () -> Unit = { PlaceholderScreen("guardian_wait") }
 ) {

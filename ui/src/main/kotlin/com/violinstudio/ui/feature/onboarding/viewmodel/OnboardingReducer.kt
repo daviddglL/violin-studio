@@ -42,7 +42,7 @@ object OnboardingReducer {
         if (state.birthDate == null) errors += ProfileField.BIRTH_DATE
         if (state.instrument == null) errors += ProfileField.INSTRUMENT
         val registration = ProfileRegistration.create(
-            birthDate = state.birthDate ?: LocalDate.EPOCH,
+            birthDate = state.birthDate ?: LocalDate.of(1970, 1, 1),
             displayName = state.displayName,
             instrument = state.instrument ?: Instrument.OTHER,
             locale = state.locale

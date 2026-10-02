@@ -131,6 +131,5 @@ class OnboardingViewModel @Inject constructor(
         else -> OnboardingDeleteError.FAILED
     }
 
-    private fun reduce(mutation: OnboardingMutation) =
-        setState { OnboardingReducer.reduce(this, mutation, ageGate) }
+    private fun reduce(mutation: OnboardingMutation) = setState { OnboardingReducer.reduce(this, mutation, ageGate) }
 }

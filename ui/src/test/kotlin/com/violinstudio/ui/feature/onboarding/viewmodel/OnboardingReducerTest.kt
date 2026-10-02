@@ -107,7 +107,10 @@ class OnboardingReducerTest {
 
     @Test
     fun `failures stop loading and success blocks submit`() {
-        val failed = reduce(filled.copy(isLoading = true), OnboardingMutation.Failed(OnboardingError.UNDERAGE_NOT_ALLOWED))
+        val failed = reduce(
+            filled.copy(isLoading = true),
+            OnboardingMutation.Failed(OnboardingError.UNDERAGE_NOT_ALLOWED)
+        )
         assertEquals(OnboardingError.UNDERAGE_NOT_ALLOWED, failed.error)
         assertFalse(failed.isLoading)
         val ok = reduce(filled.copy(isLoading = true), OnboardingMutation.Succeeded)
