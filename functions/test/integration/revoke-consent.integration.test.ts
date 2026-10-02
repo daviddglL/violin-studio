@@ -4,10 +4,10 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { recordConsentHandler } from "../../src/consent/record-consent";
 import { revokeConsentCore } from "../../src/consent/revoke-consent";
-import { revokeConsent } from "../../src/index";
+import { deleteAccount, revokeConsent } from "../../src/index";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
-const app = getApps()[0] ?? initializeApp({ projectId: project });
+const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
 const auth = getAuth(app);
 const db = getFirestore(app);
 const fft = functionsTest();
@@ -182,7 +182,17 @@ describe("reconsentir tras revocar (2b.4)", () => {
   });
 });
 
-// 2b.5: el borrado tras revocar sigue disponible (D1). Se completa en 7a.14 y 7a.15.
+// 2b.5: el borrado tras revocar sigue disponible (D1); la cobertura por estado está en delete-account.integration.test.ts.
 describe("borrado tras revocar (D1)", () => {
-  it.todo("deleteAccount procede con consentStatus=revoked (ver 7a.14, 7a.15)");
+  test("deleteAccount procede con consentStatus=revoked", async () => {
+    const uid = await usuario();
+    await recordConsentHandler(deps, uid, { policyVersion: 1 });
+    await revokeConsentCore(deps, uid, "self");
+    expect((await perfil(uid)).consentStatus).toBe("revoked");
+
+    const borrar = fft.wrap(deleteAccount);
+    expect(await borrar(req(uid, { email_verified: true, auth_time: Math.floor(Date.now() / 1000) }))).toEqual({ deleted: true });
+    await expect(auth.getUser(uid)).rejects.toMatchObject({ code: "auth/user-not-found" });
+    expect((await db.collection("users").doc(uid).get()).exists).toBe(false);
+  });
 });

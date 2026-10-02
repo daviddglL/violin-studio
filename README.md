@@ -71,7 +71,7 @@ Los `google-services.json` no están en git: descárgalos de la consola de Fireb
 npm --prefix functions test                        # tests unitarios de Functions
 
 # Tests de integración de Functions contra los emuladores
-firebase emulators:exec --config firebase.test.json --only functions,auth,firestore,storage \
+firebase emulators:exec --only functions,auth,firestore,storage \
   --project demo-violin-studio "npm --prefix functions run test:integration"
 
 # Tests de las reglas de seguridad

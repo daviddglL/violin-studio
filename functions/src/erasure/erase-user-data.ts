@@ -37,7 +37,7 @@ const PERMANENT_STRING = new Set([
   "invalid-argument", "not-found", "already-exists", "permission-denied", "failed-precondition",
   "out-of-range", "unimplemented", "unauthenticated",
 ]);
-function isPermanent(e: unknown): boolean {
+export function isPermanent(e: unknown): boolean {
   const code = codeOf(e);
   if (typeof code === "number") return PERMANENT_NUMERIC.has(code);
   if (typeof code !== "string") return false;
