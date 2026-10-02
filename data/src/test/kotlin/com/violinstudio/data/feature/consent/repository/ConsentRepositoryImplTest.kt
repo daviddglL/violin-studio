@@ -20,12 +20,7 @@ class ConsentRepositoryImplTest {
     private fun failure(reason: String, vararg extra: Pair<String, Any?>) =
         FunctionsCallException("FAILED_PRECONDITION", mapOf("reason" to reason) + extra)
 
-    private fun config(
-        version: Any? = 1,
-        url: Any? = "u",
-        age: Any? = 14,
-        flow: Any? = true
-    ) = mapOf(
+    private fun config(version: Any? = 1, url: Any? = "u", age: Any? = 14, flow: Any? = true) = mapOf(
         "policyVersion" to version,
         "policyUrl" to url,
         "digitalConsentAge" to age,
@@ -112,7 +107,7 @@ class ConsentRepositoryImplTest {
         val limited = repo.requestGuardianConsent("a@b.co").exceptionOrNull() as ConsentFailure.RateLimited
         assertEquals(60L, limited.retryAfterSeconds)
         val cases = listOf(
-            
+
             failure("GUARDIAN_EMAIL_INVALID") to ConsentFailure.GuardianEmailInvalid,
             failure("NOT_MINOR") to ConsentFailure.NotMinor,
             failure("CONSENT_ALREADY_GRANTED") to ConsentFailure.AlreadyGranted

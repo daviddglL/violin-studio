@@ -12,8 +12,9 @@ import javax.inject.Inject
 class ConsentRepositoryImpl @Inject constructor(private val functions: IdentityFunctionsDataSource) :
     ConsentRepository {
     // Una respuesta malformada lanza MalformedResponseException, que el mapper convierte en Unknown.
-    override suspend fun identityConfig(): Result<IdentityConfig> =
-        resultOf(FunctionsErrorMapper::toConsentFailure) { ConsentResponseParser.parseConfig(functions.identityConfig()) }
+    override suspend fun identityConfig(): Result<IdentityConfig> = resultOf(FunctionsErrorMapper::toConsentFailure) {
+        ConsentResponseParser.parseConfig(functions.identityConfig())
+    }
 
     // La respuesta `{consentStatus}` no se usa: el estado llega por el perfil (observe) y los claims.
     override suspend fun recordConsent(policyVersion: Int): Result<Unit> =

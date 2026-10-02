@@ -29,7 +29,8 @@ object ConsentResponseParser {
     // Functions entrega los números como Int/Long/Double según la ruta; se aceptan solo los enteros exactos.
     private fun Map<*, *>.int(op: String, key: String): Int {
         val number = this[key] as? Number
-        val whole = number?.toDouble()?.takeIf { it % 1.0 == 0.0 && it in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble() }
+        val range = Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble()
+        val whole = number?.toDouble()?.takeIf { it % 1.0 == 0.0 && it in range }
         return whole?.toInt() ?: throw MalformedResponseException("$op: falta '$key' o no es un entero")
     }
 }
