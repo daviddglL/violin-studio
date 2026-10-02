@@ -52,13 +52,12 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    // Credenciales erróneas, cuenta inexistente y email mal formado comparten mensaje: no revela si el email existe.
+    // Defensa en profundidad: todo fallo salvo red y límite de intentos (cuenta inexistente, deshabilitada, otro
+    // proveedor, desconocido...) comparte el mensaje de credenciales erróneas; la UI no depende de lo que mapee datos.
     private fun Throwable.toLoginError() = when (this) {
-        AuthFailure.InvalidCredentials, AuthFailure.InvalidEmail, AuthFailure.UserNotFound ->
-            LoginError.INVALID_CREDENTIALS
         AuthFailure.TooManyRequests -> LoginError.TOO_MANY_REQUESTS
         AuthFailure.Network -> LoginError.NETWORK
-        else -> LoginError.UNKNOWN
+        else -> LoginError.INVALID_CREDENTIALS
     }
 
     private fun reduce(mutation: LoginMutation) = setState { LoginReducer.reduce(this, mutation) }

@@ -46,7 +46,7 @@ class RegisterViewModelTest {
             fill()
             intent(RegisterIntent.Submit)
             assertState { it.isLoading }
-            assertState { !it.isLoading && it.error == null && it.emailError == null && it.passwordError == null }
+            assertState { it.succeeded && it.password.isEmpty() && it.error == null && !it.canSubmit }
             assertNoEffects()
         }
         coVerify(exactly = 1) { signUp("ana@example.test", "secret1") }

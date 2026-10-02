@@ -4,9 +4,10 @@ import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
 
 object RegisterReducer {
     fun reduce(state: RegisterState, mutation: RegisterMutation): RegisterState = when (mutation) {
-        is RegisterMutation.EmailChanged -> state.copy(email = mutation.value, emailError = null, error = null)
+        is RegisterMutation.EmailChanged ->
+            state.copy(email = mutation.value, emailError = null, error = null, succeeded = false)
         is RegisterMutation.PasswordChanged ->
-            state.copy(password = mutation.value, passwordError = null, error = null)
+            state.copy(password = mutation.value, passwordError = null, error = null, succeeded = false)
         RegisterMutation.SubmitRequested -> {
             val email = state.email.trim()
             val emailError = when {
@@ -26,7 +27,7 @@ object RegisterReducer {
                 isLoading = emailError == null && passwordError == null
             )
         }
-        RegisterMutation.Succeeded -> state.copy(isLoading = false)
+        RegisterMutation.Succeeded -> state.copy(isLoading = false, succeeded = true, password = "")
         is RegisterMutation.Rejected ->
             state.copy(isLoading = false, emailError = mutation.emailError, passwordError = mutation.passwordError)
         is RegisterMutation.Failed -> state.copy(isLoading = false, error = mutation.error)

@@ -42,7 +42,7 @@ fun RegisterScreen(state: RegisterState, onIntent: (RegisterIntent) -> Unit, onB
         state.error?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
         AuthSubmitButton(
             label = stringResource(if (state.isLoading) R.string.register_loading else R.string.register_submit),
-            enabled = !state.isLoading,
+            enabled = state.canSubmit,
             onClick = { onIntent(RegisterIntent.Submit) }
         )
         TextButton(onClick = onBack) { Text(stringResource(R.string.auth_back_to_login)) }

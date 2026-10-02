@@ -48,7 +48,7 @@ fun LoginScreen(
         state.error?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
         AuthSubmitButton(
             label = stringResource(if (state.isLoading) R.string.login_loading else R.string.login_submit),
-            enabled = !state.isLoading,
+            enabled = state.canSubmit,
             onClick = { onIntent(LoginIntent.Submit) }
         )
         TextButton(onClick = onForgotPassword) { Text(stringResource(R.string.login_forgot)) }
@@ -65,5 +65,4 @@ private fun LoginError.textRes() = when (this) {
     LoginError.INVALID_CREDENTIALS -> R.string.login_error_invalid
     LoginError.TOO_MANY_REQUESTS -> R.string.auth_error_too_many
     LoginError.NETWORK -> R.string.auth_error_network
-    LoginError.UNKNOWN -> R.string.auth_error_unknown
 }

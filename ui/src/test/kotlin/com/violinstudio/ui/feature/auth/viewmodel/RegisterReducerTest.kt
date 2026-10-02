@@ -51,7 +51,17 @@ class RegisterReducerTest {
             RegisterError.ACCOUNT_UNAVAILABLE,
             reduce(loading, RegisterMutation.Failed(RegisterError.ACCOUNT_UNAVAILABLE)).error
         )
-        assertFalse(reduce(loading, RegisterMutation.Succeeded).isLoading)
+    }
+
+    @Test
+    fun `success drops the password and blocks submit until the session swaps the screen`() {
+        val s = reduce(
+            RegisterState(email = "a@b.co", password = "secret1", isLoading = true),
+            RegisterMutation.Succeeded
+        )
+        assertEquals(RegisterState(email = "a@b.co", succeeded = true), s)
+        assertFalse(s.canSubmit)
+        assertTrue(reduce(s, RegisterMutation.EmailChanged("x")).canSubmit)
     }
 
     @Test

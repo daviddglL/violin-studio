@@ -18,8 +18,12 @@ data class RegisterState(
     val emailError: RegisterFieldError? = null,
     val passwordError: RegisterFieldError? = null,
     val isLoading: Boolean = false,
-    val error: RegisterError? = null
+    val error: RegisterError? = null,
+    val succeeded: Boolean = false
 ) : UiState {
+    /** Tras un acceso correcto el envío sigue bloqueado hasta que la sesión sustituya la pantalla. */
+    val canSubmit: Boolean get() = !isLoading && !succeeded
+
     override fun toString(): String =
         "RegisterState(isLoading=$isLoading, emailError=$emailError, passwordError=$passwordError, error=$error)"
 }

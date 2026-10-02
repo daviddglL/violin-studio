@@ -7,7 +7,7 @@ import com.violinstudio.ui.commons.mvi.UiState
 enum class LoginFieldError { EMAIL_EMPTY, PASSWORD_EMPTY }
 
 /** Un email inexistente y una contraseña errónea producen el mismo [INVALID_CREDENTIALS]. */
-enum class LoginError { INVALID_CREDENTIALS, TOO_MANY_REQUESTS, NETWORK, UNKNOWN }
+enum class LoginError { INVALID_CREDENTIALS, TOO_MANY_REQUESTS, NETWORK }
 
 data class LoginState(
     val email: String = "",
@@ -15,8 +15,12 @@ data class LoginState(
     val emailError: LoginFieldError? = null,
     val passwordError: LoginFieldError? = null,
     val isLoading: Boolean = false,
-    val error: LoginError? = null
+    val error: LoginError? = null,
+    val succeeded: Boolean = false
 ) : UiState {
+    /** Tras un acceso correcto el envío sigue bloqueado hasta que la sesión sustituya la pantalla. */
+    val canSubmit: Boolean get() = !isLoading && !succeeded
+
     /** La contraseña y el email no salen en logs ni en mensajes de fallo de tests. */
     override fun toString(): String =
         "LoginState(isLoading=$isLoading, emailError=$emailError, passwordError=$passwordError, error=$error)"

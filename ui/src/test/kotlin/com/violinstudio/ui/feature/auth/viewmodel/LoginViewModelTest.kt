@@ -46,36 +46,51 @@ class LoginViewModelTest {
             fill()
             intent(LoginIntent.Submit)
             assertState { it.isLoading }
-            assertState { !it.isLoading && it.error == null }
+            assertState { !it.isLoading && it.error == null && it.succeeded && it.password.isEmpty() }
             assertNoEffects()
         }
         coVerify(exactly = 1) { signIn("ana@example.test", "secret") }
     }
 
-    @Test
-    fun `wrong password and unknown account show the same message`() = runTest {
-        val shown = mutableListOf<LoginError?>()
-        for (failure in listOf(AuthFailure.InvalidCredentials, AuthFailure.InvalidEmail)) {
-            answers(Result.failure(failure))
-            viewModel().testMvi {
-                fill()
-                intent(LoginIntent.Submit)
-                assertState { it.isLoading }
-                assertState {
-                    shown += it.error
-                    true
-                }
+    private suspend fun finalStateAfter(failure: Throwable): LoginState {
+        answers(Result.failure(failure))
+        lateinit var last: LoginState
+        viewModel().testMvi {
+            fill()
+            intent(LoginIntent.Submit)
+            assertState { it.isLoading }
+            assertState {
+                last = it
+                true
             }
         }
-        assertEquals(listOf(LoginError.INVALID_CREDENTIALS, LoginError.INVALID_CREDENTIALS), shown)
+        return last
     }
 
     @Test
-    fun `network, rate limit and unexpected failures map to their own messages`() = runTest {
+    fun `every failure except network and rate limit looks exactly like a wrong password`() = runTest {
+        val wrongPassword = finalStateAfter(AuthFailure.InvalidCredentials)
+        assertEquals(LoginError.INVALID_CREDENTIALS, wrongPassword.error)
+        assertEquals("", wrongPassword.password)
+        val others = listOf(
+            AuthFailure.InvalidEmail,
+            AuthFailure.UserNotFound,
+            AuthFailure.AccountExistsWithOtherProvider,
+            AuthFailure.ProviderUnavailable,
+            AuthFailure.EmailAlreadyInUse,
+            AuthFailure.WeakPassword,
+            AuthFailure.RequiresRecentLogin,
+            AuthFailure.Cancelled,
+            AuthFailure.Unknown(IllegalStateException("disabled ana@example.test"))
+        )
+        for (failure in others) assertEquals(wrongPassword, finalStateAfter(failure), failure.toString())
+    }
+
+    @Test
+    fun `network and rate limit failures keep their own messages and the typed password`() = runTest {
         val expected = mapOf(
             AuthFailure.Network to LoginError.NETWORK,
-            AuthFailure.TooManyRequests to LoginError.TOO_MANY_REQUESTS,
-            AuthFailure.Unknown() to LoginError.UNKNOWN
+            AuthFailure.TooManyRequests to LoginError.TOO_MANY_REQUESTS
         )
         for ((failure, error) in expected) {
             answers(Result.failure(failure))
@@ -83,7 +98,7 @@ class LoginViewModelTest {
                 fill()
                 intent(LoginIntent.Submit)
                 assertState { it.isLoading }
-                assertState { it.error == error }
+                assertState { it.error == error && it.password == "secret" }
             }
         }
     }
@@ -117,8 +132,10 @@ class LoginViewModelTest {
             fill()
             intent(LoginIntent.Submit)
             assertState { it.isLoading }
-            assertState { it.error == LoginError.UNKNOWN }
+            assertState { it.error == LoginError.INVALID_CREDENTIALS }
             answers(Result.success(user))
+            intent(LoginIntent.PasswordChanged("secret"))
+            assertState { it.password == "secret" }
             intent(LoginIntent.Submit)
             assertState { it.isLoading }
             assertState { !it.isLoading && it.error == null }

@@ -32,7 +32,7 @@ class LoginReducerTest {
     @Test
     fun `submitting valid fields starts loading and clears the old error`() {
         val s = reduce(
-            LoginState(email = "ana@example.test", password = "x", error = LoginError.UNKNOWN),
+            LoginState(email = "ana@example.test", password = "x", error = LoginError.NETWORK),
             LoginMutation.SubmitRequested
         )
         assertTrue(s.isLoading)
@@ -44,12 +44,23 @@ class LoginReducerTest {
     fun `wrong password and unknown email share the same error`() {
         val loading = LoginState(email = "a@b.co", password = "x", isLoading = true)
         val failed = reduce(loading, LoginMutation.Failed(LoginError.INVALID_CREDENTIALS))
-        assertEquals(loading.copy(isLoading = false, error = LoginError.INVALID_CREDENTIALS), failed)
+        assertEquals(loading.copy(isLoading = false, password = "", error = LoginError.INVALID_CREDENTIALS), failed)
     }
 
     @Test
-    fun `success stops loading`() {
-        assertFalse(reduce(LoginState(isLoading = true), LoginMutation.Succeeded).isLoading)
+    fun `success drops the password and blocks submit until the session swaps the screen`() {
+        val s = reduce(LoginState(email = "a@b.co", password = "secret", isLoading = true), LoginMutation.Succeeded)
+        assertEquals(LoginState(email = "a@b.co", succeeded = true), s)
+        assertFalse(s.canSubmit)
+        assertTrue(reduce(s, LoginMutation.PasswordChanged("x")).canSubmit)
+    }
+
+    @Test
+    fun `wrong credentials drop the password but network failures keep it`() {
+        val loading = LoginState(email = "a@b.co", password = "secret", isLoading = true)
+        assertEquals("", reduce(loading, LoginMutation.Failed(LoginError.INVALID_CREDENTIALS)).password)
+        assertEquals("secret", reduce(loading, LoginMutation.Failed(LoginError.NETWORK)).password)
+        assertEquals("secret", reduce(loading, LoginMutation.Failed(LoginError.TOO_MANY_REQUESTS)).password)
     }
 
     @Test
