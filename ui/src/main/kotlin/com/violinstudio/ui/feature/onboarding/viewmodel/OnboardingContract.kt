@@ -40,7 +40,9 @@ data class OnboardingState(
     val error: OnboardingError? = null,
     val isDeleting: Boolean = false,
     val deleteError: OnboardingDeleteError? = null,
-    val succeeded: Boolean = false
+    val succeeded: Boolean = false,
+    /** La fecha tecleada es posterior a hoy: error local de campo, no una decision legal. */
+    val birthDateInFuture: Boolean = false
 ) : UiState {
     /** Fecha completa y válida en el calendario, o `null`. No valida plausibilidad: eso es del servidor. */
     val birthDate: LocalDate?
@@ -57,7 +59,11 @@ data class OnboardingState(
         }
 
     /** Tras un registro correcto el envío sigue bloqueado: la sesión sustituirá la pantalla. */
-    val canSubmit: Boolean get() = !isLoading && !succeeded && !isDeleting
+    val canSubmit: Boolean
+        get() = !isLoading && !succeeded && !isDeleting && error != OnboardingError.UNDERAGE_NOT_ALLOWED
+
+    /** La pista solo se ve mientras no haya veredicto del servidor ni fecha futura. */
+    val showAgeHint: Boolean get() = ageHint && error != OnboardingError.UNDERAGE_NOT_ALLOWED
 
     // Sin nombre ni fecha de nacimiento.
     override fun toString(): String =

@@ -56,4 +56,19 @@ class AgeGateTest {
         assertTrue(gateAt("2026-02-28T12:00:00Z", "UTC").isBelowThreshold(birth))
         assertFalse(gateAt("2026-03-01T00:00:00Z", "UTC").isBelowThreshold(birth))
     }
+
+    @Test
+    fun `a date after today in UTC is in the future and today or earlier is not`() {
+        assertTrue(gate.isInFuture(LocalDate.of(2026, 5, 21)))
+        assertTrue(gate.isInFuture(LocalDate.of(2030, 1, 1)))
+        assertFalse(gate.isInFuture(LocalDate.of(2026, 5, 20)))
+        assertFalse(gate.isInFuture(LocalDate.of(1990, 1, 1)))
+    }
+
+    @Test
+    fun `the future check uses the UTC day of the clock`() {
+        val auckland = AgeGate(14, Clock.fixed(Instant.parse("2026-05-20T23:00:00Z"), ZoneId.of("Pacific/Auckland")))
+        assertTrue(auckland.isInFuture(LocalDate.of(2026, 5, 21)))
+        assertFalse(auckland.isInFuture(LocalDate.of(2026, 5, 20)))
+    }
 }

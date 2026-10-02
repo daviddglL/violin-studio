@@ -18,7 +18,12 @@ object OnboardingReducer {
                 val typed = state.edited(ProfileField.BIRTH_DATE)
                     .copy(day = mutation.day, month = mutation.month, year = mutation.year)
                 // Pista suave: solo con una fecha completa y real; el servidor decide siempre.
-                typed.copy(ageHint = typed.birthDate?.let(ageGate::isBelowThreshold) ?: false)
+                val date = typed.birthDate
+                val future = date != null && ageGate.isInFuture(date)
+                typed.copy(
+                    ageHint = date != null && !future && ageGate.isBelowThreshold(date),
+                    birthDateInFuture = future
+                )
             }
             OnboardingMutation.SubmitRequested -> {
                 val errors = validate(state)
@@ -33,13 +38,16 @@ object OnboardingReducer {
             is OnboardingMutation.DeleteFailed -> state.copy(isDeleting = false, deleteError = mutation.error)
         }
 
-    private fun OnboardingState.edited(field: ProfileField) =
-        copy(fieldErrors = fieldErrors - field, error = null, succeeded = false)
+    private fun OnboardingState.edited(field: ProfileField): OnboardingState {
+        // El veredicto de menor solo se retira al cambiar la fecha; tras el exito el envio sigue bloqueado.
+        val keepVerdict = error == OnboardingError.UNDERAGE_NOT_ALLOWED && field != ProfileField.BIRTH_DATE
+        return copy(fieldErrors = fieldErrors - field, error = if (keepVerdict) error else null)
+    }
 
     /** Campos que no pasan la validación local (la misma regla de nombre/locale que usa el dominio al crear). */
     private fun validate(state: OnboardingState): Set<ProfileField> {
         val errors = mutableSetOf<ProfileField>()
-        if (state.birthDate == null) errors += ProfileField.BIRTH_DATE
+        if (state.birthDate == null || state.birthDateInFuture) errors += ProfileField.BIRTH_DATE
         if (state.instrument == null) errors += ProfileField.INSTRUMENT
         val registration = ProfileRegistration.create(
             birthDate = state.birthDate ?: LocalDate.of(1970, 1, 1),

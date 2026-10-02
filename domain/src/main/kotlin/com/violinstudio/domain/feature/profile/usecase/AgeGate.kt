@@ -23,6 +23,9 @@ class AgeGate(private val threshold: Int, private val clock: Clock) {
     /** Una fecha futura cuenta como menor (fail-closed, igual que el servidor). */
     fun isBelowThreshold(birthDate: LocalDate): Boolean = ageOf(birthDate) < threshold
 
+    /** Fecha posterior a hoy (UTC): feedback de formulario, no una decision legal. */
+    fun isInFuture(birthDate: LocalDate): Boolean = birthDate.isAfter(LocalDate.now(clock.withZone(ZoneOffset.UTC)))
+
     companion object {
         const val DEFAULT_THRESHOLD = 14
     }

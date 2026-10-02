@@ -213,4 +213,30 @@ class OnboardingViewModelTest {
         }
         coVerify(exactly = 2) { signOut() }
     }
+
+    @Test
+    fun `an implausible year is sent as typed and the server answer lands on the date field`() = runTest {
+        val sent = slot<ProfileRegistration>()
+        coEvery { register(capture(sent)) } coAnswers {
+            delay(100)
+            Result.failure(ProfileFailure.InvalidBirthDate)
+        }
+        viewModel().testMvi {
+            fill(year = "0001")
+            intent(OnboardingIntent.Submit)
+            assertState { it.isLoading }
+            assertState { it.fieldErrors == setOf(ProfileField.BIRTH_DATE) && !it.isLoading && it.error == null }
+        }
+        assertEquals(LocalDate.of(1, 6, 15), sent.captured.birthDate)
+    }
+
+    @Test
+    fun `a future date never reaches the use case`() = runTest {
+        viewModel().testMvi {
+            fill(year = "2030")
+            intent(OnboardingIntent.Submit)
+            assertState { it.fieldErrors == setOf(ProfileField.BIRTH_DATE) && !it.isLoading }
+        }
+        coVerify(exactly = 0) { register(any()) }
+    }
 }
