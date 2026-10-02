@@ -76,7 +76,7 @@ class ConsentRepositoryImplTest {
     @Test
     fun `recordConsent mapea POLICY_OUTDATED con la version vigente`() = runTest {
         functions.failure = failure("POLICY_OUTDATED", "currentVersion" to 4)
-        assertEquals(ConsentFailure.PolicyOutdated(4), repo.recordConsent(3).exceptionOrNull())
+        assertEquals(4, (repo.recordConsent(3).exceptionOrNull() as ConsentFailure.PolicyOutdated).currentVersion)
     }
 
     @Test
@@ -108,8 +108,11 @@ class ConsentRepositoryImplTest {
 
     @Test
     fun `requestGuardianConsent mapea los motivos del servidor`() = runTest {
+        functions.failure = failure("RATE_LIMITED", "retryAfterSeconds" to 60)
+        val limited = repo.requestGuardianConsent("a@b.co").exceptionOrNull() as ConsentFailure.RateLimited
+        assertEquals(60L, limited.retryAfterSeconds)
         val cases = listOf(
-            failure("RATE_LIMITED", "retryAfterSeconds" to 60) to ConsentFailure.RateLimited(60),
+            
             failure("GUARDIAN_EMAIL_INVALID") to ConsentFailure.GuardianEmailInvalid,
             failure("NOT_MINOR") to ConsentFailure.NotMinor,
             failure("CONSENT_ALREADY_GRANTED") to ConsentFailure.AlreadyGranted

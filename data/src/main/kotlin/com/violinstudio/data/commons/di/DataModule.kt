@@ -1,8 +1,10 @@
 package com.violinstudio.data.commons.di
 
+import com.violinstudio.data.feature.account.repository.AccountRepositoryImpl
 import com.violinstudio.data.feature.auth.datasource.AuthRemoteDataSource
 import com.violinstudio.data.feature.auth.datasource.firebase.FirebaseAuthRemoteDataSource
 import com.violinstudio.data.feature.auth.repository.AuthRepositoryImpl
+import com.violinstudio.data.feature.consent.repository.ConsentRepositoryImpl
 import com.violinstudio.data.feature.health.datasource.HealthRemoteDataSource
 import com.violinstudio.data.feature.health.datasource.firebase.FirebaseHealthRemoteDataSource
 import com.violinstudio.data.feature.health.repository.HealthRepositoryImpl
@@ -11,7 +13,9 @@ import com.violinstudio.data.feature.profile.datasource.ProfileRemoteDataSource
 import com.violinstudio.data.feature.profile.datasource.firebase.FirebaseIdentityFunctionsDataSource
 import com.violinstudio.data.feature.profile.datasource.firebase.FirebaseProfileRemoteDataSource
 import com.violinstudio.data.feature.profile.repository.ProfileRepositoryImpl
+import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
+import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
 import dagger.Binds
@@ -42,4 +46,10 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindProfileRepository(impl: ProfileRepositoryImpl): ProfileRepository
+
+    @Binds
+    abstract fun bindConsentRepository(impl: ConsentRepositoryImpl): ConsentRepository
+
+    @Binds
+    abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository
 }
