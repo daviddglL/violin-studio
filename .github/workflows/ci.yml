@@ -80,6 +80,7 @@ jobs:
       - run: |
           echo "SMTP_CONNECTION_URI=smtps://smtp.invalid:1" > extensions/firestore-send-email.env.local
           echo "SMTP_PASSWORD=ci-fixed-non-secret" > extensions/firestore-send-email.secret.local
+          echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
       - run: npm --prefix functions run build
       - run: npm --prefix functions run test:mail-extension
 
