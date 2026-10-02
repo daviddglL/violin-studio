@@ -1,22 +1,25 @@
 package com.violinstudio.data.feature.profile.datasource
 
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
 
 class FakeProfileRemoteDataSource : ProfileRemoteDataSource {
-    val snapshots = MutableSharedFlow<Map<String, Any?>?>(replay = 1)
+    val snapshots = MutableSharedFlow<ProfileSnapshot>(replay = 1)
     var observeFailure: Exception? = null
     var updateFailure: Exception? = null
+    var updateHangs = false
     val updates = mutableListOf<Pair<String, Map<String, Any>>>()
 
-    override fun observe(uid: String): Flow<Map<String, Any?>?> = flow {
+    override fun observe(uid: String): Flow<ProfileSnapshot> = flow {
         observeFailure?.let { throw it }
         snapshots.collect { emit(it) }
     }
 
     override suspend fun update(uid: String, fields: Map<String, Any>) {
         updates += uid to fields
+        if (updateHangs) awaitCancellation()
         updateFailure?.let { throw it }
     }
 }
@@ -45,3 +48,9 @@ class FakeIdentityFunctionsDataSource : IdentityFunctionsDataSource {
 
     override suspend fun deleteAccount() = call("deleteAccount")
 }
+
+suspend fun FakeProfileRemoteDataSource.emitDoc(data: Map<String, Any?>, fromCache: Boolean = false) =
+    snapshots.emit(ProfileSnapshot(data, exists = true, isFromCache = fromCache))
+
+suspend fun FakeProfileRemoteDataSource.emitMissing(fromCache: Boolean) =
+    snapshots.emit(ProfileSnapshot(null, exists = false, isFromCache = fromCache))

@@ -17,13 +17,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
-class ProfileRepositoryImpl @Inject constructor(
+class ProfileRepositoryImpl(
     private val remote: ProfileRemoteDataSource,
-    private val functions: IdentityFunctionsDataSource
+    private val functions: IdentityFunctionsDataSource,
+    private val updateTimeoutMillis: Long
 ) : ProfileRepository {
+    @Inject
+    constructor(remote: ProfileRemoteDataSource, functions: IdentityFunctionsDataSource) :
+        this(remote, functions, DEFAULT_UPDATE_TIMEOUT_MILLIS)
+
     /** El flujo falla con un `ProfileFailure` (`NoProfile` si no hay perfil legible); la sesión lo reintenta. */
     override fun observe(uid: String): Flow<UserProfile?> = remote.observe(uid)
-        .map { data -> data?.let { UserProfileParser.parse(it).toDomain(uid) } }
+        .map { snapshot -> snapshot.data?.let { UserProfileParser.parse(it).toDomain(uid) } }
         .catch { e -> throw if (e is CancellationException) e else ProfileErrorMapper.fromListener(e) }
 
     override suspend fun register(registration: ProfileRegistration): Result<Unit> =
@@ -51,3 +56,5 @@ class ProfileRepositoryImpl @Inject constructor(
             )
         }
 }
+
+private const val DEFAULT_UPDATE_TIMEOUT_MILLIS = 10_000L

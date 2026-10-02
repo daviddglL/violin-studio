@@ -38,6 +38,20 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `authUser no repite emisiones iguales`() = runTest {
+        repo.authUser.test {
+            val dto = AuthUserDto("u1", "a@b.co", true, listOf("password"))
+            remote.emit(dto)
+            awaitItem()
+            remote.emit(dto.copy())
+            expectNoEvents()
+            remote.emit(dto.copy(emailVerified = false))
+            assertFalse(awaitItem()!!.emailVerified)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `reloadAndRefreshToken devuelve el usuario y authUser reemite`() = runTest {
         remote.user = AuthUserDto("u1", "a@b.co", true, listOf("password"))
         repo.authUser.test {

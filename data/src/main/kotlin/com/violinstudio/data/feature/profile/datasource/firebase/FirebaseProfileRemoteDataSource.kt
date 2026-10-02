@@ -2,6 +2,7 @@ package com.violinstudio.data.feature.profile.datasource.firebase
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.violinstudio.data.feature.profile.datasource.ProfileRemoteDataSource
+import com.violinstudio.data.feature.profile.datasource.ProfileSnapshot
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -13,9 +14,13 @@ private const val USERS = "users"
 /** Adaptador fino sobre Firestore, sin lógica; se prueba en el E2E (8b). */
 class FirebaseProfileRemoteDataSource @Inject constructor(private val db: FirebaseFirestore) :
     ProfileRemoteDataSource {
-    override fun observe(uid: String): Flow<Map<String, Any?>?> = callbackFlow {
+    override fun observe(uid: String): Flow<ProfileSnapshot> = callbackFlow {
         val registration = db.collection(USERS).document(uid).addSnapshotListener { snapshot, error ->
-            if (error != null) close(error) else trySend(snapshot?.data)
+            if (error != null) {
+                close(error)
+            } else if (snapshot != null) {
+                trySend(ProfileSnapshot(snapshot.data, snapshot.exists(), snapshot.metadata.isFromCache))
+            }
         }
         awaitClose { registration.remove() }
     }
