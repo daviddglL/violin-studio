@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,56 +41,59 @@ fun VerifyEmailRoute(email: String?, viewModel: VerifyEmailViewModel = hiltViewM
 /** Solo reenviar, comprobar y cerrar sesión: no navega a nada de negocio (la sesión decide). */
 @Composable
 fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (VerifyEmailIntent) -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp).testTag(VERIFY_EMAIL_TAG),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(stringResource(R.string.verify_email_title), style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = if (email != null) {
-                stringResource(R.string.verify_email_message, email)
-            } else {
-                stringResource(R.string.verify_email_message_no_email)
-            },
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(16.dp))
-        state.message?.let {
+    Surface(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp).testTag(VERIFY_EMAIL_TAG),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(stringResource(R.string.verify_email_title), style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(it.textRes()),
-                color = if (it.isError()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.testTag("verify_email_message")
+                text = if (email != null) {
+                    stringResource(R.string.verify_email_message, email)
+                } else {
+                    stringResource(R.string.verify_email_message_no_email)
+                },
+                textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(16.dp))
-        }
-        Button(
-            onClick = { onIntent(VerifyEmailIntent.CheckNow) },
-            enabled = !state.checking,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // Sin indicador infinito: bloquearía la sincronización de los tests de UI.
-            Text(stringResource(if (state.checking) R.string.verify_email_checking else R.string.verify_email_check))
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = { onIntent(VerifyEmailIntent.Resend) },
-            enabled = state.canResend,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                if (state.canResend) {
-                    stringResource(R.string.verify_email_resend)
-                } else {
-                    stringResource(R.string.verify_email_resend_wait, state.resendCooldownSeconds)
-                }
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = { onIntent(VerifyEmailIntent.SignOut) }) {
-            Text(stringResource(R.string.session_sign_out))
+            state.message?.let {
+                Text(
+                    text = stringResource(it.textRes()),
+                    color = if (it.isError()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("verify_email_message")
+                )
+                Spacer(Modifier.height(16.dp))
+            }
+            Button(
+                onClick = { onIntent(VerifyEmailIntent.CheckNow) },
+                enabled = !state.checking,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Sin indicador infinito: bloquearía la sincronización de los tests de UI.
+                val label = if (state.checking) R.string.verify_email_checking else R.string.verify_email_check
+                Text(stringResource(label))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { onIntent(VerifyEmailIntent.Resend) },
+                enabled = state.canResend,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (state.canResend) {
+                        stringResource(R.string.verify_email_resend)
+                    } else {
+                        stringResource(R.string.verify_email_resend_wait, state.resendCooldownSeconds)
+                    }
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = { onIntent(VerifyEmailIntent.SignOut) }) {
+                Text(stringResource(R.string.session_sign_out))
+            }
         }
     }
 }
