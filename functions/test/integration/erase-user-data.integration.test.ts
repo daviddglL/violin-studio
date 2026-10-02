@@ -70,3 +70,15 @@ test("dos ejecuciones simultáneas convergen", async () => {
   await expect(auth.getUser(uid)).rejects.toMatchObject({ code: "auth/user-not-found" });
   expect((await db.collection(COLLECTIONS.users).doc(uid).get()).exists).toBe(false);
 });
+
+test("W2: si la cascada falla a medias, la cuenta queda deshabilitada y el reintento completa", async () => {
+  const uid = await usuarioCompleto();
+  const roto = { deleteFiles: async () => { throw Object.assign(new Error("denied"), { code: "permission-denied" }); } };
+  await expect(eraseUserData({ db, auth, bucket: roto }, uid, { deleteAuth: true })).rejects.toThrow("denied");
+  const u = await auth.getUser(uid);
+  expect(u.disabled).toBe(true);
+  expect((await db.collection(COLLECTIONS.users).doc(uid).get()).data()).toHaveProperty("deletion.state", "in_progress");
+
+  await eraseUserData(deps, uid, { deleteAuth: true });
+  await expect(auth.getUser(uid)).rejects.toMatchObject({ code: "auth/user-not-found" });
+});
