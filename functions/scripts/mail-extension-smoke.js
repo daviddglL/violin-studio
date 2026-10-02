@@ -1,4 +1,4 @@
-// Opt-in: requiere el emulador de la extension Trigger Email (npm run test:mail-extension).
+// Opt-in y solo LOCAL (requiere `firebase login`: el emulador de extensiones la descarga del registro; el CI no la ejecuta).
 // Escribe en mail/ y espera a que la extension anote `delivery` (SMTP de prueba inalcanzable => ERROR).
 const admin = require("firebase-admin");
 

@@ -94,13 +94,10 @@ describe("CI y FINT no cargan la extensión", () => {
     }
   });
 
-  test("el job que sí usa la extensión es no bloqueante", () => {
-    const lineas = ci.split(/\r?\n/);
-    const inicio = lineas.findIndex((l) => l === "  mail-extension:");
-    expect(inicio).toBeGreaterThan(-1);
-    const resto = lineas.slice(inicio + 1);
-    const fin = resto.findIndex((l) => /^ {2}[a-z-]+:$/.test(l));
-    const job = (fin === -1 ? resto : resto.slice(0, fin)).join("\n");
-    expect(job).toContain("continue-on-error: true");
+  // El emulador de extensiones exige `firebase login` para resolver la extensión
+  // del registro, y el runner no está autenticado: la prueba es solo local.
+  test("el CI nunca arranca el emulador de extensiones", () => {
+    expect(ci).not.toContain("test:mail-extension");
+    expect(ci).not.toMatch(/--only [a-z,]*extensions/);
   });
 });
