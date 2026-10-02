@@ -79,10 +79,13 @@ class SessionStateResolverTest {
     }
 
     @Test
-    fun `revoked adulto y menor van a ConsentPending`() {
-        assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(ConsentStatus.REVOKED, 2)))
+    fun `revoked adulto y menor van a ConsentPending con motivo revocado`() {
         assertEquals(
-            SessionState.ConsentPending(config, true),
+            SessionState.ConsentPending(config, false, ConsentReason.REVOKED),
+            resolve(profile = profile(ConsentStatus.REVOKED, 2))
+        )
+        assertEquals(
+            SessionState.ConsentPending(config, true, ConsentReason.REVOKED),
             resolve(profile = profile(ConsentStatus.REVOKED, 2, isMinor = true))
         )
     }
@@ -104,17 +107,26 @@ class SessionStateResolverTest {
     fun `granted con la version vigente es Ready y una version superior no (como consentOk del servidor)`() {
         val current = profile()
         assertEquals(SessionState.Ready(current), resolve(profile = current))
-        assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = 3)))
+        assertEquals(
+            SessionState.ConsentPending(config, false, ConsentReason.POLICY_UPDATED),
+            resolve(profile = profile(policyVersion = 3))
+        )
     }
 
     @Test
     fun `granted con version anterior o sin version vuelve a ConsentPending`() {
-        assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = 1)))
         assertEquals(
-            SessionState.ConsentPending(config, true),
+            SessionState.ConsentPending(config, false, ConsentReason.POLICY_UPDATED),
+            resolve(profile = profile(policyVersion = 1))
+        )
+        assertEquals(
+            SessionState.ConsentPending(config, true, ConsentReason.POLICY_UPDATED),
             resolve(profile = profile(policyVersion = 1, isMinor = true))
         )
-        assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = null)))
+        assertEquals(
+            SessionState.ConsentPending(config, false, ConsentReason.POLICY_UPDATED),
+            resolve(profile = profile(policyVersion = null))
+        )
     }
 
     @Test
@@ -149,7 +161,10 @@ class SessionStateResolverTest {
 
     @Test
     fun `granted sin version sola es ConsentPending`() {
-        assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = null)))
+        assertEquals(
+            SessionState.ConsentPending(config, false, ConsentReason.POLICY_UPDATED),
+            resolve(profile = profile(policyVersion = null))
+        )
     }
 
     @Test

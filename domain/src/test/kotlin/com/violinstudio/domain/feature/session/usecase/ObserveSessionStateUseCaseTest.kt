@@ -12,6 +12,7 @@ import com.violinstudio.domain.feature.passwordUser
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Role
+import com.violinstudio.domain.feature.session.ConsentReason
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.domain.feature.session.SessionStateResolver
 import com.violinstudio.domain.feature.userProfile
@@ -126,7 +127,10 @@ class ObserveSessionStateUseCaseTest {
         auth.user = verifiedUser
         useCase().test {
             assertEquals(SessionState.Loading, awaitItem())
-            assertEquals(SessionState.ConsentPending(config, isMinor = false), awaitItem())
+            assertEquals(
+                SessionState.ConsentPending(config, isMinor = false, reason = ConsentReason.POLICY_UPDATED),
+                awaitItem()
+            )
         }
     }
 
@@ -138,7 +142,10 @@ class ObserveSessionStateUseCaseTest {
             assertEquals(SessionState.Loading, awaitItem())
             assertEquals(SessionState.Ready(userProfile(isMinor = true)), awaitItem())
             profile.profile.value = userProfile(status = ConsentStatus.REVOKED, isMinor = true)
-            assertEquals(SessionState.ConsentPending(config, isMinor = true), awaitItem())
+            assertEquals(
+                SessionState.ConsentPending(config, isMinor = true, reason = ConsentReason.REVOKED),
+                awaitItem()
+            )
         }
     }
 
@@ -190,7 +197,10 @@ class ObserveSessionStateUseCaseTest {
             assertEquals(SessionState.Ready(userProfile()), awaitItem())
             assertEquals(1, auth.calls.count { it == "claims:true" })
             profile.profile.value = userProfile(status = ConsentStatus.REVOKED)
-            assertEquals(SessionState.ConsentPending(config, isMinor = false), awaitItem())
+            assertEquals(
+                SessionState.ConsentPending(config, isMinor = false, reason = ConsentReason.REVOKED),
+                awaitItem()
+            )
             profile.profile.value = userProfile()
             assertEquals(SessionState.Ready(userProfile()), awaitItem())
             assertEquals(2, auth.calls.count { it == "claims:true" })
