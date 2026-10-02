@@ -27,7 +27,11 @@ object AuthErrorMapper {
             if (operation == AuthOperation.PASSWORD_RESET) AuthFailure.UserNotFound else AuthFailure.InvalidCredentials
         "ERROR_WRONG_PASSWORD", "ERROR_USER_DISABLED" -> AuthFailure.InvalidCredentials
         "ERROR_INVALID_CREDENTIAL" ->
-            if (operation == AuthOperation.GOOGLE_SIGN_IN) AuthFailure.ProviderUnavailable else AuthFailure.InvalidCredentials
+            if (operation == AuthOperation.GOOGLE_SIGN_IN) {
+                AuthFailure.ProviderUnavailable
+            } else {
+                AuthFailure.InvalidCredentials
+            }
         "ERROR_INVALID_EMAIL" -> when (operation) {
             AuthOperation.SIGN_UP, AuthOperation.PASSWORD_RESET -> AuthFailure.InvalidEmail
             else -> AuthFailure.InvalidCredentials

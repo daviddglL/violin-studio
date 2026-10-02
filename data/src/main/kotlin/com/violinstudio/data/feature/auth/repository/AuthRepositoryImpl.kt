@@ -27,7 +27,8 @@ class AuthRepositoryImpl @Inject constructor(private val remote: AuthRemoteDataS
 
     override suspend fun sendEmailVerification(): Result<Unit> = attempt { remote.sendEmailVerification() }
 
-    override suspend fun reloadAndRefreshToken(): Result<AuthUser> = attempt { remote.reloadAndRefreshToken().toDomain() }
+    override suspend fun reloadAndRefreshToken(): Result<AuthUser> =
+        attempt { remote.reloadAndRefreshToken().toDomain() }
 
     override suspend fun sendPasswordReset(email: String): Result<Unit> =
         attempt(AuthOperation.PASSWORD_RESET) { remote.sendPasswordReset(email) }

@@ -17,7 +17,12 @@ class AuthErrorMapperTest {
 
     @Test
     fun `en sign-in contrasena erronea, usuario inexistente y credencial invalida dan el mismo fallo`() {
-        val codes = listOf("ERROR_WRONG_PASSWORD", "ERROR_USER_NOT_FOUND", "ERROR_INVALID_CREDENTIAL", "ERROR_USER_DISABLED")
+        val codes = listOf(
+            "ERROR_WRONG_PASSWORD",
+            "ERROR_USER_NOT_FOUND",
+            "ERROR_INVALID_CREDENTIAL",
+            "ERROR_USER_DISABLED"
+        )
         codes.forEach { assertSame(AuthFailure.InvalidCredentials, map(it), it) }
     }
 

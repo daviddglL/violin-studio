@@ -27,5 +27,9 @@ object UserProfileParser {
         else -> 0
     }
 
-    private fun Number.wholeInt(): Int? = toDouble().takeIf { it % 1.0 == 0.0 && it in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble() }?.toInt()
+    private fun Number.wholeInt(): Int? {
+        val value = toDouble()
+        val inRange = value in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble()
+        return if (value % 1.0 == 0.0 && inRange) value.toInt() else null
+    }
 }
