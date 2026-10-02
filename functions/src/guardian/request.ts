@@ -3,7 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { Clock, systemClock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
 import { ErrorReason, fail } from "../common/errors";
-import { hmacEmail, sha256Hex } from "../common/hashing";
+import { hmacEmail, normalizeEmail, sha256Hex } from "../common/hashing";
 import { requireObject, requireString } from "../common/validation";
 import {
   CURRENT_POLICY_VERSION,
@@ -17,7 +17,9 @@ import { generateToken, hashToken } from "./token";
 
 const HOUR_MS = 3600_000;
 const DAY_MS = 24 * HOUR_MS;
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+// Sin separadores de lista/cabecera, comillas, paréntesis, corchetes, espacios ni controles; una sola @ y un punto en el dominio.
+const BAD = String.raw`\s@,;<>"\\()\[\]\x00-\x1f\x7f`;
+const EMAIL_SHAPE = new RegExp(`^[^${BAD}]+@[^${BAD}.]+(\\.[^${BAD}.]+)+$`);
 
 export interface RequestGuardianDeps {
   db: Firestore;
@@ -48,12 +50,13 @@ export async function requestGuardianConsentHandler(
 ): Promise<{ status: "sent"; emailMasked: string }> {
   if (!deps.guardianFlowEnabled) throw fail("failed-precondition", ErrorReason.UNDERAGE_NOT_ALLOWED);
   const rawEmail = requireObject(data).guardianEmail;
-  const guardianEmail = requireString({ guardianEmail: typeof rawEmail === "string" ? rawEmail.trim() : rawEmail }, "guardianEmail", {
+  // El valor validado, el HMAC, el de la comparación y el de `mail.to` son exactamente el mismo string normalizado.
+  const guardianEmail = requireString({ guardianEmail: typeof rawEmail === "string" ? normalizeEmail(rawEmail) : rawEmail }, "guardianEmail", {
     min: 3,
     max: 254,
     pattern: EMAIL_SHAPE,
-  }).toLowerCase();
-  if (guardianEmail === ownEmail?.trim().toLowerCase()) throw fail("invalid-argument", ErrorReason.GUARDIAN_EMAIL_INVALID);
+  });
+  if (guardianEmail === (ownEmail === undefined ? undefined : normalizeEmail(ownEmail))) throw fail("invalid-argument", ErrorReason.GUARDIAN_EMAIL_INVALID);
   const hmac = hmacEmail(requirePepper(deps.pepper), guardianEmail);
 
   const now = (deps.clock ?? systemClock)();
@@ -73,6 +76,7 @@ export async function requestGuardianConsentHandler(
       throw fail("failed-precondition", ErrorReason.CONSENT_ALREADY_GRANTED);
     }
 
+    // `users.guardian.sends` es el contador por cuenta: ningún otro flujo (3b/3c/7b) debe borrarlo ni reiniciarlo.
     const account = checkRateLimit(toMillis(doc.guardian?.sends), nowMs, GUARDIAN_MAX_SENDS_PER_24H, DAY_MS);
     const target = checkRateLimit(toMillis(limitSnap.data()?.sends), nowMs, GUARDIAN_MAX_SENDS_PER_24H, DAY_MS);
     if (!account.allowed || !target.allowed) {

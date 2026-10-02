@@ -14,7 +14,11 @@ describe("requestGuardianConsentHandler: validación previa", () => {
       code: "failed-precondition",
     });
   });
-  test.each([[{}], [{ guardianEmail: 5 }], [{ guardianEmail: "sin-arroba" }], [{ guardianEmail: "a@b" }], [{ guardianEmail: "a b@c.com" }], [null]])(
+  test.each([[{}], [{ guardianEmail: 5 }], [{ guardianEmail: "sin-arroba" }], [{ guardianEmail: "a@b" }], [{ guardianEmail: "a b@c.com" }], [null],
+    [{ guardianEmail: "x,victim@evil.com" }], [{ guardianEmail: "a;b@x.com" }], [{ guardianEmail: "\"a\"@x.com" }],
+    [{ guardianEmail: "<a@x.com>" }], [{ guardianEmail: "a@x.com\nBcc: v@evil.com" }], [{ guardianEmail: "a@@x.com" }],
+    [{ guardianEmail: "a@x.com\u0000" }], [{ guardianEmail: "(a)@x.com" }], [{ guardianEmail: "a[1]@x.com" }],
+    [{ guardianEmail: "a\\b@x.com" }], [{ guardianEmail: "a".repeat(250) + "@x.com" }]])(
     "payload %j -> invalid-argument",
     async (data) => {
       await expect(run(data)).rejects.toMatchObject({ code: "invalid-argument" });
@@ -25,6 +29,9 @@ describe("requestGuardianConsentHandler: validación previa", () => {
       code: "invalid-argument",
       details: { reason: "GUARDIAN_EMAIL_INVALID" },
     });
+  });
+  test("compara con el email propio tras NFKC (anchura completa)", async () => {
+    await expect(run({ guardianEmail: "ＭＥＮＯＲ@example.com" })).rejects.toMatchObject({ details: { reason: "GUARDIAN_EMAIL_INVALID" } });
   });
   test("pepper ausente falla claro antes de tocar db", async () => {
     await expect(run({ guardianEmail: "t@e.com" }, { pepper: "" })).rejects.toThrow(/GUARDIAN_EMAIL_PEPPER/);
