@@ -5,6 +5,9 @@ plugins {
     alias(libs.plugins.violin.android.hilt)
 }
 
+// `isReturnDefaultValues`: el SDK de Firebase llama a android.* (TextUtils) al construir sus excepciones en los tests.
+// Efecto secundario: cualquier android.* no mockeado "funciona" en silencio, por eso `NoAndroidInMainTest` prohibe
+// imports de android.* en data/src/main (añadir a su lista blanca solo con motivo).
 android {
     namespace = "com.violinstudio.data"
     // Las excepciones del SDK (FirebaseAuthException...) llaman a android.text.TextUtils en su constructor.

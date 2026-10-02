@@ -36,6 +36,7 @@ object AuthErrorMapper {
             AuthOperation.SIGN_UP, AuthOperation.PASSWORD_RESET -> AuthFailure.InvalidEmail
             else -> AuthFailure.InvalidCredentials
         }
+        // Vector de enumeración de emails aceptado a propósito: la spec (tasks 4b.1/4a.8) exige un mensaje específico.
         "ERROR_EMAIL_ALREADY_IN_USE" -> AuthFailure.EmailAlreadyInUse
         "ERROR_WEAK_PASSWORD" -> AuthFailure.WeakPassword
         "ERROR_TOO_MANY_REQUESTS" -> AuthFailure.TooManyRequests

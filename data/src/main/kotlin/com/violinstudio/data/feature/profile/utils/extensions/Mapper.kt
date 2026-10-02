@@ -10,6 +10,8 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 private const val DEFAULT_LOCALE = "es"
 
 /** Fail-closed: estado de consentimiento desconocido -> `PENDING`; `isMinor` ausente -> `true`. */
+// `role` desconocido -> INDEPENDENT: el cliente no concede privilegios por rol (el acceso lo dan los claims), así que
+// no es fail-open peligroso.
 fun UserProfileDto.toDomain(uid: String): UserProfile = UserProfile(
     uid = uid,
     displayName = displayName.orEmpty(),

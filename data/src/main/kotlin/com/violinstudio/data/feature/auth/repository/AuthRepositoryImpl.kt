@@ -11,10 +11,11 @@ import com.violinstudio.domain.feature.auth.model.SessionClaims
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 class AuthRepositoryImpl @Inject constructor(private val remote: AuthRemoteDataSource) : AuthRepository {
-    override val authUser: Flow<AuthUser?> = remote.authUser.map { it?.toDomain() }
+    override val authUser: Flow<AuthUser?> = remote.authUser.map { it?.toDomain() }.distinctUntilChanged()
 
     override suspend fun signInWithEmail(email: String, password: String): Result<AuthUser> =
         attempt(AuthOperation.SIGN_IN) { remote.signInWithEmail(email, password).toDomain() }

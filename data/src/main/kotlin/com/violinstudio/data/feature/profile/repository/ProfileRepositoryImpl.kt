@@ -11,11 +11,13 @@ import com.violinstudio.domain.feature.profile.model.EditableProfile
 import com.violinstudio.domain.feature.profile.model.ProfileRegistration
 import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
+import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeoutOrNull
 
 class ProfileRepositoryImpl(
     private val remote: ProfileRemoteDataSource,
@@ -28,7 +30,12 @@ class ProfileRepositoryImpl(
 
     /** El flujo falla con un `ProfileFailure` (`NoProfile` si no hay perfil legible); la sesión lo reintenta. */
     override fun observe(uid: String): Flow<UserProfile?> = remote.observe(uid)
-        .map { snapshot -> snapshot.data?.let { UserProfileParser.parse(it).toDomain(uid) } }
+        .map { snapshot ->
+            // Sin red, Firestore emite "no existe" desde la caché vacía: no es "sin perfil" (mandaría a un usuario
+            // existente al registro). Se falla con Network y la sesión (4a-bis) muestra Unavailable y reenganha.
+            if (!snapshot.exists && snapshot.isFromCache) throw IOException("Perfil no disponible sin conexión")
+            snapshot.data?.let { UserProfileParser.parse(it).toDomain(uid) }
+        }
         .catch { e -> throw if (e is CancellationException) e else ProfileErrorMapper.fromListener(e) }
 
     override suspend fun register(registration: ProfileRegistration): Result<Unit> =
@@ -46,14 +53,20 @@ class ProfileRepositoryImpl(
 
     override suspend fun update(uid: String, profile: EditableProfile): Result<Unit> =
         resultOf(ProfileErrorMapper::fromUpdate) {
-            remote.update(
-                uid,
-                mapOf(
-                    "displayName" to profile.displayName,
-                    "instrument" to profile.instrument.wire,
-                    "locale" to profile.locale
+            // `update().await()` no termina sin red (Firestore encola la escritura): el vencimiento es Network. La
+            // escritura en cola puede aplicarse más tarde; es idempotente (mismos tres campos).
+            val done = withTimeoutOrNull(updateTimeoutMillis) {
+                remote.update(
+                    uid,
+                    mapOf(
+                        "displayName" to profile.displayName,
+                        "instrument" to profile.instrument.wire,
+                        "locale" to profile.locale
+                    )
                 )
-            )
+                true
+            }
+            if (done == null) throw IOException("Tiempo de espera agotado al actualizar el perfil")
         }
 }
 

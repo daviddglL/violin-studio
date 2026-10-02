@@ -18,6 +18,8 @@ object ProfileErrorMapper {
     /** Fallo de la escritura directa en Firestore (edición de los tres campos). */
     fun fromUpdate(error: Throwable): ProfileFailure = when {
         error is FirebaseFirestoreException && error.code == Code.NOT_FOUND -> ProfileFailure.NoProfile
+        // Las reglas rechazaron: consentimiento no concedido, borrado en curso o claim obsoleto.
+        error is FirebaseFirestoreException && error.code == Code.PERMISSION_DENIED -> ProfileFailure.NotAllowed
         else -> common(error)
     }
 
