@@ -58,6 +58,7 @@ jobs:
       - run: npm --prefix functions run build
       - run: npm --prefix functions test
       - run: npm i -g firebase-tools@15.20.0
+      - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
       - run: firebase emulators:exec --only functions,auth,firestore,storage --project demo-violin-studio "npm --prefix functions run test:integration"
 
   rules:
