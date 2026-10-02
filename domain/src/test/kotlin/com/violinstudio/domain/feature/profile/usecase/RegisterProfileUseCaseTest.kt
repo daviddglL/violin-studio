@@ -1,5 +1,6 @@
 package com.violinstudio.domain.feature.profile.usecase
 
+import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.FakeProfileRepository
 import com.violinstudio.domain.feature.auth.failure.AuthFailure
@@ -19,7 +20,7 @@ class RegisterProfileUseCaseTest {
     private val repo = FakeProfileRepository()
     private val registration =
         ProfileRegistration.create(LocalDate.of(2000, 1, 1), "Ana", Instrument.VIOLIN, "es").getOrThrow()
-    private val useCase = RegisterProfileUseCase(repo, auth)
+    private val useCase = RegisterProfileUseCase(repo, auth, RetryBackoff())
 
     @Test
     fun `registra y refresca los claims tras el exito`() = runTest {
@@ -60,5 +61,36 @@ class RegisterProfileUseCaseTest {
         val failure = useCase(registration).exceptionOrNull()
         assertTrue(failure is ProfileFailure.Unknown)
         assertEquals(cause, failure?.cause)
+    }
+
+    @Test
+    fun `claims sin rol cuentan como intento fallido y se reintentan`() = runTest {
+        auth.claimsResults = mutableListOf(
+            Result.success(SessionClaims(null, false)),
+            Result.success(SessionClaims(Role.INDEPENDENT, false))
+        )
+        assertEquals(Result.success(Unit), useCase(registration))
+        assertEquals(2, auth.calls.count { it == "claims:true" })
+    }
+
+    @Test
+    fun `claims siempre sin rol agotan los intentos y fallan con Unknown`() = runTest {
+        auth.claimsResults = mutableListOf(Result.success(SessionClaims(null, false)))
+        val failure = useCase(registration).exceptionOrNull()
+        assertTrue(failure is ProfileFailure.Unknown)
+        assertEquals(3, auth.calls.count { it == "claims:true" })
+    }
+
+    @Test
+    fun `espera 1s y 2s entre intentos en tiempo virtual y no tras el ultimo`() = runTest {
+        auth.claimsResults = mutableListOf(Result.failure(AuthFailure.Network))
+        useCase(registration)
+        assertEquals(3_000L, testScheduler.currentTime)
+    }
+
+    @Test
+    fun `TooManyRequests en el refresco se informa como Network`() = runTest {
+        auth.claimsResults = mutableListOf(Result.failure(AuthFailure.TooManyRequests))
+        assertEquals(ProfileFailure.Network, useCase(registration).exceptionOrNull())
     }
 }

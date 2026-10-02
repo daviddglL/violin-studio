@@ -1,5 +1,6 @@
 package com.violinstudio.domain.feature.profile.usecase
 
+import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.auth.usecase.refreshClaims
@@ -14,11 +15,12 @@ import javax.inject.Inject
  */
 class RegisterProfileUseCase @Inject constructor(
     private val profile: ProfileRepository,
-    private val auth: AuthRepository
+    private val auth: AuthRepository,
+    private val backoff: RetryBackoff
 ) {
     suspend operator fun invoke(registration: ProfileRegistration): Result<Unit> {
         profile.register(registration).onFailure { return Result.failure(it) }
-        return auth.refreshClaims().fold(
+        return auth.refreshClaims(backoff).fold(
             onSuccess = { Result.success(Unit) },
             onFailure = { Result.failure(it.toProfileFailure()) }
         )

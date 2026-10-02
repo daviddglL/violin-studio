@@ -1,5 +1,6 @@
 package com.violinstudio.domain.feature.consent.usecase
 
+import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.FakeConsentRepository
 import com.violinstudio.domain.feature.auth.failure.AuthFailure
@@ -14,7 +15,7 @@ import org.junit.jupiter.api.Test
 class AcceptPolicyUseCaseTest {
     private val consent = FakeConsentRepository()
     private val auth = FakeAuthRepository()
-    private val useCase = AcceptPolicyUseCase(consent, auth)
+    private val useCase = AcceptPolicyUseCase(consent, auth, RetryBackoff())
 
     @Test
     fun `registra el consentimiento y despues fuerza el refresco de claims`() = runTest {
@@ -52,5 +53,36 @@ class AcceptPolicyUseCaseTest {
             Result.success(SessionClaims(Role.INDEPENDENT, true))
         )
         assertEquals(Result.success(Unit), useCase(2))
+    }
+
+    @Test
+    fun `consentOk aun falso tras el refresco cuenta como fallo y se reintenta`() = runTest {
+        auth.claimsResults = mutableListOf(
+            Result.success(SessionClaims(Role.INDEPENDENT, false)),
+            Result.success(SessionClaims(Role.INDEPENDENT, true))
+        )
+        assertEquals(Result.success(Unit), useCase(2))
+        assertEquals(2, auth.calls.count { it == "claims:true" })
+    }
+
+    @Test
+    fun `consentOk siempre falso agota los intentos y no avanza`() = runTest {
+        auth.claimsResults = mutableListOf(Result.success(SessionClaims(Role.INDEPENDENT, false)))
+        val failure = useCase(2).exceptionOrNull()
+        assertTrue(failure is ConsentFailure.Unknown)
+        assertEquals(3, auth.calls.count { it == "claims:true" })
+    }
+
+    @Test
+    fun `espera entre intentos en tiempo virtual`() = runTest {
+        auth.claimsResults = mutableListOf(Result.failure(AuthFailure.Network))
+        useCase(2)
+        assertEquals(3_000L, testScheduler.currentTime)
+    }
+
+    @Test
+    fun `TooManyRequests en el refresco se informa como Network`() = runTest {
+        auth.claimsResults = mutableListOf(Result.failure(AuthFailure.TooManyRequests))
+        assertEquals(ConsentFailure.Network, useCase(2).exceptionOrNull())
     }
 }
