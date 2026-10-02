@@ -7,10 +7,11 @@ import { safeErrorCode } from "../common/errors";
 import { sha256Hex } from "../common/hashing";
 import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, GUARDIAN_REVOKE_LINK_TTL_DAYS, POLICY_URL } from "../config/identity";
 import { buildConsentDoc, consentDocId, consentEpochOf } from "../consent/consent-docs";
+import { revokeConsentCore } from "../consent/revoke-consent";
 import { syncClaims } from "../identity/claims";
 import { guardianLinkBaseUrl } from "./config";
 import { buildGuardianRevokeMail } from "./mail";
-import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderRevokePage, renderValidPage, securityHeaders } from "./page";
+import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "./page";
 import { generateToken, hashToken, verifyToken } from "./token";
 
 export interface GuardianHttpRequest {
@@ -136,7 +137,8 @@ async function renderGet(deps: GuardianConsentDeps, requestId: string | undefine
 async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>): Promise<GuardianHttpResponse> {
   const requestId = str(body.r);
   const token = str(body.t);
-  if (!requestId || !token || !REQUEST_ID.test(requestId) || (body.action !== "accept" && body.action !== "reject")) return invalid();
+  if (!requestId || !token || !REQUEST_ID.test(requestId) || (body.action !== "accept" && body.action !== "reject" && body.action !== "revoke")) return invalid();
+  if (body.action === "revoke") return revoke(deps, requestId, token);
   const rejecting = body.action === "reject";
   if (rejecting && body.confirm !== "yes") return renderRejectConfirm(deps, requestId, token);
   // La declaración (solo al aceptar) se comprueba antes de leer nada: no revela nada del enlace y no consume el token.
@@ -254,4 +256,45 @@ async function renderRejectConfirm(deps: GuardianConsentDeps, requestId: string,
   const user = (await deps.db.collection(COLLECTIONS.users).doc(r.uid).get()).data();
   if (!awaiting(user, requestId)) return invalid();
   return respond(200, renderRejectConfirmPage({ requestId, token, displayName: String(user.displayName ?? ""), locale: String(user.locale ?? "en") }));
+}
+
+/**
+ * Revocación del tutor (un solo paso: la página GET ya es la confirmación y el efecto es reversible, el menor puede volver
+ * a pedir consentimiento; el rechazo, irreversible, sí va en dos pasos). El token de revocación es DISTINTO del de aceptación
+ * y tiene su propio contador (`revokeAttempts`): agotar los intentos de aceptar no bloquea la revocación y viceversa.
+ * Verificación en una transacción (con `revokeAttempts++` si el token es erróneo); si es válido se llama a
+ * `revokeConsentCore(..., "guardian")` fuera de ella (su propia transacción comprueba `granted`: de dos peticiones simultáneas
+ * gana una y la otra recibe NO_ACTIVE_CONSENT -> genérico). El token no se quema antes de revocar: si el núcleo falla de forma
+ * transitoria el tutor puede reintentar; el enlace queda inservible porque exige `granted` (y `revokedAt` se marca después).
+ */
+async function revoke(deps: GuardianConsentDeps, requestId: string, token: string): Promise<GuardianHttpResponse> {
+  const nowMs = (deps.clock ?? systemClock)().getTime();
+  const requestRef = deps.db.collection(COLLECTIONS.guardianRequests).doc(requestId);
+  const uid = await deps.db.runTransaction(async (tx): Promise<string | null> => {
+    const r = (await tx.get(requestRef)).data();
+    const tokenOk = verifyToken(token, typeof r?.revokeTokenHash === "string" ? r.revokeTokenHash : DUMMY_HASH);
+    if (!isRevokeOpen(r, nowMs) || typeof r.uid !== "string") return null;
+    const user = (await tx.get(deps.db.collection(COLLECTIONS.users).doc(r.uid))).data();
+    if (!tokenOk) {
+      tx.update(requestRef, { revokeAttempts: FieldValue.increment(1) });
+      return null;
+    }
+    return grantedBy(user, requestId) ? r.uid : null;
+  });
+  if (!uid) return invalid();
+  const log = deps.log ?? ((m, d) => logger.info(m, d));
+  const uidHash = sha256Hex(uid).slice(0, 12);
+  try {
+    await revokeConsentCore({ db: deps.db, auth: deps.auth, currentVersion: deps.currentVersion, log }, uid, "guardian");
+  } catch (e) {
+    log("guardianConsent.revokeFailed", { uidHash, code: safeErrorCode(e) });
+    return invalid();
+  }
+  try {
+    await requestRef.update({ revokedAt: Timestamp.fromDate((deps.clock ?? systemClock)()) });
+  } catch (e) {
+    log("guardianConsent.revokeMarkFailed", { uidHash, code: safeErrorCode(e) }); // la revocación ya consta; el enlace exige `granted`
+  }
+  log("guardianConsent.revoked", { uidHash });
+  return respond(200, renderRevokedPage());
 }

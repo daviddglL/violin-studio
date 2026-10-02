@@ -1,7 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { renderInvalidPage } from "../../src/guardian/page";
+import { renderInvalidPage, renderRevokedPage } from "../../src/guardian/page";
 import { hashToken } from "../../src/guardian/token";
-import { db, erased, get, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
+import { auth, authExists, db, erased, get, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
 
 const DAY = 24 * 3600_000;
 beforeEach(() => { resetState(); erased.length = 0; });
@@ -123,5 +123,103 @@ describe("3c.4 GET de revocación", () => {
     const { guardianConsentHandler } = await import("../../src/guardian/confirm");
     const { deps } = await import("./guardian-helpers");
     expect((await guardianConsentHandler(deps(), { method: "HEAD", query: { r: s.r }, body: {} })).status).toBe(200);
+  });
+});
+
+const revoke = (s: { r: string; rev: string }, over: Record<string, unknown> = {}) => post({ r: s.r, t: s.rev, action: "revoke", ...over });
+const consents = async (uid: string) => (await db.collection("users").doc(uid).collection("consents").get()).docs.map((d) => d.id).sort();
+
+describe("3c.5 POST revoke", () => {
+  test("token válido: revoked, epoch+1, consent revocation grantedBy guardian, consentOk=false, solicitud marcada y página de revocada", async () => {
+    const s = await accepted();
+    expect((await auth.getUser(s.uid)).customClaims?.consentOk).toBe(true);
+    const antes = await consents(s.uid);
+    const res = await revoke(s);
+    expect([res.status, res.body]).toEqual([200, renderRevokedPage()]);
+    const p = await perfil(s.uid);
+    expect(p.consentStatus).toBe("revoked");
+    expect(p.consentEpoch).toBe(1);
+    const despues = await consents(s.uid);
+    expect(despues).toEqual([...antes, "revocation_v1_guardian_e0"].sort()); // append-only: nada previo se toca
+    const rev = (await db.collection("users").doc(s.uid).collection("consents").doc("revocation_v1_guardian_e0").get()).data()!;
+    expect(rev).toMatchObject({ type: "revocation", grantedBy: "guardian", version: 1 });
+    expect((await auth.getUser(s.uid)).customClaims?.consentOk).toBe(false);
+    expect((await req(s.r)).revokedAt).toBeInstanceOf(Timestamp);
+    expect(erased).toEqual([]);
+    expect(await authExists(s.uid)).toBe(true);
+    expect(state.logs.map(([m]) => m)).toContain("guardianConsent.revoked");
+    expect(JSON.stringify(state.logs)).not.toContain(s.uid);
+    expect(JSON.stringify(state.logs)).not.toContain(s.rev);
+  });
+
+  test("reuso -> genérico, sin segunda revocación", async () => {
+    const s = await accepted();
+    expect((await revoke(s)).status).toBe(200);
+    expect((await revoke(s)).body).toBe(INVALID);
+    expect((await perfil(s.uid)).consentEpoch).toBe(1);
+  });
+
+  test("token erróneo -> genérico y revokeAttempts++ (contador propio); 5 fallos bloquean aunque llegue el correcto", async () => {
+    const s = await accepted();
+    for (let i = 1; i <= 5; i++) {
+      expect((await revoke({ r: s.r, rev: "mal" })).body).toBe(INVALID);
+      const r = await req(s.r);
+      expect([r.revokeAttempts, r.attempts]).toEqual([i, 0]);
+    }
+    expect((await revoke(s)).body).toBe(INVALID);
+    expect((await perfil(s.uid)).consentStatus).toBe("granted");
+  });
+
+  test("los tokens no son intercambiables: el de aceptación no revoca (cuenta intento) y el de revocación no acepta ni rechaza", async () => {
+    const s = await accepted();
+    expect((await post({ r: s.r, t: s.t, action: "revoke" })).body).toBe(INVALID);
+    expect((await req(s.r)).revokeAttempts).toBe(1);
+    expect((await post({ r: s.r, t: s.rev, action: "accept", declaration: "on" })).body).toBe(INVALID);
+    expect((await post({ r: s.r, t: s.rev, action: "reject", confirm: "yes" })).body).toBe(INVALID);
+    expect(erased).toEqual([]);
+    expect((await perfil(s.uid)).consentStatus).toBe("granted");
+    expect((await req(s.r)).attempts).toBe(0);
+  });
+
+  test("solicitud pendiente (sin aceptar) o de otro usuario: el token no revoca nada", async () => {
+    const pendiente = await setup();
+    const a = await accepted();
+    const b = await accepted();
+    expect((await post({ r: pendiente.r, t: pendiente.t, action: "revoke" })).body).toBe(INVALID);
+    expect((await post({ r: b.r, t: a.rev, action: "revoke" })).body).toBe(INVALID);
+    expect((await req(b.r)).revokeAttempts).toBe(1);
+    for (const x of [pendiente, a, b]) expect((await perfil(x.uid)).consentStatus).not.toBe("revoked");
+  });
+
+  test("caducado, ya revocado por el menor, estado no granted, deletion o solicitud nueva del menor -> genérico sin escribir ni contar", async () => {
+    const casos: Array<(s: Awaited<ReturnType<typeof accepted>>) => Promise<void>> = [
+      async () => { state.now = new Date(state.now.getTime() + 30 * DAY); },
+      async (s) => void (await db.collection("users").doc(s.uid).update({ consentStatus: "revoked" })),
+      async (s) => void (await db.collection("users").doc(s.uid).update({ consentStatus: "parental_pending" })),
+      async (s) => void (await db.collection("users").doc(s.uid).update({ deletion: { state: "in_progress", startedAt: Timestamp.fromDate(state.now) } })),
+      async (s) => void (await db.collection("users").doc(s.uid).update({ "guardian.requestId": "otraSolicitud1234567" })),
+    ];
+    for (const caso of casos) {
+      state.now = new Date("2026-03-01T10:00:00Z");
+      const s = await accepted();
+      await caso(s);
+      const antes = [await req(s.r), await perfil(s.uid)];
+      expect((await revoke(s)).body).toBe(INVALID);
+      expect([await req(s.r), await perfil(s.uid)]).toEqual(antes);
+      expect(await consents(s.uid)).not.toContain("revocation_v1_guardian_e0");
+    }
+  });
+
+  test("dos revocaciones simultáneas: exactamente una gana y solo hay una revocación", async () => {
+    const s = await accepted();
+    const res = await Promise.all([revoke(s), revoke(s)]);
+    expect(res.map((r) => r.status).sort()).toEqual([200, 404]);
+    expect((await perfil(s.uid)).consentEpoch).toBe(1);
+    expect((await consents(s.uid)).filter((c) => c.startsWith("revocation"))).toHaveLength(1);
+  });
+
+  test("formato de r inválido o sin token -> genérico", async () => {
+    expect((await post({ r: "../x", t: "t", action: "revoke" })).body).toBe(INVALID);
+    expect((await post({ r: "a".repeat(20), action: "revoke" })).body).toBe(INVALID);
   });
 });
