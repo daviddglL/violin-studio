@@ -7,7 +7,7 @@ import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.session.SessionState
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class RootRouteTest {
@@ -43,8 +43,13 @@ class RootRouteTest {
     }
 
     @Test
-    fun `only Ready reaches the business route`() {
-        table.filter { it.first !is SessionState.Ready }
-            .forEach { (state, _) -> assertNotEquals(HomeDestination, state.rootRoute(), "route of $state") }
+    fun `every non-Ready state maps to an explicit non-business route`() {
+        val nonBusiness = setOf(
+            SplashDestination, OfflineDestination, AuthDestination, VerifyEmailDestination,
+            OnboardingDestination, ConsentDestination, GuardianWaitDestination
+        )
+        table.filter { it.first !is SessionState.Ready }.forEach { (state, _) ->
+            assertTrue(state.rootRoute() in nonBusiness, "route of $state must be a known non-business route")
+        }
     }
 }
