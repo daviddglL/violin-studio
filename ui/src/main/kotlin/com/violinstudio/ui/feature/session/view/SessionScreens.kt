@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.violinstudio.ui.R
 
@@ -24,7 +26,11 @@ const val OFFLINE_TAG = "offline"
 /** Pantalla de arranque mientras la sesión se resuelve. */
 @Composable
 fun SplashScreen() {
-    Box(Modifier.fillMaxSize().testTag(SPLASH_TAG), contentAlignment = Alignment.Center) {
+    val description = stringResource(R.string.session_loading)
+    Box(
+        Modifier.fillMaxSize().testTag(SPLASH_TAG).semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
         // Sin animación infinita: el splash dura un instante y no debe bloquear la sincronización de los tests.
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
     }

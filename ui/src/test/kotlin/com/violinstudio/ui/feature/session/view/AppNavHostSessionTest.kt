@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.test.core.app.ApplicationProvider
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -17,6 +19,7 @@ import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.session.SessionState
+import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.navigation.HomeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
@@ -36,6 +39,7 @@ class AppNavHostSessionTest {
     @get:Rule
     val compose = createComposeRule()
 
+    private val context: Application = ApplicationProvider.getApplicationContext()
     private val config = IdentityConfig(1, "https://example.test/policy", 14, true)
     private val ready = SessionState.Ready(
         UserProfile(
@@ -143,7 +147,7 @@ class AppNavHostSessionTest {
         start(SessionState.Unavailable)
         compose.waitForIdle()
         compose.onNodeWithTag(OFFLINE_TAG).assertIsDisplayed()
-        compose.onNodeWithText("Cerrar sesión").performClick()
+        compose.onNodeWithText(context.getString(R.string.session_sign_out)).performClick()
         assertEquals(1, signedOut)
     }
 
@@ -151,5 +155,66 @@ class AppNavHostSessionTest {
     fun loadingShowsTheSplash() {
         start(SessionState.Loading)
         compose.onNodeWithTag(SPLASH_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun aTransientOfflineBlipKeepsTheHomeEntryAndOverlaysOffline() {
+        start(ready)
+        assertAt(ready)
+        val homeEntry = nav.currentBackStackEntry!!.id
+        session.value = SessionState.Unavailable
+        compose.waitForIdle()
+        compose.onNodeWithTag(OFFLINE_TAG).assertIsDisplayed()
+        assertEquals(homeEntry, nav.currentBackStackEntry!!.id)
+        session.value = ready
+        compose.waitForIdle()
+        compose.onNodeWithTag(OFFLINE_TAG).assertDoesNotExist()
+        assertAt(ready)
+        assertEquals(homeEntry, nav.currentBackStackEntry!!.id)
+        assertTrue(homeComposed)
+    }
+
+    @Test
+    fun offlineAfterReadyStillLetsYouSignOutAndLeave() {
+        start(ready)
+        session.value = SessionState.Unavailable
+        compose.waitForIdle()
+        compose.onNodeWithText(context.getString(R.string.session_sign_out)).performClick()
+        assertEquals(1, signedOut)
+        session.value = SessionState.LoggedOut
+        assertAt(SessionState.LoggedOut)
+        compose.onNodeWithTag(OFFLINE_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun aRestoredHomeEntryWithLoadingShowsSplashAndThenRedirects() {
+        val tester = StateRestorationTester(compose)
+        session.value = ready
+        homeComposed = false
+        tester.setContent {
+            ViolinStudioTheme {
+                nav = rememberNavController()
+                SessionNavHost(
+                    session = session.value,
+                    onSignOut = {},
+                    navController = nav,
+                    home = {
+                        homeComposed = true
+                        PlaceholderScreen("home")
+                    }
+                )
+            }
+        }
+        assertAt(ready)
+        // Process death: the process comes back with the session still resolving.
+        session.value = SessionState.Loading
+        homeComposed = false
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        assertFalse("home composed while the session was Loading", homeComposed)
+        compose.onNodeWithTag(SPLASH_TAG).assertIsDisplayed()
+        session.value = SessionState.LoggedOut
+        assertAt(SessionState.LoggedOut)
+        assertFalse(homeComposed)
     }
 }

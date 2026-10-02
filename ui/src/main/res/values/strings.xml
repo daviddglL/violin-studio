@@ -5,6 +5,7 @@
     <string name="home_check_health">Comprobar servidor</string>
     <string name="error_unknown">Error desconocido</string>
     <string name="session_sign_out">Cerrar sesión</string>
+    <string name="session_loading">Cargando sesión</string>
     <string name="offline_title">Sin conexión</string>
     <string name="offline_message">Estamos reintentando. Puedes cerrar sesión mientras tanto.</string>
 </resources>

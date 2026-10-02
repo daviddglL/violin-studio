@@ -1,7 +1,13 @@
 package com.violinstudio.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,7 +50,37 @@ fun SessionNavHost(
     consent: @Composable () -> Unit = { PlaceholderScreen("consent") },
     guardianWait: @Composable () -> Unit = { PlaceholderScreen("guardian_wait") }
 ) {
-    SessionRedirect(session, navController)
+    // Un fallo transitorio (Ready -> Unavailable) no destruye Home ni su ViewModel: se mantiene Ready para el
+    // enrutado y se superpone la pantalla sin conexión, que bloquea la interacción y solo ofrece cerrar sesión.
+    // Acceso sin sesión Ready no se concede: la sesión real sigue siendo Unavailable.
+    val lastRouted = remember { arrayOfNulls<SessionState>(1) }
+    val routed = if (session is SessionState.Unavailable && lastRouted[0] is SessionState.Ready) {
+        lastRouted[0]!!
+    } else {
+        session
+    }
+    SideEffect { lastRouted[0] = routed }
+    SessionRedirect(routed, navController)
+    Box {
+        SessionGraph(routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait)
+        if (session is SessionState.Unavailable && routed is SessionState.Ready) {
+            Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
+        }
+    }
+}
+
+@Composable
+private fun SessionGraph(
+    session: SessionState,
+    navController: NavHostController,
+    onSignOut: () -> Unit,
+    home: @Composable () -> Unit,
+    auth: @Composable () -> Unit,
+    verifyEmail: @Composable (email: String?) -> Unit,
+    onboarding: @Composable () -> Unit,
+    consent: @Composable () -> Unit,
+    guardianWait: @Composable () -> Unit
+) {
     NavHost(navController = navController, startDestination = SplashDestination) {
         composable<SplashDestination> { SplashScreen() }
         composable<OfflineDestination> { OfflineScreen(onSignOut) }
