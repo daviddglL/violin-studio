@@ -12,7 +12,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class SessionStateResolverTest {
-    private val config = IdentityConfig(policyVersion = 2, policyUrl = "https://x/privacy", digitalConsentAge = 14, guardianFlowEnabled = true)
+    private val config =
+        IdentityConfig(
+            policyVersion = 2,
+            policyUrl = "https://x/privacy",
+            digitalConsentAge = 14,
+            guardianFlowEnabled = true
+        )
     private val password = AuthUser("u1", "a@b.com", emailVerified = true, providers = setOf(AuthProvider.PASSWORD))
     private val resolver = SessionStateResolver()
 
@@ -22,7 +28,18 @@ class SessionStateResolverTest {
         isMinor: Boolean = false,
         guardian: GuardianSummary? = null,
         deletion: Boolean = false
-    ) = UserProfile("u1", "Ana", Instrument.VIOLIN, "es", Role.INDEPENDENT, isMinor, status, policyVersion, guardian, deletion)
+    ) = UserProfile(
+        uid = "u1",
+        displayName = "Ana",
+        instrument = Instrument.VIOLIN,
+        locale = "es",
+        role = Role.INDEPENDENT,
+        isMinor = isMinor,
+        consentStatus = status,
+        policyVersion = policyVersion,
+        guardian = guardian,
+        deletionInProgress = deletion
+    )
 
     private fun resolve(user: AuthUser? = password, profile: UserProfile? = profile()) = resolver(user, profile, config)
 
@@ -63,7 +80,10 @@ class SessionStateResolverTest {
     @Test
     fun `revoked adulto y menor van a ConsentPending`() {
         assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(ConsentStatus.REVOKED, 2)))
-        assertEquals(SessionState.ConsentPending(config, true), resolve(profile = profile(ConsentStatus.REVOKED, 2, isMinor = true)))
+        assertEquals(
+            SessionState.ConsentPending(config, true),
+            resolve(profile = profile(ConsentStatus.REVOKED, 2, isMinor = true))
+        )
     }
 
     @Test
@@ -90,7 +110,10 @@ class SessionStateResolverTest {
     @Test
     fun `granted con version anterior o sin version vuelve a ConsentPending`() {
         assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = 1)))
-        assertEquals(SessionState.ConsentPending(config, true), resolve(profile = profile(policyVersion = 1, isMinor = true)))
+        assertEquals(
+            SessionState.ConsentPending(config, true),
+            resolve(profile = profile(policyVersion = 1, isMinor = true))
+        )
         assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = null)))
     }
 
