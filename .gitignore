@@ -51,3 +51,7 @@ rules-tests/coverage/
 # Secreto local del emulador (valor de prueba, nunca real)
 functions/.secret.local
 .secret.local
+
+# Parametros locales de la extension Trigger Email (emulador; pueden llevar credenciales de prueba)
+extensions/*.env.local
+extensions/*.secret.local
