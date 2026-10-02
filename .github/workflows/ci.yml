@@ -60,7 +60,7 @@ jobs:
       - run: npm i -g firebase-tools@15.20.0
       # Valor fijo de PRUEBA, no secreto: nunca debe ser un secreto real (el fichero está gitignored y solo vive en el runner).
       - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
-      - run: firebase emulators:exec --only functions,auth,firestore,storage --project demo-violin-studio "npm --prefix functions run test:integration"
+      - run: firebase emulators:exec --only functions,auth,firestore,storage,hosting --project demo-violin-studio "npm --prefix functions run test:integration"
 
   # Opt-in, NO bloqueante: la extension Trigger Email se descarga de la red al arrancar el emulador (~1 min en frio).
   # El job `functions` (FINT) arranca solo functions,auth,firestore,storage: el manifiesto de firebase.json no la carga.
