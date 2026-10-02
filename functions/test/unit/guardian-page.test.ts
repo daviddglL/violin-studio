@@ -27,6 +27,7 @@ describe("renderValidPage", () => {
     expect(html).toMatch(/<input type="hidden" name="t" id="t" value="">/);
     expect(html).toContain('name="declaration"');
     expect(html).toContain('name="action" value="accept"');
+    expect(html).toContain('name="action" value="reject"');
     expect(html).toContain('href="https://x.app/politica/"');
     expect(html).toContain("Ana");
   });

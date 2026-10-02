@@ -16,7 +16,7 @@ let seq = 0;
 let now = new Date("2026-03-01T10:00:00Z");
 let currentVersion = 1;
 const logs: Array<[string, Record<string, unknown>]> = [];
-const deps = () => ({ db, auth, clock: () => now, currentVersion, log: (m: string, d: Record<string, unknown>) => void logs.push([m, d]) });
+const deps = () => ({ db, auth, clock: () => now, currentVersion, log: (m: string, d: Record<string, unknown>) => void logs.push([m, d]), erase: () => Promise.resolve() });
 
 /** Menor + solicitud real (vía requestGuardianConsentHandler); devuelve uid, id de solicitud y token en claro del mail. */
 async function setup(perfil: Record<string, unknown> = {}, despues: Record<string, unknown> = {}) {
@@ -219,9 +219,9 @@ describe("POST aceptar", () => {
     expect((await perfil(s.uid)).guardian.sends).toEqual(sends);
   });
 
-  test("action distinto de accept (reject llega en 3c) -> genérico sin efectos", async () => {
+  test("action desconocido -> genérico sin efectos", async () => {
     const s = await setup();
-    expect((await accept(s, { action: "reject" })).status).toBe(404);
+    expect((await accept(s, { action: "borrar" })).status).toBe(404);
     expect(await req(s.r)).toMatchObject({ usedAt: null, attempts: 0 });
   });
 });

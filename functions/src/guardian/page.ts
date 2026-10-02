@@ -35,6 +35,7 @@ const TEXT = {
     policy: (v: number) => `Política de privacidad (versión ${v})`,
     declaration: "Declaro ser su madre, padre o tutor legal.",
     accept: "Aceptar",
+    reject: "Rechazar y eliminar la cuenta",
     noscript: "Esta página necesita JavaScript para leer tu enlace de forma segura. Actívalo y vuelve a abrir el enlace del correo.",
   },
   en: {
@@ -43,6 +44,7 @@ const TEXT = {
     policy: (v: number) => `Privacy policy (version ${v})`,
     declaration: "I declare that I am their parent or legal guardian.",
     accept: "Accept",
+    reject: "Reject and delete the account",
     noscript: "This page needs JavaScript to read your link securely. Enable it and open the link from the email again.",
   },
 };
@@ -63,7 +65,8 @@ export function renderValidPage(i: ValidPageInput): string {
       `<form method="post" action=""><input type="hidden" name="r" value="${esc(i.requestId)}">` +
       `<input type="hidden" name="t" id="t" value="">` +
       `<p><label><input type="checkbox" name="declaration"> ${esc(t.declaration)}</label></p>` +
-      `<button type="submit" name="action" value="accept">${esc(t.accept)}</button></form>` +
+      `<button type="submit" name="action" value="accept">${esc(t.accept)}</button>` +
+      `<button type="submit" name="action" value="reject">${esc(t.reject)}</button></form>` +
       `<noscript><p>${esc(t.noscript)}</p></noscript><script nonce="${esc(i.nonce)}">${script}</script>`,
   );
 }
@@ -79,3 +82,6 @@ export const renderDeclarationPage = (): string =>
 
 export const renderDonePage = (): string =>
   BILINGUAL("Violin Studio", "Gracias. Hemos registrado tu consentimiento.", "Thank you. Your consent has been recorded.");
+
+export const renderRejectedPage = (): string =>
+  BILINGUAL("Violin Studio", "Hemos registrado tu rechazo y se eliminan la cuenta y los datos del menor.", "Your refusal has been recorded and the minor's account and data are being deleted.");
