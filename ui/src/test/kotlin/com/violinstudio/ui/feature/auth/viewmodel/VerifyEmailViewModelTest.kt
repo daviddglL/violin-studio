@@ -48,14 +48,73 @@ class VerifyEmailViewModelTest {
     }
 
     @Test
-    fun `CheckNow with the email verified calls the use case once and clears the state`() = runTest {
+    fun `a verified check keeps feedback and blocks actions until the session replaces the screen`() = runTest {
         checkReturns(Result.success(true))
         viewModel().scenario {
             intent(VerifyEmailIntent.CheckNow)
             assertState { it.checking }
-            assertState { it == VerifyEmailState() }
+            assertState { it.verified && it.message == VerifyEmailMessage.VERIFIED_CONTINUING && !it.canCheck }
+            intent(VerifyEmailIntent.Resend)
+            testScheduler.advanceTimeBy(1_000)
+            testScheduler.runCurrent()
             coVerify(exactly = 1) { check() }
-            assertNoEffects()
+            coVerify(exactly = 0) { send() }
+        }
+    }
+
+    @Test
+    fun `if the screen is still shown 10 seconds after verifying it falls back and re-enables`() = runTest {
+        checkReturns(Result.success(true))
+        viewModel().scenario {
+            intent(VerifyEmailIntent.CheckNow)
+            assertState { it.checking }
+            assertState { it.verified }
+            testScheduler.advanceTimeBy(9_000)
+            testScheduler.runCurrent()
+            testScheduler.advanceTimeBy(1_100)
+            testScheduler.runCurrent()
+            assertState { !it.verified && it.canCheck && it.message == VerifyEmailMessage.UNKNOWN }
+        }
+    }
+
+    @Test
+    fun `two quick CheckNow taps produce one server call`() = runTest {
+        checkReturns(Result.success(false))
+        viewModel().scenario {
+            intent(VerifyEmailIntent.CheckNow)
+            intent(VerifyEmailIntent.CheckNow)
+            assertState { it.checking }
+            assertState { it.message == VerifyEmailMessage.NOT_VERIFIED_YET }
+            testScheduler.advanceTimeBy(1_000)
+            testScheduler.runCurrent()
+            coVerify(exactly = 1) { check() }
+        }
+    }
+
+    @Test
+    fun `two quick Resend taps produce one send`() = runTest {
+        coEvery { send() } coAnswers {
+            delay(100)
+            Result.success(Unit)
+        }
+        viewModel().scenario {
+            intent(VerifyEmailIntent.Resend)
+            intent(VerifyEmailIntent.Resend)
+            assertState { it.resendCooldownSeconds == 60 }
+            coVerify(exactly = 1) { send() }
+        }
+    }
+
+    @Test
+    fun `CheckNow during a too-many-requests block keeps the wait error`() = runTest {
+        coEvery { send() } returns Result.failure(AuthFailure.TooManyRequests)
+        checkReturns(Result.success(false))
+        viewModel().scenario {
+            intent(VerifyEmailIntent.Resend)
+            assertState { it.message == VerifyEmailMessage.WAIT_TOO_MANY_REQUESTS }
+            intent(VerifyEmailIntent.CheckNow)
+            assertState { it.checking && it.message == VerifyEmailMessage.WAIT_TOO_MANY_REQUESTS }
+            assertState { !it.checking && it.message == VerifyEmailMessage.WAIT_TOO_MANY_REQUESTS }
         }
     }
 

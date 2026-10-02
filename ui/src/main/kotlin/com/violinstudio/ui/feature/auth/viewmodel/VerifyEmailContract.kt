@@ -7,7 +7,14 @@ import com.violinstudio.ui.commons.mvi.UiState
 const val RESEND_COOLDOWN_SECONDS = 60
 
 /** Mensaje informativo o de error que la pantalla traduce a texto. No lleva datos personales. */
-enum class VerifyEmailMessage { NOT_VERIFIED_YET, RESEND_SENT, WAIT_TOO_MANY_REQUESTS, NETWORK, UNKNOWN }
+enum class VerifyEmailMessage {
+    NOT_VERIFIED_YET,
+    RESEND_SENT,
+    WAIT_TOO_MANY_REQUESTS,
+    NETWORK,
+    UNKNOWN,
+    VERIFIED_CONTINUING
+}
 
 /**
  * El email que se muestra lo aporta la sesión (no vive aquí). Que el email quede verificado no se refleja en esta
@@ -16,9 +23,11 @@ enum class VerifyEmailMessage { NOT_VERIFIED_YET, RESEND_SENT, WAIT_TOO_MANY_REQ
 data class VerifyEmailState(
     val checking: Boolean = false,
     val resendCooldownSeconds: Int = 0,
+    val verified: Boolean = false,
     val message: VerifyEmailMessage? = null
 ) : UiState {
-    val canResend: Boolean get() = resendCooldownSeconds == 0
+    val canResend: Boolean get() = resendCooldownSeconds == 0 && !verified
+    val canCheck: Boolean get() = !checking && !verified
 }
 
 sealed interface VerifyEmailIntent : UiIntent {
@@ -34,6 +43,7 @@ sealed interface VerifyEmailMutation {
     data object CheckStarted : VerifyEmailMutation
     data object CheckedStillUnverified : VerifyEmailMutation
     data object CheckedVerified : VerifyEmailMutation
+    data object VerifiedTimedOut : VerifyEmailMutation
     data class CheckFailed(val message: VerifyEmailMessage) : VerifyEmailMutation
     data object ResendSent : VerifyEmailMutation
     data class ResendFailed(val message: VerifyEmailMessage) : VerifyEmailMutation

@@ -38,7 +38,7 @@ abstract class MviViewModel<S : UiState, I : UiIntent, E : UiEffect>(initial: S)
         }
     }
 
-    fun onIntent(intent: I) {
+    open fun onIntent(intent: I) {
         intents.trySend(intent)
     }
 

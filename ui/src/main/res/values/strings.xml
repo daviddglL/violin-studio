@@ -20,4 +20,5 @@
     <string name="verify_email_wait_too_many">Demasiados intentos. Espera un minuto antes de reenviar.</string>
     <string name="verify_email_network">Sin conexión. Inténtalo de nuevo.</string>
     <string name="verify_email_unknown">No se ha podido completar la acción. Inténtalo de nuevo.</string>
+    <string name="verify_email_verified_continuing">Email verificado. Continuando…</string>
 </resources>

@@ -21,11 +21,43 @@ class VerifyEmailReducerTest {
     }
 
     @Test
-    fun `a verified check clears the progress and any message`() {
+    fun `a verified check keeps feedback and blocks every action until the session replaces the screen`() {
         val s = reduce(
             VerifyEmailState(checking = true, message = VerifyEmailMessage.NOT_VERIFIED_YET),
             VerifyEmailMutation.CheckedVerified
         )
+        assertEquals(VerifyEmailState(verified = true, message = VerifyEmailMessage.VERIFIED_CONTINUING), s)
+        assertFalse(s.canCheck)
+        assertFalse(s.canResend)
+    }
+
+    @Test
+    fun `if the screen is still shown after verifying it falls back to a message and re-enables`() {
+        val s = reduce(
+            VerifyEmailState(verified = true, message = VerifyEmailMessage.VERIFIED_CONTINUING),
+            VerifyEmailMutation.VerifiedTimedOut
+        )
+        assertEquals(VerifyEmailState(message = VerifyEmailMessage.UNKNOWN), s)
+        assertTrue(s.canCheck)
+    }
+
+    private val blocked = VerifyEmailState(
+        resendCooldownSeconds = 30,
+        message = VerifyEmailMessage.WAIT_TOO_MANY_REQUESTS
+    )
+
+    @Test
+    fun `checking while the resend block is active keeps the wait error`() {
+        assertEquals(blocked.copy(checking = true), reduce(blocked, VerifyEmailMutation.CheckStarted))
+        val unverified = reduce(blocked.copy(checking = true), VerifyEmailMutation.CheckedStillUnverified)
+        assertEquals(blocked, unverified)
+        val failed = reduce(blocked.copy(checking = true), VerifyEmailMutation.CheckFailed(VerifyEmailMessage.NETWORK))
+        assertEquals(blocked, failed)
+    }
+
+    @Test
+    fun `the wait error disappears when the block ends`() {
+        val s = reduce(blocked, VerifyEmailMutation.CooldownTick(0))
         assertEquals(VerifyEmailState(), s)
     }
 

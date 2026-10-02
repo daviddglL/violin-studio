@@ -104,6 +104,7 @@ private fun VerifyEmailMessage.textRes() = when (this) {
     VerifyEmailMessage.WAIT_TOO_MANY_REQUESTS -> R.string.verify_email_wait_too_many
     VerifyEmailMessage.NETWORK -> R.string.verify_email_network
     VerifyEmailMessage.UNKNOWN -> R.string.verify_email_unknown
+    VerifyEmailMessage.VERIFIED_CONTINUING -> R.string.verify_email_verified_continuing
 }
 
 private fun VerifyEmailMessage.isError() = this != VerifyEmailMessage.RESEND_SENT &&

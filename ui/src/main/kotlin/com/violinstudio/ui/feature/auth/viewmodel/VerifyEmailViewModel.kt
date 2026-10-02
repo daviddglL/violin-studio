@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
  * de navegación sustituye esta pantalla. Ningún fallo se propaga fuera de [handleIntent] (mataría el bucle de
  * intents) ni se registra su causa: puede contener datos personales.
  */
+private const val VERIFIED_FALLBACK_MILLIS = 10_000L
+
 @HiltViewModel
 class VerifyEmailViewModel @Inject constructor(
     private val checkEmailVerified: CheckEmailVerifiedUseCase,
@@ -25,6 +27,19 @@ class VerifyEmailViewModel @Inject constructor(
     private val signOut: SignOutUseCase
 ) : MviViewModel<VerifyEmailState, VerifyEmailIntent, VerifyEmailEffect>(VerifyEmailState()) {
     private var cooldown: Job? = null
+    private var verifiedFallback: Job? = null
+
+    // Los intents se procesan en serie: con dos toques seguidos el segundo se atendería cuando el primero ya terminó
+    // y volvería a llamar al servidor. Se descarta al encolarlo mientras el anterior sigue pendiente.
+    private var checkPending = false
+
+    override fun onIntent(intent: VerifyEmailIntent) {
+        if (intent == VerifyEmailIntent.CheckNow) {
+            if (checkPending) return
+            checkPending = true
+        }
+        super.onIntent(intent)
+    }
 
     override suspend fun handleIntent(intent: VerifyEmailIntent) = when (intent) {
         VerifyEmailIntent.CheckNow -> onCheckNow()
@@ -33,27 +48,35 @@ class VerifyEmailViewModel @Inject constructor(
     }
 
     private suspend fun onCheckNow() {
-        if (state.value.checking) return
-        reduce(VerifyEmailMutation.CheckStarted)
-        val result = try {
-            checkEmailVerified()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Throwable) {
-            Result.failure(AuthFailure.Unknown())
+        try {
+            if (!state.value.canCheck) return
+            reduce(VerifyEmailMutation.CheckStarted)
+            val result = try {
+                checkEmailVerified()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                Result.failure(AuthFailure.Unknown())
+            }
+            result.fold(
+                onSuccess = { verified ->
+                    if (verified) onVerified() else reduce(VerifyEmailMutation.CheckedStillUnverified)
+                },
+                onFailure = { reduce(VerifyEmailMutation.CheckFailed(it.toMessage())) }
+            )
+        } finally {
+            checkPending = false
         }
-        result.fold(
-            onSuccess = { verified ->
-                reduce(
-                    if (verified) {
-                        VerifyEmailMutation.CheckedVerified
-                    } else {
-                        VerifyEmailMutation.CheckedStillUnverified
-                    }
-                )
-            },
-            onFailure = { reduce(VerifyEmailMutation.CheckFailed(it.toMessage())) }
-        )
+    }
+
+    // La sesión reemplaza esta pantalla al avanzar; si no lo hace a tiempo, se vuelve a permitir actuar.
+    private fun onVerified() {
+        reduce(VerifyEmailMutation.CheckedVerified)
+        verifiedFallback?.cancel()
+        verifiedFallback = viewModelScope.launch {
+            delay(VERIFIED_FALLBACK_MILLIS)
+            reduce(VerifyEmailMutation.VerifiedTimedOut)
+        }
     }
 
     private suspend fun onResend() {
