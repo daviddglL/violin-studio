@@ -62,12 +62,16 @@
     <string name="onboarding_day_label">Día</string>
     <string name="onboarding_month_label">Mes</string>
     <string name="onboarding_year_label">Año</string>
-    <string name="onboarding_age_hint">Según la fecha, puede que necesitemos el permiso de tu madre, padre o tutor. Lo confirmaremos al continuar.</string>
+    <string name="onboarding_age_hint">Si eres menor de edad, puede que necesitemos el permiso de tu madre, padre o tutor.</string>
     <string name="onboarding_submit">Continuar</string>
     <string name="onboarding_loading">Guardando…</string>
     <string name="onboarding_field_name">Revisa tu nombre: de 1 a 40 caracteres.</string>
     <string name="onboarding_field_instrument">Elige un instrumento.</string>
     <string name="onboarding_field_birth">Revisa la fecha de nacimiento.</string>
+    <string name="onboarding_field_birth_future">La fecha de nacimiento está en el futuro.</string>
+    <string name="onboarding_birth_day_desc">Fecha de nacimiento, día</string>
+    <string name="onboarding_birth_month_desc">Fecha de nacimiento, mes</string>
+    <string name="onboarding_birth_year_desc">Fecha de nacimiento, año</string>
     <string name="onboarding_field_locale">No hemos podido determinar el idioma del dispositivo.</string>
     <string name="onboarding_error_underage">No podemos crear una cuenta con esos datos. Puedes eliminar tu cuenta o cerrar sesión.</string>
     <string name="onboarding_error_network">Sin conexión. Inténtalo de nuevo.</string>

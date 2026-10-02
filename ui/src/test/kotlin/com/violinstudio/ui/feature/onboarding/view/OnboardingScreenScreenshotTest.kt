@@ -66,4 +66,9 @@ class OnboardingScreenScreenshotTest {
         ),
         "onboarding_delete_reauth"
     )
+
+    @Test fun futureDate() = capture(
+        filled.copy(year = "2030", birthDateInFuture = true, fieldErrors = setOf(ProfileField.BIRTH_DATE)),
+        "onboarding_future_date"
+    )
 }

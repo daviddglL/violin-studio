@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -87,7 +89,7 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
         )
         InstrumentPicker(state, onIntent)
         BirthDateFields(state, onIntent)
-        if (state.ageHint) {
+        if (state.showAgeHint) {
             Text(
                 stringResource(R.string.onboarding_age_hint),
                 style = MaterialTheme.typography.bodyMedium,
@@ -107,7 +109,7 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
         if (state.error == OnboardingError.UNDERAGE_NOT_ALLOWED) {
             OutlinedButton(
                 onClick = { onIntent(OnboardingIntent.DeleteAccount) },
-                enabled = !state.isDeleting,
+                enabled = !state.isDeleting && !state.isLoading,
                 modifier = Modifier.fillMaxWidth().testTag(ONBOARDING_DELETE_TAG)
             ) {
                 Text(stringResource(if (state.isDeleting) R.string.onboarding_deleting else R.string.onboarding_delete))
@@ -157,51 +159,76 @@ private fun InstrumentPicker(state: OnboardingState, onIntent: (OnboardingIntent
 @Composable
 private fun BirthDateFields(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
     val hasError = ProfileField.BIRTH_DATE in state.fieldErrors
+    val errorText = if (hasError) {
+        stringResource(
+            if (state.birthDateInFuture) R.string.onboarding_field_birth_future else R.string.onboarding_field_birth
+        )
+    } else {
+        null
+    }
     Spacer(Modifier.height(8.dp))
     Text(
         stringResource(R.string.onboarding_birth_label),
         style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().semantics { heading() }
     )
+    // Cada campo dice que parte de la fecha es; el error va como texto de apoyo del ultimo (el año).
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DatePart(state.day, R.string.onboarding_day_label, DAY_MONTH_DIGITS, hasError, ONBOARDING_DAY_TAG, 1f) {
-            onIntent(OnboardingIntent.BirthDateChanged(it, state.month, state.year))
-        }
-        DatePart(state.month, R.string.onboarding_month_label, DAY_MONTH_DIGITS, hasError, ONBOARDING_MONTH_TAG, 1f) {
-            onIntent(OnboardingIntent.BirthDateChanged(state.day, it, state.year))
-        }
-        DatePart(state.year, R.string.onboarding_year_label, YEAR_DIGITS, hasError, ONBOARDING_YEAR_TAG, 1.4f) {
-            onIntent(OnboardingIntent.BirthDateChanged(state.day, state.month, it))
-        }
-    }
-    if (hasError) {
-        Text(
-            stringResource(R.string.onboarding_field_birth),
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.polite()
-        )
+        DatePart(
+            DatePartSpec(
+                state.day,
+                R.string.onboarding_day_label,
+                R.string.onboarding_birth_day_desc,
+                DAY_MONTH_DIGITS
+            ),
+            hasError,
+            ONBOARDING_DAY_TAG,
+            1f,
+            null
+        ) { onIntent(OnboardingIntent.BirthDateChanged(it, state.month, state.year)) }
+        DatePart(
+            DatePartSpec(
+                state.month,
+                R.string.onboarding_month_label,
+                R.string.onboarding_birth_month_desc,
+                DAY_MONTH_DIGITS
+            ),
+            hasError,
+            ONBOARDING_MONTH_TAG,
+            1f,
+            null
+        ) { onIntent(OnboardingIntent.BirthDateChanged(state.day, it, state.year)) }
+        DatePart(
+            DatePartSpec(state.year, R.string.onboarding_year_label, R.string.onboarding_birth_year_desc, YEAR_DIGITS),
+            hasError,
+            ONBOARDING_YEAR_TAG,
+            1.4f,
+            errorText
+        ) { onIntent(OnboardingIntent.BirthDateChanged(state.day, state.month, it)) }
     }
 }
 
+private class DatePartSpec(val value: String, val labelRes: Int, val descriptionRes: Int, val maxDigits: Int)
+
 @Composable
 private fun RowScope.DatePart(
-    value: String,
-    labelRes: Int,
-    maxDigits: Int,
+    spec: DatePartSpec,
     isError: Boolean,
     tag: String,
     weight: Float,
+    supporting: String?,
     onChange: (String) -> Unit
 ) {
+    val description = stringResource(spec.descriptionRes)
     OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.filter(Char::isDigit).take(maxDigits)) },
-        label = { Text(stringResource(labelRes)) },
+        value = spec.value,
+        onValueChange = { onChange(it.filter(Char::isDigit).take(spec.maxDigits)) },
+        label = { Text(stringResource(spec.labelRes)) },
         isError = isError,
+        supportingText = supporting?.let { { Text(it, Modifier.polite()) } },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-        modifier = Modifier.weight(weight).testTag(tag)
+        modifier = Modifier.weight(weight).semantics { contentDescription = description }.testTag(tag)
     )
 }
 

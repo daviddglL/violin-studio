@@ -5,9 +5,16 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -26,6 +33,8 @@ import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingError
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingIntent
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -158,5 +167,59 @@ class OnboardingScreenTest {
         show(OnboardingState(error = OnboardingError.NETWORK))
         compose.onNodeWithTag(AUTH_MESSAGE_TAG).performScrollTo().assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive))
+    }
+
+    @Test
+    fun `the underage verdict hides the hint and disables continue`() {
+        show(OnboardingState(ageHint = true, error = OnboardingError.UNDERAGE_NOT_ALLOWED))
+        compose.onNodeWithTag(ONBOARDING_AGE_HINT_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun `the hint promises nothing concrete`() {
+        val hint = text(R.string.onboarding_age_hint)
+        assertTrue(hint.startsWith("Si eres menor de edad"))
+        assertFalse(hint.contains("confirmaremos"))
+    }
+
+    @Test
+    fun `deleting the account is blocked while a registration is loading`() {
+        show(OnboardingState(error = OnboardingError.UNDERAGE_NOT_ALLOWED, isLoading = true))
+        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a future date shows its own local message`() {
+        show(OnboardingState(birthDateInFuture = true, fieldErrors = setOf(ProfileField.BIRTH_DATE)))
+        compose.onNodeWithText(text(R.string.onboarding_field_birth_future)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.onboarding_field_birth)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the date group has a heading and each field says which part it is`() {
+        show()
+        compose.onNode(
+            hasText(text(R.string.onboarding_birth_label)) and
+                SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
+        ).performScrollTo().assertIsDisplayed()
+        for (id in listOf(
+            R.string.onboarding_birth_day_desc,
+            R.string.onboarding_birth_month_desc,
+            R.string.onboarding_birth_year_desc
+        )) compose.onNodeWithContentDescription(text(id)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `the date error is the supporting text of the year field and is announced`() {
+        show(OnboardingState(fieldErrors = setOf(ProfileField.BIRTH_DATE)))
+        val error = compose.onNode(
+            hasText(text(R.string.onboarding_field_birth)) and hasAnyAncestor(hasTestTag(ONBOARDING_YEAR_TAG)),
+            useUnmergedTree = true
+        )
+        error.performScrollTo().assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        compose.onAllNodesWithText(text(R.string.onboarding_field_birth), useUnmergedTree = true).assertCountEquals(1)
     }
 }
