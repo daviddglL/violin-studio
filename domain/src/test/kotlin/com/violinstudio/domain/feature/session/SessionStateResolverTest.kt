@@ -9,6 +9,7 @@ import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 
 class SessionStateResolverTest {
@@ -100,11 +101,10 @@ class SessionStateResolverTest {
     }
 
     @Test
-    fun `granted vigente es Ready y una version superior sigue vigente`() {
+    fun `granted con la version vigente es Ready y una version superior no (como consentOk del servidor)`() {
         val current = profile()
         assertEquals(SessionState.Ready(current), resolve(profile = current))
-        val newer = profile(policyVersion = 3)
-        assertEquals(SessionState.Ready(newer), resolve(profile = newer))
+        assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = 3)))
     }
 
     @Test
@@ -131,5 +131,38 @@ class SessionStateResolverTest {
             SessionState.ConsentPending(config, isMinor = true),
             resolve(profile = profile(ConsentStatus.PENDING, null, isMinor = true))
         )
+    }
+
+    @Test
+    fun `sin proveedores o con uno desconocido y sin verificar es EmailUnverified (fail closed)`() {
+        val empty = AuthUser("u1", "a@b.com", emailVerified = false, providers = emptySet())
+        assertEquals(SessionState.EmailUnverified("a@b.com"), resolve(user = empty, profile = null))
+        val unknown = empty.copy(providers = setOf(AuthProvider.PASSWORD, AuthProvider.PASSWORD))
+        assertEquals(SessionState.EmailUnverified("a@b.com"), resolve(user = unknown, profile = null))
+    }
+
+    @Test
+    fun `Google con otro proveedor sin verificar no es EmailUnverified`() {
+        val both = AuthUser("u1", "a@b.com", false, setOf(AuthProvider.PASSWORD, AuthProvider.GOOGLE))
+        assertEquals(SessionState.NeedsProfile, resolve(user = both, profile = null))
+    }
+
+    @Test
+    fun `granted sin version sola es ConsentPending`() {
+        assertEquals(SessionState.ConsentPending(config, false), resolve(profile = profile(policyVersion = null)))
+    }
+
+    @Test
+    fun `parental_pending con borrado en curso es Loading`() {
+        val guardian = GuardianSummary("p***@g***.com", 1)
+        val deleting =
+            profile(ConsentStatus.PARENTAL_PENDING, null, isMinor = true, guardian = guardian, deletion = true)
+        assertEquals(SessionState.Loading, resolve(profile = deleting))
+    }
+
+    @Test
+    fun `toString de los estados no filtra email ni nombre`() {
+        assertFalse(SessionState.EmailUnverified("ana@secreto.com").toString().contains("ana@secreto.com"))
+        assertFalse(SessionState.ParentalPending("p***@g***.com", 1).toString().contains("p***"))
     }
 }

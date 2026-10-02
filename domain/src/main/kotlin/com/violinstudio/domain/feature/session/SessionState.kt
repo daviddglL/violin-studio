@@ -10,14 +10,18 @@ sealed interface SessionState {
 
     data object LoggedOut : SessionState
 
-    data class EmailUnverified(val email: String?) : SessionState
+    data class EmailUnverified(val email: String?) : SessionState {
+        override fun toString(): String = "EmailUnverified"
+    }
 
     data object NeedsProfile : SessionState
 
     /** [isMinor] lo fija el servidor: un menor necesita a su tutor en vez de aceptar él mismo. */
     data class ConsentPending(val config: IdentityConfig, val isMinor: Boolean) : SessionState
 
-    data class ParentalPending(val emailMasked: String?, val sends: Int) : SessionState
+    data class ParentalPending(val emailMasked: String?, val sends: Int) : SessionState {
+        override fun toString(): String = "ParentalPending(sends=$sends)"
+    }
 
     data class Ready(val profile: UserProfile) : SessionState
 }

@@ -20,7 +20,7 @@ class SessionStateResolver @Inject constructor() {
         else -> SessionState.ConsentPending(config, profile.isMinor)
     }
 
-    // Google verifica el email por su cuenta: nunca se le pide verificar.
+    // Google verifica el email por su cuenta: nunca se le pide verificar. Fail-closed: sin proveedores o con uno desconocido y sin verificar, sí se pide.
     private fun needsEmailVerification(user: AuthUser): Boolean =
-        user.usesPassword && AuthProvider.GOOGLE !in user.providers && !user.emailVerified
+        !user.emailVerified && AuthProvider.GOOGLE !in user.providers
 }

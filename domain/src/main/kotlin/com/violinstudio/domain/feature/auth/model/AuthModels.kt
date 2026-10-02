@@ -11,6 +11,8 @@ data class AuthUser(
     val providers: Set<AuthProvider>
 ) {
     val usesPassword: Boolean get() = AuthProvider.PASSWORD in providers
+
+    override fun toString(): String = "AuthUser(emailVerified=$emailVerified, providers=$providers)"
 }
 
 /** Claims del token: `role` es nulo si el servidor envía un valor que el cliente no conoce. */

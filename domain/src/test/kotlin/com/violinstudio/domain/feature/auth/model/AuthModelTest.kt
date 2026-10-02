@@ -25,4 +25,10 @@ class AuthModelTest {
         assertThrows<IllegalArgumentException> { GoogleIdToken(" ") }
         assertFalse(GoogleIdToken("secreto").toString().contains("secreto"))
     }
+
+    @Test
+    fun `toString de AuthUser no filtra el email`() {
+        val user = AuthUser("u1", "ana@secreto.com", true, setOf(AuthProvider.PASSWORD))
+        assertFalse(user.toString().contains("ana@secreto.com"))
+    }
 }
