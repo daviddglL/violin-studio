@@ -115,9 +115,38 @@ jobs:
         uses: actions/upload-artifact@v4
         with: { name: emulators-log, path: emulators.log }
 
-  release:
+  # PENDIENTE: el release está desactivado mientras no existan los secrets de firma
+  # (KEYSTORE_BASE64, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD). Cada push a main deja
+  # un aviso visible en el resumen del run hasta que se configuren.
+  release-firma:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [secrets-guard, android, functions, rules]
+    runs-on: ubuntu-latest
+    outputs:
+      lista: ${{ steps.comprobar.outputs.lista }}
+    steps:
+      - id: comprobar
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          faltan=""
+          for s in KEYSTORE_BASE64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [ -n "${!s}" ] || faltan="$faltan $s"
+          done
+          if [ -n "$faltan" ]; then
+            echo "::warning title=Release desactivado::Faltan los secrets de firma:$faltan. El APK/AAB no se compila ni se publica hasta configurarlos."
+            echo "## ⚠️ Release desactivado" >> "$GITHUB_STEP_SUMMARY"
+            echo "Faltan los secrets de firma:$faltan." >> "$GITHUB_STEP_SUMMARY"
+            echo "lista=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "lista=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-firma.outputs.lista == 'true'
+    needs: [secrets-guard, android, functions, rules, release-firma]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
