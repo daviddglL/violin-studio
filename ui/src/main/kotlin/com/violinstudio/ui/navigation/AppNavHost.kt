@@ -62,10 +62,14 @@ fun SessionNavHost(
     }
     SideEffect { lastRouted[0] = routed }
     SessionRedirect(routed, navController)
-    Box {
-        SessionGraph(routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait)
-        if (session is SessionState.Unavailable && routed is SessionState.Ready) {
-            Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
+    // Un único Surface con el fondo del tema para todas las raíces (splash, offline, marcadores...): sin él el texto
+    // toma el color por defecto y queda oscuro sobre oscuro.
+    Surface(Modifier.fillMaxSize()) {
+        Box {
+            SessionGraph(routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait)
+            if (session is SessionState.Unavailable && routed is SessionState.Ready) {
+                Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
+            }
         }
     }
 }
