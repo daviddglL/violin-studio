@@ -11,7 +11,10 @@ function harness() {
   const limits: number[] = [];
   const authUsers = new Map<string, Doc>();
   const claimsSet: Doc[] = [];
-  const fail = { storage: 0, auth: 0, updateNotFound: false };
+  const fail = { storage: 0, auth: 0, updateNotFound: false, storageCode: undefined as unknown, bulkFrom: -1, bulkTimes: 0, onAuthDelete: undefined as undefined | (() => void) };
+  let closed = false;
+  let deleteCalls = 0;
+  const handledBeforeClose: boolean[] = [];
   const logs: Array<{ message: string; data: Doc }> = [];
   const sleeps: number[] = [];
 
@@ -46,7 +49,25 @@ function harness() {
   const db: any = {
     collection,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    bulkWriter: () => ({ delete: (r: any) => void docs.delete(r.path), flush: async () => undefined, close: async () => undefined }),
+    bulkWriter: () => {
+      closed = false;
+      return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete: (r: any) => {
+          deleteCalls++;
+          if (deleteCalls > fail.bulkFrom && fail.bulkFrom >= 0 && fail.bulkTimes-- > 0) {
+            const p = Promise.reject(new Error("write failed"));
+            const then = p.then.bind(p);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (p as any).then = (...a: any[]) => (handledBeforeClose.push(!closed), (then as any)(...a));
+            return p;
+          }
+          docs.delete(r.path);
+          return Promise.resolve();
+        },
+        close: async () => void (closed = true),
+      };
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recursiveDelete: async (r: any) => {
       ops.push("recursiveDelete");
@@ -64,12 +85,21 @@ function harness() {
       ops.push("auth.delete");
       if (fail.auth-- > 0) throw new Error("auth down");
       if (!authUsers.delete(uid)) throw Object.assign(new Error("x"), { code: "auth/user-not-found" });
+      fail.onAuthDelete?.();
+    },
+    updateUser: async (uid: string, p: Doc) => {
+      ops.push(`auth.update:${JSON.stringify(p)}`);
+      if (!authUsers.has(uid)) throw Object.assign(new Error("x"), { code: "auth/user-not-found" });
+    },
+    revokeRefreshTokens: async (uid: string) => {
+      ops.push("auth.revoke");
+      if (!authUsers.has(uid)) throw Object.assign(new Error("x"), { code: "auth/user-not-found" });
     },
   };
   const bucket = {
     deleteFiles: async (o: { prefix: string }) => {
       ops.push(`storage:${o.prefix}`);
-      if (fail.storage-- > 0) throw new Error("storage down");
+      if (fail.storage-- > 0) throw Object.assign(new Error("storage down"), fail.storageCode === undefined ? {} : { code: fail.storageCode });
     },
   };
   const deps: ErasureDeps = {
@@ -80,7 +110,7 @@ function harness() {
     sleep: async (ms) => void sleeps.push(ms),
     log: (message, data) => void logs.push({ message, data }),
   };
-  return { docs, ops, limits, authUsers, claimsSet, fail, logs, sleeps, deps };
+  return { handledBeforeClose, docs, ops, limits, authUsers, claimsSet, fail, logs, sleeps, deps };
 }
 
 const seed = (h: ReturnType<typeof harness>, uid = "u1") => {
@@ -131,8 +161,9 @@ describe("eraseUserData", () => {
     seed(h);
     await eraseUserData(h.deps, "u1", { deleteAuth: true });
     expect(h.authUsers.has("u1")).toBe(false);
-    expect(h.ops.at(-1)).toBe("auth.delete");
     expect(h.ops.indexOf("recursiveDelete")).toBeLessThan(h.ops.indexOf("auth.delete"));
+    // tras Auth solo queda el barrido final de datos (W2)
+    expect(h.ops.slice(h.ops.indexOf("auth.delete") + 1)).toEqual(["recursiveDelete"]);
 
     const g = harness();
     await expect(eraseUserData(g.deps, "fantasma", { deleteAuth: true })).resolves.toBeDefined();
@@ -221,5 +252,90 @@ describe("eraseUserData", () => {
     expect(h.logs.every((l) => l.data.uidHash === hash)).toBe(true);
     expect(h.logs.map((l) => l.data.step)).toEqual(expect.arrayContaining(["mark", "collections", "storage", "userDoc", "auth"]));
     expect(h.logs.some((l) => l.message === "erasure.stepFailed")).toBe(true);
+  });
+  test("W1: las promesas de BulkWriter se observan antes de close(); un fallo permanente es error del paso con reintentos", async () => {
+    const h = harness();
+    seed(h);
+    h.fail.bulkFrom = 0;
+    h.fail.bulkTimes = 99;
+    await expect(eraseUserData(h.deps, "u1", { deleteAuth: false })).rejects.toThrow("write failed");
+    expect(h.sleeps).toEqual([200, 800, 2000]);
+    expect(h.handledBeforeClose.length).toBeGreaterThan(0);
+    expect(h.handledBeforeClose.every(Boolean)).toBe(true);
+  });
+
+  test("W3: los contadores acumulan entre reintentos (un lote parcialmente fallido cuenta lo borrado)", async () => {
+    const h = harness();
+    seed(h);
+    for (let i = 0; i < 950; i++) h.docs.set(`mail/b${i}`, { uid: "u1" });
+    h.fail.bulkFrom = 401; // el borrado 402 falla una vez
+    h.fail.bulkTimes = 1;
+    const res = await eraseUserData(h.deps, "u1", { deleteAuth: false });
+    expect(res.deleted).toMatchObject({ mail: 951, guardianRequests: 1 });
+    expect(h.sleeps).toEqual([200]);
+  });
+
+  test.each([["invalid-argument"], ["permission-denied"], ["failed-precondition"], ["unauthenticated"], [3], [7], [9], [16], ["auth/invalid-uid"]])(
+    "W3: el error no transitorio %s no se reintenta",
+    async (code) => {
+      const h = harness();
+      seed(h);
+      h.fail.storage = 99;
+      h.fail.storageCode = code;
+      await expect(eraseUserData(h.deps, "u1", { deleteAuth: false })).rejects.toThrow("storage down");
+      expect(h.sleeps).toEqual([]);
+      expect(h.ops.filter((o) => o.startsWith("storage:"))).toHaveLength(1);
+    },
+  );
+
+  test.each([["unavailable"], ["deadline-exceeded"], ["aborted"], ["internal"], ["resource-exhausted"], ["unknown"], [14], [4], [10], [13], [8], [2], ["auth/internal-error"]])(
+    "W3: el error transitorio %s se reintenta",
+    async (code) => {
+      const h = harness();
+      seed(h);
+      h.fail.storage = 99;
+      h.fail.storageCode = code;
+      await expect(eraseUserData(h.deps, "u1", { deleteAuth: false })).rejects.toThrow("storage down");
+      expect(h.sleeps).toEqual([200, 800, 2000]);
+    },
+  );
+
+  test("W2: con deleteAuth se deshabilita la cuenta y se revocan tokens antes de borrar datos", async () => {
+    const h = harness();
+    seed(h);
+    await eraseUserData(h.deps, "u1", { deleteAuth: true });
+    const first = h.ops.findIndex((o) => o.startsWith("storage:"));
+    expect(h.ops.indexOf('auth.update:{"disabled":true}')).toBeGreaterThanOrEqual(0);
+    expect(h.ops.indexOf('auth.update:{"disabled":true}')).toBeLessThan(first);
+    expect(h.ops.indexOf("auth.revoke")).toBeLessThan(first);
+
+    const k = harness();
+    seed(k);
+    await eraseUserData(k.deps, "u1", { deleteAuth: false });
+    expect(k.ops.some((o) => o.startsWith("auth."))).toBe(false);
+  });
+
+  test("W2: un perfil recreado entre el borrado de datos y el de Auth se barre al final", async () => {
+    const h = harness();
+    seed(h);
+    h.fail.onAuthDelete = () => {
+      h.docs.set("users/u1", { displayName: "Ana", consentStatus: "pending" });
+      h.docs.set("users/u1/consents/c9", { type: "terms" });
+      h.docs.set("mail/late", { uid: "u1" });
+    };
+    await eraseUserData(h.deps, "u1", { deleteAuth: true });
+    expect([...h.docs.keys()].filter((p) => p.includes("u1") || p === "mail/late")).toEqual([]);
+  });
+
+  test("W2: cuenta Auth inexistente al deshabilitar se ignora", async () => {
+    const h = harness();
+    await expect(eraseUserData(h.deps, "fantasma", { deleteAuth: true })).resolves.toBeDefined();
+  });
+
+  test("item 6: doc ya borrado y deleteAuth:false no deja consentOk obsoleto", async () => {
+    const h = harness();
+    h.authUsers.set("u1", { role: "independent", consentOk: true });
+    await eraseUserData(h.deps, "u1", { deleteAuth: false });
+    expect(h.authUsers.get("u1")).toEqual({ role: "independent", consentOk: false });
   });
 });

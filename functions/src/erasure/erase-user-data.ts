@@ -31,6 +31,20 @@ const codeOf = (e: unknown): unknown => (e as { code?: unknown } | null)?.code;
 const isFirestoreNotFound = (e: unknown) => codeOf(e) === 5 || codeOf(e) === "not-found";
 const isAuthNotFound = (e: unknown) => codeOf(e) === "auth/user-not-found";
 
+/** Errores gRPC/Firebase que un reintento no puede arreglar (argumentos, permisos, precondiciones). */
+const PERMANENT_NUMERIC = new Set([3, 5, 6, 7, 9, 11, 12, 16]);
+const PERMANENT_STRING = new Set([
+  "invalid-argument", "not-found", "already-exists", "permission-denied", "failed-precondition",
+  "out-of-range", "unimplemented", "unauthenticated",
+]);
+function isPermanent(e: unknown): boolean {
+  const code = codeOf(e);
+  if (typeof code === "number") return PERMANENT_NUMERIC.has(code);
+  if (typeof code !== "string") return false;
+  if (code.startsWith("auth/")) return code !== "auth/internal-error";
+  return PERMANENT_STRING.has(code);
+}
+
 /**
  * Cascada de borrado de `uid`, reanudable e idempotente. Cada paso se reintenta con backoff; el
  * borrado de Auth es siempre el último, de modo que un fallo previo deja la cuenta localizable y el
@@ -58,21 +72,46 @@ export async function eraseUserData(
       } catch (e) {
         const code = codeOf(e);
         log("erasure.stepFailed", { step: name, attempt: attempt + 1, code: typeof code === "string" || typeof code === "number" ? code : "unknown" });
-        if (attempt >= RETRY_DELAYS_MS.length) throw e;
+        if (attempt >= RETRY_DELAYS_MS.length || isPermanent(e)) throw e;
         await sleep(RETRY_DELAYS_MS[attempt]);
       }
     }
   }
 
+  /** Sin documento, `syncClaims` no hace nada: el claim `consentOk` obsoleto se baja a mano. */
+  async function clearConsentClaim(): Promise<void> {
+    try {
+      const claims = (await auth.getUser(uid)).customClaims ?? {};
+      if (claims.consentOk === true) await auth.setCustomUserClaims(uid, { ...claims, consentOk: false });
+    } catch (e) {
+      if (!isAuthNotFound(e)) throw e;
+    }
+  }
+
   // 1. Marcador de borrado en curso (conserva el original si ya existe) y claims fuera.
   await step("mark", async () => {
+    if (opts.deleteAuth) {
+      // Cierra la puerta: sin sesión nueva ni tokens refrescables, nadie recrea el perfil mientras se borra.
+      try {
+        await auth.updateUser(uid, { disabled: true });
+        await auth.revokeRefreshTokens(uid);
+      } catch (e) {
+        if (!isAuthNotFound(e)) throw e;
+      }
+    }
     const snap = await userRef.get();
-    if (!snap.exists) return;
+    if (!snap.exists) {
+      await clearConsentClaim();
+      return;
+    }
     if (!snap.data()?.deletion) {
       try {
         await userRef.update({ deletion: { state: "in_progress", startedAt: clock() } });
       } catch (e) {
-        if (isFirestoreNotFound(e)) return; // otro borrado concurrente ya eliminó el documento
+        if (isFirestoreNotFound(e)) {
+          await clearConsentClaim(); // otro borrado concurrente ya eliminó el documento
+          return;
+        }
         throw e;
       }
     }
@@ -83,23 +122,27 @@ export async function eraseUserData(
     }
   });
 
-  // 2. Colecciones con uid como campo: lotes hasta vaciar.
+  // 2. Colecciones con uid como campo: lotes hasta vaciar. Los contadores acumulan entre reintentos.
   const deleted: Record<string, number> = {};
-  await step("collections", async () => {
+  const sweepCollections = async () => {
     for (const [name, policy] of Object.entries(ERASABLE_COLLECTIONS)) {
       if (policy.kind !== "queryByField") continue;
-      deleted[name] = 0;
+      deleted[name] ??= 0;
       for (;;) {
         const snap = await db.collection(name).where(policy.field, "==", uid).limit(BATCH_SIZE).get();
         if (snap.empty) break;
         const writer = db.bulkWriter();
-        const pending = snap.docs.map((d) => writer.delete(d.ref));
+        // Se observan ANTES de close(): un rechazo sin manejador sería unhandledRejection.
+        const settled = Promise.allSettled(snap.docs.map((d) => writer.delete(d.ref)));
         await writer.close();
-        await Promise.all(pending); // propaga los fallos de escritura que close() no lanza
-        deleted[name] += snap.docs.length;
+        const results = await settled;
+        deleted[name] += results.filter((r) => r.status === "fulfilled").length;
+        const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+        if (failed) throw failed.reason;
       }
     }
-  });
+  };
+  await step("collections", sweepCollections);
 
   // 3. Storage.
   await step("storage", async () => {
@@ -107,7 +150,8 @@ export async function eraseUserData(
   });
 
   // 4. Documento de usuario con sus subcolecciones (consents); el marcador vive hasta aquí.
-  await step("userDoc", () => db.recursiveDelete(userRef));
+  const sweepUserDoc = () => db.recursiveDelete(userRef);
+  await step("userDoc", sweepUserDoc);
 
   // 5. Auth, siempre el último.
   if (opts.deleteAuth) {
@@ -118,6 +162,9 @@ export async function eraseUserData(
         if (!isAuthNotFound(e)) throw e;
       }
     });
+    // 6. Barrido final: un perfil recreado en la ventana entre los pasos 4 y 5 no debe sobrevivir.
+    await step("finalCollections", sweepCollections);
+    await step("finalUserDoc", sweepUserDoc);
   }
 
   log("erasure.done", { deleteAuth: opts.deleteAuth, ...deleted });
