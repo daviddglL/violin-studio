@@ -8,9 +8,8 @@ import javax.inject.Inject
 
 /** Éxito con `null` si el usuario cancela: cancelar no es un estado de error. */
 class SignInWithGoogleUseCase @Inject constructor(private val auth: AuthRepository) {
-    suspend operator fun invoke(token: GoogleIdToken): Result<AuthUser?> =
-        auth.signInWithGoogle(token).fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { if (it is AuthFailure.Cancelled) Result.success(null) else Result.failure(it) }
-        )
+    suspend operator fun invoke(token: GoogleIdToken): Result<AuthUser?> = auth.signInWithGoogle(token).fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { if (it is AuthFailure.Cancelled) Result.success(null) else Result.failure(it) }
+    )
 }

@@ -21,7 +21,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 val passwordUser = AuthUser("u1", "a@b.com", emailVerified = false, providers = setOf(AuthProvider.PASSWORD))
 val verifiedUser = passwordUser.copy(emailVerified = true)
-val config = IdentityConfig(policyVersion = 2, policyUrl = "https://x/privacy", digitalConsentAge = 14, guardianFlowEnabled = true)
+val config =
+    IdentityConfig(
+        policyVersion = 2,
+        policyUrl = "https://x/privacy",
+        digitalConsentAge = 14,
+        guardianFlowEnabled = true
+    )
 
 fun userProfile(
     status: ConsentStatus = ConsentStatus.GRANTED,
@@ -54,7 +60,8 @@ class FakeAuthRepository : AuthRepository {
     var reauthResult: Result<Unit> = Result.success(Unit)
 
     /** Cola de resultados de `claims`; el último se repite. */
-    var claimsResults: MutableList<Result<SessionClaims>> = mutableListOf(Result.success(SessionClaims(Role.INDEPENDENT, true)))
+    var claimsResults: MutableList<Result<SessionClaims>> =
+        mutableListOf(Result.success(SessionClaims(Role.INDEPENDENT, true)))
 
     override val authUser: Flow<AuthUser?> get() = user
 

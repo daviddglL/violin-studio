@@ -16,7 +16,10 @@ class AcceptPolicyUseCase @Inject constructor(
         consent.recordConsent(policyVersion).onFailure { return Result.failure(it) }
         return auth.refreshClaims().fold(
             onSuccess = { Result.success(Unit) },
-            onFailure = { Result.failure(if (it is AuthFailure.Network) ConsentFailure.Network else ConsentFailure.Unknown(it)) }
+            onFailure = { Result.failure(it.toConsentFailure()) }
         )
     }
+
+    private fun Throwable.toConsentFailure(): ConsentFailure =
+        if (this is AuthFailure.Network) ConsentFailure.Network else ConsentFailure.Unknown(this)
 }

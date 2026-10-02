@@ -21,6 +21,5 @@ class SessionStateResolver @Inject constructor() {
     }
 
     // Google verifica el email por su cuenta: nunca se le pide verificar. Fail-closed: sin proveedores o con uno desconocido y sin verificar, sí se pide.
-    fun needsEmailVerification(user: AuthUser): Boolean =
-        !user.emailVerified && AuthProvider.GOOGLE !in user.providers
+    fun needsEmailVerification(user: AuthUser): Boolean = !user.emailVerified && AuthProvider.GOOGLE !in user.providers
 }

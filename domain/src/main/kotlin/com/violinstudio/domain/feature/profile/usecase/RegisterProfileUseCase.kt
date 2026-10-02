@@ -20,7 +20,10 @@ class RegisterProfileUseCase @Inject constructor(
         profile.register(registration).onFailure { return Result.failure(it) }
         return auth.refreshClaims().fold(
             onSuccess = { Result.success(Unit) },
-            onFailure = { Result.failure(if (it is AuthFailure.Network) ProfileFailure.Network else ProfileFailure.Unknown(it)) }
+            onFailure = { Result.failure(it.toProfileFailure()) }
         )
     }
+
+    private fun Throwable.toProfileFailure(): ProfileFailure =
+        if (this is AuthFailure.Network) ProfileFailure.Network else ProfileFailure.Unknown(this)
 }
