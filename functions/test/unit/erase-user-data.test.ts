@@ -48,7 +48,6 @@ function harness() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db: any = {
     collection,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bulkWriter: () => {
       closed = false;
       return {
