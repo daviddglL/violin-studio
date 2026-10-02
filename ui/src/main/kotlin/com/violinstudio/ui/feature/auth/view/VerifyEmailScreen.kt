@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -19,6 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,7 +48,8 @@ fun VerifyEmailRoute(email: String?, viewModel: VerifyEmailViewModel = hiltViewM
 fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (VerifyEmailIntent) -> Unit) {
     Surface(Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp).testTag(VERIFY_EMAIL_TAG),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
+                .testTag(VERIFY_EMAIL_TAG),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -63,18 +69,27 @@ fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (Verify
                     text = stringResource(it.textRes()),
                     color = if (it.isError()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.testTag("verify_email_message")
+                    modifier = Modifier.testTag("verify_email_message").semantics {
+                        liveRegion = if (it.isError()) LiveRegionMode.Assertive else LiveRegionMode.Polite
+                    }
                 )
                 Spacer(Modifier.height(16.dp))
             }
             Button(
                 onClick = { onIntent(VerifyEmailIntent.CheckNow) },
-                enabled = !state.checking,
+                enabled = state.canCheck,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 // Sin indicador infinito: bloquearía la sincronización de los tests de UI.
                 val label = if (state.checking) R.string.verify_email_checking else R.string.verify_email_check
-                Text(stringResource(label))
+                Text(
+                    text = stringResource(label),
+                    modifier = if (state.checking) {
+                        Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                    } else {
+                        Modifier
+                    }
+                )
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
@@ -83,7 +98,7 @@ fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (Verify
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    if (state.canResend) {
+                    if (state.resendCooldownSeconds == 0) {
                         stringResource(R.string.verify_email_resend)
                     } else {
                         stringResource(R.string.verify_email_resend_wait, state.resendCooldownSeconds)
@@ -108,4 +123,4 @@ private fun VerifyEmailMessage.textRes() = when (this) {
 }
 
 private fun VerifyEmailMessage.isError() = this != VerifyEmailMessage.RESEND_SENT &&
-    this != VerifyEmailMessage.NOT_VERIFIED_YET
+    this != VerifyEmailMessage.NOT_VERIFIED_YET && this != VerifyEmailMessage.VERIFIED_CONTINUING

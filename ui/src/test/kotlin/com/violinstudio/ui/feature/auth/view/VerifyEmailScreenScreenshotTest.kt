@@ -46,4 +46,9 @@ class VerifyEmailScreenScreenshotTest {
     )
 
     @Test fun checking() = capture(VerifyEmailState(checking = true), "verify_email_checking")
+
+    @Test fun verifiedContinuing() = capture(
+        VerifyEmailState(verified = true, message = VerifyEmailMessage.VERIFIED_CONTINUING),
+        "verify_email_verified_continuing"
+    )
 }

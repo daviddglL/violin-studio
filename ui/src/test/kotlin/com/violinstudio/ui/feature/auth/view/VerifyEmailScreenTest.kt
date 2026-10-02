@@ -2,12 +2,17 @@ package com.violinstudio.ui.feature.auth.view
 
 import android.app.Application
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -83,6 +88,42 @@ class VerifyEmailScreenTest {
         compose.onNodeWithText(text(R.string.session_sign_out)).assertIsEnabled()
     }
 
+    private fun liveRegion(mode: LiveRegionMode) = SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, mode)
+
+    @Test
+    fun informativeMessagesAreAnnouncedPolitelyAndErrorsAssertively() {
+        val message = mutableStateOf<VerifyEmailMessage?>(null)
+        compose.setContent {
+            ViolinStudioTheme {
+                VerifyEmailScreen("ana@example.test", VerifyEmailState(message = message.value), {})
+            }
+        }
+        val polite = listOf(
+            VerifyEmailMessage.NOT_VERIFIED_YET,
+            VerifyEmailMessage.RESEND_SENT,
+            VerifyEmailMessage.VERIFIED_CONTINUING
+        )
+        VerifyEmailMessage.entries.forEach { m ->
+            message.value = m
+            val expected = if (m in polite) LiveRegionMode.Polite else LiveRegionMode.Assertive
+            compose.onNodeWithTag("verify_email_message").assert(liveRegion(expected))
+        }
+    }
+
+    @Test
+    fun theCheckingStateIsAnnouncedPolitely() {
+        show(VerifyEmailState(checking = true))
+        compose.onNodeWithText(text(R.string.verify_email_checking)).assert(liveRegion(LiveRegionMode.Polite))
+    }
+
+    @Test
+    fun verifiedBlocksCheckAndResendButNotSignOut() {
+        show(VerifyEmailState(verified = true, message = VerifyEmailMessage.VERIFIED_CONTINUING))
+        compose.onNodeWithText(text(R.string.verify_email_check)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.verify_email_resend)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.session_sign_out)).assertIsEnabled()
+    }
+
     @Test
     fun everyMessageHasItsOwnText() {
         val expected = mapOf(
@@ -90,7 +131,8 @@ class VerifyEmailScreenTest {
             VerifyEmailMessage.RESEND_SENT to R.string.verify_email_resend_sent,
             VerifyEmailMessage.WAIT_TOO_MANY_REQUESTS to R.string.verify_email_wait_too_many,
             VerifyEmailMessage.NETWORK to R.string.verify_email_network,
-            VerifyEmailMessage.UNKNOWN to R.string.verify_email_unknown
+            VerifyEmailMessage.UNKNOWN to R.string.verify_email_unknown,
+            VerifyEmailMessage.VERIFIED_CONTINUING to R.string.verify_email_verified_continuing
         )
         assertEquals(VerifyEmailMessage.entries.toSet(), expected.keys)
         val message = mutableStateOf<VerifyEmailMessage?>(null)
