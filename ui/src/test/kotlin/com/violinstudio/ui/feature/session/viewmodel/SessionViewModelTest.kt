@@ -39,7 +39,12 @@ class SessionViewModelTest {
 
     @Test
     fun `a process restart restores a resolved state after Loading`() = runTest {
-        val vm = viewModel(flow { emit(SessionState.Loading); emit(SessionState.NeedsProfile) })
+        val vm = viewModel(
+            flow {
+                emit(SessionState.Loading)
+                emit(SessionState.NeedsProfile)
+            }
+        )
         vm.testMvi { assertState { it.session == SessionState.NeedsProfile } }
     }
 

@@ -13,8 +13,13 @@ class GatingIsolationTest {
     private val features = File("src/main/kotlin/com/violinstudio/ui/feature")
     private val sessionFeatures = setOf("session", "auth")
     private val forbidden = listOf(
-        "SessionState", "SessionViewModel", "SessionIntent", "ObserveSessionStateUseCase", "rootRoute",
-        "ui.navigation", "SignOutUseCase"
+        "SessionState",
+        "SessionViewModel",
+        "SessionIntent",
+        "ObserveSessionStateUseCase",
+        "rootRoute",
+        "ui.navigation",
+        "SignOutUseCase"
     )
 
     private fun businessSources(): List<File> = features.listFiles { f -> f.isDirectory && f.name !in sessionFeatures }

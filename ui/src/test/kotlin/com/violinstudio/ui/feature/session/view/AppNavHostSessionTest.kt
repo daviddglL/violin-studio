@@ -38,7 +38,9 @@ class AppNavHostSessionTest {
 
     private val config = IdentityConfig(1, "https://example.test/policy", 14, true)
     private val ready = SessionState.Ready(
-        UserProfile("u1", "Ana", Instrument.VIOLIN, "es", Role.INDEPENDENT, false, ConsentStatus.GRANTED, 1, null, false)
+        UserProfile(
+            "u1", "Ana", Instrument.VIOLIN, "es", Role.INDEPENDENT, false, ConsentStatus.GRANTED, 1, null, false
+        )
     )
     private val consentPending = SessionState.ConsentPending(config, isMinor = false)
     private val states = listOf(
