@@ -25,3 +25,9 @@ export function fail(
 ): HttpsError {
   return new HttpsError(code, reason, { reason, ...details });
 }
+
+/** Código de un error apto para logs: solo string o number (nunca el mensaje ni objetos que puedan llevar rutas con uid). */
+export const safeErrorCode = (e: unknown): string | number => {
+  const code = (e as { code?: unknown } | null | undefined)?.code;
+  return typeof code === "string" || typeof code === "number" ? code : "unknown";
+};
