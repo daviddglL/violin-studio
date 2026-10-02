@@ -14,6 +14,7 @@ export enum ErrorReason {
   REAUTH_REQUIRED = "REAUTH_REQUIRED",
   ERASURE_FAILED = "ERASURE_FAILED",
   INVALID_ARGUMENT = "INVALID_ARGUMENT",
+  CONSENT_ALREADY_GRANTED = "CONSENT_ALREADY_GRANTED",
 }
 
 /** Error de callable con `details.reason` estable para que el cliente lo mapee sin parsear texto. */

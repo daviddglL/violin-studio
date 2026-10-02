@@ -30,5 +30,8 @@ expect 1 "keystore .keystore" debug.keystore
 expect 1 ".env" .env
 expect 1 ".env.production" functions/.env.violin-app-795ee
 expect 1 ".envrc" .envrc
+expect 1 "functions/.secret.local" functions/.secret.local
+expect 1 ".secret" .secret
+expect 0 "secret-guard.md no es secreto" docs/secret-guard.md
 expect 0 "environment.kt no es secreto" app/src/main/kotlin/environment.kt
 exit $fail

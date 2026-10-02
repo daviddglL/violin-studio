@@ -14,6 +14,9 @@ import { resolveBucketName } from "./erasure/bucket";
 import { deleteAccountHandler } from "./erasure/delete-account";
 import { eraseUserData } from "./erasure/erase-user-data";
 import { onUserDeletedHandler } from "./erasure/on-user-deleted";
+import { guardianLinkBaseUrl } from "./guardian/config";
+import { GUARDIAN_EMAIL_PEPPER } from "./guardian/pepper";
+import { requestGuardianConsentHandler } from "./guardian/request";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
 import { VERSION } from "./version";
@@ -55,6 +58,24 @@ export const revokeConsent = onCall(callableOptions(), async (request) => {
   const app = admin();
   return revokeConsentCore({ db: getFirestore(app), auth: getAuth(app) }, uid, "self");
 });
+
+export const requestGuardianConsent = onCall(
+  { ...callableOptions(), secrets: [GUARDIAN_EMAIL_PEPPER] },
+  async (request) => {
+    const { uid, token } = requireVerifiedUser(request);
+    return requestGuardianConsentHandler(
+      {
+        db: getFirestore(admin()),
+        pepper: GUARDIAN_EMAIL_PEPPER.value(),
+        linkBaseUrl: guardianLinkBaseUrl(),
+        guardianFlowEnabled: GUARDIAN_FLOW_ENABLED,
+      },
+      uid,
+      token.email,
+      request.data,
+    );
+  },
+);
 
 export const deleteAccount = onCall({ ...callableOptions(), timeoutSeconds: 300 }, (request) =>
   deleteAccountHandler({ erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, request),

@@ -1,4 +1,4 @@
-import { hmacEmail, randomToken, safeEqualHex, sha256Hex } from "../../src/common/hashing";
+import { normalizeEmail, hmacEmail, randomToken, safeEqualHex, sha256Hex } from "../../src/common/hashing";
 
 describe("sha256Hex", () => {
   test("vector conocido", () => {
@@ -40,5 +40,15 @@ describe("safeEqualHex", () => {
     expect(safeEqualHex("ab", "abcd")).toBe(false);
     expect(safeEqualHex("zz", "zz")).toBe(false);
     expect(safeEqualHex("", "")).toBe(false);
+  });
+});
+
+describe("normalizeEmail (única normalización: HMAC y comparación)", () => {
+  test("NFKC + trim + minúsculas; sin alias de proveedor", () => {
+    expect(normalizeEmail("  ＡNA@Example.COM ")).toBe("ana@example.com");
+    expect(normalizeEmail("a.b+tag@gmail.com")).toBe("a.b+tag@gmail.com");
+  });
+  test("hmacEmail usa la misma normalización", () => {
+    expect(hmacEmail("p".repeat(32), "ＡＮＡ@EXAMPLE.com")).toBe(hmacEmail("p".repeat(32), "ana@example.com"));
   });
 });
