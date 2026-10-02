@@ -45,8 +45,13 @@ class RootRouteTest {
     @Test
     fun `every non-Ready state maps to an explicit non-business route`() {
         val nonBusiness = setOf(
-            SplashDestination, OfflineDestination, AuthDestination, VerifyEmailDestination,
-            OnboardingDestination, ConsentDestination, GuardianWaitDestination
+            SplashDestination,
+            OfflineDestination,
+            AuthDestination,
+            VerifyEmailDestination,
+            OnboardingDestination,
+            ConsentDestination,
+            GuardianWaitDestination
         )
         table.filter { it.first !is SessionState.Ready }.forEach { (state, _) ->
             assertTrue(state.rootRoute() in nonBusiness, "route of $state must be a known non-business route")

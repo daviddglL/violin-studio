@@ -14,7 +14,7 @@ class GatingIsolationTest {
 
     private fun businessSources(): List<File> =
         features.listFiles { f -> f.isDirectory && f.name !in SESSION_AWARE_FEATURES }
-        .orEmpty().flatMap { dir -> dir.walkTopDown().filter { it.extension == "kt" }.toList() }
+            .orEmpty().flatMap { dir -> dir.walkTopDown().filter { it.extension == "kt" }.toList() }
 
     @Test
     fun `business features contain no session logic`() {
@@ -28,8 +28,10 @@ class GatingIsolationTest {
     fun `scanner flags session imports, including wildcards, and ignores comments`() {
         assertEquals(emptyList<String>(), violationsIn("// SessionState AuthRepository\n/* rootRoute */\nclass A"))
         assertTrue(violationsIn("import com.violinstudio.domain.feature.session.*\nclass A").isNotEmpty())
-        assertTrue(violationsIn("import com.violinstudio.domain.feature.consent.repository.ConsentRepository").isNotEmpty())
-        assertTrue(violationsIn("import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase").isNotEmpty())
+        val consentImport = "import com.violinstudio.domain.feature.consent.repository.ConsentRepository"
+        val accountImport = "import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase"
+        assertTrue(violationsIn(consentImport).isNotEmpty())
+        assertTrue(violationsIn(accountImport).isNotEmpty())
         assertTrue(violationsIn("import com.violinstudio.ui.navigation.HomeDestination").isNotEmpty())
         assertTrue(violationsIn("val s: com.violinstudio.domain.feature.session.SessionState? = null").isNotEmpty())
         assertTrue(violationsIn("fun f(r: SessionStateResolver) = r").isNotEmpty())
@@ -65,7 +67,7 @@ class GatingIsolationTest {
         fun violationsIn(source: String): List<String> {
             val code = source.replace(blockComment, "").replace(lineComment, "")
             val packages = forbiddenPackages.filter { code.contains(it) }.map { "references package $it" }
-            val symbols = forbiddenSymbols.filter { Regex("""\b${it}\b""").containsMatchIn(code) }
+            val symbols = forbiddenSymbols.filter { Regex("""\b$it\b""").containsMatchIn(code) }
                 .map { "references $it" }
             return packages + symbols
         }

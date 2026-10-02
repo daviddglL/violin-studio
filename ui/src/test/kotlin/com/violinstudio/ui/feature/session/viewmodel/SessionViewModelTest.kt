@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.session.viewmodel
 
+import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.session.SessionState
@@ -7,7 +8,6 @@ import com.violinstudio.domain.feature.session.usecase.ObserveSessionStateUseCas
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.MviScenario
 import com.violinstudio.ui.commons.testing.testMvi
-import androidx.lifecycle.viewModelScope
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
