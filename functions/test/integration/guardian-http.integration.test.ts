@@ -78,3 +78,29 @@ test("hosting: rechazo real en dos pasos -> Auth, perfil, solicitud y mail del m
   expect((await db.collection("mail").where("uid", "==", s.uid).get()).size).toBe(0);
   expect((await auth.getUser(otro.uid)).uid).toBe(otro.uid);
 });
+
+test("hosting: aceptar y luego revocar con el enlace del segundo correo -> revoked, consentOk=false, token de un solo uso", async () => {
+  const s = await setup();
+  const acc = await fetch(HOSTING, urlencoded({ r: s.r, t: s.t, action: "accept", declaration: "on" }));
+  expect(acc.status).toBe(200);
+  const mail = (await db.collection("mail").where("uid", "==", s.uid).where("kind", "==", "guardian_revoke").get()).docs[0].data();
+  const link = mail.message.text.match(/(https?:\/\/\S+\/tutor\?r=\S+#t=[\w-]+&a=revoke)/)![1];
+  expect(link).toContain(`/tutor?r=${s.r}#t=`);
+  const rev = link.match(/#t=([\w-]+)&a=revoke/)![1];
+
+  const page = await fetch(`${HOSTING}?r=${s.r}`); // el fragmento nunca llega al servidor
+  const html = await page.text();
+  expect(page.status).toBe(200);
+  expect(html).toContain('name="action" value="revoke"');
+  expect(html).not.toContain(rev);
+  expect((await db.collection("users").doc(s.uid).get()).data()?.consentStatus).toBe("granted");
+  expect((await auth.getUser(s.uid)).customClaims?.consentOk).toBe(true);
+
+  expect((await fetch(HOSTING, urlencoded({ r: s.r, t: s.t, action: "revoke" }))).status).toBe(404); // el token de aceptación no revoca
+  const res = await fetch(HOSTING, urlencoded({ r: s.r, t: rev, action: "revoke" }));
+  expect(res.status).toBe(200);
+  expect((await db.collection("users").doc(s.uid).get()).data()?.consentStatus).toBe("revoked");
+  expect((await auth.getUser(s.uid)).customClaims?.consentOk).toBe(false);
+  expect((await fetch(HOSTING, urlencoded({ r: s.r, t: rev, action: "revoke" }))).status).toBe(404);
+  expect((await fetch(`${HOSTING}?r=${s.r}`)).status).toBe(404);
+});

@@ -1,7 +1,10 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { renderInvalidPage, renderRevokedPage } from "../../src/guardian/page";
+import { eraseUserData } from "../../src/erasure/erase-user-data";
+import { deleteAccountHandler } from "../../src/erasure/delete-account";
+import { requestGuardianConsentHandler } from "../../src/guardian/request";
 import { hashToken } from "../../src/guardian/token";
-import { auth, authExists, db, erased, get, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
+import { auth, authExists, bucket, db, erased, get, PEPPER, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
 
 const DAY = 24 * 3600_000;
 beforeEach(() => { resetState(); erased.length = 0; });
@@ -221,5 +224,72 @@ describe("3c.5 POST revoke", () => {
   test("formato de r inválido o sin token -> genérico", async () => {
     expect((await post({ r: "../x", t: "t", action: "revoke" })).body).toBe(INVALID);
     expect((await post({ r: "a".repeat(20), action: "revoke" })).body).toBe(INVALID);
+  });
+});
+
+describe("3c.6 tras revocar el tutor", () => {
+  const ask = async (uid: string) => {
+    const email = (await auth.getUser(uid)).email;
+    return requestGuardianConsentHandler(
+      { db, pepper: PEPPER, linkBaseUrl: "https://x.app", guardianFlowEnabled: true, clock: () => state.now, log: () => undefined },
+      uid, email, { guardianEmail: `n${Date.now()}${Math.random()}@example.com` },
+    );
+  };
+
+  test("el menor puede volver a pedir tutor desde revoked; el enlace viejo sigue muerto y el ciclo completo se repite", async () => {
+    const s = await accepted();
+    expect((await revoke(s)).status).toBe(200);
+    expect((await ask(s.uid)).status).toBe("sent");
+    const p = await perfil(s.uid);
+    expect(p.consentStatus).toBe("parental_pending");
+    expect(p.guardian.requestId).not.toBe(s.r);
+    expect((await get({ r: s.r })).body).toBe(INVALID);
+    expect((await revoke(s)).body).toBe(INVALID);
+
+    // El nuevo tutor acepta la nueva solicitud y obtiene su propio enlace de revocación.
+    const [, r2, t2] = (await mails(s.uid, "guardian_consent")).map((m) => m.data()).find((m) => m.message.text.includes(p.guardian.requestId))!.message.text.match(/\/tutor\?r=(\S+)#t=([\w-]+)/)!;
+    expect((await post({ r: r2, t: t2, action: "accept", declaration: "on" })).status).toBe(200);
+    expect((await get({ r: s.r })).body).toBe(INVALID); // granted de nuevo, pero el enlace viejo ya no es el de la solicitud activa
+    expect((await revoke(s)).body).toBe(INVALID);
+    const m2 = (await mails(s.uid, "guardian_revoke")).map((m) => m.data()).find((m) => m.message.text.includes(`r=${r2}#`))!;
+    const rev2 = m2.message.text.match(/#t=([\w-]+)&a=revoke/)![1];
+    expect((await post({ r: r2, t: rev2, action: "revoke" })).status).toBe(200);
+    const p2 = await perfil(s.uid);
+    expect([p2.consentStatus, p2.consentEpoch]).toEqual(["revoked", 2]);
+    expect(await consents(s.uid)).toEqual(expect.arrayContaining(["revocation_v1_guardian_e0", "revocation_v1_guardian_e1"]));
+  });
+
+  test("la solicitud aceptada no se sustituye (supersede) al volver a pedir tutor", async () => {
+    const s = await accepted();
+    await revoke(s);
+    await ask(s.uid);
+    const r = await req(s.r);
+    expect(r.supersededAt).toBeNull();
+    expect(r.outcome).toBe("accepted");
+  });
+
+  test("el menor revocado por su tutor puede borrar su cuenta (D1)", async () => {
+    const s = await accepted();
+    await revoke(s);
+    const res = await deleteAccountHandler(
+      { erase: (uid) => eraseUserData({ db, auth, bucket }, uid, { deleteAuth: true }), clock: () => state.now, log: () => undefined },
+      { auth: { uid: s.uid, token: { auth_time: Math.floor(state.now.getTime() / 1000) - 10 } } } as never,
+    );
+    expect(res).toEqual({ deleted: true });
+    expect(await authExists(s.uid)).toBe(false);
+  });
+});
+
+describe("3c.7 borrado interno", () => {
+  test("la cascada por uid borra solicitud (con revokeTokenHash) y los dos mails; lo ajeno, intacto", async () => {
+    const s = await accepted();
+    const otro = await accepted();
+    expect((await req(s.r)).revokeTokenHash).toBeDefined();
+    const res = await eraseUserData({ db, auth, bucket }, s.uid, { deleteAuth: true });
+    expect(res.deleted).toMatchObject({ guardianRequests: 1, mail: 2 });
+    expect((await db.collection("guardianRequests").where("uid", "==", s.uid).get()).size).toBe(0);
+    expect((await db.collection("mail").where("uid", "==", s.uid).get()).size).toBe(0);
+    expect((await db.collection("guardianRequests").doc(otro.r).get()).exists).toBe(true);
+    expect((await mails(otro.uid, "guardian_revoke"))).toHaveLength(1);
   });
 });
