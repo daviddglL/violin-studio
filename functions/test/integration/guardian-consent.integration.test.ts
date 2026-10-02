@@ -2,6 +2,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { hmacEmail } from "../../src/common/hashing";
+import * as token from "../../src/guardian/token";
 import { guardianConsentHandler } from "../../src/guardian/confirm";
 import { renderInvalidPage } from "../../src/guardian/page";
 import { requestGuardianConsentHandler } from "../../src/guardian/request";
@@ -222,5 +223,76 @@ describe("POST aceptar", () => {
     const s = await setup();
     expect((await accept(s, { action: "reject" })).status).toBe(404);
     expect(await req(s.r)).toMatchObject({ usedAt: null, attempts: 0 });
+  });
+});
+
+describe("revisión 3b: entradas hostiles y consistencia", () => {
+  const hostiles = [".", "..", "__x__", "a".repeat(2000), "a/b", "x".repeat(19), "x".repeat(21), "ñ".repeat(20), ""];
+
+  test.each(hostiles)("r hostil %# -> genérico 404 en GET y POST, sin excepción", async (r) => {
+    const g = await get({ r });
+    expect([g.status, g.body]).toEqual([404, INVALID]);
+    const p = await post({ r, t: "tok", action: "accept", declaration: "on" });
+    expect([p.status, p.body]).toEqual([404, INVALID]);
+  });
+
+  test("un error inesperado del backend -> genérico 404 y log solo con el código", async () => {
+    const boom = { collection: () => { throw Object.assign(new Error("ruta users/secreto"), { code: "boom" }); } } as never;
+    const d = { ...deps(), db: boom };
+    const r = "a".repeat(20);
+    expect((await guardianConsentHandler(d, { method: "GET", query: { r }, body: {} })).body).toBe(INVALID);
+    expect((await guardianConsentHandler(d, { method: "POST", query: {}, body: { r, t: "t", action: "accept", declaration: "on" } })).status).toBe(404);
+    expect(logs.map(([m, x]) => [m, x])).toEqual([["guardianConsent.error", { code: "boom" }], ["guardianConsent.error", { code: "boom" }]]);
+  });
+
+  test.each([["false"], ["off"], ["1"], [true], [""]])("declaration %p no vale -> 400 sin consumir el token", async (declaration) => {
+    const s = await setup();
+    const res = await accept(s, { declaration });
+    expect(res.status).toBe(400);
+    expect(await req(s.r)).toMatchObject({ usedAt: null, attempts: 0 });
+    expect(await consents(s.uid)).toHaveLength(0);
+  });
+
+  test('declaration "true" también vale', async () => {
+    const s = await setup();
+    expect((await accept(s, { declaration: "true" })).status).toBe(200);
+  });
+
+  test("solicitud inexistente o cerrada: igualmente se compara el token contra un hash ficticio (coste uniforme)", async () => {
+    const spy = jest.spyOn(token, "verifyToken");
+    try {
+      await accept({ r: "b".repeat(20), t: "tok" });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0]).toBe("tok");
+      expect(spy.mock.calls[0][1]).toMatch(/^[0-9a-f]{64}$/);
+      spy.mockClear();
+      const usada = await setup();
+      await db.collection("guardianRequests").doc(usada.r).update({ usedAt: Timestamp.fromDate(now) });
+      await accept(usada);
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("guardian.requestId del usuario apunta a otra solicitud -> genérico y sin escrituras", async () => {
+    const s = await setup();
+    await db.collection("users").doc(s.uid).update({ "guardian.requestId": "z".repeat(20) });
+    expect((await accept(s)).body).toBe(INVALID);
+    expect((await get({ r: s.r })).body).toBe(INVALID);
+    expect(await req(s.r)).toMatchObject({ usedAt: null, outcome: null, attempts: 0 });
+    expect(await consents(s.uid)).toHaveLength(0);
+    expect((await perfil(s.uid)).consentStatus).toBe("parental_pending");
+  });
+
+  test("solicitud cuyo uid es el de otro usuario (con su propia solicitud) -> genérico y sin escrituras", async () => {
+    const a = await setup();
+    const b = await setup();
+    await db.collection("guardianRequests").doc(a.r).update({ uid: b.uid });
+    expect((await accept(a)).body).toBe(INVALID);
+    expect(await consents(b.uid)).toHaveLength(0);
+    expect(await consents(a.uid)).toHaveLength(0);
+    expect((await perfil(b.uid)).consentStatus).toBe("parental_pending");
+    expect(await req(b.r)).toMatchObject({ usedAt: null, attempts: 0 });
   });
 });

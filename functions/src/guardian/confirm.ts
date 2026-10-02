@@ -30,6 +30,11 @@ export interface GuardianConsentDeps {
   log?: (message: string, data: Record<string, unknown>) => void;
 }
 
+/** Formato real de los ids (autoId de Firestore, 20 alfanuméricos): se valida antes de cualquier `.doc()`. */
+const REQUEST_ID = /^[A-Za-z0-9]{20}$/;
+/** Hash ficticio: el token se compara siempre, exista o no la solicitud, para que el coste de la comparación sea uniforme. */
+const DUMMY_HASH = sha256Hex("guardian-dummy-token-hash");
+
 const str = (v: unknown): string | undefined => (typeof v === "string" && v !== "" ? v : undefined);
 
 /** Misma respuesta (código y cuerpo) para cualquier rechazo: no revela si el enlace existió, caducó, se usó o el token falló. */
@@ -59,13 +64,18 @@ const awaiting = (u: Record<string, unknown> | undefined, requestId: string): u 
  * confirmación (`POST` accept). Las decisiones se toman sobre los docs de Firestore en UNA transacción.
  */
 export async function guardianConsentHandler(deps: GuardianConsentDeps, req: GuardianHttpRequest): Promise<GuardianHttpResponse> {
-  if (req.method === "GET") return renderGet(deps, str(req.query.r));
-  if (req.method !== "POST") return respond(405, renderInvalidPage(), { Allow: "GET, POST" });
-  return confirm(deps, req.body);
+  if (req.method !== "GET" && req.method !== "POST") return respond(405, renderInvalidPage(), { Allow: "GET, POST" });
+  try {
+    return req.method === "GET" ? await renderGet(deps, str(req.query.r)) : await confirm(deps, req.body);
+  } catch (e) {
+    // Ninguna entrada puede producir un 500; solo el código (el mensaje puede contener rutas con uid).
+    (deps.log ?? ((m, d) => logger.info(m, d)))("guardianConsent.error", { code: (e as { code?: unknown }).code ?? "unknown" });
+    return invalid();
+  }
 }
 
 async function renderGet(deps: GuardianConsentDeps, requestId: string | undefined): Promise<GuardianHttpResponse> {
-  if (!requestId || requestId.includes("/")) return invalid();
+  if (!requestId || !REQUEST_ID.test(requestId)) return invalid();
   const nowMs = (deps.clock ?? systemClock)().getTime();
   const r = (await deps.db.collection(COLLECTIONS.guardianRequests).doc(requestId).get()).data();
   if (!isOpen(r, nowMs) || typeof r.uid !== "string") return invalid();
@@ -89,9 +99,9 @@ async function renderGet(deps: GuardianConsentDeps, requestId: string | undefine
 async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>): Promise<GuardianHttpResponse> {
   const requestId = str(body.r);
   const token = str(body.t);
-  if (!requestId || !token || requestId.includes("/") || body.action !== "accept") return invalid();
+  if (!requestId || !token || !REQUEST_ID.test(requestId) || body.action !== "accept") return invalid();
   // La declaración se comprueba antes de leer nada: no revela nada del enlace y no consume el token.
-  if (!str(body.declaration)) return respond(400, renderDeclarationPage());
+  if (body.declaration !== "on" && body.declaration !== "true") return respond(400, renderDeclarationPage());
 
   const now = (deps.clock ?? systemClock)();
   const nowMs = now.getTime();
@@ -100,11 +110,14 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
 
   const uid = await deps.db.runTransaction(async (tx): Promise<string | null> => {
     const r = (await tx.get(requestRef)).data();
+    // Comparación siempre (hash ficticio si no hay solicitud). El coste de escritura de `attempts++` no se puede ocultar:
+    // es un oráculo débil aceptado (solo distingue "solicitud abierta con token erróneo").
+    const tokenOk = verifyToken(token, typeof r?.tokenHash === "string" ? r.tokenHash : DUMMY_HASH);
     if (!isOpen(r, nowMs) || typeof r.uid !== "string") return null;
     const userRef = deps.db.collection(COLLECTIONS.users).doc(r.uid);
     const user = (await tx.get(userRef)).data();
     // Todas las lecturas ya están hechas: a partir de aquí solo escrituras.
-    if (typeof r.tokenHash !== "string" || !verifyToken(token, r.tokenHash)) {
+    if (!tokenOk) {
       tx.update(requestRef, { attempts: FieldValue.increment(1) });
       return null;
     }
