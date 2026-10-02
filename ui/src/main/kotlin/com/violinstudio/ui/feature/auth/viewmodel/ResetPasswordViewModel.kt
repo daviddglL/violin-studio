@@ -28,6 +28,7 @@ class ResetPasswordViewModel @Inject constructor(
     override suspend fun handleIntent(intent: ResetPasswordIntent) = when (intent) {
         is ResetPasswordIntent.EmailChanged -> reduce(ResetPasswordMutation.EmailChanged(intent.value))
         ResetPasswordIntent.Submit -> onSubmit()
+        ResetPasswordIntent.ScreenLeft -> reduce(ResetPasswordMutation.ScreenLeft)
     }
 
     private suspend fun onSubmit() {

@@ -32,6 +32,7 @@ sealed interface RegisterIntent : UiIntent {
     data class EmailChanged(val value: String) : RegisterIntent
     data class PasswordChanged(val value: String) : RegisterIntent
     data object Submit : RegisterIntent
+    data object ScreenLeft : RegisterIntent
 }
 
 /** Sin efectos: tras el registro `authUser` emite un usuario sin verificar y la sesión lleva a verificación. */
@@ -42,6 +43,7 @@ sealed interface RegisterMutation {
     data class PasswordChanged(val value: String) : RegisterMutation
     data object SubmitRequested : RegisterMutation
     data object Succeeded : RegisterMutation
+    data object ScreenLeft : RegisterMutation
 
     /** El servidor rechazó un campo concreto (`WeakPassword`, `InvalidEmail`). */
     data class Rejected(val emailError: RegisterFieldError?, val passwordError: RegisterFieldError?) :

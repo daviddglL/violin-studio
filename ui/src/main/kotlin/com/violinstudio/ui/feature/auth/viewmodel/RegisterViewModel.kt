@@ -30,6 +30,7 @@ class RegisterViewModel @Inject constructor(
         is RegisterIntent.EmailChanged -> reduce(RegisterMutation.EmailChanged(intent.value))
         is RegisterIntent.PasswordChanged -> reduce(RegisterMutation.PasswordChanged(intent.value))
         RegisterIntent.Submit -> onSubmit()
+        RegisterIntent.ScreenLeft -> reduce(RegisterMutation.ScreenLeft)
     }
 
     private suspend fun onSubmit() {

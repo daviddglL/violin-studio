@@ -69,4 +69,16 @@ class LoginReducerTest {
         assertFalse(text.contains("hunter2"))
         assertFalse(text.contains("ana@example.test"))
     }
+
+    @Test
+    fun `leaving the screen forgets the password and transient feedback but keeps the email`() {
+        val s = LoginState(
+            email = "a@b.co",
+            password = "secret",
+            passwordError = LoginFieldError.PASSWORD_EMPTY,
+            error = LoginError.NETWORK,
+            succeeded = true
+        )
+        assertEquals(LoginState(email = "a@b.co"), reduce(s, LoginMutation.ScreenLeft))
+    }
 }

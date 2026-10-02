@@ -69,4 +69,15 @@ class RegisterReducerTest {
         val text = RegisterState(email = "ana@example.test", password = "hunter2").toString()
         assertFalse(text.contains("hunter2") || text.contains("ana@example.test"))
     }
+
+    @Test
+    fun `leaving the screen forgets the password and transient feedback but keeps the email`() {
+        val s = RegisterState(
+            email = "a@b.co",
+            password = "secret1",
+            passwordError = RegisterFieldError.PASSWORD_WEAK,
+            error = RegisterError.ACCOUNT_UNAVAILABLE
+        )
+        assertEquals(RegisterState(email = "a@b.co"), reduce(s, RegisterMutation.ScreenLeft))
+    }
 }

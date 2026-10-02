@@ -15,6 +15,7 @@ object ResetPasswordReducer {
             }
             state.copy(emailError = emailError, sent = false, error = null, isLoading = emailError == null)
         }
+        ResetPasswordMutation.ScreenLeft -> ResetPasswordState(email = state.email, isLoading = state.isLoading)
         ResetPasswordMutation.Sent -> state.copy(isLoading = false, sent = true, error = null)
         ResetPasswordMutation.EmailRejected ->
             state.copy(isLoading = false, sent = false, emailError = ResetFieldError.EMAIL_INVALID)

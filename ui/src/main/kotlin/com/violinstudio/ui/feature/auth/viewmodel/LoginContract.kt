@@ -30,6 +30,9 @@ sealed interface LoginIntent : UiIntent {
     data class EmailChanged(val value: String) : LoginIntent
     data class PasswordChanged(val value: String) : LoginIntent
     data object Submit : LoginIntent
+
+    /** Se sale de la pantalla: se olvidan contraseña, mensajes y errores; el email escrito se conserva. */
+    data object ScreenLeft : LoginIntent
 }
 
 /** Sin efectos: no navega a rutas de negocio; el cambio de sesión lo hace el host. */
@@ -42,5 +45,6 @@ sealed interface LoginMutation {
     /** Valida los campos: con errores los marca; si están bien, pasa a `isLoading`. */
     data object SubmitRequested : LoginMutation
     data object Succeeded : LoginMutation
+    data object ScreenLeft : LoginMutation
     data class Failed(val error: LoginError) : LoginMutation
 }

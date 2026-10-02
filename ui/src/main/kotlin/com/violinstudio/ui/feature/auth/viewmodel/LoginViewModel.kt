@@ -30,6 +30,7 @@ class LoginViewModel @Inject constructor(
         is LoginIntent.EmailChanged -> reduce(LoginMutation.EmailChanged(intent.value))
         is LoginIntent.PasswordChanged -> reduce(LoginMutation.PasswordChanged(intent.value))
         LoginIntent.Submit -> onSubmit()
+        LoginIntent.ScreenLeft -> reduce(LoginMutation.ScreenLeft)
     }
 
     private suspend fun onSubmit() {

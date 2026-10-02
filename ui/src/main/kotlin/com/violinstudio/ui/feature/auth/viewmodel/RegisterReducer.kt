@@ -27,6 +27,7 @@ object RegisterReducer {
                 isLoading = emailError == null && passwordError == null
             )
         }
+        RegisterMutation.ScreenLeft -> RegisterState(email = state.email, isLoading = state.isLoading)
         RegisterMutation.Succeeded -> state.copy(isLoading = false, succeeded = true, password = "")
         is RegisterMutation.Rejected ->
             state.copy(isLoading = false, emailError = mutation.emailError, passwordError = mutation.passwordError)

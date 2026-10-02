@@ -39,4 +39,10 @@ class ResetPasswordReducerTest {
         assertEquals(ResetFieldError.EMAIL_INVALID, rejected.emailError)
         assertFalse(rejected.sent)
     }
+
+    @Test
+    fun `leaving the screen drops the sent confirmation and errors so returning never shows a stale one`() {
+        val sent = ResetPasswordState(email = "a@b.co", sent = true, error = ResetError.NETWORK)
+        assertEquals(ResetPasswordState(email = "a@b.co"), reduce(sent, ResetPasswordMutation.ScreenLeft))
+    }
 }

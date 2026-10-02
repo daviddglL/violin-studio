@@ -23,6 +23,7 @@ data class ResetPasswordState(
 sealed interface ResetPasswordIntent : UiIntent {
     data class EmailChanged(val value: String) : ResetPasswordIntent
     data object Submit : ResetPasswordIntent
+    data object ScreenLeft : ResetPasswordIntent
 }
 
 sealed interface ResetPasswordEffect : UiEffect
@@ -31,6 +32,7 @@ sealed interface ResetPasswordMutation {
     data class EmailChanged(val value: String) : ResetPasswordMutation
     data object SubmitRequested : ResetPasswordMutation
     data object Sent : ResetPasswordMutation
+    data object ScreenLeft : ResetPasswordMutation
     data object EmailRejected : ResetPasswordMutation
     data class Failed(val error: ResetError) : ResetPasswordMutation
 }
