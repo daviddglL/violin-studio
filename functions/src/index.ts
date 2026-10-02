@@ -3,18 +3,20 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import * as functionsV1 from "firebase-functions/v1";
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, onRequest } from "firebase-functions/v2/https";
 import { requireVerifiedUser } from "./common/auth-guard";
 import { systemClock } from "./common/clock";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
-import { callableOptions, REGION } from "./config/runtime";
+import { callableOptions, httpOptions, REGION } from "./config/runtime";
 import { recordConsentHandler } from "./consent/record-consent";
 import { revokeConsentCore } from "./consent/revoke-consent";
 import { resolveBucketName } from "./erasure/bucket";
 import { deleteAccountHandler } from "./erasure/delete-account";
 import { eraseUserData } from "./erasure/erase-user-data";
 import { onUserDeletedHandler } from "./erasure/on-user-deleted";
+import { guardianConsentHandler } from "./guardian/confirm";
 import { guardianLinkBaseUrl } from "./guardian/config";
+import { guardianHttpAdapter } from "./guardian/http";
 import { GUARDIAN_EMAIL_PEPPER } from "./guardian/pepper";
 import { requestGuardianConsentHandler } from "./guardian/request";
 import { identityConfigHandler } from "./profile/identity-config";
@@ -76,6 +78,12 @@ export const requestGuardianConsent = onCall(
     );
   },
 );
+
+/** Página del tutor (Hosting reescribe /tutor aquí). Sin secretos: el handler no necesita el pepper; sin App Check (lo abre un navegador). */
+export const guardianConsent = onRequest(httpOptions, (req, res) => {
+  const app = admin();
+  return guardianHttpAdapter((r) => guardianConsentHandler({ db: getFirestore(app), auth: getAuth(app) }, r))(req, res);
+});
 
 export const deleteAccount = onCall({ ...callableOptions(), timeoutSeconds: 300 }, (request) =>
   deleteAccountHandler({ erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, request),
