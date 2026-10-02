@@ -21,6 +21,7 @@ test("guardianConsent: HTTPS en la región, maxInstances 5 y sin secretos (el ha
   const e = endpoint(entrypoint.guardianConsent);
   expect(e.region).toEqual([REGION]);
   expect(e.maxInstances).toBe(5);
+  expect(e.timeoutSeconds).toBe(300); // la cascada de rechazo corre en línea: un 504 de plataforma no lleva nuestras cabeceras
   expect(e.httpsTrigger).toBeDefined();
   expect(e.secretEnvironmentVariables ?? []).toEqual([]);
 });
