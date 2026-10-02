@@ -85,3 +85,23 @@ export const renderDonePage = (): string =>
 
 export const renderRejectedPage = (): string =>
   BILINGUAL("Violin Studio", "Hemos registrado tu rechazo y se eliminan la cuenta y los datos del menor.", "Your refusal has been recorded and the minor's account and data are being deleted.");
+
+const REJECT_CONFIRM = {
+  es: { title: "Confirmar el rechazo", warn: (n: string) => `Vas a rechazar la solicitud de ${n}. Se eliminarán de forma definitiva su cuenta y todos sus datos. Esta acción no se puede deshacer.`, confirm: "Sí, eliminar la cuenta", cancel: "Cancelar" },
+  en: { title: "Confirm the refusal", warn: (n: string) => `You are about to refuse ${n}'s request. Their account and all their data will be permanently deleted. This cannot be undone.`, confirm: "Yes, delete the account", cancel: "Cancel" },
+};
+
+/** Segundo paso del rechazo (sin JS). `token` es el que el propio tutor acaba de enviar: se reenvía escapado como atributo. */
+export function renderRejectConfirmPage(i: { requestId: string; token: string; displayName: string; locale: string }): string {
+  const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
+  const t = REJECT_CONFIRM[lang];
+  return shell(
+    lang,
+    t.title,
+    `<h1>${esc(t.title)}</h1><p><strong>${esc(t.warn(i.displayName))}</strong></p>` +
+      `<form method="post" action=""><input type="hidden" name="r" value="${esc(i.requestId)}">` +
+      `<input type="hidden" name="t" value="${esc(i.token)}"><input type="hidden" name="action" value="reject">` +
+      `<input type="hidden" name="confirm" value="yes"><button type="submit">${esc(t.confirm)}</button></form>` +
+      `<p><a href="/tutor?r=${encodeURIComponent(i.requestId)}">${esc(t.cancel)}</a></p>`,
+  );
+}

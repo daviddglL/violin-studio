@@ -1,9 +1,10 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { renderInvalidPage } from "../../src/guardian/page";
-import { authExists, bucket, db, erased, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
+import { guardianConsentHandler } from "../../src/guardian/confirm";
+import { authExists, bucket, db, deps, erased, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
 
 const INVALID = renderInvalidPage();
-const reject = (s: { r: string; t: string }, over: Record<string, unknown> = {}) => post({ r: s.r, t: s.t, action: "reject", ...over });
+const reject = (s: { r: string; t: string }, over: Record<string, unknown> = {}) => post({ r: s.r, t: s.t, action: "reject", confirm: "yes", ...over });
 beforeEach(() => { resetState(); erased.length = 0; });
 
 describe("POST rechazar (válido)", () => {
@@ -19,7 +20,7 @@ describe("POST rechazar (válido)", () => {
     expect((await db.collection("mail").where("uid", "==", s.uid).get()).size).toBe(0);
     expect((await bucket.getFiles({ prefix: `users/${s.uid}/` }))[0]).toHaveLength(0);
     expect(erased).toEqual([s.uid]);
-    expect((await post({ r: s.r, t: s.t, action: "reject" })).body).toBe(INVALID);
+    expect((await post({ r: s.r, t: s.t, action: "reject", confirm: "yes" })).body).toBe(INVALID);
     expect(await authExists(otro.uid)).toBe(true); // lo ajeno intacto
     expect(JSON.stringify(state.logs)).not.toContain(s.uid);
     expect(JSON.stringify(state.logs)).not.toContain(s.t);
@@ -67,7 +68,7 @@ describe("POST rechazar (inválido): nada se borra", () => {
     const a = await setup();
     const b = await setup();
     for (const x of [usada, sust]) expect((await reject(x)).body).toBe(INVALID);
-    expect((await post({ r: b.r, t: a.t, action: "reject" })).status).toBe(404);
+    expect((await post({ r: b.r, t: a.t, action: "reject", confirm: "yes" })).status).toBe(404);
     expect((await req(b.r)).attempts).toBe(1);
     state.now = new Date(state.now.getTime() + 72 * 3600_000);
     expect((await reject(a)).body).toBe(INVALID);
@@ -80,5 +81,74 @@ describe("POST rechazar (inválido): nada se borra", () => {
     expect((await reject(s)).body).toBe(INVALID);
     expect(erased).toEqual([]);
     expect(await authExists(s.uid)).toBe(true);
+  });
+});
+
+describe("rechazo en dos pasos (S4)", () => {
+  test("sin confirm=yes: página de confirmación sin consumir nada, sin contar intentos y sin verificar el token", async () => {
+    const s = await setup();
+    const antes = await req(s.r);
+    for (const t of [s.t, "token-erroneo"]) {
+      const res = await post({ r: s.r, t, action: "reject" });
+      expect(res.status).toBe(200);
+      expect(res.body).toContain('name="confirm" value="yes"');
+      expect(res.body).not.toBe(INVALID);
+    }
+    expect(await req(s.r)).toEqual(antes);
+    expect(erased).toEqual([]);
+    expect(await authExists(s.uid)).toBe(true);
+  });
+
+  test("enlace no válido (inexistente, usada, sustituida, caducada, usuario no pendiente) -> 404 genérico sin contar intentos", async () => {
+    const usada = await setup();
+    await db.collection("guardianRequests").doc(usada.r).update({ usedAt: Timestamp.fromDate(state.now) });
+    const caducada = await setup();
+    state.now = new Date(state.now.getTime() + 72 * 3600_000);
+    for (const x of [usada, caducada, { r: "a".repeat(20), t: "x" }]) expect((await post({ r: x.r, t: x.t, action: "reject" })).body).toBe(INVALID);
+    expect((await req(usada.r)).attempts).toBe(0);
+    expect(erased).toEqual([]);
+  });
+
+  test("solo confirm=yes ejecuta (confirm distinto no)", async () => {
+    const s = await setup();
+    expect((await reject(s, { confirm: "no" })).body).toContain('name="confirm" value="yes"');
+    expect(erased).toEqual([]);
+    expect((await reject(s, { confirm: "yes" })).status).toBe(200);
+    expect(erased).toEqual([s.uid]);
+  });
+});
+
+describe("rechazo: estados del usuario y concurrencia (S6)", () => {
+  const confirmado = (s: { r: string; t: string }) => reject(s, { confirm: "yes" });
+
+  test("usuario granted, revoked o con deletion previo -> 404 y erase 0 veces", async () => {
+    for (const patch of [{ consentStatus: "granted" }, { consentStatus: "revoked" }, { deletion: { state: "in_progress", startedAt: Timestamp.fromDate(state.now) } }]) {
+      const s = await setup();
+      await db.collection("users").doc(s.uid).update(patch);
+      expect((await confirmado(s)).body).toBe(INVALID);
+    }
+    expect(erased).toEqual([]);
+  });
+
+  test("rechazar y aceptar a la vez: gana exactamente uno", async () => {
+    const s = await setup();
+    const [a, r] = await Promise.all([post({ r: s.r, t: s.t, action: "accept", declaration: "on" }), confirmado(s)]);
+    expect([a.status, r.status].filter((c) => c === 200)).toHaveLength(1);
+    const borrado = !(await authExists(s.uid));
+    expect(borrado).toBe(r.status === 200);
+    if (!borrado) expect((await perfil(s.uid)).consentStatus).toBe("granted");
+    expect(erased).toHaveLength(borrado ? 1 : 0);
+  });
+});
+
+describe("HEAD (S5)", () => {
+  test("HEAD se trata como GET: 200 con cabeceras en enlace vigente y 404 genérico en el resto; sin efectos", async () => {
+    const s = await setup();
+    const antes = await req(s.r);
+    expect((await guardianConsentHandler(deps(), { method: "HEAD", query: { r: s.r }, body: {} })).status).toBe(200);
+    expect((await guardianConsentHandler(deps(), { method: "HEAD", query: { r: "no" }, body: {} })).status).toBe(404);
+    expect(await req(s.r)).toEqual(antes);
+    const put = await guardianConsentHandler(deps(), { method: "PUT", query: {}, body: {} });
+    expect([put.status, put.headers.Allow]).toEqual([405, "GET, HEAD, POST"]);
   });
 });

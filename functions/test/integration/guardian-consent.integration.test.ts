@@ -91,7 +91,7 @@ describe("métodos y cabeceras", () => {
     for (const m of ["PUT", "DELETE", "PATCH"]) {
       const res = await post({ r: s.r, t: s.t, action: "accept", declaration: "on" }, m);
       expect(res.status).toBe(405);
-      expect(res.headers.Allow).toBe("GET, POST");
+      expect(res.headers.Allow).toBe("GET, HEAD, POST");
     }
     expect((await post({ r: s.r, action: "accept", declaration: "on" })).body).toBe(INVALID);
     expect((await post({ t: s.t, action: "accept", declaration: "on" })).body).toBe(INVALID);

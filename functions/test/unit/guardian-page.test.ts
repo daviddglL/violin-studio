@@ -1,6 +1,6 @@
 import vm from "node:vm";
 import { generateToken } from "../../src/guardian/token";
-import { makeNonce, renderDonePage, renderInvalidPage, renderValidPage, securityHeaders } from "../../src/guardian/page";
+import { makeNonce, renderDonePage, renderRejectConfirmPage, renderInvalidPage, renderValidPage, securityHeaders } from "../../src/guardian/page";
 
 const input = (over: Partial<Parameters<typeof renderValidPage>[0]> = {}) => ({
   requestId: "req123",
@@ -110,4 +110,20 @@ describe("script inline (ejecutado de verdad)", () => {
 test("policyUrl debe ser https (error de configuración si no)", () => {
   expect(() => renderValidPage(input({ policyUrl: "http://x.app/p" }))).toThrow(/https/);
   expect(() => renderValidPage(input({ policyUrl: "javascript:alert(1)" }))).toThrow(/https/);
+});
+
+describe("renderRejectConfirmPage (rechazo en dos pasos, sin JS)", () => {
+  const html = renderRejectConfirmPage({ requestId: "req123", token: 'tok"><b>', displayName: "Ana <i>", locale: "es" });
+
+  test("advierte del borrado, escapa nombre y token, reenvía r/t/action/confirm y ofrece cancelar", () => {
+    expect(html).toContain("Ana &lt;i&gt;");
+    expect(html).not.toContain("<i>");
+    expect(html).toContain('name="t" value="tok&quot;&gt;&lt;b&gt;"');
+    expect(html).toContain('name="r" value="req123"');
+    expect(html).toContain('name="action" value="reject"');
+    expect(html).toContain('name="confirm" value="yes"');
+    expect(html).toContain('href="/tutor?r=req123"');
+    expect(html).toMatch(/elimin/i);
+    expect(html).not.toContain("<script");
+  });
 });

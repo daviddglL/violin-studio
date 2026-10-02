@@ -53,7 +53,7 @@ test.each([["functions", FN], ["hosting", HOSTING]])("%s: GET sin token en el HT
 test("cuerpo JSON y métodos no permitidos: aceptan JSON, 405 sin efectos, nunca 500", async () => {
   const s = await setup();
   const put = await fetch(FN, { method: "PUT", body: "x" });
-  expect([put.status, put.headers.get("allow")]).toEqual([405, "GET, POST"]);
+  expect([put.status, put.headers.get("allow")]).toEqual([405, "GET, HEAD, POST"]);
   const basura = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{no-json" });
   expect(basura.status).toBeLessThan(500);
   const json = await fetch(FN, {
@@ -61,4 +61,20 @@ test("cuerpo JSON y métodos no permitidos: aceptan JSON, 405 sin efectos, nunca
     body: JSON.stringify({ r: s.r, t: s.t, action: "accept", declaration: "on" }),
   });
   expect(json.status).toBe(200);
+});
+
+test("hosting: rechazo real en dos pasos -> Auth, perfil, solicitud y mail del menor desaparecen", async () => {
+  const s = await setup();
+  const otro = await setup();
+  const paso1 = await fetch(HOSTING, urlencoded({ r: s.r, t: s.t, action: "reject" }));
+  expect(paso1.status).toBe(200);
+  expect(await paso1.text()).toContain('name="confirm" value="yes"');
+  expect((await auth.getUser(s.uid)).uid).toBe(s.uid); // nada destructivo todavía
+  const paso2 = await fetch(HOSTING, urlencoded({ r: s.r, t: s.t, action: "reject", confirm: "yes" }));
+  expect(paso2.status).toBe(200);
+  await expect(auth.getUser(s.uid)).rejects.toMatchObject({ code: "auth/user-not-found" });
+  expect((await db.collection("users").doc(s.uid).get()).exists).toBe(false);
+  expect((await db.collection("guardianRequests").where("uid", "==", s.uid).get()).size).toBe(0);
+  expect((await db.collection("mail").where("uid", "==", s.uid).get()).size).toBe(0);
+  expect((await auth.getUser(otro.uid)).uid).toBe(otro.uid);
 });

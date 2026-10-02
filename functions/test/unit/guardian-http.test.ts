@@ -55,3 +55,15 @@ test("si el handler lanza: 404 genérico con las cabeceras de seguridad, jamás 
   expect(r.headers["Cache-Control"]).toBe("no-store");
   expect(r.body).not.toContain("uid-secreto");
 });
+
+test("cuerpos hostiles: __proto__ y parámetros duplicados no contaminan ni rompen", async () => {
+  await run({ method: "POST", query: {}, body: "__proto__=x&constructor=y&a=1&a=2" }, ok);
+  expect(Object.getPrototypeOf(seen?.body)).toBe(Object.prototype);
+  expect(({} as Record<string, unknown>).a).toBeUndefined();
+  expect((({}) as { __proto__: unknown }).__proto__).toBe(Object.prototype);
+  expect(seen?.body.a).toBe("2");
+  const json = JSON.parse('{"__proto__":{"polluted":true},"r":"x"}');
+  const r = await run({ method: "POST", query: { r: ["a", "b"] }, body: json }, ok);
+  expect(r.code).toBe(201);
+  expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+});

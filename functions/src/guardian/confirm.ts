@@ -3,11 +3,12 @@ import { DocumentReference, FieldValue, Firestore, Timestamp } from "firebase-ad
 import { logger } from "firebase-functions/v2";
 import { Clock, systemClock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
+import { safeErrorCode } from "../common/errors";
 import { sha256Hex } from "../common/hashing";
 import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, POLICY_URL } from "../config/identity";
 import { buildConsentDoc, consentDocId, consentEpochOf } from "../consent/consent-docs";
 import { syncClaims } from "../identity/claims";
-import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectedPage, renderValidPage, securityHeaders } from "./page";
+import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderValidPage, securityHeaders } from "./page";
 import { verifyToken } from "./token";
 
 export interface GuardianHttpRequest {
@@ -66,12 +67,13 @@ const awaiting = (u: Record<string, unknown> | undefined, requestId: string): u 
  * confirmación (`POST` accept). Las decisiones se toman sobre los docs de Firestore en UNA transacción.
  */
 export async function guardianConsentHandler(deps: GuardianConsentDeps, req: GuardianHttpRequest): Promise<GuardianHttpResponse> {
-  if (req.method !== "GET" && req.method !== "POST") return respond(405, renderInvalidPage(), { Allow: "GET, POST" });
+  if (req.method !== "GET" && req.method !== "HEAD" && req.method !== "POST") return respond(405, renderInvalidPage(), { Allow: "GET, HEAD, POST" });
   try {
-    return req.method === "GET" ? await renderGet(deps, str(req.query.r)) : await confirm(deps, req.body);
+    // HEAD = GET (express omite el cuerpo al responder).
+    return req.method !== "POST" ? await renderGet(deps, str(req.query.r)) : await confirm(deps, req.body);
   } catch (e) {
     // Ninguna entrada puede producir un 500; solo el código (el mensaje puede contener rutas con uid).
-    (deps.log ?? ((m, d) => logger.info(m, d)))("guardianConsent.error", { code: (e as { code?: unknown }).code ?? "unknown" });
+    (deps.log ?? ((m, d) => logger.info(m, d)))("guardianConsent.error", { code: safeErrorCode(e) });
     return invalid();
   }
 }
@@ -103,6 +105,7 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
   const token = str(body.t);
   if (!requestId || !token || !REQUEST_ID.test(requestId) || (body.action !== "accept" && body.action !== "reject")) return invalid();
   const rejecting = body.action === "reject";
+  if (rejecting && body.confirm !== "yes") return renderRejectConfirm(deps, requestId, token);
   // La declaración (solo al aceptar) se comprueba antes de leer nada: no revela nada del enlace y no consume el token.
   if (!rejecting && body.declaration !== "on" && body.declaration !== "true") return respond(400, renderDeclarationPage());
 
@@ -154,7 +157,7 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
       await deps.erase(uid);
     } catch (e) {
       // Nunca el mensaje (puede llevar rutas con uid) ni un 500: el rechazo ya consta y la purga reanuda el borrado.
-      log("guardianConsent.eraseFailed", { uidHash, code: (e as { code?: unknown }).code ?? "unknown" });
+      log("guardianConsent.eraseFailed", { uidHash, code: safeErrorCode(e) });
     }
     log("guardianConsent.rejected", { uidHash });
     return respond(200, renderRejectedPage());
@@ -163,8 +166,22 @@ async function confirm(deps: GuardianConsentDeps, body: Record<string, unknown>)
     await syncClaims({ db: deps.db, auth: deps.auth, policyVersion: version }, uid);
   } catch (e) {
     // El consentimiento ya está confirmado; `identityConfig` cura los claims en el siguiente arranque del menor.
-    log("guardianConsent.syncFailed", { uidHash, code: (e as { code?: unknown }).code ?? "unknown" });
+    log("guardianConsent.syncFailed", { uidHash, code: safeErrorCode(e) });
   }
   log("guardianConsent.accepted", { uidHash });
   return respond(200, renderDonePage());
+}
+
+/**
+ * Primer paso del rechazo (irreversible): solo de lectura. Exige enlace abierto y menor pendiente (si no, el mismo 404
+ * genérico) pero NO verifica el token ni cuenta intentos: así esta página no es un oráculo de tokens. El token que
+ * se reenvía es el que el propio tutor envió; la comprobación real ocurre en el segundo paso (confirm=yes).
+ */
+async function renderRejectConfirm(deps: GuardianConsentDeps, requestId: string, token: string): Promise<GuardianHttpResponse> {
+  const nowMs = (deps.clock ?? systemClock)().getTime();
+  const r = (await deps.db.collection(COLLECTIONS.guardianRequests).doc(requestId).get()).data();
+  if (!isOpen(r, nowMs) || typeof r.uid !== "string") return invalid();
+  const user = (await deps.db.collection(COLLECTIONS.users).doc(r.uid).get()).data();
+  if (!awaiting(user, requestId)) return invalid();
+  return respond(200, renderRejectConfirmPage({ requestId, token, displayName: String(user.displayName ?? ""), locale: String(user.locale ?? "en") }));
 }
