@@ -29,13 +29,17 @@ describe("firestore.indexes.json", () => {
     });
   });
 
-  test.each(["mail", "guardianRequests", "guardianEmailLimits"])("TTL sobre %s.expireAt", (coleccion) => {
-    expect(cfg.fieldOverrides).toContainEqual({
-      collectionGroup: coleccion,
-      fieldPath: "expireAt",
-      ttl: true,
-      indexes: [],
-    });
+  test.each(["mail", "guardianRequests", "guardianEmailLimits"])("%s.expireAt: TTL y indice ascendente habilitado (la purga 7b.4 filtra por rango)", (coleccion) => {
+    const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === "expireAt");
+    expect(o.ttl).toBe(true);
+    expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION" });
+  });
+
+  test("ningun fieldOverride con indexes vacios deshabilita un campo que purge.ts consulta con rango", () => {
+    const src = readFileSync(join(__dirname, "../../src/maintenance/purge.ts"), "utf8");
+    const ranged = [...src.matchAll(/where\("([\w.]+)",\s*"(?:<|<=|>|>=)"/g)].map((m) => m[1]);
+    expect(ranged).toContain("expireAt");
+    for (const f of cfg.fieldOverrides) if (f.indexes.length === 0) expect(ranged).not.toContain(f.fieldPath);
   });
 });
 
