@@ -26,7 +26,12 @@ class VerifyEmailSlotTest {
         val seen = mutableListOf<String?>()
         compose.setContent {
             ViolinStudioTheme {
-                SessionNavHost(session = session.value, onSignOut = {}, verifyEmail = { seen += it })
+                SessionNavHost(
+                    session = session.value,
+                    onSignOut = {},
+                    auth = {},
+                    verifyEmail = { seen += it }
+                )
             }
         }
         compose.waitForIdle()

@@ -73,6 +73,7 @@ class AppNavHostSessionTest {
                     session = session.value,
                     onSignOut = { signedOut++ },
                     navController = nav,
+                    auth = { PlaceholderScreen("auth") },
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     home = {
                         homeComposed = true
@@ -199,6 +200,7 @@ class AppNavHostSessionTest {
                     session = session.value,
                     onSignOut = {},
                     navController = nav,
+                    auth = { PlaceholderScreen("auth") },
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     home = {
                         homeComposed = true
