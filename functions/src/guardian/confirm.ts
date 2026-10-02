@@ -10,7 +10,7 @@ import { buildConsentDoc, consentDocId, consentEpochOf } from "../consent/consen
 import { syncClaims } from "../identity/claims";
 import { guardianLinkBaseUrl } from "./config";
 import { buildGuardianRevokeMail } from "./mail";
-import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderValidPage, securityHeaders } from "./page";
+import { makeNonce, renderDeclarationPage, renderDonePage, renderInvalidPage, renderRejectConfirmPage, renderRejectedPage, renderRevokePage, renderValidPage, securityHeaders } from "./page";
 import { generateToken, hashToken, verifyToken } from "./token";
 
 export interface GuardianHttpRequest {
@@ -68,6 +68,25 @@ const awaiting = (u: Record<string, unknown> | undefined, requestId: string): u 
   !!u && !u.deletion && u.isMinor === true && u.consentStatus === "parental_pending" && (u.guardian as { requestId?: unknown } | undefined)?.requestId === requestId;
 
 /**
+ * Enlace de revocación vigente: la solicitud fue ACEPTADA (tiene su propio token `revokeTokenHash`, distinto del de aceptación,
+ * y su propio contador `revokeAttempts`), no se revocó ya, no ha caducado (`revokeExpiresAt`) y quedan intentos. No usa
+ * `isOpen`: una solicitud aceptada tiene `usedAt`, y eso no debe invalidar la revocación.
+ */
+const isRevokeOpen = (r: Record<string, unknown> | undefined, nowMs: number): r is Record<string, unknown> =>
+  !!r &&
+  r.outcome === "accepted" &&
+  typeof r.revokeTokenHash === "string" &&
+  !r.revokedAt &&
+  r.revokeExpiresAt instanceof Timestamp &&
+  nowMs < r.revokeExpiresAt.toMillis() &&
+  typeof r.revokeAttempts === "number" &&
+  r.revokeAttempts < GUARDIAN_MAX_CONFIRM_ATTEMPTS;
+
+/** El consentimiento activo es el de ESTA solicitud: menor `granted` sin borrado en curso y `guardian.requestId == r` (una solicitud nueva del menor invalida el enlace viejo). */
+const grantedBy = (u: Record<string, unknown> | undefined, requestId: string): u is Record<string, unknown> =>
+  !!u && !u.deletion && u.isMinor === true && u.consentStatus === "granted" && (u.guardian as { requestId?: unknown } | undefined)?.requestId === requestId;
+
+/**
  * Página del tutor (`GET`, sin efectos: ni siquiera cuenta intentos, el token viaja en el fragmento y no llega) y
  * confirmación (`POST` accept). Las decisiones se toman sobre los docs de Firestore en UNA transacción.
  */
@@ -87,9 +106,18 @@ async function renderGet(deps: GuardianConsentDeps, requestId: string | undefine
   if (!requestId || !REQUEST_ID.test(requestId)) return invalid();
   const nowMs = (deps.clock ?? systemClock)().getTime();
   const r = (await deps.db.collection(COLLECTIONS.guardianRequests).doc(requestId).get()).data();
-  if (!isOpen(r, nowMs) || typeof r.uid !== "string") return invalid();
+  if (typeof r?.uid !== "string") return invalid();
   const user = (await deps.db.collection(COLLECTIONS.users).doc(r.uid).get()).data();
-  if (!awaiting(user, requestId)) return invalid();
+  // El servidor decide el modo por el estado (el `a=revoke` del fragmento es solo informativo): pendiente -> aceptar/rechazar; aceptada -> revocar.
+  if (isRevokeOpen(r, nowMs) && grantedBy(user, requestId)) {
+    const nonce = makeNonce();
+    return {
+      status: 200,
+      headers: securityHeaders(nonce),
+      body: renderRevokePage({ requestId, displayName: String(user.displayName ?? ""), locale: String(user.locale ?? "en"), nonce }),
+    };
+  }
+  if (!isOpen(r, nowMs) || !awaiting(user, requestId)) return invalid();
   const nonce = makeNonce();
   return {
     status: 200,

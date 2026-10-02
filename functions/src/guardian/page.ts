@@ -49,14 +49,16 @@ const TEXT = {
   },
 };
 
-/** El script va en una plantilla JS: sin barras invertidas (`\w` se convertiría en `w`); por eso clase explícita. El token va en el fragmento (`#t=`), que el navegador nunca envía: el script lo copia al campo oculto y limpia la URL. */
+/** El script va en una plantilla JS: sin barras invertidas (clase explícita en vez de la abreviatura de palabra). El token va en el fragmento (#t=), que el navegador nunca envía: el script lo copia al campo oculto y limpia la URL. Lo comparten la página de aceptar/rechazar y la de revocar. */
+const TOKEN_SCRIPT =
+  `var m=/(?:^#|&)t=([A-Za-z0-9_-]+)/.exec(location.hash);if(m){document.getElementById("t").value=m[1]}` +
+  `history.replaceState(null,"",location.pathname+location.search);`;
+
 export function renderValidPage(i: ValidPageInput): string {
   if (!i.policyUrl.startsWith("https://")) throw new Error("policyUrl debe empezar por https://");
   const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
   const t = TEXT[lang];
-  const script =
-    `var m=/(?:^#|&)t=([A-Za-z0-9_-]+)/.exec(location.hash);if(m){document.getElementById("t").value=m[1]}` +
-    `history.replaceState(null,"",location.pathname+location.search);`;
+  const script = TOKEN_SCRIPT;
   return shell(
     lang,
     t.title,
@@ -105,3 +107,26 @@ export function renderRejectConfirmPage(i: { requestId: string; token: string; d
       `<p><a href="/tutor?r=${encodeURIComponent(i.requestId)}">${esc(t.cancel)}</a></p>`,
   );
 }
+
+const REVOKE = {
+  es: { title: "Revocar el consentimiento", warn: (n: string) => `Vas a retirar tu consentimiento para que ${n} use Violin Studio. Su cuenta perderá el acceso a la app hasta que vuelva a pedirte consentimiento; no se borran sus datos.`, button: "Revocar el consentimiento", noscript: TEXT.es.noscript },
+  en: { title: "Revoke consent", warn: (n: string) => `You are about to withdraw your consent for ${n} to use Violin Studio. Their account will lose access to the app until they ask for your consent again; their data is not deleted.`, button: "Revoke consent", noscript: TEXT.en.noscript },
+};
+
+/** Página de revocación del tutor: es en sí la confirmación (explica el efecto, que es reversible; el único botón revoca). GET sin efectos. */
+export function renderRevokePage(i: { requestId: string; displayName: string; locale: string; nonce: string }): string {
+  const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
+  const t = REVOKE[lang];
+  return shell(
+    lang,
+    t.title,
+    `<h1>${esc(t.title)}</h1><p>${esc(t.warn(i.displayName))}</p>` +
+      `<form method="post" action=""><input type="hidden" name="r" value="${esc(i.requestId)}">` +
+      `<input type="hidden" name="t" id="t" value="">` +
+      `<button type="submit" name="action" value="revoke">${esc(t.button)}</button></form>` +
+      `<noscript><p>${esc(t.noscript)}</p></noscript><script nonce="${esc(i.nonce)}">${TOKEN_SCRIPT}</script>`,
+  );
+}
+
+export const renderRevokedPage = (): string =>
+  BILINGUAL("Violin Studio", "Hemos registrado la revocación: la cuenta del menor ya no tiene acceso.", "Your revocation has been recorded: the minor's account no longer has access.");

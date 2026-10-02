@@ -1,11 +1,22 @@
+import { Timestamp } from "firebase-admin/firestore";
+import { renderInvalidPage } from "../../src/guardian/page";
 import { hashToken } from "../../src/guardian/token";
-import { db, erased, post, req, resetState, setup, state } from "./guardian-helpers";
+import { db, erased, get, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
 
 const DAY = 24 * 3600_000;
 beforeEach(() => { resetState(); erased.length = 0; });
 
 const accept = (s: { r: string; t: string }) => post({ r: s.r, t: s.t, action: "accept", declaration: "on" });
 const mails = async (uid: string, kind: string) => (await db.collection("mail").where("uid", "==", uid).where("kind", "==", kind).get()).docs;
+/** Acepta y devuelve el token de revocación leído del segundo correo (único sitio donde existe en claro). */
+async function accepted() {
+  const s = await setup();
+  expect((await accept(s)).status).toBe(200);
+  const [m] = await mails(s.uid, "guardian_revoke");
+  const [, , rev] = m.data().message.text.match(/\/tutor\?r=(\S+)#t=([\w-]+)&a=revoke/)!;
+  return { ...s, rev: rev as string, mail: m };
+}
+
 describe("3c.3 enlace de revocación al aceptar", () => {
   test("la solicitud guarda mailId; al aceptar guarda solo el hash del token de revocación (30 d) y amplía la TTL", async () => {
     const s = await setup();
@@ -62,5 +73,55 @@ describe("3c.3 enlace de revocación al aceptar", () => {
     }
     expect(state.logs.filter(([m]) => m === "guardianConsent.noRevokeLink")).toHaveLength(2);
     expect(JSON.stringify(state.logs)).not.toContain(a.uid);
+  });
+});
+
+const INVALID = renderInvalidPage();
+describe("3c.4 GET de revocación", () => {
+  test("enlace de revocación vigente: 200 con la página de revocar (no la de aceptar), sin token en el HTML y sin cambiar nada", async () => {
+    const s = await accepted();
+    const antes = [await req(s.r), await perfil(s.uid)];
+    const res = await get({ r: s.r });
+    expect(res.status).toBe(200);
+    expect(res.body).toContain('name="action" value="revoke"');
+    expect(res.body).not.toContain('value="accept"');
+    expect(res.body).not.toContain(s.rev);
+    expect(res.headers["Cache-Control"]).toBe("no-store");
+    expect([await req(s.r), await perfil(s.uid)]).toEqual(antes);
+  });
+
+  test("antes de aceptar sigue la página de aceptar/rechazar (el modo lo decide el servidor, no el fragmento)", async () => {
+    const s = await setup();
+    const res = await get({ r: s.r, a: "revoke" });
+    expect(res.body).toContain('value="accept"');
+    expect(res.body).not.toContain('value="revoke"');
+  });
+
+  test("inválido -> 404 genérico idéntico: caducado, bloqueado, ya revocado, usuario no granted, borrado en curso, solicitud sustituida, sin token de revocación", async () => {
+    const casos: Array<(s: Awaited<ReturnType<typeof accepted>>) => Promise<void>> = [
+      async () => { state.now = new Date(state.now.getTime() + 30 * DAY); },
+      async (s) => void (await db.collection("guardianRequests").doc(s.r).update({ revokeAttempts: 5 })),
+      async (s) => void (await db.collection("guardianRequests").doc(s.r).update({ revokedAt: Timestamp.fromDate(state.now) })),
+      async (s) => void (await db.collection("users").doc(s.uid).update({ consentStatus: "revoked" })),
+      async (s) => void (await db.collection("users").doc(s.uid).update({ consentStatus: "parental_pending" })),
+      async (s) => void (await db.collection("users").doc(s.uid).update({ deletion: { state: "in_progress", startedAt: Timestamp.fromDate(state.now) } })),
+      async (s) => void (await db.collection("users").doc(s.uid).update({ "guardian.requestId": "otraSolicitud1234567" })),
+      async (s) => void (await db.collection("guardianRequests").doc(s.r).update({ revokeTokenHash: null })),
+    ];
+    for (const caso of casos) {
+      state.now = new Date("2026-03-01T10:00:00Z");
+      const s = await accepted();
+      await caso(s);
+      const res = await get({ r: s.r });
+      expect([res.status, res.body]).toEqual([404, INVALID]);
+    }
+    expect((await get({ r: "a".repeat(20) })).body).toBe(INVALID);
+  });
+
+  test("HEAD se trata como GET en modo revocación", async () => {
+    const s = await accepted();
+    const { guardianConsentHandler } = await import("../../src/guardian/confirm");
+    const { deps } = await import("./guardian-helpers");
+    expect((await guardianConsentHandler(deps(), { method: "HEAD", query: { r: s.r }, body: {} })).status).toBe(200);
   });
 });
