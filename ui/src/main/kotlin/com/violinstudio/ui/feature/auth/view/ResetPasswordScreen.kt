@@ -1,9 +1,13 @@
+@file:OptIn(ExperimentalComposeUiApi::class)
+
 package com.violinstudio.ui.feature.auth.view
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,6 +35,7 @@ fun ResetPasswordScreen(state: ResetPasswordState, onIntent: (ResetPasswordInten
             label = stringResource(R.string.auth_email_label),
             error = state.emailError?.let { stringResource(it.textRes()) },
             tag = AUTH_EMAIL_TAG,
+            autofillTypes = listOf(AutofillType.EmailAddress, AutofillType.Username),
             onDone = { onIntent(ResetPasswordIntent.Submit) }
         )
         if (state.sent) AuthMessage(stringResource(R.string.reset_sent), isError = false)

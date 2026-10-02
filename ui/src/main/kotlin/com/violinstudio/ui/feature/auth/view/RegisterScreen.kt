@@ -1,9 +1,13 @@
+@file:OptIn(ExperimentalComposeUiApi::class)
+
 package com.violinstudio.ui.feature.auth.view
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,7 +32,8 @@ fun RegisterScreen(state: RegisterState, onIntent: (RegisterIntent) -> Unit, onB
             onValueChange = { onIntent(RegisterIntent.EmailChanged(it)) },
             label = stringResource(R.string.auth_email_label),
             error = state.emailError?.let { stringResource(it.textRes()) },
-            tag = AUTH_EMAIL_TAG
+            tag = AUTH_EMAIL_TAG,
+            autofillTypes = listOf(AutofillType.Username, AutofillType.EmailAddress)
         )
         AuthTextField(
             value = state.password,
@@ -36,6 +41,7 @@ fun RegisterScreen(state: RegisterState, onIntent: (RegisterIntent) -> Unit, onB
             label = stringResource(R.string.auth_password_label),
             error = state.passwordError?.let { stringResource(it.textRes()) },
             tag = AUTH_PASSWORD_TAG,
+            autofillTypes = listOf(AutofillType.NewPassword),
             isPassword = true,
             onDone = { onIntent(RegisterIntent.Submit) }
         )

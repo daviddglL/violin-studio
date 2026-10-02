@@ -1,16 +1,22 @@
 package com.violinstudio.ui.feature.auth.view
 
 import android.app.Application
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.autofill.AutofillTree
+import androidx.compose.ui.autofill.AutofillType
+import androidx.compose.ui.platform.LocalAutofillTree
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -36,6 +42,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
 @Config(application = Application::class)
+@OptIn(ExperimentalComposeUiApi::class)
 class AuthScreensTest {
     @get:Rule
     val compose = createComposeRule()
@@ -47,19 +54,29 @@ class AuthScreensTest {
     private val registerIntents = mutableListOf<RegisterIntent>()
     private val resetIntents = mutableListOf<ResetPasswordIntent>()
     private val calls = mutableListOf<String>()
+    private lateinit var autofillTree: AutofillTree
+
+    private fun autofillTypes() = autofillTree.children.values.map { it.autofillTypes }
 
     private fun showLogin(state: LoginState = LoginState()) = compose.setContent {
         ViolinStudioTheme {
+            autofillTree = LocalAutofillTree.current
             LoginScreen(state, { loginIntents += it }, { calls += "register" }, { calls += "forgot" })
         }
     }
 
     private fun showRegister(state: RegisterState = RegisterState()) = compose.setContent {
-        ViolinStudioTheme { RegisterScreen(state, { registerIntents += it }, { calls += "back" }) }
+        ViolinStudioTheme {
+            autofillTree = LocalAutofillTree.current
+            RegisterScreen(state, { registerIntents += it }, { calls += "back" })
+        }
     }
 
     private fun showReset(state: ResetPasswordState = ResetPasswordState()) = compose.setContent {
-        ViolinStudioTheme { ResetPasswordScreen(state, { resetIntents += it }, { calls += "back" }) }
+        ViolinStudioTheme {
+            autofillTree = LocalAutofillTree.current
+            ResetPasswordScreen(state, { resetIntents += it }, { calls += "back" })
+        }
     }
 
     private fun liveRegion(mode: LiveRegionMode) = SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, mode)
@@ -147,5 +164,65 @@ class AuthScreensTest {
         compose.onNodeWithText(text(R.string.auth_back_to_login)).performClick()
         assertEquals(listOf(ResetPasswordIntent.EmailChanged("x"), ResetPasswordIntent.Submit), resetIntents)
         assertEquals(listOf("back"), calls)
+    }
+
+
+    @Test
+    fun loginFieldsDeclareAutofillTypes() {
+        showLogin()
+        assertEquals(
+            listOf(listOf(AutofillType.Username, AutofillType.EmailAddress), listOf(AutofillType.Password)),
+            autofillTypes()
+        )
+    }
+
+    @Test
+    fun registerFieldsDeclareNewPasswordAndEmailAutofillTypes() {
+        showRegister()
+        assertEquals(
+            listOf(listOf(AutofillType.Username, AutofillType.EmailAddress), listOf(AutofillType.NewPassword)),
+            autofillTypes()
+        )
+    }
+
+    @Test
+    fun resetEmailDeclaresEmailAutofillTypes() {
+        showReset()
+        assertEquals(listOf(listOf(AutofillType.EmailAddress, AutofillType.Username)), autofillTypes())
+    }
+
+    @Test
+    fun autofilledValuesReachTheViewModelAsIntents() {
+        showLogin()
+        compose.runOnIdle { autofillTree.children.values.forEach { it.onFill?.invoke("filled") } }
+        assertEquals(
+            listOf(LoginIntent.EmailChanged("filled"), LoginIntent.PasswordChanged("filled")),
+            loginIntents
+        )
+    }
+
+    @Test
+    fun fieldErrorsAreAnnouncedPolitely() {
+        showLogin(LoginState(emailError = LoginFieldError.EMAIL_EMPTY))
+        compose.onNodeWithText(text(R.string.auth_field_email_empty)).assert(liveRegion(LiveRegionMode.Polite))
+    }
+
+    @Test
+    fun afterASuccessfulSubmitTheButtonStaysBlockedUntilTheSessionSwapsTheScreen() {
+        showLogin(LoginState(succeeded = true))
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun registerStaysBlockedAfterASuccessfulSubmit() {
+        showRegister(RegisterState(succeeded = true))
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun theImeNextActionMovesFocusFromEmailToPassword() {
+        showLogin()
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).performClick().performImeAction()
+        compose.onNodeWithTag(AUTH_PASSWORD_TAG).assertIsFocused()
     }
 }
