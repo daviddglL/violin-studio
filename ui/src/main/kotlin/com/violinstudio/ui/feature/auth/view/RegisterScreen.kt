@@ -51,6 +51,11 @@ fun RegisterScreen(state: RegisterState, onIntent: (RegisterIntent) -> Unit, onB
             enabled = state.canSubmit,
             onClick = { onIntent(RegisterIntent.Submit) }
         )
+        GoogleSignInButton(
+            enabled = state.canSubmit,
+            onToken = { onIntent(RegisterIntent.GoogleTokenReceived(it)) },
+            onFailed = { onIntent(RegisterIntent.GoogleFailed) }
+        )
         TextButton(onClick = onBack) { Text(stringResource(R.string.auth_back_to_login)) }
     }
 }

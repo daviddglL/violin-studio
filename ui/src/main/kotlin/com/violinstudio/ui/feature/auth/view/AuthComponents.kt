@@ -2,6 +2,9 @@
 
 package com.violinstudio.ui.feature.auth.view
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -16,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -34,7 +39,9 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalAutofill
 import androidx.compose.ui.platform.LocalAutofillTree
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -44,6 +51,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.violinstudio.domain.feature.auth.model.GoogleIdToken
+import com.violinstudio.ui.R
+import com.violinstudio.ui.commons.auth.GoogleIdTokenResult
+import com.violinstudio.ui.commons.auth.LocalGoogleIdTokenRequester
+import kotlinx.coroutines.launch
 
 /** Estructura común de las pantallas de acceso: fondo del tema, scroll en pantallas pequeñas y título. */
 @Composable
@@ -129,4 +141,39 @@ private fun Modifier.autofill(types: List<AutofillType>, onFill: (String) -> Uni
     return onGloballyPositioned { node.boundingBox = it.boundsInWindow() }.onFocusChanged {
         if (it.isFocused) autofill?.requestAutofillForNode(node) else autofill?.cancelAutofillForNode(node)
     }
+}
+
+/**
+ * Pide el token a Credential Manager (a través del solicitante de `CompositionLocal`, que necesita la Activity). Cancelar
+ * la hoja no avisa a nadie: no es un error ni cambia nada.
+ */
+@Composable
+internal fun GoogleSignInButton(enabled: Boolean, onToken: (GoogleIdToken) -> Unit, onFailed: () -> Unit) {
+    val requester = LocalGoogleIdTokenRequester.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val currentOnToken by rememberUpdatedState(onToken)
+    val currentOnFailed by rememberUpdatedState(onFailed)
+    OutlinedButton(
+        onClick = {
+            scope.launch {
+                when (val result = requester.request(context.findActivity())) {
+                    is GoogleIdTokenResult.Token -> currentOnToken(result.token)
+                    GoogleIdTokenResult.Cancelled -> Unit
+                    GoogleIdTokenResult.ProviderUnavailable -> currentOnFailed()
+                }
+            }
+        },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().testTag(AUTH_GOOGLE_TAG)
+    ) {
+        Text(stringResource(R.string.auth_google_button))
+    }
+}
+
+// Credential Manager necesita la Activity, no un wrapper de tema; sin Activity (tests) se pasa el contexto tal cual.
+private tailrec fun Context.findActivity(): Context = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> this
 }

@@ -57,6 +57,11 @@ fun LoginScreen(
             enabled = state.canSubmit,
             onClick = { onIntent(LoginIntent.Submit) }
         )
+        GoogleSignInButton(
+            enabled = state.canSubmit,
+            onToken = { onIntent(LoginIntent.GoogleTokenReceived(it)) },
+            onFailed = { onIntent(LoginIntent.GoogleFailed) }
+        )
         TextButton(onClick = onForgotPassword) { Text(stringResource(R.string.login_forgot)) }
         TextButton(onClick = onRegister) { Text(stringResource(R.string.login_to_register)) }
     }
