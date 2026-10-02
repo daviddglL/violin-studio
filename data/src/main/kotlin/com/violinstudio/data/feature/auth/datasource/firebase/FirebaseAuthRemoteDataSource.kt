@@ -63,12 +63,11 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
 
     // `GoogleAuthProvider.getCredential(idToken, x)` toma un ACCESS TOKEN como segundo argumento, no un nonce: con nonce
     // crudo hay que usar el constructor OAuth, que Firebase verifica contra el `nonce` hasheado del ID token.
-    private fun googleCredential(idToken: String, rawNonce: String?): AuthCredential =
-        if (rawNonce == null) {
-            GoogleAuthProvider.getCredential(idToken, null)
-        } else {
-            OAuthProvider.newCredentialBuilder("google.com").setIdTokenWithRawNonce(idToken, rawNonce).build()
-        }
+    private fun googleCredential(idToken: String, rawNonce: String?): AuthCredential = if (rawNonce == null) {
+        GoogleAuthProvider.getCredential(idToken, null)
+    } else {
+        OAuthProvider.newCredentialBuilder("google.com").setIdTokenWithRawNonce(idToken, rawNonce).build()
+    }
 
     override suspend fun reloadCurrentUser() {
         currentUser().reload().await()

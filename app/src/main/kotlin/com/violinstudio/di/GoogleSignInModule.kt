@@ -27,6 +27,5 @@ object GoogleSignInModule {
     fun provideGoogleIdTokenRequester(
         config: GoogleSignInConfig,
         diagnostics: GoogleSignInDiagnostics
-    ): GoogleIdTokenRequester =
-        CredentialManagerGoogleIdTokenRequester(config, diagnostics = diagnostics)
+    ): GoogleIdTokenRequester = CredentialManagerGoogleIdTokenRequester(config, diagnostics = diagnostics)
 }
