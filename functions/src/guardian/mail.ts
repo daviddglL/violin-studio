@@ -2,7 +2,7 @@ import { GUARDIAN_LINK_TTL_HOURS } from "../config/identity";
 
 const LINK_TTL_MS = GUARDIAN_LINK_TTL_HOURS * 3600_000;
 
-const escapeHtml = (s: string) =>
+export const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 export interface GuardianMailInput {
