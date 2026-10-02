@@ -160,6 +160,7 @@ class FakeProfileRepository : ProfileRepository {
 class FakeConsentRepository : ConsentRepository {
     val calls = mutableListOf<String>()
     var configResult: Result<IdentityConfig> = Result.success(config)
+
     /** Resultados de `identityConfig` consumidos uno por llamada antes de caer en [configResult]. */
     val configQueue = mutableListOf<Result<IdentityConfig>>()
     var recordResult: Result<Unit> = Result.success(Unit)

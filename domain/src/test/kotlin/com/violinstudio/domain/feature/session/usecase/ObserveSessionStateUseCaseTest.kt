@@ -1,15 +1,15 @@
 package com.violinstudio.domain.feature.session.usecase
 
 import app.cash.turbine.test
+import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.FakeConsentRepository
 import com.violinstudio.domain.feature.FakeProfileRepository
-import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.model.SessionClaims
 import com.violinstudio.domain.feature.config
-import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.passwordUser
+import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.session.SessionState
