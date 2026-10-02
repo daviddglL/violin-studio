@@ -106,6 +106,50 @@ describe("callable revokeConsent", () => {
   });
 });
 
+describe("claims obsoletos tras revocar (W1)", () => {
+  test("el sync falla tras el commit: el reintento rechaza con NO_ACTIVE_CONSENT, no escribe y cura consentOk=false", async () => {
+    const uid = await usuario({ consentStatus: "granted", policyVersion: 1 });
+    await auth.setCustomUserClaims(uid, { role: "independent", consentOk: true });
+    let falla = true;
+    const authFlaky = {
+      getUser: (u: string) => auth.getUser(u),
+      setCustomUserClaims: async (u: string, c: object) => {
+        if (falla) { falla = false; throw new Error("auth caído"); }
+        return auth.setCustomUserClaims(u, c);
+      },
+    } as unknown as typeof auth;
+    await expect(revokeConsentCore({ db, auth: authFlaky, currentVersion: 1 }, uid, "self")).rejects.toThrow("auth caído");
+    expect((await perfil(uid)).consentStatus).toBe("revoked");
+    expect((await auth.getUser(uid)).customClaims?.consentOk).toBe(true);
+    const antes = await consents(uid);
+
+    await expect(llamar(req(uid, { email_verified: true, consentOk: true }))).rejects.toMatchObject({
+      code: "failed-precondition", details: { reason: "NO_ACTIVE_CONSENT" },
+    });
+    expect(await consents(uid)).toEqual(antes);
+    expect((await perfil(uid)).consentEpoch).toBe(1);
+    expect((await auth.getUser(uid)).customClaims?.consentOk).toBe(false);
+  });
+  test("token viejo consentOk=true + doc revoked: revokeConsent rechaza y cura el claim", async () => {
+    const uid = await usuario({ consentStatus: "revoked", policyVersion: 1, consentEpoch: 1 });
+    await auth.setCustomUserClaims(uid, { role: "independent", consentOk: true });
+    await expect(llamar(req(uid, { email_verified: true, consentOk: true }))).rejects.toMatchObject({
+      details: { reason: "NO_ACTIVE_CONSENT" },
+    });
+    expect((await auth.getUser(uid)).customClaims?.consentOk).toBe(false);
+    expect(await consents(uid)).toEqual({});
+  });
+});
+
+describe("menor con consentimiento del tutor (W2)", () => {
+  test("puede auto-revocar: la revocación lleva grantedBy=self (revocó el propio menor)", async () => {
+    const uid = await usuario({ isMinor: true, consentStatus: "granted", policyVersion: 1 });
+    expect(await llamar(req(uid, { email_verified: true }))).toEqual({ consentStatus: "revoked" });
+    expect((await consents(uid)).revocation_v1_self_e0).toMatchObject({ type: "revocation", grantedBy: "self" });
+    expect(await perfil(uid)).toMatchObject({ consentStatus: "revoked", consentEpoch: 1 });
+  });
+});
+
 describe("reconsentir tras revocar (2b.4)", () => {
   test("adulto revoked -> recordConsent(actual) vuelve a granted con consents nuevos (época 1) y traza intacta", async () => {
     const uid = await usuario();
