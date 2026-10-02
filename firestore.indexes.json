@@ -7,11 +7,19 @@
         { "fieldPath": "consentStatus", "order": "ASCENDING" },
         { "fieldPath": "guardian.requestedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletion.state", "order": "ASCENDING" },
+        { "fieldPath": "deletion.startedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
-    { "collectionGroup": "mail", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
-    { "collectionGroup": "guardianRequests", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
-    { "collectionGroup": "guardianEmailLimits", "fieldPath": "expireAt", "ttl": true, "indexes": [] }
+    { "collectionGroup": "mail", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] },
+    { "collectionGroup": "guardianRequests", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] },
+    { "collectionGroup": "guardianEmailLimits", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] }
   ]
 }

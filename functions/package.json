@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src test",
     "test": "jest test/unit",
-    "test:integration": "jest test/integration --testTimeout=30000",
+    "test:integration": "jest test/integration --testTimeout=30000 --runInBand",
     "test:mail-extension": "firebase emulators:exec --only functions,auth,firestore,extensions --project demo-violin-studio \"node scripts/mail-extension-smoke.js\""
   },
   "dependencies": {

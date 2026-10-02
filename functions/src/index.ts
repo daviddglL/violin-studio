@@ -4,6 +4,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import * as functionsV1 from "firebase-functions/v1";
 import { onCall, onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { requireVerifiedUser } from "./common/auth-guard";
 import { systemClock } from "./common/clock";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
@@ -19,6 +20,7 @@ import { guardianLinkBaseUrl } from "./guardian/config";
 import { guardianHttpAdapter } from "./guardian/http";
 import { GUARDIAN_EMAIL_PEPPER } from "./guardian/pepper";
 import { requestGuardianConsentHandler } from "./guardian/request";
+import { purgeIdentityHandler } from "./maintenance/purge";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
 import { VERSION } from "./version";
@@ -94,3 +96,12 @@ export const onUserDeleted = functionsV1
   .runWith({ failurePolicy: true })
   .auth.user()
   .onDelete((user) => onUserDeletedHandler(erasureDeps(), user.uid).then(() => undefined));
+
+/** Purga diaria (D4, R-a, AD3): caducidad de cuentas pendientes, borrados atascados, perfiles huerfanos y barrido de docs caducados. */
+export const purgeIdentity = onSchedule(
+  { region: REGION, schedule: "every day 03:00", timeZone: "Europe/Madrid", retryCount: 2, timeoutSeconds: 540 },
+  async () => {
+    const deps = erasureDeps();
+    await purgeIdentityHandler({ db: deps.db, auth: deps.auth, erase: (uid, opts) => eraseUserData(deps, uid, opts) });
+  },
+);
