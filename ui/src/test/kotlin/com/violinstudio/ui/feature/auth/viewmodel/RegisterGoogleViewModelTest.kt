@@ -4,8 +4,8 @@ import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.model.AuthProvider
 import com.violinstudio.domain.feature.auth.model.AuthUser
 import com.violinstudio.domain.feature.auth.model.GoogleIdToken
-import com.violinstudio.domain.feature.auth.usecase.SignUpWithEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignInWithGoogleUseCase
+import com.violinstudio.domain.feature.auth.usecase.SignUpWithEmailUseCase
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.coEvery

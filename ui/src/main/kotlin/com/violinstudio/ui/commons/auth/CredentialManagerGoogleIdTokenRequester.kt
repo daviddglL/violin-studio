@@ -1,7 +1,6 @@
 package com.violinstudio.ui.commons.auth
 
 import android.content.Context
-import java.util.Base64
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -10,6 +9,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.violinstudio.domain.feature.auth.model.GoogleIdToken
 import java.security.SecureRandom
+import java.util.Base64
 import kotlinx.coroutines.CancellationException
 
 /**

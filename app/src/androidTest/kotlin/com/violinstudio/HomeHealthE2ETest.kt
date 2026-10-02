@@ -19,9 +19,13 @@ import org.junit.runner.RunWith
  * Ejecutar con: ./gradlew :app:connectedDevDebugAndroidTest
  */
 @OptIn(ExperimentalTestApi::class)
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class HomeHealthE2ETest {
-    @get:Rule
+    @get:Rule(order = 0)
+    val hilt = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
     val compose = createAndroidComposeRule<MainActivity>()
 
     @Test
