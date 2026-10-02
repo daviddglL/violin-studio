@@ -15,8 +15,8 @@ class AccountStateClassifierTest {
     }
 
     @Test
-    fun `usuario inexistente, deshabilitado o token revocado significan cuenta desaparecida`() {
-        listOf("ERROR_USER_NOT_FOUND", "ERROR_USER_DISABLED", "ERROR_USER_TOKEN_EXPIRED").forEach {
+    fun `usuario inexistente o deshabilitado significan cuenta desaparecida`() {
+        listOf("ERROR_USER_NOT_FOUND", "ERROR_USER_DISABLED").forEach {
             assertEquals(AccountState.GONE, AccountStateClassifier.classify(auth(it)), it)
         }
     }
@@ -27,5 +27,7 @@ class AccountStateClassifierTest {
         assertEquals(AccountState.UNKNOWN, AccountStateClassifier.classify(IOException("net")))
         assertEquals(AccountState.UNKNOWN, AccountStateClassifier.classify(IllegalStateException("Sin sesión")))
         assertEquals(AccountState.UNKNOWN, AccountStateClassifier.classify(auth("ERROR_INTERNAL_ERROR")))
+        // Token caducado tambien ocurre al cambiar la contrasena en otro dispositivo: la cuenta existe.
+        assertEquals(AccountState.UNKNOWN, AccountStateClassifier.classify(auth("ERROR_USER_TOKEN_EXPIRED")))
     }
 }
