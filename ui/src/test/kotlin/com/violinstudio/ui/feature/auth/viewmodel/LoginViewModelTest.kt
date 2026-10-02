@@ -5,6 +5,7 @@ import com.violinstudio.domain.feature.auth.model.AuthProvider
 import com.violinstudio.domain.feature.auth.model.AuthUser
 import com.violinstudio.domain.feature.auth.usecase.SignInWithEmailUseCase
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
+import com.violinstudio.ui.commons.testing.MviScenario
 import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,8 +32,7 @@ class LoginViewModelTest {
         }
     }
 
-    private suspend fun com.violinstudio.ui.commons.testing.MviScenario<LoginState, LoginIntent, LoginEffect>
-    .fill() {
+    private suspend fun MviScenario<LoginState, LoginIntent, LoginEffect>.fill() {
         intent(LoginIntent.EmailChanged("ana@example.test"))
         assertState { it.email == "ana@example.test" }
         intent(LoginIntent.PasswordChanged("secret"))
@@ -61,7 +61,10 @@ class LoginViewModelTest {
                 fill()
                 intent(LoginIntent.Submit)
                 assertState { it.isLoading }
-                assertState { shown += it.error; true }
+                assertState {
+                    shown += it.error
+                    true
+                }
             }
         }
         assertEquals(listOf(LoginError.INVALID_CREDENTIALS, LoginError.INVALID_CREDENTIALS), shown)

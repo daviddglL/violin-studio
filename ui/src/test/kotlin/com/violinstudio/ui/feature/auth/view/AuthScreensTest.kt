@@ -62,8 +62,7 @@ class AuthScreensTest {
         ViolinStudioTheme { ResetPasswordScreen(state, { resetIntents += it }, { calls += "back" }) }
     }
 
-    private fun liveRegion(mode: LiveRegionMode) =
-        SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, mode)
+    private fun liveRegion(mode: LiveRegionMode) = SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, mode)
 
     @Test
     fun loginShowsMaskedPasswordAndSendsIntents() {

@@ -61,7 +61,10 @@ class RegisterViewModelTest {
                 fill()
                 intent(RegisterIntent.Submit)
                 assertState { it.isLoading }
-                assertState { shown += it.error; it.emailError == null && it.passwordError == null }
+                assertState {
+                    shown += it.error
+                    it.emailError == null && it.passwordError == null
+                }
             }
         }
         assertEquals(listOf(RegisterError.ACCOUNT_UNAVAILABLE, RegisterError.ACCOUNT_UNAVAILABLE), shown)
