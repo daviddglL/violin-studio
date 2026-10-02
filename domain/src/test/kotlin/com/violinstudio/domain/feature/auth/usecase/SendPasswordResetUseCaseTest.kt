@@ -25,15 +25,17 @@ class SendPasswordResetUseCaseTest {
     }
 
     @Test
-    fun `respuesta uniforme tanto si el usuario existe como si no`() = runTest {
-        auth.resetResult = Result.failure(AuthFailure.InvalidCredentials)
-        assertEquals(Result.success(Unit), SendPasswordResetUseCase(auth)("nadie@b.com"))
-        auth.resetResult = Result.failure(AuthFailure.Unknown())
+    fun `respuesta uniforme, usuario inexistente se trata como enviado`() = runTest {
+        auth.resetResult = Result.failure(AuthFailure.UserNotFound)
         assertEquals(Result.success(Unit), SendPasswordResetUseCase(auth)("nadie@b.com"))
     }
 
     @Test
-    fun `solo Network y TooManyRequests se informan`() = runTest {
+    fun `el resto de fallos se informan como errores`() = runTest {
+        for (failure in listOf(AuthFailure.ProviderUnavailable, AuthFailure.InvalidCredentials, AuthFailure.Unknown())) {
+            auth.resetResult = Result.failure(failure)
+            assertEquals(failure, SendPasswordResetUseCase(auth)("a@b.com").exceptionOrNull())
+        }
         auth.resetResult = Result.failure(AuthFailure.Network)
         assertEquals(AuthFailure.Network, SendPasswordResetUseCase(auth)("a@b.com").exceptionOrNull())
         auth.resetResult = Result.failure(AuthFailure.TooManyRequests)

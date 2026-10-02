@@ -11,13 +11,9 @@ import javax.inject.Inject
 class SendPasswordResetUseCase @Inject constructor(private val auth: AuthRepository) {
     suspend operator fun invoke(email: String): Result<Unit> {
         val clean = email.trim()
-        if (!EMAIL.matches(clean)) return Result.failure(AuthFailure.InvalidEmail)
+        if (!isPlausibleEmail(clean)) return Result.failure(AuthFailure.InvalidEmail)
         return auth.sendPasswordReset(clean).recoverCatching {
             if (it is AuthFailure.Network || it is AuthFailure.TooManyRequests) throw it
         }
-    }
-
-    private companion object {
-        val EMAIL = Regex("""^[^@\s]+@[^@\s]+\.[^@\s]+$""")
     }
 }
