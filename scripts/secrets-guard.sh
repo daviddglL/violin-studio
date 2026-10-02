@@ -3,7 +3,7 @@
 set -euo pipefail
 repo="${1:-.}"
 found="$(git -C "$repo" ls-files \
-  | grep -E '(^|/)google-services\.json$|\.jks$|\.keystore$|(^|/)\.env(rc)?($|\.)' \
+  | grep -E '(^|/)google-services\.json$|\.jks$|\.keystore$|(^|/)\.env(rc)?($|\.)|(^|/)\.secret(\.|$)' \
   | grep -vE '(^|/)\.env\.example$' || true)"
 if [ -n "$found" ]; then
   echo "Secretos rastreados por git (quítalos con git rm --cached):"
