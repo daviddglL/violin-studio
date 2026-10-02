@@ -42,3 +42,8 @@ CLAUDE.md
 CLAUDE.local.md
 AGENTS.md
 GEMINI.md
+
+# Cobertura de tests
+coverage/
+functions/coverage/
+rules-tests/coverage/

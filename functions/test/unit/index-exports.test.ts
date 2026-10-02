@@ -1,5 +1,5 @@
 import * as entrypoint from "../../src/index";
 
 test("el entrypoint desplegable solo exporta las funciones previstas", () => {
-  expect(Object.keys(entrypoint).sort()).toEqual(["REGION", "health", "identityConfig", "registerProfile"]);
+  expect(Object.keys(entrypoint).sort()).toEqual(["REGION", "health", "identityConfig", "recordConsent", "registerProfile"]);
 });

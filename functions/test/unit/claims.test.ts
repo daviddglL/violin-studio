@@ -56,3 +56,12 @@ describe("syncClaims: fusión de claims", () => {
     expect(setCustomUserClaims).toHaveBeenCalledWith("u1", { otro: "x", role: "student", consentOk: true });
   });
 });
+
+describe("claimsFromProfile con versión vigente inyectada", () => {
+  test("usa la versión inyectada en lugar de la constante", () => {
+    const doc = { ...base, policyVersion: 2 };
+    expect(claimsFromProfile(doc, 2).consentOk).toBe(true);
+    expect(claimsFromProfile(doc, 3).consentOk).toBe(false);
+    expect(claimsFromProfile(doc).consentOk).toBe(false);
+  });
+});
