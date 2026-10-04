@@ -1,16 +1,20 @@
 package com.violinstudio.domain.feature.consent.usecase
 
 import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
+import com.violinstudio.domain.feature.consent.PendingGuardianEmail
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import javax.inject.Inject
 
 /** Un formato de email inválido ni sale del dispositivo. `RateLimited(retryAfterSeconds)` se propaga tal cual. */
-class RequestGuardianConsentUseCase @Inject constructor(private val consent: ConsentRepository) {
+class RequestGuardianConsentUseCase @Inject constructor(
+    private val consent: ConsentRepository,
+    private val pendingEmail: PendingGuardianEmail
+) {
     suspend operator fun invoke(guardianEmail: String): Result<GuardianRequestReceipt> {
         val email = guardianEmail.trim()
         if (!isPlausibleEmail(email)) return Result.failure(ConsentFailure.GuardianEmailInvalid)
-        return consent.requestGuardianConsent(email)
+        return consent.requestGuardianConsent(email).onSuccess { pendingEmail.remember(email) }
     }
 }

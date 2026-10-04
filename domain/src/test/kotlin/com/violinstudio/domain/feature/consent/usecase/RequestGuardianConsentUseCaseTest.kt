@@ -1,6 +1,7 @@
 package com.violinstudio.domain.feature.consent.usecase
 
 import com.violinstudio.domain.feature.FakeConsentRepository
+import com.violinstudio.domain.feature.consent.PendingGuardianEmail
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
 import kotlinx.coroutines.test.runTest
@@ -10,7 +11,8 @@ import org.junit.jupiter.api.Test
 
 class RequestGuardianConsentUseCaseTest {
     private val consent = FakeConsentRepository()
-    private val useCase = RequestGuardianConsentUseCase(consent)
+    private val pending = PendingGuardianEmail()
+    private val useCase = RequestGuardianConsentUseCase(consent, pending)
 
     @Test
     fun `envia la solicitud con el email recortado y devuelve el acuse`() = runTest {
@@ -36,5 +38,20 @@ class RequestGuardianConsentUseCaseTest {
     fun `NotMinor se propaga`() = runTest {
         consent.guardianResult = Result.failure(ConsentFailure.NotMinor)
         assertEquals(ConsentFailure.NotMinor, useCase("tutor@x.com").exceptionOrNull())
+    }
+
+    @Test
+    fun `un envio correcto recuerda el email recortado solo en memoria`() = runTest {
+        useCase(" Tutor@x.com ")
+        assertEquals("Tutor@x.com", pending.email)
+        assertTrue(!pending.toString().contains("x.com"))
+    }
+
+    @Test
+    fun `un fallo no sustituye el email recordado`() = runTest {
+        useCase("uno@x.com")
+        consent.guardianResult = Result.failure(ConsentFailure.Network)
+        useCase("dos@x.com")
+        assertEquals("uno@x.com", pending.email)
     }
 }

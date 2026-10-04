@@ -8,6 +8,7 @@ import com.violinstudio.domain.feature.FakeProfileRepository
 import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.model.SessionClaims
 import com.violinstudio.domain.feature.config
+import com.violinstudio.domain.feature.consent.PendingGuardianEmail
 import com.violinstudio.domain.feature.passwordUser
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
@@ -35,8 +36,9 @@ class ObserveSessionStateUseCaseTest {
     private val profile = FakeProfileRepository()
     private val consent = FakeConsentRepository()
     private val trigger = SessionRefreshTrigger()
+    private val pending = PendingGuardianEmail()
     private val useCase =
-        ObserveSessionStateUseCase(auth, profile, consent, SessionStateResolver(), RetryBackoff(), trigger)
+        ObserveSessionStateUseCase(auth, profile, consent, SessionStateResolver(), RetryBackoff(), trigger, pending)
 
     private fun claims(consentOk: Boolean) = Result.success(SessionClaims(Role.INDEPENDENT, consentOk))
 
@@ -330,5 +332,35 @@ class ObserveSessionStateUseCaseTest {
         assertEquals(listOf(SessionState.Loading, SessionState.NeedsProfile), states)
         passTime(1_000)
         assertEquals(listOf(SessionState.Loading, SessionState.NeedsProfile, SessionState.Ready(userProfile())), states)
+    }
+
+    @Test
+    fun `la confirmacion del tutor lleva de ParentalPending a Ready con un unico refresco de claims`() = runTest {
+        auth.claimsResults = mutableListOf(claims(false), claims(true))
+        profile.profile.value = userProfile(status = ConsentStatus.PARENTAL_PENDING, policyVersion = null)
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.ParentalPending(null, 0), awaitItem())
+            assertEquals(0, auth.calls.count { it == "claims:true" })
+            profile.profile.value = userProfile()
+            assertEquals(SessionState.Ready(userProfile()), awaitItem())
+            assertEquals(1, auth.calls.count { it == "claims:true" })
+        }
+    }
+
+    @Test
+    fun `cerrar sesion olvida el email del tutor recordado`() = runTest {
+        pending.remember("tutor@x.com")
+        profile.profile.value = userProfile(status = ConsentStatus.PARENTAL_PENDING, policyVersion = null)
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.ParentalPending(null, 0), awaitItem())
+            assertEquals("tutor@x.com", pending.email)
+            auth.user = null
+            assertEquals(SessionState.LoggedOut, awaitItem())
+            assertEquals(null, pending.email)
+        }
     }
 }
