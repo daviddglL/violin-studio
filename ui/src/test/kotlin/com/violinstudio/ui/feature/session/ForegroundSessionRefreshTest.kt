@@ -9,8 +9,8 @@ import com.violinstudio.domain.feature.session.RefreshKind
 import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Test

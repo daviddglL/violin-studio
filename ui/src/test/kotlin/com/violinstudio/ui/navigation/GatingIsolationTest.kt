@@ -43,7 +43,8 @@ class GatingIsolationTest {
             "$base.ui.navigation.HomeDestination"
         )
         for (import in forbidden) {
-            assertTrue(violationsIn("${ok}${NL}import $import${NL}class A", allowed).isNotEmpty(), "not caught: $import")
+            val found = violationsIn("${ok}${NL}import $import${NL}class A", allowed)
+            assertTrue(found.isNotEmpty(), "not caught: $import")
         }
     }
 

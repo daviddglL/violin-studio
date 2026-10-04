@@ -77,7 +77,8 @@ class ObserveSessionStateUseCase @Inject constructor(
                 .flatMapLatest { kind ->
                     flow {
                         val known = lastConfig
-                        val keepReady = kind == RefreshKind.FOREGROUND && known != null && lastState is SessionState.Ready
+                        val keepReady = kind == RefreshKind.FOREGROUND && known != null &&
+                            lastState is SessionState.Ready
                         val config = if (keepReady) {
                             consent.identityConfig().getOrNull() ?: known!!
                         } else {
