@@ -8,6 +8,7 @@ import com.violinstudio.domain.feature.consent.model.IdentityConfig
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
+import com.violinstudio.domain.feature.session.RefreshKind
 import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.domain.feature.session.SessionStateResolver
@@ -67,12 +68,22 @@ class ObserveSessionStateUseCase @Inject constructor(
     private fun signedIn(user: AuthUser): Flow<SessionState> = flow {
         // La marca de refresco forzado de claims vive fuera de cada reconsulta: un refresh no la rearma.
         var refreshed = false
+        // Ultimo estado y config conocidos: un refresco de primer plano que falla no debe degradar un Ready.
+        var lastState: SessionState? = null
+        var lastConfig: IdentityConfig? = null
         emitAll(
-            trigger.refreshes
-                .onStart { emit(Unit) }
-                .flatMapLatest {
+            trigger.kinds
+                .onStart { emit(RefreshKind.EXPLICIT) }
+                .flatMapLatest { kind ->
                     flow {
-                        val config = awaitConfig()
+                        val known = lastConfig
+                        val keepReady = kind == RefreshKind.FOREGROUND && known != null && lastState is SessionState.Ready
+                        val config = if (keepReady) {
+                            consent.identityConfig().getOrNull() ?: known!!
+                        } else {
+                            awaitConfig { lastState = SessionState.Unavailable }
+                        }
+                        lastConfig = config
                         var attempt = 0
                         while (true) {
                             var failure: Throwable? = null
@@ -89,12 +100,15 @@ class ObserveSessionStateUseCase @Inject constructor(
                                     } else {
                                         refreshed = false
                                     }
+                                    lastState = state
                                     emit(state)
                                 }
                             failure?.let {
                                 refreshed = false
                                 val noProfile = it is ProfileFailure.NoProfile
-                                emit(if (noProfile) resolver(user, null, config) else SessionState.Unavailable)
+                                val failed = if (noProfile) resolver(user, null, config) else SessionState.Unavailable
+                                lastState = failed
+                                emit(failed)
                             }
                             delay(backoff.delayFor(attempt++))
                         }
@@ -103,10 +117,11 @@ class ObserveSessionStateUseCase @Inject constructor(
         )
     }
 
-    private suspend fun FlowCollector<SessionState>.awaitConfig(): IdentityConfig {
+    private suspend fun FlowCollector<SessionState>.awaitConfig(onUnavailable: () -> Unit): IdentityConfig {
         var attempt = 0
         while (true) {
             consent.identityConfig().onSuccess { return it }
+            onUnavailable()
             emit(SessionState.Unavailable)
             delay(backoff.delayFor(attempt++))
         }
