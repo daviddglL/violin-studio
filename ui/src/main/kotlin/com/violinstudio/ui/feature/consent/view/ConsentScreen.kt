@@ -39,7 +39,8 @@ import com.violinstudio.ui.feature.consent.viewmodel.ConsentError
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentIntent
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentState
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentViewModel
-import com.violinstudio.ui.feature.session.view.PlaceholderScreen
+import com.violinstudio.ui.feature.guardian.view.GuardianRequestRoute
+import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestViewModel
 
 const val CONSENT_TAG = "consent"
 const val CONSENT_INTRO_TAG = "consent_intro"
@@ -49,15 +50,16 @@ const val CONSENT_DELETE_TAG = "consent_delete"
 const val CONSENT_SIGN_OUT_TAG = "consent_sign_out"
 
 /**
- * Destino `consent` del host de sesión: el adulto ve esta pantalla; el menor sigue con un marcador hasta el slice 6b
- * (flujo de tutor). [adultViewModel] se inyecta para poder probar el destino sin Hilt.
+ * Destino `consent` del host de sesión: el adulto ve esta pantalla; el menor, la solicitud al tutor (6b).
+ * [minorViewModel] y [adultViewModel] se inyectan para poder probar el destino sin Hilt.
  */
 @Composable
 fun ConsentSlot(
     pending: SessionState.ConsentPending,
+    minorViewModel: @Composable () -> GuardianRequestViewModel = { hiltViewModel() },
     adultViewModel: @Composable () -> ConsentViewModel = { hiltViewModel() }
 ) {
-    if (pending.isMinor) PlaceholderScreen(CONSENT_TAG) else ConsentRoute(pending, adultViewModel())
+    if (pending.isMinor) GuardianRequestRoute(pending, minorViewModel()) else ConsentRoute(pending, adultViewModel())
 }
 
 /**
