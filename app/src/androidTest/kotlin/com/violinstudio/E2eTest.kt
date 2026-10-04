@@ -4,6 +4,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.ui.MainActivity
+import com.violinstudio.ui.commons.AuthDiagnostics
 import dagger.hilt.android.testing.HiltAndroidRule
 import javax.inject.Inject
 import kotlinx.coroutines.runBlocking
@@ -30,6 +31,7 @@ abstract class E2eTest {
 
     @Before
     fun launchSignedOut() {
+        AuthDiagnostics.verbose = true
         hilt.inject()
         runBlocking { signOut() }
         journey = Journey(compose)

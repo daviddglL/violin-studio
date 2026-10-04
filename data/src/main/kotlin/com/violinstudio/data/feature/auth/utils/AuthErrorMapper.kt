@@ -1,5 +1,6 @@
 package com.violinstudio.data.feature.auth.utils
 
+import com.google.firebase.FirebaseException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuthException
@@ -19,7 +20,14 @@ object AuthErrorMapper {
         is FirebaseNetworkException, is IOException -> AuthFailure.Network
         is FirebaseTooManyRequestsException -> AuthFailure.TooManyRequests
         is FirebaseAuthException -> fromCode(error.errorCode, operation) ?: AuthFailure.Unknown(error, error.errorCode)
+        // `FirebaseException` a secas (ni de red ni de Auth): el SDK da asi los fallos transitorios internos o de red.
+        is FirebaseException -> if (error.isTransient()) AuthFailure.Network else AuthFailure.Unknown(error)
         else -> AuthFailure.Unknown(error)
+    }
+
+    private fun FirebaseException.isTransient(): Boolean {
+        val text = message.orEmpty().lowercase()
+        return "internal error" in text || "network" in text || "timeout" in text || "timed out" in text
     }
 
     private fun fromCode(code: String, operation: AuthOperation): AuthFailure? = when (code) {

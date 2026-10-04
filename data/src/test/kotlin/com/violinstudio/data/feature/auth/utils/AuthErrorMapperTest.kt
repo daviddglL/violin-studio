@@ -1,5 +1,6 @@
 package com.violinstudio.data.feature.auth.utils
 
+import com.google.firebase.FirebaseException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuthException
@@ -85,5 +86,22 @@ class AuthErrorMapperTest {
         val failure = map("ERROR_INTERNAL_ERROR") as AuthFailure.Unknown
         assertTrue(failure.message!!.contains("ERROR_INTERNAL_ERROR"))
         assertTrue(!failure.message!!.contains("detalle con datos"))
+    }
+
+    @Test
+    fun `una FirebaseException generica de error interno o de red es Network (reintentable)`() {
+        val messages = listOf(
+            "An internal error has occurred. [ Unable to resolve host ]",
+            "A network error (such as timeout) occurred"
+        )
+        messages
+            .forEach {
+                assertSame(AuthFailure.Network, AuthErrorMapper.map(FirebaseException(it), AuthOperation.SIGN_UP), it)
+            }
+    }
+
+    @Test
+    fun `una FirebaseException generica de otra cosa sigue siendo desconocida`() {
+        assertTrue(AuthErrorMapper.map(FirebaseException("otra cosa")) is AuthFailure.Unknown)
     }
 }

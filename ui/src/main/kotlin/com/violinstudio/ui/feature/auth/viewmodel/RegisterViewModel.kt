@@ -4,6 +4,7 @@ import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.model.GoogleIdToken
 import com.violinstudio.domain.feature.auth.usecase.SignInWithGoogleUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignUpWithEmailUseCase
+import com.violinstudio.ui.commons.AuthDiagnostics
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -99,8 +100,11 @@ class RegisterViewModel @Inject constructor(
     /** Diagnostico sin PII: solo el mensaje fijo del fallo (con el codigo de Firebase) y las clases de la cadena de causas. */
     private fun logUnknown(failure: Throwable) {
         if (failure is AuthFailure.Unknown) {
-            val causes = generateSequence(failure.cause) { it.cause }.joinToString { it.javaClass.name }
-            runCatching { android.util.Log.w("ViolinAuth", "sign-up failed: ${failure.message} causes=[$causes]") }
+            val chain = generateSequence(failure.cause) { it.cause }
+            val causes = chain.joinToString { it.javaClass.name }
+            val detail = if (AuthDiagnostics.verbose) " cause-message=${failure.cause?.message}" else ""
+            val line = "sign-up failed: ${failure.message} causes=[$causes]$detail"
+            runCatching { android.util.Log.w("ViolinAuth", line) }
         }
     }
 

@@ -17,6 +17,7 @@ import androidx.compose.ui.test.printToString
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_BUTTON_TAG
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_CONFIRM_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
+import com.violinstudio.ui.feature.auth.view.AUTH_MESSAGE_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_PASSWORD_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
 import com.violinstudio.ui.feature.auth.view.LOGIN_TAG
@@ -35,6 +36,7 @@ import org.json.JSONObject
 
 const val E2E_TIMEOUT_MS = 45_000L
 const val FIRST_SCREEN_TIMEOUT_MS = 90_000L
+const val REGISTER_RETRIES = 2
 const val E2E_PASSWORD = "Violin-E2e-2026!x"
 
 /**
@@ -192,7 +194,21 @@ class Journey(private val compose: ComposeTestRule) {
         waitForTag(REGISTER_TAG)
         type(AUTH_EMAIL_TAG, email)
         type(AUTH_PASSWORD_TAG, E2E_PASSWORD)
-        click(AUTH_SUBMIT_TAG)
+        submitRegistration()
+    }
+
+    /** Como un usuario: si el alta falla de forma transitoria (error generico o de red) se vuelve a pulsar, 2 veces como mucho. */
+    private fun submitRegistration() {
+        repeat(REGISTER_RETRIES + 1) { attempt ->
+            click(AUTH_SUBMIT_TAG)
+            compose.waitUntil(E2E_TIMEOUT_MS) {
+                compose.onAllNodes(hasTestTag(VERIFY_EMAIL_TAG)).fetchSemanticsNodes().isNotEmpty() ||
+                    compose.onAllNodes(hasTestTag(AUTH_MESSAGE_TAG)).fetchSemanticsNodes().isNotEmpty()
+            }
+            if (compose.onAllNodes(hasTestTag(VERIFY_EMAIL_TAG)).fetchSemanticsNodes().isNotEmpty()) return
+            println("E2E: el alta fallo (intento ${attempt + 1}); se reintenta. logcat: ${authLog()}")
+            Thread.sleep(2_000)
+        }
         waitForTag(VERIFY_EMAIL_TAG)
     }
 
