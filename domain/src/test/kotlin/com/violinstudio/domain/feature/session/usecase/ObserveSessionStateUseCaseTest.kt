@@ -349,18 +349,71 @@ class ObserveSessionStateUseCaseTest {
         }
     }
 
+
+    private fun parentalProfile() = userProfile(status = ConsentStatus.PARENTAL_PENDING, policyVersion = null)
+
     @Test
     fun `cerrar sesion olvida el email del tutor recordado`() = runTest {
-        pending.remember("tutor@x.com")
-        profile.profile.value = userProfile(status = ConsentStatus.PARENTAL_PENDING, policyVersion = null)
+        pending.remember("u1", "tutor@x.com")
+        profile.profile.value = parentalProfile()
         auth.user = verifiedUser
         useCase().test {
             assertEquals(SessionState.Loading, awaitItem())
             assertEquals(SessionState.ParentalPending(null, 0), awaitItem())
-            assertEquals("tutor@x.com", pending.email)
+            assertEquals("tutor@x.com", pending.emailFor("u1"))
             auth.user = null
             assertEquals(SessionState.LoggedOut, awaitItem())
-            assertEquals(null, pending.email)
+            assertEquals(null, pending.emailFor("u1"))
+        }
+    }
+
+    @Test
+    fun `cambiar de usuario sin pasar por null olvida el email del anterior`() = runTest {
+        pending.remember("u1", "tutor@x.com")
+        profile.profile.value = parentalProfile()
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.ParentalPending(null, 0), awaitItem())
+            assertEquals("tutor@x.com", pending.emailFor("u1"))
+            auth.user = verifiedUser.copy(uid = "u2")
+            runCurrent()
+            assertEquals(null, pending.emailFor("u1"))
+            assertEquals(null, pending.emailFor("u2"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `el mismo usuario que reemite conserva el email recordado`() = runTest {
+        pending.remember("u1", "tutor@x.com")
+        profile.profile.value = parentalProfile()
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.ParentalPending(null, 0), awaitItem())
+            auth.user = verifiedUser.copy(emailVerified = true, email = "otro@b.com")
+            runCurrent()
+            assertEquals("tutor@x.com", pending.emailFor("u1"))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `un borrado de cuenta en curso no deja pasar a Ready ni refresca claims aunque el tutor confirme`() = runTest {
+        auth.claimsResults = mutableListOf(claims(false), claims(true))
+        pending.remember("u1", "tutor@x.com")
+        profile.profile.value = parentalProfile()
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.ParentalPending(null, 0), awaitItem())
+            profile.profile.value = userProfile(deletion = true)
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(0, auth.calls.count { it == "claims:true" })
+            auth.user = null
+            assertEquals(SessionState.LoggedOut, awaitItem())
+            assertEquals(null, pending.emailFor("u1"))
         }
     }
 }

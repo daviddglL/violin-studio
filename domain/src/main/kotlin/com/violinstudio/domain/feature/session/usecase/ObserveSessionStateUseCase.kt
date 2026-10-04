@@ -53,11 +53,10 @@ class ObserveSessionStateUseCase @Inject constructor(
     operator fun invoke(): Flow<SessionState> = auth.authUser
         .distinctUntilChanged()
         .flatMapLatest { user ->
+            // Un usuario distinto (o ninguno) olvida el email de tutor del anterior, pase o no por LoggedOut.
+            pendingGuardianEmail.retainOnlyFor(user?.uid)
             when {
-                user == null -> {
-                    pendingGuardianEmail.clear()
-                    flowOf(SessionState.LoggedOut)
-                }
+                user == null -> flowOf(SessionState.LoggedOut)
                 resolver.needsEmailVerification(user) -> flowOf(SessionState.EmailUnverified(user.email))
                 else -> signedIn(user)
             }

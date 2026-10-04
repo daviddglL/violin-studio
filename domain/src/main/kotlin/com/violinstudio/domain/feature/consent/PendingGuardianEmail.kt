@@ -4,23 +4,27 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Último email de tutor que el servidor aceptó, solo en memoria: la app nunca lo persiste ni lo registra. Permite
- * "Reenviar" sin volver a pedirlo; tras morir el proceso queda vacío y solo cabe "Cambiar email". Se vacía al cerrar
- * sesión (lo hace [com.violinstudio.domain.feature.session.usecase.ObserveSessionStateUseCase]).
+ * Ultimo email de tutor que el servidor acepto, solo en memoria y atado al usuario que lo pidio: la app nunca lo
+ * persiste ni lo registra. Permite "Reenviar" sin volver a pedirlo; tras morir el proceso queda vacio y solo cabe
+ * "Cambiar email". Lo vacia [retainOnlyFor] cuando la sesion pasa a otro usuario o a ninguno.
  */
 @Singleton
 class PendingGuardianEmail @Inject constructor() {
+    private data class Entry(val uid: String, val email: String)
+
     @Volatile
-    var email: String? = null
-        private set
+    private var entry: Entry? = null
 
-    fun remember(email: String) {
-        this.email = email
+    fun remember(uid: String, email: String) {
+        entry = Entry(uid, email)
     }
 
-    fun clear() {
-        email = null
+    fun emailFor(uid: String): String? = entry?.takeIf { it.uid == uid }?.email
+
+    /** Conserva el email solo si es del usuario [uid]; `null` (sin sesion) lo borra. */
+    fun retainOnlyFor(uid: String?) {
+        if (entry?.uid != uid) entry = null
     }
 
-    override fun toString(): String = "PendingGuardianEmail(present=${email != null})"
+    override fun toString(): String = "PendingGuardianEmail(present=${entry != null})"
 }
