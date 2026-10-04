@@ -93,7 +93,7 @@ private fun SessionGraph(
     // debe quedarse sin él.
     val lastEmail = rememberLastEmail(session)
     val lastConsent = rememberLastConsent(session)
-    val lastWait = rememberLastGuardianWait(session)
+    val lastWait = rememberLastGuardianWait(session, navController)
     NavHost(navController = navController, startDestination = SplashDestination) {
         composable<SplashDestination> { SplashScreen() }
         composable<OfflineDestination> { OfflineScreen(onSignOut) }
@@ -143,8 +143,17 @@ private fun rememberLastConsent(session: SessionState): SessionState.ConsentPend
 }
 
 @Composable
-private fun rememberLastGuardianWait(session: SessionState): SessionState.ParentalPending? {
+private fun rememberLastGuardianWait(
+    session: SessionState,
+    navController: NavHostController
+): SessionState.ParentalPending? {
+    val current by navController.currentBackStackEntryAsState()
     val holder = remember { arrayOfNulls<SessionState.ParentalPending>(1) }
-    (session as? SessionState.ParentalPending)?.let { holder[0] = it }
+    if (session is SessionState.ParentalPending) {
+        holder[0] = session
+    } else if (current?.destination?.hasRoute(GuardianWaitDestination::class) != true) {
+        // Ya fuera de la espera (y sin transición de salida en curso): el dato viejo no puede volver a entregarse.
+        holder[0] = null
+    }
     return holder[0]
 }

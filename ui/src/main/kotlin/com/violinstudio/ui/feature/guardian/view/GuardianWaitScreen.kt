@@ -57,7 +57,11 @@ fun GuardianWaitRoute(pending: SessionState.ParentalPending, viewModel: Guardian
     LaunchedEffect(pending.emailMasked, pending.sends) {
         onIntent(GuardianWaitIntent.SessionUpdated(pending.emailMasked, pending.sends))
     }
-    GuardianWaitScreen(state.copy(emailMasked = pending.emailMasked, sends = pending.sends), viewModel::onIntent)
+    // El enmascarado que acaba de contestar el servidor gana al de la sesión hasta que esta traiga uno más nuevo.
+    GuardianWaitScreen(
+        state.copy(emailMasked = state.emailMasked ?: pending.emailMasked, sends = pending.sends),
+        viewModel::onIntent
+    )
 }
 
 /**
@@ -85,18 +89,26 @@ fun GuardianWaitScreen(state: GuardianWaitState, onIntent: (GuardianWaitIntent) 
         if (state.changingEmail) {
             ChangeEmailForm(state, onIntent)
         } else {
-            if (state.canResend || state.resendBlocked) {
+            if ((state.canResend || state.resendBlocked) && !state.terminal) {
                 OutlinedButton(
                     onClick = { onIntent(GuardianWaitIntent.Resend) },
                     enabled = state.canResendNow,
                     modifier = Modifier.fillMaxWidth().testTag(GUARDIAN_WAIT_RESEND_TAG)
-                ) { Text(stringResource(R.string.guardian_wait_resend)) }
+                ) {
+                    Text(
+                        stringResource(
+                            if (state.isLoading) R.string.guardian_request_sending else R.string.guardian_wait_resend
+                        )
+                    )
+                }
             }
-            OutlinedButton(
-                onClick = { onIntent(GuardianWaitIntent.ChangeEmail) },
-                enabled = !state.busy,
-                modifier = Modifier.fillMaxWidth().testTag(GUARDIAN_WAIT_CHANGE_TAG)
-            ) { Text(stringResource(R.string.guardian_wait_change_email)) }
+            if (!state.terminal) {
+                OutlinedButton(
+                    onClick = { onIntent(GuardianWaitIntent.ChangeEmail) },
+                    enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth().testTag(GUARDIAN_WAIT_CHANGE_TAG)
+                ) { Text(stringResource(R.string.guardian_wait_change_email)) }
+            }
         }
         state.deleteError?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
         OutlinedButton(
@@ -124,6 +136,7 @@ private fun ChangeEmailForm(state: GuardianWaitState, onIntent: (GuardianWaitInt
         tag = AUTH_EMAIL_TAG,
         // El email es de otra persona: sin autorrelleno de las credenciales del propio usuario.
         autofillTypes = emptyList<AutofillType>(),
+        enabled = !state.busy,
         onDone = { onIntent(GuardianWaitIntent.SubmitNewEmail) }
     )
     AuthSubmitButton(

@@ -443,6 +443,21 @@ class GuardianWaitViewModelTest {
         }
         assertTrue(!vm.state.value.toString().contains("example"))
     }
+
+    @Test
+    fun `changing the email shows the masked email the server answered, not the old one`() = runTest {
+        answers(Result.success(GuardianRequestReceipt("n***@example.com")))
+        viewModel().testMvi {
+            open()
+            intent(GuardianWaitIntent.ChangeEmail)
+            assertState { it.changingEmail }
+            intent(GuardianWaitIntent.EmailChanged("otro@example.com"))
+            assertState { it.email == "otro@example.com" }
+            intent(GuardianWaitIntent.SubmitNewEmail)
+            assertState { it.isLoading }
+            assertState { it.notice == GuardianWaitNotice.EMAIL_CHANGED && it.emailMasked == "n***@example.com" }
+        }
+    }
 }
 
 private typealias WaitScenario = MviScenario<GuardianWaitState, GuardianWaitIntent, UiEffect>

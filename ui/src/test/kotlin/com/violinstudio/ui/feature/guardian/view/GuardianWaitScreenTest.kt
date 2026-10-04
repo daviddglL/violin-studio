@@ -209,10 +209,24 @@ class GuardianWaitScreenTest {
     }
 
     @Test
-    fun `no plain guardian email is ever on screen, only the masked one`() {
-        // El estado no tiene un campo para el email en claro; el tecleado nuevo solo existe en el campo de cambio.
-        show(waiting)
-        compose.onNodeWithText("tutor@example.com", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("t***@example.com", substring = true).assertIsDisplayed()
+    fun `while sending the email field is disabled and resend says sending`() {
+        show(waiting.copy(isLoading = true))
+        compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.guardian_request_sending)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `while sending the new email field is disabled`() {
+        show(waiting.copy(changingEmail = true, email = "n@example.com", isLoading = true))
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a terminal error hides resend and change email and leaves delete and sign out`() {
+        show(waiting.copy(canResend = false, error = GuardianRequestError.UNAVAILABLE))
+        compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(GUARDIAN_WAIT_CHANGE_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(GUARDIAN_WAIT_DELETE_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(GUARDIAN_WAIT_SIGN_OUT_TAG).performScrollTo().assertIsEnabled()
     }
 }

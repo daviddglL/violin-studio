@@ -50,6 +50,7 @@ object GuardianWaitReducer {
             changingEmail = false,
             email = "",
             canResend = true,
+            emailMasked = mutation.emailMasked ?: state.emailMasked,
             sends = state.sends + 1,
             notice = mutation.notice
         )

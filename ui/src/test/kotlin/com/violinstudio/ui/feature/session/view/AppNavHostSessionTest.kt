@@ -21,6 +21,7 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.rootRoute
@@ -261,5 +262,18 @@ class AppNavHostSessionTest {
         session.value = SessionState.LoggedOut
         assertAt(SessionState.LoggedOut)
         assertFalse(homeComposed)
+    }
+
+    @Test
+    fun aStaleParentalPendingIsNeverHandedToTheSlotOnceTheSessionHasLeftTheWait() {
+        val waiting = SessionState.ParentalPending("t***@example.com", 1)
+        start(waiting)
+        assertAt(waiting)
+        session.value = ready
+        assertAt(ready)
+        guardianWaitSeen.clear()
+        compose.runOnUiThread { nav.navigate(GuardianWaitDestination) }
+        assertAt(ready)
+        assertTrue("slot composed with a stale pending: $guardianWaitSeen", guardianWaitSeen.isEmpty())
     }
 }

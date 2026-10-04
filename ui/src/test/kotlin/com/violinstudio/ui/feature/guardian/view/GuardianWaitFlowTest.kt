@@ -16,6 +16,7 @@ import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnUidUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.PendingGuardianEmail
+import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
 import com.violinstudio.domain.feature.consent.usecase.RequestGuardianConsentUseCase
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
@@ -34,6 +35,8 @@ import com.violinstudio.ui.navigation.SessionNavHost
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,13 +61,16 @@ class GuardianWaitFlowTest {
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val session = mutableStateOf<SessionState>(SessionState.ParentalPending("t***@example.com", 1))
 
+    private lateinit var viewModel: GuardianWaitViewModel
+
     private fun start() {
-        val viewModel = GuardianWaitViewModel(request, pendingEmail, ownEmail, ownUid, delete, signOut, trigger)
+        viewModel = GuardianWaitViewModel(request, pendingEmail, ownEmail, ownUid, delete, signOut, trigger)
         compose.setContent {
             ViolinStudioTheme {
                 SessionNavHost(
                     session = session.value,
                     onSignOut = {},
+                    auth = { PlaceholderScreen("auth") },
                     home = { PlaceholderScreen("home") },
                     guardianWait = { GuardianWaitSlot(it) { viewModel } }
                 )
@@ -88,6 +94,9 @@ class GuardianWaitFlowTest {
         compose.waitForIdle()
         coVerify(exactly = 1) { request("tutor@example.com") }
         compose.onNodeWithText(text(R.string.guardian_wait_resent)).performScrollTo().assertIsDisplayed()
+        // The remembered plain address never reaches the screen, only the masked one.
+        compose.onNodeWithText("tutor@example.com", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("t***@example.com", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -114,5 +123,54 @@ class GuardianWaitFlowTest {
         compose.waitForIdle()
         compose.onNodeWithTag("home").assertIsDisplayed()
         compose.onNodeWithTag(GUARDIAN_WAIT_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a newer parental pending replaces the masked email and the sends`() {
+        start()
+        session.value = SessionState.ParentalPending("n***@example.com", 2)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.guardian_wait_intro_masked, "n***@example.com")).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.guardian_wait_intro_masked, "t***@example.com")).assertDoesNotExist()
+        assertEquals(2, viewModel.state.value.sends)
+        assertEquals("n***@example.com", viewModel.state.value.emailMasked)
+    }
+
+    @Test
+    fun `a changed email shows the masked one the server answered even before the session catches up`() {
+        coEvery { request(any()) } returns Result.success(GuardianRequestReceipt("n***@example.com"))
+        start()
+        compose.onNodeWithTag(GUARDIAN_WAIT_CHANGE_TAG).performScrollTo().performClick()
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).performTextInput("otro@example.com")
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.guardian_wait_intro_masked, "n***@example.com")).assertIsDisplayed()
+        compose.onNodeWithText("otro@example.com", substring = true).assertDoesNotExist()
+        session.value = SessionState.ParentalPending("m***@example.com", 3)
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.guardian_wait_intro_masked, "m***@example.com")).assertIsDisplayed()
+    }
+
+    @Test
+    fun `already approved offers check again and asks the session to resolve again`() {
+        coEvery { request(any()) } returns Result.failure(ConsentFailure.AlreadyGranted)
+        start()
+        compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.guardian_request_already_approved)).performScrollTo().assertIsDisplayed()
+        verify(exactly = 1) { trigger.requestRefresh() }
+        compose.onNodeWithTag(GUARDIAN_WAIT_CHECK_TAG).performScrollTo().performClick()
+        compose.waitForIdle()
+        verify(exactly = 2) { trigger.requestRefresh() }
+    }
+
+    @Test
+    fun `leaving the wait for another state leaves no stale guardian frame`() {
+        start()
+        session.value = SessionState.LoggedOut
+        compose.waitForIdle()
+        compose.onNodeWithTag(GUARDIAN_WAIT_TAG).assertDoesNotExist()
+        compose.onNodeWithText("t***@example.com", substring = true).assertDoesNotExist()
+        compose.onNodeWithTag("auth").assertIsDisplayed()
     }
 }

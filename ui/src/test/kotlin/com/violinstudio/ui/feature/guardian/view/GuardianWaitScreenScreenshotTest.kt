@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianEmailError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianWaitNotice
@@ -57,4 +58,21 @@ class GuardianWaitScreenScreenshotTest {
     )
 
     @Test fun sending() = capture(waiting.copy(isLoading = true), "guardian_wait_sending")
+
+    @Test fun terminal() = capture(
+        waiting.copy(canResend = false, error = GuardianRequestError.UNAVAILABLE),
+        "guardian_wait_terminal"
+    )
+
+    @Test fun deleting() = capture(waiting.copy(isDeleting = true), "guardian_wait_deleting")
+
+    @Test fun deleteFailed() = capture(
+        waiting.copy(deleteError = ConsentDeleteError.FAILED),
+        "guardian_wait_delete_failed"
+    )
+
+    @Test fun ownEmail() = capture(
+        waiting.copy(changingEmail = true, email = "me@example.com", emailError = GuardianEmailError.OWN_EMAIL),
+        "guardian_wait_own_email"
+    )
 }
