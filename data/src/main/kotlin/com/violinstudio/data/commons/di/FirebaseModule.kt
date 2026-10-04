@@ -8,6 +8,7 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.functions
 import com.violinstudio.data.commons.firebase.EmulatorConfig
+import com.violinstudio.data.commons.firebase.EmulatorOnce
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,19 +25,19 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideFunctions(config: EmulatorConfig): FirebaseFunctions = Firebase.functions(FUNCTIONS_REGION).apply {
-        config.functions()?.let { useEmulator(it.host, it.port) }
+        config.functions()?.let { e -> EmulatorOnce.process.apply("functions") { useEmulator(e.host, e.port) } }
     }
 
     @Provides
     @Singleton
     fun provideAuth(config: EmulatorConfig): FirebaseAuth = Firebase.auth.apply {
-        config.auth()?.let { useEmulator(it.host, it.port) }
+        config.auth()?.let { e -> EmulatorOnce.process.apply("auth") { useEmulator(e.host, e.port) } }
     }
 
     @Provides
     @Singleton
     fun provideFirestore(config: EmulatorConfig): FirebaseFirestore = Firebase.firestore.apply {
-        config.firestore()?.let { useEmulator(it.host, it.port) }
+        config.firestore()?.let { e -> EmulatorOnce.process.apply("firestore") { useEmulator(e.host, e.port) } }
     }
 
     /** Para `AgeGate`; los tests usan relojes fijos. */
