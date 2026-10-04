@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.violinstudio.domain.feature.session.SessionState
+import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.home.view.HomeRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
 import com.violinstudio.ui.feature.session.view.PlaceholderScreen
@@ -45,7 +46,7 @@ fun SessionNavHost(
     navController: NavHostController = rememberNavController(),
     home: @Composable () -> Unit = { HomeRoute() },
     auth: @Composable () -> Unit = { PlaceholderScreen("auth") },
-    verifyEmail: @Composable (email: String?) -> Unit = { PlaceholderScreen("verify_email") },
+    verifyEmail: @Composable (email: String?) -> Unit = { VerifyEmailRoute(it) },
     onboarding: @Composable () -> Unit = { PlaceholderScreen("onboarding") },
     consent: @Composable () -> Unit = { PlaceholderScreen("consent") },
     guardianWait: @Composable () -> Unit = { PlaceholderScreen("guardian_wait") }
@@ -61,10 +62,14 @@ fun SessionNavHost(
     }
     SideEffect { lastRouted[0] = routed }
     SessionRedirect(routed, navController)
-    Box {
-        SessionGraph(routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait)
-        if (session is SessionState.Unavailable && routed is SessionState.Ready) {
-            Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
+    // Un único Surface con el fondo del tema para todas las raíces (splash, offline, marcadores...): sin él el texto
+    // toma el color por defecto y queda oscuro sobre oscuro.
+    Surface(Modifier.fillMaxSize()) {
+        Box {
+            SessionGraph(routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait)
+            if (session is SessionState.Unavailable && routed is SessionState.Ready) {
+                Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
+            }
         }
     }
 }
@@ -81,11 +86,14 @@ private fun SessionGraph(
     consent: @Composable () -> Unit,
     guardianWait: @Composable () -> Unit
 ) {
+    // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
+    // debe quedarse sin él.
+    val lastEmail = rememberLastEmail(session)
     NavHost(navController = navController, startDestination = SplashDestination) {
         composable<SplashDestination> { SplashScreen() }
         composable<OfflineDestination> { OfflineScreen(onSignOut) }
         composable<AuthDestination> { auth() }
-        composable<VerifyEmailDestination> { verifyEmail((session as? SessionState.EmailUnverified)?.email) }
+        composable<VerifyEmailDestination> { verifyEmail(lastEmail) }
         composable<OnboardingDestination> { onboarding() }
         composable<ConsentDestination> { consent() }
         composable<GuardianWaitDestination> { guardianWait() }
@@ -93,6 +101,13 @@ private fun SessionGraph(
         // contenido de negocio mientras la redirección está en curso.
         composable<HomeDestination> { if (session is SessionState.Ready) home() else SplashScreen() }
     }
+}
+
+@Composable
+private fun rememberLastEmail(session: SessionState): String? {
+    val holder = remember { arrayOfNulls<String>(1) }
+    (session as? SessionState.EmailUnverified)?.let { holder[0] = it.email }
+    return holder[0]
 }
 
 /**
