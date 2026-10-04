@@ -99,7 +99,7 @@ class SettingsViewModel @Inject constructor(
 
     private suspend fun onRevoke() {
         try {
-            // Solo tras la confirmación explícita (los intents se procesan en orden: el estado ya la refleja).
+            // Solo tras la confirmaciÃ³n explÃ­cita (los intents se procesan en orden: el estado ya la refleja).
             if (!state.value.confirmingRevoke) return
             reduce(SettingsMutation.RevokeStarted)
             val result = try {
