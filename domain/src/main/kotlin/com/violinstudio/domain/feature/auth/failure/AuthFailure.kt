@@ -18,5 +18,7 @@ sealed class AuthFailure(message: String, cause: Throwable? = null) : Exception(
     data object Cancelled : AuthFailure("Operación cancelada")
     data object ProviderUnavailable : AuthFailure("Proveedor de identidad no disponible")
     data object RequiresRecentLogin : AuthFailure("Requiere autenticación reciente")
+
+    /** La causa puede contener PII (p. ej. el email): no se registra en logs ni se muestra al usuario. */
     class Unknown(cause: Throwable? = null) : AuthFailure("Error de autenticación desconocido", cause)
 }

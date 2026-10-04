@@ -21,6 +21,11 @@ sealed class ProfileFailure(message: String, cause: Throwable? = null) : Excepti
     class InvalidInput(val field: ProfileField?) : ProfileFailure("Datos de perfil inválidos")
     data object NoProfile : ProfileFailure("No existe perfil")
     data object EmailNotVerified : ProfileFailure("Email sin verificar")
+
+    /** Las reglas del servidor rechazaron la escritura: consentimiento no concedido, borrado en curso o claim obsoleto. */
+    data object NotAllowed : ProfileFailure("Operación no permitida")
     data object Network : ProfileFailure("Sin conexión")
+
+    /** La causa puede contener PII: no se registra en logs ni se muestra al usuario. */
     class Unknown(cause: Throwable? = null) : ProfileFailure("Error de perfil desconocido", cause)
 }
