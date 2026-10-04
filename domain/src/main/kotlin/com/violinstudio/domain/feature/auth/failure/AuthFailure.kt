@@ -11,6 +11,10 @@ sealed class AuthFailure(message: String, cause: Throwable? = null) : Exception(
     data object AccountExistsWithOtherProvider : AuthFailure("La cuenta existe con otro proveedor")
     data object TooManyRequests : AuthFailure("Demasiados intentos")
     data object Network : AuthFailure("Sin conexión")
+
+    /** No existe cuenta con ese email; solo lo produce `sendPasswordReset`, cuya respuesta pública es uniforme. */
+    data object UserNotFound : AuthFailure("Usuario no encontrado")
+    data object InvalidEmail : AuthFailure("Formato de email inválido")
     data object Cancelled : AuthFailure("Operación cancelada")
     data object ProviderUnavailable : AuthFailure("Proveedor de identidad no disponible")
     data object RequiresRecentLogin : AuthFailure("Requiere autenticación reciente")

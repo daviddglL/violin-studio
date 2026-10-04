@@ -13,6 +13,8 @@ class AuthFailureTest {
         AuthFailure.AccountExistsWithOtherProvider -> "other-provider"
         AuthFailure.TooManyRequests -> "too-many"
         AuthFailure.Network -> "network"
+        AuthFailure.InvalidEmail -> "invalid-email"
+        AuthFailure.UserNotFound -> "user-not-found"
         AuthFailure.Cancelled -> "cancelled"
         AuthFailure.ProviderUnavailable -> "provider-unavailable"
         AuthFailure.RequiresRecentLogin -> "recent-login"
@@ -20,7 +22,7 @@ class AuthFailureTest {
     }
 
     @Test
-    fun `la jerarquia sellada cubre los diez fallos de la spec`() {
+    fun `la jerarquia sellada cubre los doce fallos de la spec`() {
         val all = listOf(
             AuthFailure.InvalidCredentials,
             AuthFailure.EmailAlreadyInUse,
@@ -28,12 +30,14 @@ class AuthFailureTest {
             AuthFailure.AccountExistsWithOtherProvider,
             AuthFailure.TooManyRequests,
             AuthFailure.Network,
+            AuthFailure.InvalidEmail,
+            AuthFailure.UserNotFound,
             AuthFailure.Cancelled,
             AuthFailure.ProviderUnavailable,
             AuthFailure.RequiresRecentLogin,
             AuthFailure.Unknown()
         )
-        assertEquals(10, all.map(::label).toSet().size)
+        assertEquals(12, all.map(::label).toSet().size)
     }
 
     @Test
