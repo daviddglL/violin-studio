@@ -17,9 +17,15 @@ class SessionStateResolver @Inject constructor() {
         profile.consentStatus == ConsentStatus.PARENTAL_PENDING ->
             SessionState.ParentalPending(profile.guardian?.emailMasked, profile.guardian?.sends ?: 0)
         profile.isConsentCurrent(config.policyVersion) -> SessionState.Ready(profile)
-        else -> SessionState.ConsentPending(config, profile.isMinor)
+        else -> SessionState.ConsentPending(config, profile.isMinor, profile.consentReason())
     }
 
     // Google verifica el email por su cuenta: nunca se le pide verificar. Fail-closed: sin proveedores o con uno desconocido y sin verificar, sí se pide.
     fun needsEmailVerification(user: AuthUser): Boolean = !user.emailVerified && AuthProvider.GOOGLE !in user.providers
+}
+
+private fun UserProfile.consentReason(): ConsentReason = when (consentStatus) {
+    ConsentStatus.REVOKED -> ConsentReason.REVOKED
+    ConsentStatus.GRANTED -> ConsentReason.POLICY_UPDATED
+    else -> ConsentReason.FIRST
 }

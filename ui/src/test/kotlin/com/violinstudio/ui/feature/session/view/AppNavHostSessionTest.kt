@@ -76,6 +76,7 @@ class AppNavHostSessionTest {
                     auth = { PlaceholderScreen("auth") },
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     onboarding = { PlaceholderScreen("onboarding") },
+                    consent = { PlaceholderScreen("consent") },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")
@@ -204,6 +205,7 @@ class AppNavHostSessionTest {
                     auth = { PlaceholderScreen("auth") },
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     onboarding = { PlaceholderScreen("onboarding") },
+                    consent = { PlaceholderScreen("consent") },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")

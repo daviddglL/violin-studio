@@ -20,6 +20,7 @@ import androidx.navigation.compose.rememberNavController
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.feature.auth.view.AuthRoute
 import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
+import com.violinstudio.ui.feature.consent.view.ConsentSlot
 import com.violinstudio.ui.feature.home.view.HomeRoute
 import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
@@ -50,7 +51,7 @@ fun SessionNavHost(
     auth: @Composable () -> Unit = { AuthRoute() },
     verifyEmail: @Composable (email: String?) -> Unit = { VerifyEmailRoute(it) },
     onboarding: @Composable () -> Unit = { OnboardingRoute() },
-    consent: @Composable () -> Unit = { PlaceholderScreen("consent") },
+    consent: @Composable (SessionState.ConsentPending) -> Unit = { ConsentSlot(it) },
     guardianWait: @Composable () -> Unit = { PlaceholderScreen("guardian_wait") }
 ) {
     // Un fallo transitorio (Ready -> Unavailable) no destruye Home ni su ViewModel: se mantiene Ready para el
@@ -85,19 +86,20 @@ private fun SessionGraph(
     auth: @Composable () -> Unit,
     verifyEmail: @Composable (email: String?) -> Unit,
     onboarding: @Composable () -> Unit,
-    consent: @Composable () -> Unit,
+    consent: @Composable (SessionState.ConsentPending) -> Unit,
     guardianWait: @Composable () -> Unit
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
     // debe quedarse sin él.
     val lastEmail = rememberLastEmail(session)
+    val lastConsent = rememberLastConsent(session)
     NavHost(navController = navController, startDestination = SplashDestination) {
         composable<SplashDestination> { SplashScreen() }
         composable<OfflineDestination> { OfflineScreen(onSignOut) }
         composable<AuthDestination> { auth() }
         composable<VerifyEmailDestination> { verifyEmail(lastEmail) }
         composable<OnboardingDestination> { onboarding() }
-        composable<ConsentDestination> { consent() }
+        composable<ConsentDestination> { lastConsent?.let { consent(it) } }
         composable<GuardianWaitDestination> { guardianWait() }
         // Defensa en profundidad: aunque un back stack restaurado o un enlace caiga aquí sin Ready, no se compone
         // contenido de negocio mientras la redirección está en curso.
@@ -129,4 +131,12 @@ private fun SessionRedirect(session: SessionState, navController: NavHostControl
             }
         }
     }
+}
+
+// Como el email: durante la transición de salida la sesión ya es otra y el slot no debe quedarse sin su dato.
+@Composable
+private fun rememberLastConsent(session: SessionState): SessionState.ConsentPending? {
+    val holder = remember { arrayOfNulls<SessionState.ConsentPending>(1) }
+    (session as? SessionState.ConsentPending)?.let { holder[0] = it }
+    return holder[0]
 }

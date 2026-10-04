@@ -81,4 +81,25 @@
     <string name="onboarding_delete_reauth">Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo. Tu cuenta sigue activa.</string>
     <string name="onboarding_delete_failed">No se ha podido eliminar la cuenta. Sigue activa; inténtalo de nuevo.</string>
     <string name="onboarding_delete_network">Sin conexión. Tu cuenta sigue activa; inténtalo de nuevo.</string>
+    <string name="consent_title_first">Política de privacidad</string>
+    <string name="consent_title_updated">Política de privacidad actualizada</string>
+    <string name="consent_title_revoked">Vuelve a aceptar la política</string>
+    <string name="consent_intro_first">Para usar Violin Studio, lee y acepta nuestra política de privacidad.</string>
+    <string name="consent_intro_updated">Hemos actualizado la política de privacidad. Léela y acepta la versión %1$d para seguir usando la app.</string>
+    <string name="consent_intro_revoked">Retiraste tu consentimiento. Para volver a usar la app, acepta de nuevo la política de privacidad (versión %1$d) o elimina tu cuenta.</string>
+    <string name="consent_read_policy">Leer la política (versión %1$d)</string>
+    <string name="consent_checkbox">He leído y acepto la política de privacidad (versión %1$d)</string>
+    <string name="consent_accept">Aceptar y continuar</string>
+    <string name="consent_accepting">Aceptando…</string>
+    <string name="consent_error_network">No se ha podido confirmar tu aceptación. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="consent_error_policy_changed">La política se actualizó mientras la leías. Revisa la versión %1$d y acepta de nuevo.</string>
+    <string name="consent_error_policy_unavailable">La política ha cambiado y no hemos podido cargarla. Inténtalo de nuevo.</string>
+    <string name="consent_error_guardian">Esta cuenta necesita el permiso de su madre, padre o tutor.</string>
+    <string name="consent_error_unknown">No se ha podido registrar tu aceptación. Inténtalo de nuevo.</string>
+    <string name="consent_link_failed">No hay ninguna aplicación para abrir la política en este dispositivo.</string>
+    <string name="consent_delete">Eliminar mi cuenta</string>
+    <string name="consent_deleting">Eliminando…</string>
+    <string name="consent_delete_reauth">Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo. Tu cuenta sigue activa.</string>
+    <string name="consent_delete_failed">No se ha podido eliminar la cuenta. Sigue activa; inténtalo de nuevo.</string>
+    <string name="consent_delete_network">Sin conexión. Tu cuenta sigue activa; inténtalo de nuevo.</string>
 </resources>
