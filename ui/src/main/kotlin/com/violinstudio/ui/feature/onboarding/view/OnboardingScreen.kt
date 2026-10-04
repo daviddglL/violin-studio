@@ -232,7 +232,7 @@ private fun RowScope.DatePart(
     )
 }
 
-private fun Instrument.labelRes() = when (this) {
+internal fun Instrument.labelRes() = when (this) {
     Instrument.VIOLIN -> R.string.onboarding_instrument_violin
     Instrument.VIOLA -> R.string.onboarding_instrument_viola
     Instrument.CELLO -> R.string.onboarding_instrument_cello

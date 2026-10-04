@@ -23,6 +23,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -49,7 +50,7 @@ class SettingsViewModelTest {
 
     private fun TestScope.refreshCount(): () -> Int {
         var count = 0
-        backgroundScope.launch { trigger.refreshes.collect { count++ } }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { trigger.refreshes.collect { count++ } }
         return { count }
     }
 

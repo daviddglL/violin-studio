@@ -45,11 +45,11 @@ class SettingsViewModel @Inject constructor(
     override fun onIntent(intent: SettingsIntent) {
         when (intent) {
             SettingsIntent.Save -> {
-                if (savePending || revokePending || state.value.busy) return
+                if (savePending || revokePending) return
                 savePending = true
             }
             SettingsIntent.ConfirmRevoke -> {
-                if (revokePending || savePending || !state.value.confirmingRevoke) return
+                if (revokePending || savePending) return
                 revokePending = true
             }
             else -> Unit
@@ -69,6 +69,7 @@ class SettingsViewModel @Inject constructor(
 
     private suspend fun onSave() {
         try {
+            if (state.value.busy) return
             reduce(SettingsMutation.SaveRequested)
             val current = state.value
             if (!current.isSaving) return
@@ -98,6 +99,8 @@ class SettingsViewModel @Inject constructor(
 
     private suspend fun onRevoke() {
         try {
+            // Solo tras la confirmación explícita (los intents se procesan en orden: el estado ya la refleja).
+            if (!state.value.confirmingRevoke) return
             reduce(SettingsMutation.RevokeStarted)
             val result = try {
                 revokeConsent()
