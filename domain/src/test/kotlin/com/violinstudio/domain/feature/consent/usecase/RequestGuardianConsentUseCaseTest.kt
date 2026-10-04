@@ -1,8 +1,11 @@
 package com.violinstudio.domain.feature.consent.usecase
 
+import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.FakeConsentRepository
+import com.violinstudio.domain.feature.consent.PendingGuardianEmail
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
+import com.violinstudio.domain.feature.verifiedUser
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -10,7 +13,9 @@ import org.junit.jupiter.api.Test
 
 class RequestGuardianConsentUseCaseTest {
     private val consent = FakeConsentRepository()
-    private val useCase = RequestGuardianConsentUseCase(consent)
+    private val auth = FakeAuthRepository()
+    private val pending = PendingGuardianEmail()
+    private val useCase = RequestGuardianConsentUseCase(consent, pending, auth)
 
     @Test
     fun `envia la solicitud con el email recortado y devuelve el acuse`() = runTest {
@@ -36,5 +41,46 @@ class RequestGuardianConsentUseCaseTest {
     fun `NotMinor se propaga`() = runTest {
         consent.guardianResult = Result.failure(ConsentFailure.NotMinor)
         assertEquals(ConsentFailure.NotMinor, useCase("tutor@x.com").exceptionOrNull())
+    }
+
+    @Test
+    fun `un envio correcto recuerda el email recortado para ese usuario solo en memoria`() = runTest {
+        auth.user = verifiedUser
+        useCase(" Tutor@x.com ")
+        assertEquals("Tutor@x.com", pending.emailFor("u1"))
+        assertEquals(null, pending.emailFor("u2"))
+        assertTrue(!pending.toString().contains("x.com"))
+    }
+
+    @Test
+    fun `un fallo no sustituye el email recordado`() = runTest {
+        auth.user = verifiedUser
+        useCase("uno@x.com")
+        consent.guardianResult = Result.failure(ConsentFailure.Network)
+        useCase("dos@x.com")
+        assertEquals("uno@x.com", pending.emailFor("u1"))
+    }
+
+    @Test
+    fun `sin sesion no se recuerda nada`() = runTest {
+        useCase("tutor@x.com")
+        assertEquals(null, pending.emailFor("u1"))
+    }
+
+    @Test
+    fun `una peticion que termina tras cerrar sesion no deja el email recordado`() = runTest {
+        auth.user = verifiedUser
+        consent.onGuardianRequest = { auth.user = null }
+        assertTrue(useCase("tutor@x.com").isSuccess)
+        assertEquals(null, pending.emailFor("u1"))
+    }
+
+    @Test
+    fun `una peticion que termina tras cambiar de usuario no se recuerda para el nuevo`() = runTest {
+        auth.user = verifiedUser
+        consent.onGuardianRequest = { auth.user = verifiedUser.copy(uid = "u2") }
+        useCase("tutor@x.com")
+        assertEquals(null, pending.emailFor("u1"))
+        assertEquals(null, pending.emailFor("u2"))
     }
 }

@@ -77,6 +77,7 @@ class AppNavHostSessionTest {
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     onboarding = { PlaceholderScreen("onboarding") },
                     consent = { PlaceholderScreen("consent") },
+                    guardianWait = { PlaceholderScreen("guardian_wait") },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")
@@ -120,6 +121,18 @@ class AppNavHostSessionTest {
         compose.runOnUiThread { nav.navigate(HomeDestination) }
         assertAt(SessionState.LoggedOut)
         assertFalse(homeComposed)
+    }
+
+    @Test
+    fun aMinorWaitingForTheGuardianIsSentBackToTheWaitFromBusinessRoutes() {
+        val waiting = SessionState.ParentalPending("t***@example.com", 1)
+        start(waiting)
+        assertAt(waiting)
+        compose.onNodeWithTag("guardian_wait").assertIsDisplayed()
+        compose.runOnUiThread { nav.navigate(HomeDestination) }
+        assertAt(waiting)
+        compose.onNodeWithTag("guardian_wait").assertIsDisplayed()
+        assertFalse("home was composed while the guardian is pending", homeComposed)
     }
 
     @Test
@@ -206,6 +219,7 @@ class AppNavHostSessionTest {
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     onboarding = { PlaceholderScreen("onboarding") },
                     consent = { PlaceholderScreen("consent") },
+                    guardianWait = { PlaceholderScreen("guardian_wait") },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")

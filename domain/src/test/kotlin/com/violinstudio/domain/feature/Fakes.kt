@@ -167,6 +167,9 @@ class FakeConsentRepository : ConsentRepository {
     var revokeResult: Result<Unit> = Result.success(Unit)
     var guardianResult: Result<GuardianRequestReceipt> = Result.success(GuardianRequestReceipt("t***@x.com"))
 
+    /** Gancho para simular que la peticion tarda: se ejecuta antes de devolver `guardianResult`. */
+    var onGuardianRequest: (suspend () -> Unit)? = null
+
     override suspend fun identityConfig(): Result<IdentityConfig> {
         calls += "identityConfig"
         return if (configQueue.isNotEmpty()) configQueue.removeAt(0) else configResult
@@ -184,6 +187,7 @@ class FakeConsentRepository : ConsentRepository {
 
     override suspend fun requestGuardianConsent(guardianEmail: String): Result<GuardianRequestReceipt> {
         calls += "requestGuardianConsent:$guardianEmail"
+        onGuardianRequest?.invoke()
         return guardianResult
     }
 }
