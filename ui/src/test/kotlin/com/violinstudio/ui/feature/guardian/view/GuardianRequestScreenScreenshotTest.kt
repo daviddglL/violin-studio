@@ -48,6 +48,21 @@ class GuardianRequestScreenScreenshotTest {
 
     @Test fun revoked() = capture(GuardianRequestState(reason = ConsentReason.REVOKED), "guardian_request_revoked")
 
+    @Test fun sent() = capture(
+        GuardianRequestState(email = "tutor@example.com", succeeded = true),
+        "guardian_request_sent"
+    )
+
+    @Test fun alreadyApproved() = capture(
+        GuardianRequestState(succeeded = true, alreadyApproved = true),
+        "guardian_request_already_approved"
+    )
+
+    @Test fun ownEmail() = capture(
+        GuardianRequestState(email = "me@example.com", emailError = GuardianEmailError.OWN_EMAIL),
+        "guardian_request_own_email"
+    )
+
     @Test fun sending() = capture(
         GuardianRequestState(email = "tutor@example.com", isLoading = true),
         "guardian_request_sending"

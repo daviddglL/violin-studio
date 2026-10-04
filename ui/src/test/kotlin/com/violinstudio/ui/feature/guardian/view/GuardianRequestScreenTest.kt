@@ -132,6 +132,36 @@ class GuardianRequestScreenTest {
         assertErrorShown(GuardianRequestError.UNKNOWN, R.string.guardian_request_error_unknown)
 
     @Test
+    fun `after success the form is replaced by a polite sent message and delete and sign out remain`() {
+        show(GuardianRequestState(email = "t@example.com", succeeded = true))
+        compose.onNode(hasText(text(R.string.guardian_request_sent))).assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(GUARDIAN_REQUEST_SIGN_OUT_TAG).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `already approved says it is continuing instead of showing a dead form`() {
+        show(GuardianRequestState(succeeded = true, alreadyApproved = true))
+        compose.onNode(hasText(text(R.string.guardian_request_already_approved))).assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        compose.onNodeWithText(text(R.string.guardian_request_sent)).assertDoesNotExist()
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun `an unavailable error has its own message`() =
+        assertErrorShown(GuardianRequestError.UNAVAILABLE, R.string.guardian_request_error_unavailable)
+
+    @Test
+    fun `the own email error says to use a different one`() {
+        show(GuardianRequestState(email = "me@example.com", emailError = GuardianEmailError.OWN_EMAIL))
+        compose.onNode(hasText(text(R.string.guardian_request_email_own))).assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+    }
+
+    @Test
     fun `while sending, send and delete are blocked`() {
         show(GuardianRequestState(email = "t@example.com", isLoading = true))
         compose.onNodeWithText(text(R.string.guardian_request_sending)).assertIsDisplayed()

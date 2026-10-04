@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
+import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
@@ -78,6 +79,7 @@ class ConsentFlowTest {
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val requestGuardian = mockk<RequestGuardianConsentUseCase>()
+    private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
     private val session = mutableStateOf<SessionState>(ready)
     private var startActivityFailure: RuntimeException? = null
 
@@ -90,7 +92,7 @@ class ConsentFlowTest {
     private fun start(initial: SessionState) {
         session.value = initial
         val viewModel = ConsentViewModel(accept, getConfig, delete, signOut, trigger)
-        val guardianViewModel = GuardianRequestViewModel(requestGuardian, delete, signOut, trigger)
+        val guardianViewModel = GuardianRequestViewModel(requestGuardian, ownEmail, delete, signOut, trigger)
         compose.setContent {
             CompositionLocalProvider(LocalContext provides failingContext) {
                 ViolinStudioTheme {
@@ -160,6 +162,13 @@ class ConsentFlowTest {
         compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().performClick()
         compose.waitForIdle()
         coVerify(exactly = 1) { requestGuardian("tutor@example.com") }
+    }
+
+    @Test
+    fun `a revoked minor sees the revoked copy`() {
+        start(SessionState.ConsentPending(v1, isMinor = true, reason = ConsentReason.REVOKED))
+        compose.onNodeWithText(text(R.string.guardian_request_intro_revoked)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.guardian_request_intro_first)).assertDoesNotExist()
     }
 
     @Test

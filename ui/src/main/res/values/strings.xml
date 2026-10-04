@@ -104,7 +104,11 @@
     <string name="guardian_request_intro_updated">Hemos actualizado la política de privacidad. Tu madre, padre o tutor debe confirmarla de nuevo: escribe su email para enviarle el enlace.</string>
     <string name="guardian_request_intro_revoked">Se retiró el consentimiento. Para seguir usando la app, tu madre, padre o tutor debe confirmarlo de nuevo, o puedes eliminar tu cuenta.</string>
     <string name="guardian_request_email_label">Email de tu madre, padre o tutor</string>
-    <string name="guardian_request_email_invalid">Escribe un email válido y distinto del tuyo.</string>
+    <string name="guardian_request_email_invalid">Escribe un email válido.</string>
+    <string name="guardian_request_email_own">Usa un email distinto del tuyo: debe ser el de tu madre, padre o tutor.</string>
+    <string name="guardian_request_sent">Solicitud enviada. Esperando a tu madre, padre o tutor.</string>
+    <string name="guardian_request_already_approved">Tu tutor ya lo aprobó. Continuando…</string>
+    <string name="guardian_request_error_unavailable">Ahora mismo no podemos pedir el permiso a un tutor para esta cuenta. Cierra sesión o elimina la cuenta.</string>
     <string name="guardian_request_submit">Enviar enlace</string>
     <string name="guardian_request_sending">Enviando…</string>
     <string name="guardian_request_error_network">No se ha podido enviar el enlace. Revisa tu conexión e inténtalo de nuevo.</string>
