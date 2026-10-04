@@ -44,9 +44,9 @@ class GatingIsolationTest {
     companion object {
         /**
          * Únicas features que pueden conocer la sesión (nombres de los paquetes previstos para 5b/6a/6b). Añadir
-         * una feature aquí es una decisión consciente de arquitectura (p. ej. 8a para borrar cuenta).
+         * una feature aquí es una decisión consciente de arquitectura (8a: ajustes conoce el consentimiento para revocarlo).
          */
-        val SESSION_AWARE_FEATURES = setOf("session", "auth", "onboarding", "consent", "guardian")
+        val SESSION_AWARE_FEATURES = setOf("session", "auth", "onboarding", "consent", "guardian", "settings")
 
         private val forbiddenPackages = listOf(
             "com.violinstudio.domain.feature.session",
