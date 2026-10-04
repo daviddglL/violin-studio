@@ -28,6 +28,10 @@ data object OfflineDestination
 @Serializable
 data object HomeDestination
 
+/** Ruta de negocio dentro del grafo de Ready: se mantiene solo con Ready y cae a la raíz del estado si cambia. */
+@Serializable
+data object SettingsDestination
+
 /** Ruta raíz que corresponde a cada estado de sesión: solo `Ready` llega a rutas de negocio. */
 fun SessionState.rootRoute(): Any = when (this) {
     SessionState.Loading -> SplashDestination

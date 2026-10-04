@@ -265,6 +265,50 @@ class ObserveSessionStateUseCaseTest {
         assertEquals(2, consent.calls.count { it == "identityConfig" })
     }
 
+    @Test
+    fun `un refresco de primer plano que falla no degrada Ready y el perfil sigue en vivo`() = runTest {
+        profile.profile.value = userProfile()
+        auth.user = verifiedUser
+        val states = collectStates()
+        assertEquals(listOf(SessionState.Loading, SessionState.Ready(userProfile())), states)
+        consent.configResult = Result.failure(AuthFailure.Network)
+        trigger.requestForegroundRefresh()
+        runCurrent()
+        passTime(10_000)
+        assertEquals(listOf(SessionState.Loading, SessionState.Ready(userProfile())), states)
+        // El listener del perfil se reanuda con la ultima config conocida: una revocacion en caliente llega igual.
+        profile.profile.value = userProfile(status = ConsentStatus.REVOKED, policyVersion = 1)
+        runCurrent()
+        assertEquals(ConsentReason.REVOKED, (states.last() as SessionState.ConsentPending).reason)
+        assertTrue(SessionState.Unavailable !in states)
+    }
+
+    @Test
+    fun `un refresco explicito que falla si puede emitir Unavailable`() = runTest {
+        profile.profile.value = userProfile()
+        auth.user = verifiedUser
+        val states = collectStates()
+        consent.configResult = Result.failure(AuthFailure.Network)
+        trigger.requestRefresh()
+        runCurrent()
+        assertEquals(SessionState.Unavailable, states.last())
+    }
+
+    @Test
+    fun `un refresco de primer plano que funciona vuelve a leer la config`() = runTest {
+        val v1 = config.copy(policyVersion = 1)
+        consent.configResult = Result.success(v1)
+        profile.profile.value = userProfile(policyVersion = 2)
+        auth.user = verifiedUser
+        val states = collectStates()
+        val pending = SessionState.ConsentPending(v1, isMinor = false, reason = ConsentReason.POLICY_UPDATED)
+        assertEquals(pending, states.last())
+        consent.configResult = Result.success(config)
+        trigger.requestForegroundRefresh()
+        runCurrent()
+        assertEquals(SessionState.Ready(userProfile(policyVersion = 2)), states.last())
+    }
+
     private fun TestScope.collectStates(): List<SessionState> {
         val states = mutableListOf<SessionState>()
         backgroundScope.launch { useCase().toList(states) }

@@ -28,6 +28,7 @@ import com.violinstudio.ui.feature.session.view.OfflineScreen
 import com.violinstudio.ui.feature.session.view.SplashScreen
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent
 import com.violinstudio.ui.feature.session.viewmodel.SessionViewModel
+import com.violinstudio.ui.feature.settings.view.SettingsRoute
 
 @Composable
 fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
@@ -47,12 +48,13 @@ fun SessionNavHost(
     session: SessionState,
     onSignOut: () -> Unit,
     navController: NavHostController = rememberNavController(),
-    home: @Composable () -> Unit = { HomeRoute() },
+    home: @Composable (onOpenSettings: () -> Unit) -> Unit = { HomeRoute(onOpenSettings = it) },
     auth: @Composable () -> Unit = { AuthRoute() },
     verifyEmail: @Composable (email: String?) -> Unit = { VerifyEmailRoute(it) },
     onboarding: @Composable () -> Unit = { OnboardingRoute() },
     consent: @Composable (SessionState.ConsentPending) -> Unit = { ConsentSlot(it) },
-    guardianWait: @Composable (SessionState.ParentalPending) -> Unit = { GuardianWaitSlot(it) }
+    guardianWait: @Composable (SessionState.ParentalPending) -> Unit = { GuardianWaitSlot(it) },
+    settings: @Composable (onBack: () -> Unit) -> Unit = { SettingsRoute(onBack = it) }
 ) {
     // Un fallo transitorio (Ready -> Unavailable) no destruye Home ni su ViewModel: se mantiene Ready para el
     // enrutado y se superpone la pantalla sin conexión, que bloquea la interacción y solo ofrece cerrar sesión.
@@ -69,7 +71,9 @@ fun SessionNavHost(
     // toma el color por defecto y queda oscuro sobre oscuro.
     Surface(Modifier.fillMaxSize()) {
         Box {
-            SessionGraph(routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait)
+            SessionGraph(
+                routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings
+            )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
             }
@@ -82,12 +86,13 @@ private fun SessionGraph(
     session: SessionState,
     navController: NavHostController,
     onSignOut: () -> Unit,
-    home: @Composable () -> Unit,
+    home: @Composable (onOpenSettings: () -> Unit) -> Unit,
     auth: @Composable () -> Unit,
     verifyEmail: @Composable (email: String?) -> Unit,
     onboarding: @Composable () -> Unit,
     consent: @Composable (SessionState.ConsentPending) -> Unit,
-    guardianWait: @Composable (SessionState.ParentalPending) -> Unit
+    guardianWait: @Composable (SessionState.ParentalPending) -> Unit,
+    settings: @Composable (onBack: () -> Unit) -> Unit
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
     // debe quedarse sin él.
@@ -104,7 +109,16 @@ private fun SessionGraph(
         composable<GuardianWaitDestination> { lastWait?.let { guardianWait(it) } }
         // Defensa en profundidad: aunque un back stack restaurado o un enlace caiga aquí sin Ready, no se compone
         // contenido de negocio mientras la redirección está en curso.
-        composable<HomeDestination> { if (session is SessionState.Ready) home() else SplashScreen() }
+        composable<HomeDestination> {
+            if (session is SessionState.Ready) {
+                home { navController.navigate(SettingsDestination) { launchSingleTop = true } }
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<SettingsDestination> {
+            if (session is SessionState.Ready) settings { navController.popBackStack() } else SplashScreen()
+        }
     }
 }
 
@@ -125,7 +139,10 @@ private fun SessionRedirect(session: SessionState, navController: NavHostControl
     val current by navController.currentBackStackEntryAsState()
     LaunchedEffect(session, current) {
         val target = session.rootRoute()
-        if (current?.destination?.hasRoute(target::class) != true) {
+        // Ajustes es una ruta de negocio más: solo se mantiene con Ready.
+        val onSettings = session is SessionState.Ready &&
+            current?.destination?.hasRoute(SettingsDestination::class) == true
+        if (!onSettings && current?.destination?.hasRoute(target::class) != true) {
             navController.navigate(target) {
                 popUpTo(navController.graph.id) { inclusive = true }
                 launchSingleTop = true

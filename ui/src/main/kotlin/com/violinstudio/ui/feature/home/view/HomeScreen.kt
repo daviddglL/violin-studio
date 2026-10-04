@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -34,7 +35,7 @@ import com.violinstudio.ui.feature.home.viewmodel.HomeState
 import com.violinstudio.ui.feature.home.viewmodel.HomeViewModel
 
 @Composable
-fun HomeRoute(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeRoute(onOpenSettings: (() -> Unit)? = null, viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -44,14 +45,20 @@ fun HomeRoute(viewModel: HomeViewModel = hiltViewModel()) {
                 snackbarHostState.showSnackbar(effect.message ?: context.getString(R.string.error_unknown))
         }
     }
-    HomeScreen(state = state, onIntent = viewModel::onIntent, snackbarHostState = snackbarHostState)
+    HomeScreen(
+        state = state,
+        onIntent = viewModel::onIntent,
+        snackbarHostState = snackbarHostState,
+        onOpenSettings = onOpenSettings
+    )
 }
 
 @Composable
 fun HomeScreen(
     state: HomeState,
     onIntent: (HomeIntent) -> Unit,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onOpenSettings: (() -> Unit)? = null
 ) {
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Column(
@@ -76,6 +83,11 @@ fun HomeScreen(
                 enabled = state.status !is HealthStatus.Loading
             ) {
                 Text(stringResource(R.string.home_check_health))
+            }
+            if (onOpenSettings != null) {
+                OutlinedButton(onClick = onOpenSettings, modifier = Modifier.testTag("home_settings")) {
+                    Text(stringResource(R.string.home_open_settings))
+                }
             }
         }
     }

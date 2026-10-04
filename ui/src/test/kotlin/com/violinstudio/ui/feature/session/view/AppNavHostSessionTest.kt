@@ -1,7 +1,11 @@
 package com.violinstudio.ui.feature.session.view
 
 import android.app.Application
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -24,6 +28,7 @@ import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
+import com.violinstudio.ui.navigation.SettingsDestination
 import com.violinstudio.ui.navigation.rootRoute
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,6 +66,7 @@ class AppNavHostSessionTest {
 
     private val session = mutableStateOf<SessionState>(SessionState.Loading)
     private var homeComposed = false
+    private var settingsComposed = false
     private val guardianWaitSeen = mutableListOf<SessionState.ParentalPending>()
     private var signedOut = 0
     private lateinit var nav: NavHostController
@@ -68,6 +74,7 @@ class AppNavHostSessionTest {
     private fun start(initial: SessionState) {
         session.value = initial
         homeComposed = false
+        settingsComposed = false
         compose.setContent {
             ViolinStudioTheme {
                 nav = rememberNavController()
@@ -83,9 +90,15 @@ class AppNavHostSessionTest {
                         guardianWaitSeen += it
                         PlaceholderScreen("guardian_wait")
                     },
-                    home = {
+                    home = { openSettings ->
                         homeComposed = true
                         PlaceholderScreen("home")
+                        Button(onClick = openSettings, modifier = Modifier.testTag("open_settings")) { Text("s") }
+                    },
+                    settings = { onBack ->
+                        settingsComposed = true
+                        PlaceholderScreen("settings")
+                        Button(onClick = onBack, modifier = Modifier.testTag("settings_back")) { Text("b") }
                     }
                 )
             }
@@ -154,6 +167,38 @@ class AppNavHostSessionTest {
         session.value = ready
         assertAt(ready)
         assertTrue(guardianWaitSeen.all { it.emailMasked == "t***@example.com" })
+    }
+
+    @Test
+    fun settingsIsReachableFromHomeAndBackReturnsToIt() {
+        start(ready)
+        assertAt(ready)
+        compose.onNodeWithTag("open_settings").performClick()
+        compose.waitForIdle()
+        assertTrue(nav.currentDestination?.hasRoute(SettingsDestination::class) == true)
+        compose.onNodeWithTag("settings").assertIsDisplayed()
+        compose.onNodeWithTag("settings_back").performClick()
+        assertAt(ready)
+    }
+
+    @Test
+    fun settingsWithoutReadyRedirectsAndIsNeverComposed() {
+        start(SessionState.LoggedOut)
+        compose.runOnUiThread { nav.navigate(SettingsDestination) }
+        assertAt(SessionState.LoggedOut)
+        assertFalse(settingsComposed)
+    }
+
+    @Test
+    fun revokingFromSettingsRedirectsToConsentAndBusinessRoutesStayClosed() {
+        start(ready)
+        compose.runOnUiThread { nav.navigate(SettingsDestination) }
+        compose.waitForIdle()
+        assertTrue(nav.currentDestination?.hasRoute(SettingsDestination::class) == true)
+        session.value = consentPending
+        assertAt(consentPending)
+        compose.runOnUiThread { nav.navigate(SettingsDestination) }
+        assertAt(consentPending)
     }
 
     @Test
@@ -244,9 +289,15 @@ class AppNavHostSessionTest {
                         guardianWaitSeen += it
                         PlaceholderScreen("guardian_wait")
                     },
-                    home = {
+                    home = { openSettings ->
                         homeComposed = true
                         PlaceholderScreen("home")
+                        Button(onClick = openSettings, modifier = Modifier.testTag("open_settings")) { Text("s") }
+                    },
+                    settings = { onBack ->
+                        settingsComposed = true
+                        PlaceholderScreen("settings")
+                        Button(onClick = onBack, modifier = Modifier.testTag("settings_back")) { Text("b") }
                     }
                 )
             }
