@@ -5,7 +5,11 @@ import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
 object GuardianWaitReducer {
     fun reduce(state: GuardianWaitState, mutation: GuardianWaitMutation): GuardianWaitState = when (mutation) {
         is GuardianWaitMutation.SessionUpdated ->
-            state.copy(emailMasked = mutation.emailMasked, sends = mutation.sends)
+            state.copy(
+                emailMasked = mutation.emailMasked,
+                sends = mutation.sends,
+                notice = state.notice.takeIf { it != GuardianWaitNotice.ALREADY_APPROVED }
+            )
         is GuardianWaitMutation.CanResend -> state.copy(canResend = mutation.value)
         GuardianWaitMutation.ResendRequested ->
             if (state.canResendNow) startLoading(state) else state
@@ -46,18 +50,50 @@ object GuardianWaitReducer {
             changingEmail = false,
             email = "",
             canResend = true,
+            sends = state.sends + 1,
             notice = mutation.notice
         )
-        GuardianWaitMutation.EmailRejected -> state.copy(isLoading = false, emailError = GuardianEmailError.INVALID)
-        GuardianWaitMutation.OwnEmailRejected ->
-            state.copy(isLoading = false, emailError = GuardianEmailError.OWN_EMAIL)
+        GuardianWaitMutation.EmailRejected -> rejected(state, GuardianEmailError.INVALID)
+        GuardianWaitMutation.OwnEmailRejected -> rejected(state, GuardianEmailError.OWN_EMAIL)
         GuardianWaitMutation.AlreadyApproved ->
             state.copy(isLoading = false, notice = GuardianWaitNotice.ALREADY_APPROVED)
-        is GuardianWaitMutation.Failed ->
-            state.copy(isLoading = false, error = mutation.error, retryAfterSeconds = mutation.retryAfterSeconds)
+        is GuardianWaitMutation.Failed -> failed(state, mutation)
+        GuardianWaitMutation.NoticeCleared -> state.copy(notice = null)
+        GuardianWaitMutation.RetryWaitElapsed -> state.copy(
+            resendBlocked = false,
+            error = state.error.takeIf { it != GuardianRequestError.RATE_LIMITED },
+            retryAfterSeconds = null
+        )
+        GuardianWaitMutation.SignOutStarted -> state.copy(isSigningOut = true)
+        GuardianWaitMutation.SignOutFinished -> state.copy(isSigningOut = false)
         GuardianWaitMutation.DeleteStarted -> state.copy(isDeleting = true, deleteError = null)
         GuardianWaitMutation.DeleteSucceeded -> state.copy(isDeleting = false)
         is GuardianWaitMutation.DeleteFailed -> state.copy(isDeleting = false, deleteError = mutation.error)
+    }
+
+    /**
+     * El servidor (o la comparacion local) rechazo la direccion. Si venia de un reenvio, la direccion recordada ya no
+     * sirve: se abre el campo de cambio con el error en vez de dejar un fallo invisible.
+     */
+    private fun rejected(state: GuardianWaitState, error: GuardianEmailError) = state.copy(
+        isLoading = false,
+        emailError = error,
+        canResend = state.canResend && state.changingEmail,
+        changingEmail = true
+    )
+
+    private fun failed(state: GuardianWaitState, mutation: GuardianWaitMutation.Failed): GuardianWaitState {
+        val terminal = mutation.error == GuardianRequestError.NOT_MINOR ||
+            mutation.error == GuardianRequestError.UNAVAILABLE
+        val wait = mutation.retryAfterSeconds
+        return state.copy(
+            isLoading = false,
+            error = mutation.error,
+            retryAfterSeconds = wait,
+            // Reintentar un fallo terminal no lo arregla; con una espera pedida, tampoco hasta que pase.
+            canResend = state.canResend && !terminal,
+            resendBlocked = mutation.error == GuardianRequestError.RATE_LIMITED && wait != null && wait > 0
+        )
     }
 
     private fun submitNewEmail(state: GuardianWaitState): GuardianWaitState = when {

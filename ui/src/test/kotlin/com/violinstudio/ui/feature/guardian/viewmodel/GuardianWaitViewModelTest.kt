@@ -2,11 +2,16 @@ package com.violinstudio.ui.feature.guardian.viewmodel
 
 import com.violinstudio.domain.feature.account.failure.AccountFailure
 import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
+import com.violinstudio.domain.feature.auth.model.AuthProvider
+import com.violinstudio.domain.feature.auth.model.AuthUser
+import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
+import com.violinstudio.domain.feature.auth.usecase.GetOwnUidUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.PendingGuardianEmail
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
+import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.consent.usecase.RequestGuardianConsentUseCase
 import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.ui.commons.mvi.UiEffect
@@ -16,12 +21,18 @@ import com.violinstudio.ui.commons.testing.testMvi
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -29,15 +40,18 @@ import org.junit.jupiter.api.extension.ExtendWith
 @OptIn(ExperimentalCoroutinesApi::class)
 class GuardianWaitViewModelTest {
     private val request = mockk<RequestGuardianConsentUseCase>()
-    private val pending = PendingGuardianEmail().also { it.remember("tutor@example.com") }
+    private val pending = PendingGuardianEmail().also { it.remember("u1", "tutor@example.com") }
     private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
+    private val ownUid = mockk<GetOwnUidUseCase> { coEvery { this@mockk() } returns "u1" }
     private val delete = mockk<DeleteAccountUseCase>()
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val receipt = Result.success(GuardianRequestReceipt("t***@example.com"))
 
-    private fun viewModel(remembered: PendingGuardianEmail = pending) =
-        GuardianWaitViewModel(request, remembered, ownEmail, delete, signOut, trigger)
+    private fun viewModel(
+        remembered: PendingGuardianEmail = pending,
+        useCase: RequestGuardianConsentUseCase = request
+    ) = GuardianWaitViewModel(useCase, remembered, ownEmail, ownUid, delete, signOut, trigger)
 
     private fun answers(result: Result<GuardianRequestReceipt>) {
         coEvery { request(any()) } coAnswers {
@@ -61,13 +75,22 @@ class GuardianWaitViewModelTest {
     }
 
     @Test
-    fun `resend sends again to the remembered address once and confirms`() = runTest {
+    fun `an email remembered for another user is never offered`() = runTest {
+        val other = PendingGuardianEmail().also { it.remember("u2", "otro@example.com") }
+        viewModel(other).testMvi {
+            intent(GuardianWaitIntent.SessionUpdated("t***@example.com", 1))
+            assertState { !it.canResend }
+        }
+    }
+
+    @Test
+    fun `resend sends again to the remembered address once, confirms and bumps the count`() = runTest {
         answers(receipt)
         viewModel().testMvi {
             open()
             intent(GuardianWaitIntent.Resend)
             assertState { it.isLoading }
-            assertState { !it.isLoading && it.notice == GuardianWaitNotice.RESENT && it.error == null }
+            assertState { !it.isLoading && it.notice == GuardianWaitNotice.RESENT && it.sends == 2 }
         }
         coVerify(exactly = 1) { request("tutor@example.com") }
     }
@@ -91,6 +114,7 @@ class GuardianWaitViewModelTest {
             intent(GuardianWaitIntent.SessionUpdated("t***@example.com", 1))
             assertState { !it.canResend }
             intent(GuardianWaitIntent.Resend)
+            advanceUntilIdle()
             intent(GuardianWaitIntent.ChangeEmail)
             assertState { it.changingEmail && !it.isLoading }
         }
@@ -98,20 +122,27 @@ class GuardianWaitViewModelTest {
     }
 
     @Test
-    fun `rate limited resend shows the wait and can be retried`() = runTest {
+    fun `a rate limit with a wait disables resend until the wait elapses`() = runTest {
         answers(Result.failure(ConsentFailure.RateLimited(120)))
-        viewModel().testMvi {
+        val vm = viewModel()
+        vm.testMvi {
             open()
             intent(GuardianWaitIntent.Resend)
             assertState { it.isLoading }
             assertState {
-                it.error == GuardianRequestError.RATE_LIMITED && it.retryAfterSeconds == 120L && it.canResendNow
+                it.error == GuardianRequestError.RATE_LIMITED && it.retryAfterSeconds == 120L && it.resendBlocked &&
+                    !it.canResendNow
             }
+            testScheduler.advanceTimeBy(119_000)
+            testScheduler.runCurrent()
+            assertTrue(vm.state.value.resendBlocked)
+            testScheduler.advanceTimeBy(2_000)
+            assertState { !it.resendBlocked && it.error == null && it.canResendNow }
         }
     }
 
     @Test
-    fun `failures map to messages and never claim a resend`() = runTest {
+    fun `failures map to messages, never claim a resend and terminal ones turn resend off`() = runTest {
         val cases = listOf(
             ConsentFailure.NotMinor to GuardianRequestError.NOT_MINOR,
             ConsentFailure.Network to GuardianRequestError.NETWORK,
@@ -123,35 +154,86 @@ class GuardianWaitViewModelTest {
         )
         for ((failure, error) in cases) {
             answers(Result.failure(failure))
+            val terminal = error == GuardianRequestError.NOT_MINOR || error == GuardianRequestError.UNAVAILABLE
             viewModel().testMvi {
                 open()
                 intent(GuardianWaitIntent.Resend)
                 assertState { it.isLoading }
-                assertState { it.error == error && it.notice == null && !it.isLoading }
+                assertState { it.error == error && it.notice == null && !it.isLoading && it.canResend != terminal }
             }
         }
     }
 
     @Test
-    fun `already granted blocks sending, asks the session to resolve and shows the notice`() = runTest {
+    fun `the server rejecting the remembered address on resend opens the change field with the error`() = runTest {
+        val rejections = listOf(
+            ConsentFailure.GuardianEmailInvalid,
+            ConsentFailure.InvalidArgument("guardianEmail")
+        )
+        for (failure in rejections) {
+            answers(Result.failure(failure))
+            viewModel().testMvi {
+                open()
+                intent(GuardianWaitIntent.Resend)
+                assertState { it.isLoading }
+                assertState {
+                    it.changingEmail && it.emailError == GuardianEmailError.INVALID && !it.canResend && !it.isLoading
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a remembered address equal to the own email is rejected locally and opens the change field`() = runTest {
+        val own = PendingGuardianEmail().also { it.remember("u1", "ME@example.com") }
+        viewModel(own).testMvi {
+            open()
+            intent(GuardianWaitIntent.Resend)
+            assertState { it.isLoading }
+            assertState { it.changingEmail && it.emailError == GuardianEmailError.OWN_EMAIL && !it.isLoading }
+        }
+        coVerify(exactly = 0) { request(any()) }
+    }
+
+    @Test
+    fun `already granted blocks sending, asks the session to resolve and can be checked again`() = runTest {
         answers(Result.failure(ConsentFailure.AlreadyGranted))
         viewModel().testMvi {
             open()
             intent(GuardianWaitIntent.Resend)
             assertState { it.isLoading }
             assertState { it.notice == GuardianWaitNotice.ALREADY_APPROVED && !it.canResendNow }
+            verify(exactly = 1) { trigger.requestRefresh() }
+            intent(GuardianWaitIntent.CheckAgain)
+            assertState { it.notice == null && it.canResendNow }
+            verify(exactly = 2) { trigger.requestRefresh() }
         }
-        verify(exactly = 1) { trigger.requestRefresh() }
     }
 
     @Test
-    fun `change email sends to the new address and the next resend uses it`() = runTest {
-        coEvery { request("nuevo@example.com") } coAnswers {
+    fun `a new session update clears the already approved notice`() = runTest {
+        answers(Result.failure(ConsentFailure.AlreadyGranted))
+        viewModel().testMvi {
+            open()
+            intent(GuardianWaitIntent.Resend)
+            assertState { it.isLoading }
+            assertState { it.notice == GuardianWaitNotice.ALREADY_APPROVED }
+            intent(GuardianWaitIntent.SessionUpdated("t***@example.com", 3))
+            assertState { it.notice == null && it.sends == 3 }
+        }
+    }
+
+    @Test
+    fun `change email goes through the real use case and the next resend uses the new remembered address`() = runTest {
+        val consent = mockk<ConsentRepository>()
+        coEvery { consent.requestGuardianConsent(any()) } coAnswers {
             delay(100)
-            pending.remember("nuevo@example.com")
             receipt
         }
-        viewModel().testMvi {
+        val auth = mockk<AuthRepository>()
+        every { auth.authUser } returns flowOf(AuthUser("u1", "me@example.com", true, setOf(AuthProvider.PASSWORD)))
+        val real = RequestGuardianConsentUseCase(consent, pending, auth)
+        viewModel(useCase = real).testMvi {
             open()
             intent(GuardianWaitIntent.ChangeEmail)
             assertState { it.changingEmail }
@@ -164,8 +246,9 @@ class GuardianWaitViewModelTest {
             assertState { it.isLoading }
             assertState { it.notice == GuardianWaitNotice.RESENT }
         }
-        coVerify(exactly = 2) { request("nuevo@example.com") }
-        coVerify(exactly = 0) { request("tutor@example.com") }
+        coVerify(exactly = 2) { consent.requestGuardianConsent("nuevo@example.com") }
+        coVerify(exactly = 0) { consent.requestGuardianConsent("tutor@example.com") }
+        assertEquals("nuevo@example.com", pending.emailFor("u1"))
     }
 
     @Test
@@ -228,49 +311,74 @@ class GuardianWaitViewModelTest {
     }
 
     @Test
-    fun `resend, change, delete and sign out exclude each other while one is pending`() = runTest {
+    fun `while a send is pending delete, sign out and the change field are all ignored`() = runTest {
         answers(receipt)
         coEvery { delete() } returns Result.success(Unit)
-        viewModel().testMvi {
+        val vm = viewModel()
+        vm.testMvi {
             open()
             intent(GuardianWaitIntent.Resend)
             intent(GuardianWaitIntent.DeleteAccount)
             intent(GuardianWaitIntent.SignOut)
             intent(GuardianWaitIntent.ChangeEmail)
+            intent(GuardianWaitIntent.EmailChanged("x@y.zz"))
+            intent(GuardianWaitIntent.CancelChangeEmail)
             assertState { it.isLoading }
-            assertState { it.notice == GuardianWaitNotice.RESENT && !it.changingEmail }
+            assertState { it.notice == GuardianWaitNotice.RESENT }
+            advanceUntilIdle()
         }
+        val last = vm.state.value
+        assertEquals(GuardianWaitNotice.RESENT, last.notice)
+        assertFalse(last.changingEmail || last.isDeleting || last.isSigningOut)
+        assertEquals("", last.email)
         coVerify(exactly = 0) { delete() }
         coVerify(exactly = 0) { signOut() }
         coVerify(exactly = 1) { request(any()) }
     }
 
     @Test
-    fun `delete and sign out block sending while pending`() = runTest {
+    fun `while a delete is pending sending and the change field are ignored`() = runTest {
         coEvery { delete() } coAnswers {
             delay(100)
             Result.success(Unit)
         }
-        viewModel().testMvi {
+        val vm = viewModel()
+        vm.testMvi {
             open()
             intent(GuardianWaitIntent.DeleteAccount)
             intent(GuardianWaitIntent.Resend)
+            intent(GuardianWaitIntent.ChangeEmail)
+            intent(GuardianWaitIntent.SignOut)
             assertState { it.isDeleting }
-            assertState { !it.isDeleting && it.notice == null }
+            assertState { !it.isDeleting }
+            advanceUntilIdle()
         }
+        val last = vm.state.value
+        assertFalse(last.changingEmail || last.isLoading || last.isSigningOut)
         coVerify(exactly = 0) { request(any()) }
+        coVerify(exactly = 0) { signOut() }
+        coVerify(exactly = 1) { delete() }
+    }
+
+    @Test
+    fun `while a sign out is pending the state says so and every other action is ignored`() = runTest {
         coEvery { signOut() } coAnswers { delay(100) }
-        viewModel().testMvi {
+        val vm = viewModel()
+        vm.testMvi {
             open()
             intent(GuardianWaitIntent.SignOut)
             intent(GuardianWaitIntent.Resend)
             intent(GuardianWaitIntent.DeleteAccount)
             intent(GuardianWaitIntent.ChangeEmail)
-            assertState { it.changingEmail && !it.isLoading && !it.isDeleting }
+            assertState { it.isSigningOut && !it.canResendNow }
+            assertState { !it.isSigningOut }
+            advanceUntilIdle()
         }
+        val last = vm.state.value
+        assertFalse(last.changingEmail || last.isLoading || last.isDeleting)
         coVerify(exactly = 1) { signOut() }
         coVerify(exactly = 0) { request(any()) }
-        coVerify(exactly = 1) { delete() }
+        coVerify(exactly = 0) { delete() }
     }
 
     @Test
@@ -293,13 +401,18 @@ class GuardianWaitViewModelTest {
     @Test
     fun `an unexpected exception becomes a message and a failing sign out does not kill the loop`() = runTest {
         coEvery { request(any()) } throws IllegalStateException("boom")
-        coEvery { signOut() } throws IllegalStateException("boom")
+        coEvery { signOut() } coAnswers {
+            delay(10)
+            throw IllegalStateException("boom")
+        }
         viewModel().testMvi {
             open()
             intent(GuardianWaitIntent.Resend)
             assertState { it.isLoading }
             assertState { it.error == GuardianRequestError.UNKNOWN && !it.isLoading }
             intent(GuardianWaitIntent.SignOut)
+            assertState { it.isSigningOut }
+            assertState { !it.isSigningOut }
             intent(GuardianWaitIntent.ChangeEmail)
             assertState { it.changingEmail }
         }
@@ -314,8 +427,21 @@ class GuardianWaitViewModelTest {
             intent(GuardianWaitIntent.CancelChangeEmail)
             assertState { !it.changingEmail }
         }
-        assertEquals("tutor@example.com", pending.email)
+        assertEquals("tutor@example.com", pending.emailFor("u1"))
         coVerify(exactly = 0) { request(any()) }
+    }
+
+    @Test
+    fun `the typed address never appears in the view model state text`() = runTest {
+        val vm = viewModel()
+        vm.testMvi {
+            open()
+            intent(GuardianWaitIntent.ChangeEmail)
+            assertState { it.changingEmail }
+            intent(GuardianWaitIntent.EmailChanged("nuevo@example.com"))
+            assertState { it.email == "nuevo@example.com" }
+        }
+        assertTrue(!vm.state.value.toString().contains("example"))
     }
 }
 

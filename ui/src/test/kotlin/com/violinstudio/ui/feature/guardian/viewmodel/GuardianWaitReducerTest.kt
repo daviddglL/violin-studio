@@ -181,4 +181,91 @@ class GuardianWaitReducerTest {
         assertFalse(failed.isDeleting)
         assertEquals(ConsentDeleteError.REAUTH_REQUIRED, failed.deleteError)
     }
+
+    @Test
+    fun `a server rejection of the remembered address on resend opens the change field with the error`() {
+        val resending = waiting.copy(isLoading = true)
+        val rejected = reduce(resending, GuardianWaitMutation.EmailRejected)
+        assertTrue(rejected.changingEmail)
+        assertEquals(GuardianEmailError.INVALID, rejected.emailError)
+        assertEquals("", rejected.email)
+        assertFalse(rejected.canResend)
+        assertFalse(rejected.isLoading)
+        val own = reduce(resending, GuardianWaitMutation.OwnEmailRejected)
+        assertTrue(own.changingEmail)
+        assertEquals(GuardianEmailError.OWN_EMAIL, own.emailError)
+        assertFalse(own.canResend)
+    }
+
+    @Test
+    fun `a new session clears the already approved notice but keeps other notices`() {
+        val approved = waiting.copy(notice = GuardianWaitNotice.ALREADY_APPROVED)
+        assertNull(reduce(approved, GuardianWaitMutation.SessionUpdated("t***@example.com", 2)).notice)
+        val resent = waiting.copy(notice = GuardianWaitNotice.RESENT)
+        assertEquals(
+            GuardianWaitNotice.RESENT,
+            reduce(resent, GuardianWaitMutation.SessionUpdated("t***@example.com", 2)).notice
+        )
+    }
+
+    @Test
+    fun `clearing the notice lifts the already approved lock`() {
+        val approved = waiting.copy(notice = GuardianWaitNotice.ALREADY_APPROVED)
+        assertFalse(approved.canResendNow)
+        val cleared = reduce(approved, GuardianWaitMutation.NoticeCleared)
+        assertNull(cleared.notice)
+        assertTrue(cleared.canResendNow)
+    }
+
+    @Test
+    fun `signing out blocks every other action`() {
+        val started = reduce(waiting, GuardianWaitMutation.SignOutStarted)
+        assertTrue(started.isSigningOut)
+        assertTrue(started.busy)
+        assertFalse(started.canResendNow)
+        assertEquals(started, reduce(started, GuardianWaitMutation.ChangeEmailStarted))
+        assertEquals(started, reduce(started, GuardianWaitMutation.ResendRequested))
+        assertFalse(reduce(started, GuardianWaitMutation.SignOutFinished).isSigningOut)
+    }
+
+    @Test
+    fun `terminal failures turn resend off and retryable ones keep it`() {
+        listOf(GuardianRequestError.NOT_MINOR, GuardianRequestError.UNAVAILABLE).forEach {
+            assertFalse(reduce(waiting.copy(isLoading = true), GuardianWaitMutation.Failed(it)).canResend, "$it")
+        }
+        listOf(GuardianRequestError.NETWORK, GuardianRequestError.UNKNOWN, GuardianRequestError.RATE_LIMITED)
+            .forEach { assertTrue(reduce(waiting.copy(isLoading = true), GuardianWaitMutation.Failed(it)).canResend) }
+    }
+
+    @Test
+    fun `a rate limit with a wait blocks resend until the wait elapses`() {
+        val loading = waiting.copy(isLoading = true)
+        val limited = reduce(loading, GuardianWaitMutation.Failed(GuardianRequestError.RATE_LIMITED, 90))
+        assertTrue(limited.resendBlocked)
+        assertFalse(limited.canResendNow)
+        val elapsed = reduce(limited, GuardianWaitMutation.RetryWaitElapsed)
+        assertFalse(elapsed.resendBlocked)
+        assertNull(elapsed.error)
+        assertNull(elapsed.retryAfterSeconds)
+        assertTrue(elapsed.canResendNow)
+        val unknownWait = reduce(loading, GuardianWaitMutation.Failed(GuardianRequestError.RATE_LIMITED))
+        assertFalse(unknownWait.resendBlocked)
+    }
+
+    @Test
+    fun `a successful send bumps the sends count optimistically`() {
+        val resent = reduce(waiting.copy(isLoading = true), GuardianWaitMutation.Succeeded(GuardianWaitNotice.RESENT))
+        assertEquals(2, resent.sends)
+        val changed = reduce(
+            waiting.copy(isLoading = true, changingEmail = true),
+            GuardianWaitMutation.Succeeded(GuardianWaitNotice.EMAIL_CHANGED)
+        )
+        assertEquals(2, changed.sends)
+    }
+
+    @Test
+    fun `typed emails are redacted from intent and mutation text`() {
+        assertFalse(GuardianWaitIntent.EmailChanged("tutor@example.com").toString().contains("example"))
+        assertFalse(GuardianWaitMutation.EmailChanged("tutor@example.com").toString().contains("example"))
+    }
 }

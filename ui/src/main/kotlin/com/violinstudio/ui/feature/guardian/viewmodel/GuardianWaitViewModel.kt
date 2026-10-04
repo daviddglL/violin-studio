@@ -1,7 +1,9 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
+import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
+import com.violinstudio.domain.feature.auth.usecase.GetOwnUidUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.PendingGuardianEmail
 import com.violinstudio.domain.feature.consent.usecase.RequestGuardianConsentUseCase
@@ -11,17 +13,21 @@ import com.violinstudio.ui.commons.mvi.UiEffect
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
- * Espera mientras el tutor confirma. Solo hay reenviar (a la dirección que la app recuerda en memoria), cambiar el
- * email, borrar la cuenta y cerrar sesión. Reenviar y cambiar pasan por el mismo caso de uso: que el servidor invalide
- * el enlace anterior y cuente los límites es cosa suya. Nunca se registra ni se muestra el email del tutor.
+ * Espera mientras el tutor confirma. Solo hay reenviar (a la dirección que la app recuerda en memoria para este
+ * usuario), cambiar el email, comprobar de nuevo, borrar la cuenta y cerrar sesión. Reenviar y cambiar pasan por el
+ * mismo caso de uso: que el servidor invalide el enlace anterior y cuente los límites es cosa suya. Nunca se registra
+ * ni se muestra el email del tutor.
  */
 @HiltViewModel
 class GuardianWaitViewModel @Inject constructor(
     private val requestConsent: RequestGuardianConsentUseCase,
     private val pendingEmail: PendingGuardianEmail,
     private val getOwnEmail: GetOwnEmailUseCase,
+    private val getOwnUid: GetOwnUidUseCase,
     private val deleteAccount: DeleteAccountUseCase,
     private val signOut: SignOutUseCase,
     private val refreshTrigger: SessionRefreshTrigger
@@ -32,6 +38,7 @@ class GuardianWaitViewModel @Inject constructor(
 
     private val busy get() = sendPending || deletePending || signOutPending
 
+    /** Los flags se activan al encolar (los intents se procesan de uno en uno) para descartar los que llegan después. */
     override fun onIntent(intent: GuardianWaitIntent) {
         when (intent) {
             GuardianWaitIntent.Resend, GuardianWaitIntent.SubmitNewEmail -> {
@@ -46,6 +53,9 @@ class GuardianWaitViewModel @Inject constructor(
                 if (busy) return
                 signOutPending = true
             }
+            GuardianWaitIntent.ChangeEmail,
+            GuardianWaitIntent.CancelChangeEmail,
+            is GuardianWaitIntent.EmailChanged -> if (busy) return
             else -> Unit
         }
         super.onIntent(intent)
@@ -54,7 +64,7 @@ class GuardianWaitViewModel @Inject constructor(
     override suspend fun handleIntent(intent: GuardianWaitIntent) = when (intent) {
         is GuardianWaitIntent.SessionUpdated -> {
             // Una sola emisión: sin un fotograma con el email enmascarado pero sin saber si se puede reenviar.
-            val canResend = pendingEmail.email != null
+            val canResend = rememberedEmail() != null
             setState {
                 val updated = GuardianWaitMutation.SessionUpdated(intent.emailMasked, intent.sends)
                 GuardianWaitReducer.reduce(
@@ -68,43 +78,49 @@ class GuardianWaitViewModel @Inject constructor(
         GuardianWaitIntent.CancelChangeEmail -> reduce(GuardianWaitMutation.ChangeEmailCancelled)
         is GuardianWaitIntent.EmailChanged -> reduce(GuardianWaitMutation.EmailChanged(intent.email))
         GuardianWaitIntent.SubmitNewEmail -> onSubmitNewEmail()
+        GuardianWaitIntent.CheckAgain -> {
+            refreshTrigger.requestRefresh()
+            reduce(GuardianWaitMutation.NoticeCleared)
+        }
+        GuardianWaitIntent.RetryWaitElapsed -> reduce(GuardianWaitMutation.RetryWaitElapsed)
         GuardianWaitIntent.DeleteAccount -> onDelete()
         GuardianWaitIntent.SignOut -> onSignOut()
     }
 
-    // `send` levanta el bloqueo (`sendPending`) justo antes de publicar el resultado; los descartes locales lo hacen aquí.
     private suspend fun onResend() {
-        reduce(GuardianWaitMutation.ResendRequested)
-        val email = pendingEmail.email
-        // El reducer ya descartó el reenvío sin email recordado u ocupado: sin carga no hay nada que enviar.
-        if (!state.value.isLoading || email == null) {
+        try {
+            reduce(GuardianWaitMutation.ResendRequested)
+            val email = rememberedEmail()
+            // El reducer ya descartó el reenvío sin email recordado u ocupado: sin carga no hay nada que enviar.
+            if (!state.value.isLoading || email == null) return
+            if (isOwnEmail(email)) {
+                reduce(GuardianWaitMutation.OwnEmailRejected)
+                return
+            }
+            send(email, GuardianWaitNotice.RESENT)
+        } finally {
             sendPending = false
-            return
         }
-        send(email, GuardianWaitNotice.RESENT)
     }
 
     private suspend fun onSubmitNewEmail() {
-        reduce(GuardianWaitMutation.SubmitNewEmailRequested)
-        val current = state.value
-        // Un formato inválido no pasa de aquí: ni siquiera sale del dispositivo.
-        if (!current.isLoading) {
+        try {
+            reduce(GuardianWaitMutation.SubmitNewEmailRequested)
+            val current = state.value
+            // Un formato inválido no pasa de aquí: ni siquiera sale del dispositivo.
+            if (!current.isLoading) return
+            if (isOwnEmail(current.email)) {
+                reduce(GuardianWaitMutation.OwnEmailRejected)
+                return
+            }
+            send(current.email, GuardianWaitNotice.EMAIL_CHANGED)
+        } finally {
             sendPending = false
-            return
         }
-        if (isOwnEmail(current.email)) {
-            sendPending = false
-            reduce(GuardianWaitMutation.OwnEmailRejected)
-            return
-        }
-        send(current.email, GuardianWaitNotice.EMAIL_CHANGED)
     }
 
     private suspend fun send(email: String, notice: GuardianWaitNotice) {
-        val result = runCatchingNonCancellation { requestConsent(email) }
-        // El bloqueo se levanta antes de publicar el resultado: la interfaz nunca ofrece una acción que el VM descartaría.
-        sendPending = false
-        result.fold(
+        runCatchingNonCancellation { requestConsent(email) }.fold(
             onSuccess = { reduce(GuardianWaitMutation.Succeeded(notice)) },
             onFailure = {
                 reduce(
@@ -115,12 +131,22 @@ class GuardianWaitViewModel @Inject constructor(
                             refreshTrigger.requestRefresh()
                             GuardianWaitMutation.AlreadyApproved
                         }
-                        is GuardianOutcome.Failed ->
+                        is GuardianOutcome.Failed -> {
+                            outcome.retryAfterSeconds?.takeIf { s -> s > 0 }?.let(::liftResendBlockAfter)
                             GuardianWaitMutation.Failed(outcome.error, outcome.retryAfterSeconds)
+                        }
                     }
                 )
             }
         )
+    }
+
+    /** Pasada la espera que pidió el servidor, reenviar vuelve a ofrecerse. */
+    private fun liftResendBlockAfter(seconds: Long) {
+        viewModelScope.launch {
+            delay(seconds * MILLIS_PER_SECOND)
+            onIntent(GuardianWaitIntent.RetryWaitElapsed)
+        }
     }
 
     private suspend fun onDelete() {
@@ -138,14 +164,22 @@ class GuardianWaitViewModel @Inject constructor(
 
     private suspend fun onSignOut() {
         try {
+            reduce(GuardianWaitMutation.SignOutStarted)
             signOut()
         } catch (e: CancellationException) {
             throw e
         } catch (_: Throwable) {
             // Sin registrar la causa; la sesión sigue siendo la fuente de verdad.
         } finally {
+            reduce(GuardianWaitMutation.SignOutFinished)
             signOutPending = false
         }
+    }
+
+    /** El email recordado es del usuario actual o no es nada: sin uid conocido no hay reenvío. */
+    private suspend fun rememberedEmail(): String? {
+        val uid = runCatchingNonCancellation { Result.success(getOwnUid()) }.getOrNull() ?: return null
+        return pendingEmail.emailFor(uid)
     }
 
     /** Comparación normalizada: sin mayúsculas ni espacios. Sin email propio conocido no se bloquea nada. */
@@ -155,4 +189,8 @@ class GuardianWaitViewModel @Inject constructor(
     }
 
     private fun reduce(mutation: GuardianWaitMutation) = setState { GuardianWaitReducer.reduce(this, mutation) }
+
+    private companion object {
+        const val MILLIS_PER_SECOND = 1000L
+    }
 }

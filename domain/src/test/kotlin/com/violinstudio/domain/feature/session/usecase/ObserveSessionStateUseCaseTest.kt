@@ -349,7 +349,6 @@ class ObserveSessionStateUseCaseTest {
         }
     }
 
-
     private fun parentalProfile() = userProfile(status = ConsentStatus.PARENTAL_PENDING, policyVersion = null)
 
     @Test

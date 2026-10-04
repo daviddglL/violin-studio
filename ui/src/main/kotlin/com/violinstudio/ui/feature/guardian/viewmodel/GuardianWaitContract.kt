@@ -24,11 +24,15 @@ data class GuardianWaitState(
     val retryAfterSeconds: Long? = null,
     val notice: GuardianWaitNotice? = null,
     val isDeleting: Boolean = false,
+    val isSigningOut: Boolean = false,
+
+    /** El servidor pidio esperar ([retryAfterSeconds]): reenviar no se ofrece hasta que pase. */
+    val resendBlocked: Boolean = false,
     val deleteError: ConsentDeleteError? = null
 ) : UiState {
     /** Mientras algo está en curso, o ya se aprobó, ninguna otra acción de envío está disponible. */
-    val busy: Boolean get() = isLoading || isDeleting || notice == GuardianWaitNotice.ALREADY_APPROVED
-    val canResendNow: Boolean get() = canResend && !changingEmail && !busy
+    val busy: Boolean get() = isLoading || isDeleting || isSigningOut || notice == GuardianWaitNotice.ALREADY_APPROVED
+    val canResendNow: Boolean get() = canResend && !resendBlocked && !changingEmail && !busy
     val canSubmitNewEmail: Boolean get() = changingEmail && email.isNotBlank() && !busy
 
     override fun toString(): String = "GuardianWaitState(sends=$sends, loading=$isLoading, error=$error)"
@@ -40,8 +44,14 @@ sealed interface GuardianWaitIntent : UiIntent {
     data object Resend : GuardianWaitIntent
     data object ChangeEmail : GuardianWaitIntent
     data object CancelChangeEmail : GuardianWaitIntent
-    data class EmailChanged(val email: String) : GuardianWaitIntent
+    data class EmailChanged(val email: String) : GuardianWaitIntent {
+        override fun toString(): String = "EmailChanged"
+    }
     data object SubmitNewEmail : GuardianWaitIntent
+
+    /** "Comprobar de nuevo": pide a la sesion resolverse otra vez (p. ej. tras ALREADY_APPROVED). */
+    data object CheckAgain : GuardianWaitIntent
+    data object RetryWaitElapsed : GuardianWaitIntent
     data object DeleteAccount : GuardianWaitIntent
     data object SignOut : GuardianWaitIntent
 }
@@ -52,13 +62,19 @@ sealed interface GuardianWaitMutation {
     data object ResendRequested : GuardianWaitMutation
     data object ChangeEmailStarted : GuardianWaitMutation
     data object ChangeEmailCancelled : GuardianWaitMutation
-    data class EmailChanged(val email: String) : GuardianWaitMutation
+    data class EmailChanged(val email: String) : GuardianWaitMutation {
+        override fun toString(): String = "EmailChanged"
+    }
     data object SubmitNewEmailRequested : GuardianWaitMutation
     data class Succeeded(val notice: GuardianWaitNotice) : GuardianWaitMutation
     data object EmailRejected : GuardianWaitMutation
     data object OwnEmailRejected : GuardianWaitMutation
     data object AlreadyApproved : GuardianWaitMutation
     data class Failed(val error: GuardianRequestError, val retryAfterSeconds: Long? = null) : GuardianWaitMutation
+    data object NoticeCleared : GuardianWaitMutation
+    data object RetryWaitElapsed : GuardianWaitMutation
+    data object SignOutStarted : GuardianWaitMutation
+    data object SignOutFinished : GuardianWaitMutation
     data object DeleteStarted : GuardianWaitMutation
     data object DeleteSucceeded : GuardianWaitMutation
     data class DeleteFailed(val error: ConsentDeleteError) : GuardianWaitMutation
