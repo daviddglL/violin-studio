@@ -11,7 +11,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnUidUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
@@ -56,7 +55,6 @@ class GuardianWaitFlowTest {
     private val pendingEmail = PendingGuardianEmail().also { it.remember("u1", "tutor@example.com") }
     private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
     private val ownUid = mockk<GetOwnUidUseCase> { coEvery { this@mockk() } returns "u1" }
-    private val delete = mockk<DeleteAccountUseCase>(relaxed = true)
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val session = mutableStateOf<SessionState>(SessionState.ParentalPending("t***@example.com", 1))
@@ -64,7 +62,7 @@ class GuardianWaitFlowTest {
     private lateinit var viewModel: GuardianWaitViewModel
 
     private fun start() {
-        viewModel = GuardianWaitViewModel(request, pendingEmail, ownEmail, ownUid, delete, signOut, trigger)
+        viewModel = GuardianWaitViewModel(request, pendingEmail, ownEmail, ownUid, signOut, trigger)
         compose.setContent {
             ViolinStudioTheme {
                 SessionNavHost(

@@ -18,6 +18,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.violinstudio.domain.feature.session.SessionState
+import com.violinstudio.ui.feature.account.view.WithDeleteAccount
+import com.violinstudio.ui.feature.account.viewmodel.DeleteAccountViewModel
 import com.violinstudio.ui.feature.auth.view.AuthRoute
 import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.consent.view.ConsentSlot
@@ -35,7 +37,8 @@ fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SessionNavHost(
         session = state.session,
-        onSignOut = { viewModel.onIntent(SessionIntent.SignOut) }
+        onSignOut = { viewModel.onIntent(SessionIntent.SignOut) },
+        deleteViewModel = { hiltViewModel() }
     )
 }
 
@@ -54,7 +57,9 @@ fun SessionNavHost(
     onboarding: @Composable () -> Unit = { OnboardingRoute() },
     consent: @Composable (SessionState.ConsentPending) -> Unit = { ConsentSlot(it) },
     guardianWait: @Composable (SessionState.ParentalPending) -> Unit = { GuardianWaitSlot(it) },
-    settings: @Composable (onBack: () -> Unit) -> Unit = { SettingsRoute(onBack = it) }
+    settings: @Composable (onBack: () -> Unit) -> Unit = { SettingsRoute(onBack = it) },
+    /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
+    deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
 ) {
     // Un fallo transitorio (Ready -> Unavailable) no destruye Home ni su ViewModel: se mantiene Ready para el
     // enrutado y se superpone la pantalla sin conexión, que bloquea la interacción y solo ofrece cerrar sesión.
@@ -72,7 +77,8 @@ fun SessionNavHost(
     Surface(Modifier.fillMaxSize()) {
         Box {
             SessionGraph(
-                routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings
+                routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
+                deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -92,7 +98,8 @@ private fun SessionGraph(
     onboarding: @Composable () -> Unit,
     consent: @Composable (SessionState.ConsentPending) -> Unit,
     guardianWait: @Composable (SessionState.ParentalPending) -> Unit,
-    settings: @Composable (onBack: () -> Unit) -> Unit
+    settings: @Composable (onBack: () -> Unit) -> Unit,
+    deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
     // debe quedarse sin él.
@@ -103,10 +110,14 @@ private fun SessionGraph(
         composable<SplashDestination> { SplashScreen() }
         composable<OfflineDestination> { OfflineScreen(onSignOut) }
         composable<AuthDestination> { auth() }
-        composable<VerifyEmailDestination> { verifyEmail(lastEmail) }
-        composable<OnboardingDestination> { onboarding() }
-        composable<ConsentDestination> { lastConsent?.let { consent(it) } }
-        composable<GuardianWaitDestination> { lastWait?.let { guardianWait(it) } }
+        composable<VerifyEmailDestination> { WithDeleteAccount(deleteViewModel, onSignOut) { verifyEmail(lastEmail) } }
+        composable<OnboardingDestination> { WithDeleteAccount(deleteViewModel, onSignOut) { onboarding() } }
+        composable<ConsentDestination> {
+            WithDeleteAccount(deleteViewModel, onSignOut) { lastConsent?.let { consent(it) } }
+        }
+        composable<GuardianWaitDestination> {
+            WithDeleteAccount(deleteViewModel, onSignOut) { lastWait?.let { guardianWait(it) } }
+        }
         // Defensa en profundidad: aunque un back stack restaurado o un enlace caiga aquí sin Ready, no se compone
         // contenido de negocio mientras la redirección está en curso.
         composable<HomeDestination> {
@@ -117,7 +128,11 @@ private fun SessionGraph(
             }
         }
         composable<SettingsDestination> {
-            if (session is SessionState.Ready) settings { navController.popBackStack() } else SplashScreen()
+            if (session is SessionState.Ready) {
+                WithDeleteAccount(deleteViewModel, onSignOut) { settings { navController.popBackStack() } }
+            } else {
+                SplashScreen()
+            }
         }
     }
 }

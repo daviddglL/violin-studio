@@ -12,25 +12,36 @@ import com.violinstudio.data.feature.auth.dto.ClaimsDto
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.tasks.await
 
 /** Adaptador fino sobre el SDK, sin lógica ni traducción de errores; se prueba en el E2E (8b). */
 class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: FirebaseAuth) : AuthRemoteDataSource {
-    override val authUser: Flow<AuthUserDto?> = callbackFlow {
+    // `true` tras un borrado cuyo cierre de sesion fallo: el usuario del SDK ya no existe en el servidor.
+    private val sessionCleared = MutableStateFlow(false)
+
+    private val sdkUser: Flow<AuthUserDto?> = callbackFlow {
         val listener = FirebaseAuth.IdTokenListener { trySend(it.currentUser?.toDto()) }
         auth.addIdTokenListener(listener)
         awaitClose { auth.removeIdTokenListener(listener) }
     }
 
+    override val authUser: Flow<AuthUserDto?> =
+        combine(sdkUser, sessionCleared) { user, cleared -> if (cleared) null else user }
+
     override suspend fun signInWithEmail(email: String, password: String): AuthUserDto =
         auth.signInWithEmailAndPassword(email, password).await().user.toDtoOrThrow()
+            .also { sessionCleared.value = false }
 
     override suspend fun signUpWithEmail(email: String, password: String): AuthUserDto =
         auth.createUserWithEmailAndPassword(email, password).await().user.toDtoOrThrow()
+            .also { sessionCleared.value = false }
 
     override suspend fun signInWithGoogle(idToken: String, rawNonce: String?): AuthUserDto =
         auth.signInWithCredential(googleCredential(idToken, rawNonce)).await().user.toDtoOrThrow()
+            .also { sessionCleared.value = false }
 
     override suspend fun sendEmailVerification() {
         currentUser().sendEmailVerification().await()
@@ -74,6 +85,10 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
     }
 
     override fun signOut() = auth.signOut()
+
+    override fun clearLocalSession() {
+        sessionCleared.value = true
+    }
 
     private fun currentUser(): FirebaseUser = checkNotNull(auth.currentUser) { "Sin sesión" }
 

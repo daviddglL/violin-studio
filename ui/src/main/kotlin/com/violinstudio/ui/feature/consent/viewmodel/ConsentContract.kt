@@ -23,9 +23,6 @@ enum class ConsentError {
     UNKNOWN
 }
 
-/** Resultado de un borrado de cuenta que NO se completó; un borrado correcto no tiene mensaje (la sesión cambia). */
-enum class ConsentDeleteError { REAUTH_REQUIRED, FAILED, NETWORK }
-
 /** Solo se abre un enlace `https` con host y sin credenciales incrustadas: nada de `http`, `intent:` o `file:`. */
 fun isSafePolicyUrl(url: String): Boolean = try {
     val uri = URI(url.trim())
@@ -42,15 +39,16 @@ data class ConsentState(
     val isLoading: Boolean = false,
     val error: ConsentError? = null,
     val policyLinkFailed: Boolean = false,
-    val isDeleting: Boolean = false,
-    val deleteError: ConsentDeleteError? = null,
-    val succeeded: Boolean = false
+    val succeeded: Boolean = false,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado (D1). */
+    val deleteActive: Boolean = false
 ) : UiState {
     val policyVersion: Int? get() = config?.policyVersion
 
     /** Tras aceptar, el botón sigue bloqueado: la sesión sustituirá la pantalla. */
     val canAccept: Boolean
-        get() = config != null && checked && !isLoading && !succeeded && !isDeleting
+        get() = config != null && checked && !isLoading && !succeeded && !deleteActive
 }
 
 sealed interface ConsentIntent : UiIntent {
@@ -62,8 +60,8 @@ sealed interface ConsentIntent : UiIntent {
     /** La Route no encontró app para abrir el enlace. */
     data object PolicyLinkFailed : ConsentIntent
     data object Accept : ConsentIntent
-    data object DeleteAccount : ConsentIntent
     data object SignOut : ConsentIntent
+    data class DeleteActiveChanged(val active: Boolean) : ConsentIntent
 }
 
 sealed interface ConsentEffect : UiEffect {
@@ -80,7 +78,5 @@ sealed interface ConsentMutation {
     data object Succeeded : ConsentMutation
     data class PolicyOutdated(val config: IdentityConfig) : ConsentMutation
     data class Failed(val error: ConsentError) : ConsentMutation
-    data object DeleteStarted : ConsentMutation
-    data object DeleteSucceeded : ConsentMutation
-    data class DeleteFailed(val error: ConsentDeleteError) : ConsentMutation
+    data class DeleteActiveChanged(val active: Boolean) : ConsentMutation
 }

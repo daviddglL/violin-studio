@@ -12,12 +12,12 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,10 +37,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.R
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.auth.view.AuthMessage
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
 import com.violinstudio.ui.feature.auth.view.AuthSubmitButton
-import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingDeleteError
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingError
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingIntent
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingState
@@ -52,7 +52,6 @@ const val ONBOARDING_DAY_TAG = "onboarding_day"
 const val ONBOARDING_MONTH_TAG = "onboarding_month"
 const val ONBOARDING_YEAR_TAG = "onboarding_year"
 const val ONBOARDING_AGE_HINT_TAG = "onboarding_age_hint"
-const val ONBOARDING_DELETE_TAG = "onboarding_delete"
 const val ONBOARDING_SIGN_OUT_TAG = "onboarding_sign_out"
 
 fun onboardingInstrumentTag(wire: String) = "onboarding_instrument_$wire"
@@ -63,6 +62,8 @@ private const val YEAR_DIGITS = 4
 @Composable
 fun OnboardingRoute(viewModel: OnboardingViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deleteActive = LocalDeleteAccount.current.active
+    LaunchedEffect(deleteActive) { viewModel.onIntent(OnboardingIntent.DeleteActiveChanged(deleteActive)) }
     OnboardingScreen(state, viewModel::onIntent)
 }
 
@@ -72,10 +73,12 @@ fun OnboardingRoute(viewModel: OnboardingViewModel = hiltViewModel()) {
  */
 @Composable
 fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
+    val delete = LocalDeleteAccount.current
     AuthScaffold(ONBOARDING_TAG, stringResource(R.string.onboarding_title)) {
         OutlinedTextField(
             value = state.displayName,
             onValueChange = { onIntent(OnboardingIntent.DisplayNameChanged(it)) },
+            enabled = !delete.active,
             label = { Text(stringResource(R.string.onboarding_name_label)) },
             isError = ProfileField.DISPLAY_NAME in state.fieldErrors,
             supportingText = if (ProfileField.DISPLAY_NAME in state.fieldErrors) {
@@ -100,23 +103,16 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
             AuthMessage(stringResource(R.string.onboarding_field_locale), isError = true)
         }
         state.error?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
-        state.deleteError?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
         AuthSubmitButton(
             label = stringResource(if (state.isLoading) R.string.onboarding_loading else R.string.onboarding_submit),
-            enabled = state.canSubmit,
+            enabled = state.canSubmit && !delete.active,
             onClick = { onIntent(OnboardingIntent.Submit) }
         )
-        if (state.error == OnboardingError.UNDERAGE_NOT_ALLOWED) {
-            OutlinedButton(
-                onClick = { onIntent(OnboardingIntent.DeleteAccount) },
-                enabled = !state.isDeleting && !state.isLoading,
-                modifier = Modifier.fillMaxWidth().testTag(ONBOARDING_DELETE_TAG)
-            ) {
-                Text(stringResource(if (state.isDeleting) R.string.onboarding_deleting else R.string.onboarding_delete))
-            }
-        }
+        // Borrar la cuenta se ofrece siempre (D1), no solo tras el veredicto de menor: el flujo es el compartido.
+        delete.entry(!state.isLoading)
         TextButton(
             onClick = { onIntent(OnboardingIntent.SignOut) },
+            enabled = !delete.active,
             modifier = Modifier.testTag(ONBOARDING_SIGN_OUT_TAG)
         ) { Text(stringResource(R.string.session_sign_out)) }
     }
@@ -131,17 +127,19 @@ private fun InstrumentPicker(state: OnboardingState, onIntent: (OnboardingIntent
         style = MaterialTheme.typography.titleSmall,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
     )
+    val locked = LocalDeleteAccount.current.active
     Column(Modifier.fillMaxWidth().selectableGroup()) {
         for (instrument in Instrument.entries) {
             Row(
                 Modifier.fillMaxWidth().selectable(
                     selected = state.instrument == instrument,
+                    enabled = !locked,
                     onClick = { onIntent(OnboardingIntent.InstrumentSelected(instrument)) },
                     role = Role.RadioButton
                 ).testTag(onboardingInstrumentTag(instrument.wire)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(selected = state.instrument == instrument, onClick = null)
+                RadioButton(selected = state.instrument == instrument, onClick = null, enabled = !locked)
                 Text(stringResource(instrument.labelRes()), Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
             }
         }
@@ -223,6 +221,7 @@ private fun RowScope.DatePart(
     OutlinedTextField(
         value = spec.value,
         onValueChange = { onChange(it.filter(Char::isDigit).take(spec.maxDigits)) },
+        enabled = !LocalDeleteAccount.current.active,
         label = { Text(stringResource(spec.labelRes)) },
         isError = isError,
         supportingText = supporting?.let { { Text(it, Modifier.polite()) } },
@@ -244,10 +243,4 @@ private fun OnboardingError.textRes() = when (this) {
     OnboardingError.UNDERAGE_NOT_ALLOWED -> R.string.onboarding_error_underage
     OnboardingError.NETWORK -> R.string.onboarding_error_network
     OnboardingError.UNKNOWN -> R.string.onboarding_error_unknown
-}
-
-private fun OnboardingDeleteError.textRes() = when (this) {
-    OnboardingDeleteError.REAUTH_REQUIRED -> R.string.onboarding_delete_reauth
-    OnboardingDeleteError.FAILED -> R.string.onboarding_delete_failed
-    OnboardingDeleteError.NETWORK -> R.string.onboarding_delete_network
 }

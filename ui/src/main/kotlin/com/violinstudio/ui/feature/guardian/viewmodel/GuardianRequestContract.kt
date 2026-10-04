@@ -3,7 +3,6 @@ package com.violinstudio.ui.feature.guardian.viewmodel
 import com.violinstudio.domain.feature.session.ConsentReason
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 
 /** Fallos de la solicitud al tutor. Las respuestas del servidor son genéricas: nunca se dice si el email existe. */
 enum class GuardianRequestError {
@@ -30,14 +29,15 @@ data class GuardianRequestState(
     val isLoading: Boolean = false,
     val error: GuardianRequestError? = null,
     val retryAfterSeconds: Long? = null,
-    val isDeleting: Boolean = false,
-    val deleteError: ConsentDeleteError? = null,
     val succeeded: Boolean = false,
 
     /** El servidor ya tenía el consentimiento: no hay nada que enviar, la sesión continúa sola. */
-    val alreadyApproved: Boolean = false
+    val alreadyApproved: Boolean = false,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado (D1). */
+    val deleteActive: Boolean = false
 ) : UiState {
-    val canSubmit: Boolean get() = email.isNotBlank() && !isLoading && !succeeded && !isDeleting
+    val canSubmit: Boolean get() = email.isNotBlank() && !isLoading && !succeeded && !deleteActive
 
     /** El email del tutor es un dato de un tercero: no sale en logs. */
     override fun toString(): String = "GuardianRequestState(loading=$isLoading, succeeded=$succeeded, error=$error)"
@@ -48,11 +48,12 @@ sealed interface GuardianRequestIntent : UiIntent {
     data class SessionUpdated(val reason: ConsentReason) : GuardianRequestIntent
     data class EmailChanged(val email: String) : GuardianRequestIntent
     data object SubmitGuardianEmail : GuardianRequestIntent
-    data object DeleteAccount : GuardianRequestIntent
     data object SignOut : GuardianRequestIntent
+    data class DeleteActiveChanged(val active: Boolean) : GuardianRequestIntent
 }
 
 sealed interface GuardianRequestMutation {
+    data class DeleteActiveChanged(val active: Boolean) : GuardianRequestMutation
     data class SessionUpdated(val reason: ConsentReason) : GuardianRequestMutation
     data class EmailChanged(val email: String) : GuardianRequestMutation
     data object SubmitRequested : GuardianRequestMutation
@@ -61,7 +62,4 @@ sealed interface GuardianRequestMutation {
     data object OwnEmailRejected : GuardianRequestMutation
     data object AlreadyApproved : GuardianRequestMutation
     data class Failed(val error: GuardianRequestError, val retryAfterSeconds: Long? = null) : GuardianRequestMutation
-    data object DeleteStarted : GuardianRequestMutation
-    data object DeleteSucceeded : GuardianRequestMutation
-    data class DeleteFailed(val error: ConsentDeleteError) : GuardianRequestMutation
 }

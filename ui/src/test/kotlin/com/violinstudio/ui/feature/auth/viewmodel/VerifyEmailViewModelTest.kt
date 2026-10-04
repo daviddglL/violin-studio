@@ -227,4 +227,20 @@ class VerifyEmailViewModelTest {
             coVerify(exactly = 2) { signOut() }
         }
     }
+
+    @Test
+    fun `while the shared delete flow is active check and resend are dropped`() = runTest {
+        checkReturns(Result.success(false))
+        coEvery { send() } returns Result.success(Unit)
+        viewModel().scenario {
+            intent(VerifyEmailIntent.DeleteActiveChanged(true))
+            assertState { it.deleteActive && !it.canCheck && !it.canResend }
+            intent(VerifyEmailIntent.CheckNow)
+            intent(VerifyEmailIntent.Resend)
+            intent(VerifyEmailIntent.DeleteActiveChanged(false))
+            assertState { !it.deleteActive && it.canCheck && it.canResend && it.message == null }
+        }
+        coVerify(exactly = 0) { check() }
+        coVerify(exactly = 0) { send() }
+    }
 }

@@ -1,7 +1,6 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
 import com.violinstudio.domain.feature.session.ConsentReason
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -31,8 +30,8 @@ class GuardianRequestReducerTest {
     }
 
     @Test
-    fun `typing is ignored while sending, after success and while deleting`() {
-        listOf(typed.copy(isLoading = true), typed.copy(succeeded = true), typed.copy(isDeleting = true)).forEach {
+    fun `typing is ignored while sending and after success`() {
+        listOf(typed.copy(isLoading = true), typed.copy(succeeded = true)).forEach {
             assertEquals(it, reduce(it, GuardianRequestMutation.EmailChanged("x@y.zz")))
         }
     }
@@ -51,22 +50,20 @@ class GuardianRequestReducerTest {
         val before = typed.copy(
             email = "  tutor@example.com ",
             error = GuardianRequestError.RATE_LIMITED,
-            retryAfterSeconds = 60,
-            deleteError = ConsentDeleteError.FAILED
+            retryAfterSeconds = 60
         )
         val state = reduce(before, GuardianRequestMutation.SubmitRequested)
         assertTrue(state.isLoading)
         assertNull(state.error)
         assertNull(state.retryAfterSeconds)
-        assertNull(state.deleteError)
     }
 
     @Test
     fun `submit is ignored when it cannot be submitted`() {
         val busy = typed.copy(isLoading = true)
         assertEquals(busy, reduce(busy, GuardianRequestMutation.SubmitRequested))
-        val deleting = typed.copy(isDeleting = true)
-        assertEquals(deleting, reduce(deleting, GuardianRequestMutation.SubmitRequested))
+        val sent = typed.copy(succeeded = true)
+        assertEquals(sent, reduce(sent, GuardianRequestMutation.SubmitRequested))
     }
 
     @Test
@@ -99,18 +96,11 @@ class GuardianRequestReducerTest {
     }
 
     @Test
-    fun `the session reason is stored and delete states toggle`() {
+    fun `the session reason is stored`() {
         assertEquals(
             ConsentReason.REVOKED,
             reduce(typed, GuardianRequestMutation.SessionUpdated(ConsentReason.REVOKED)).reason
         )
-        val deleting = reduce(typed, GuardianRequestMutation.DeleteStarted)
-        assertTrue(deleting.isDeleting)
-        assertFalse(deleting.canSubmit)
-        val failed = reduce(deleting, GuardianRequestMutation.DeleteFailed(ConsentDeleteError.NETWORK))
-        assertFalse(failed.isDeleting)
-        assertEquals(ConsentDeleteError.NETWORK, failed.deleteError)
-        assertFalse(reduce(deleting, GuardianRequestMutation.DeleteSucceeded).isDeleting)
     }
 
     @Test

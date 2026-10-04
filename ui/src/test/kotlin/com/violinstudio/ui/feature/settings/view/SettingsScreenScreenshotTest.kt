@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.settings.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -8,6 +9,8 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.idleDeleteScope
 import com.violinstudio.ui.feature.settings.viewmodel.RevokeError
 import com.violinstudio.ui.feature.settings.viewmodel.SettingsError
 import com.violinstudio.ui.feature.settings.viewmodel.SettingsFields
@@ -30,7 +33,10 @@ class SettingsScreenScreenshotTest {
 
     private fun capture(state: SettingsState, name: String, withDelete: Boolean = true) {
         compose.setContent {
-            ViolinStudioTheme { SettingsScreen(state, {}, {}, if (withDelete) ({}) else null) }
+            ViolinStudioTheme {
+                val scope = if (withDelete) idleDeleteScope() else LocalDeleteAccount.current
+                CompositionLocalProvider(LocalDeleteAccount provides scope) { SettingsScreen(state, {}, {}) }
+            }
         }
         compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }

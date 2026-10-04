@@ -16,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.ui.R
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.auth.viewmodel.VerifyEmailIntent
 import com.violinstudio.ui.feature.auth.viewmodel.VerifyEmailMessage
 import com.violinstudio.ui.feature.auth.viewmodel.VerifyEmailState
@@ -40,12 +42,15 @@ const val VERIFY_EMAIL_TAG = "verify_email"
 @Composable
 fun VerifyEmailRoute(email: String?, viewModel: VerifyEmailViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deleteActive = LocalDeleteAccount.current.active
+    LaunchedEffect(deleteActive) { viewModel.onIntent(VerifyEmailIntent.DeleteActiveChanged(deleteActive)) }
     VerifyEmailScreen(email = email, state = state, onIntent = viewModel::onIntent)
 }
 
 /** Solo reenviar, comprobar y cerrar sesión: no navega a nada de negocio (la sesión decide). */
 @Composable
 fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (VerifyEmailIntent) -> Unit) {
+    val delete = LocalDeleteAccount.current
     Surface(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
@@ -77,7 +82,7 @@ fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (Verify
             }
             Button(
                 onClick = { onIntent(VerifyEmailIntent.CheckNow) },
-                enabled = state.canCheck,
+                enabled = state.canCheck && !delete.active,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 // Sin indicador infinito: bloquearía la sincronización de los tests de UI.
@@ -94,7 +99,7 @@ fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (Verify
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = { onIntent(VerifyEmailIntent.Resend) },
-                enabled = state.canResend,
+                enabled = state.canResend && !delete.active,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -106,7 +111,9 @@ fun VerifyEmailScreen(email: String?, state: VerifyEmailState, onIntent: (Verify
                 )
             }
             Spacer(Modifier.height(8.dp))
-            TextButton(onClick = { onIntent(VerifyEmailIntent.SignOut) }) {
+            // Borrar la cuenta se puede desde aqui sin verificar el email (D1): el flujo es el compartido.
+            delete.entry(!state.checking)
+            TextButton(onClick = { onIntent(VerifyEmailIntent.SignOut) }, enabled = !delete.active) {
                 Text(stringResource(R.string.session_sign_out))
             }
         }

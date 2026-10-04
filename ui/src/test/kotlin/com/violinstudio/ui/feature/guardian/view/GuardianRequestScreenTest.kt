@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.guardian.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
@@ -20,9 +22,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.session.ConsentReason
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.FAKE_DELETE_TAG
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.fakeDeleteScope
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianEmailError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestIntent
@@ -43,9 +47,14 @@ class GuardianRequestScreenTest {
     private fun text(id: Int, vararg args: Any) = context.getString(id, *args)
     private val intents = mutableListOf<GuardianRequestIntent>()
 
-    private fun show(state: GuardianRequestState = GuardianRequestState()) = compose.setContent {
-        ViolinStudioTheme { GuardianRequestScreen(state) { intents += it } }
-    }
+    private fun show(state: GuardianRequestState = GuardianRequestState(), deleteActive: Boolean = false) =
+        compose.setContent {
+            ViolinStudioTheme {
+                CompositionLocalProvider(LocalDeleteAccount provides fakeDeleteScope(deleteActive)) {
+                    GuardianRequestScreen(state) { intents += it }
+                }
+            }
+        }
 
     @Test
     fun `first request explains the guardian is needed and offers email, send, delete and sign out`() {
@@ -55,7 +64,7 @@ class GuardianRequestScreenTest {
         compose.onNodeWithText(text(R.string.guardian_request_intro_first)).assertIsDisplayed()
         compose.onNodeWithTag(AUTH_EMAIL_TAG).assertIsDisplayed()
         compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag(GUARDIAN_REQUEST_DELETE_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(GUARDIAN_REQUEST_SIGN_OUT_TAG).performScrollTo().assertIsDisplayed()
     }
 
@@ -166,15 +175,42 @@ class GuardianRequestScreenTest {
         show(GuardianRequestState(email = "t@example.com", isLoading = true))
         compose.onNodeWithText(text(R.string.guardian_request_sending)).assertIsDisplayed()
         compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag(GUARDIAN_REQUEST_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test
-    fun `delete and sign out send their intents and a delete failure is shown`() {
-        show(GuardianRequestState(deleteError = ConsentDeleteError.REAUTH_REQUIRED))
-        compose.onNodeWithText(text(R.string.consent_delete_reauth)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag(GUARDIAN_REQUEST_DELETE_TAG).performScrollTo().performClick()
+    fun `sign out sends its intent and the delete entry is the shared one`() {
+        show()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(GUARDIAN_REQUEST_SIGN_OUT_TAG).performScrollTo().performClick()
-        assertEquals(listOf(GuardianRequestIntent.DeleteAccount, GuardianRequestIntent.SignOut), intents)
+        assertEquals(listOf<GuardianRequestIntent>(GuardianRequestIntent.SignOut), intents)
+    }
+
+    @Test
+    fun `while the shared delete flow is active send and sign out are blocked`() {
+        show(GuardianRequestState(email = "t@example.com"), deleteActive = true)
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(GUARDIAN_REQUEST_SIGN_OUT_TAG).performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `deleting stays available after success so the screen is never a dead end`() {
+        show(GuardianRequestState(email = "t@example.com", succeeded = true))
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun `the keyboard done action cannot send while the shared delete flow is active`() {
+        show(GuardianRequestState(email = "t@example.com"), deleteActive = true)
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).assertIsNotEnabled()
+        runCatching { compose.onNodeWithTag(AUTH_EMAIL_TAG).performImeAction() }
+        assertEquals(emptyList<GuardianRequestIntent>(), intents)
+    }
+
+    @Test
+    fun `the keyboard done action sends when nothing blocks it`() {
+        show(GuardianRequestState(email = "t@example.com"))
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).performImeAction()
+        assertEquals(listOf<GuardianRequestIntent>(GuardianRequestIntent.SubmitGuardianEmail), intents)
     }
 }

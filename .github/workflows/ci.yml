@@ -74,6 +74,8 @@ jobs:
       - run: npm i -g firebase-tools@15.20.0
       - run: firebase emulators:exec --only firestore,storage --project demo-violin-studio "npm --prefix rules-tests test"
 
+  # E2E contra los emuladores de Firebase (functions, auth, firestore, storage). NO bloqueante (continue-on-error): el
+  # emulador de Android en el runner ha sido inestable; pasa a bloquear cuando lleve varias ejecuciones verdes.
   e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
@@ -107,10 +109,15 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          # Imagen ligera (API 30) y emulador por defecto de la accion: el pin 37.1.11 tampoco arrancaba y la API 34
+          # google_apis es la mas pesada para 4 vCPU/16 GB compartidos con los emuladores de Firebase y Gradle.
+          api-level: 30
           arch: x86_64
           target: google_apis
-          emulator-build: 15917651
+          ram-size: 3072M
+          heap-size: 512M
+          disable-animations: true
+          emulator-boot-timeout: 900
           script: ./gradlew :app:connectedDevDebugAndroidTest
       - if: always()
         uses: actions/upload-artifact@v4

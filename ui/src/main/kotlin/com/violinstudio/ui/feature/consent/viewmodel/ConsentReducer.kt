@@ -5,16 +5,17 @@ object ConsentReducer {
         is ConsentMutation.SessionUpdated -> sessionUpdated(state, mutation)
         is ConsentMutation.CheckedChanged -> when {
             // Tras aceptar (o mientras se envía) la casilla ya no cuenta: la sesión sustituirá la pantalla.
-            state.isLoading || state.succeeded || state.isDeleting -> state
+            state.isLoading || state.succeeded || state.deleteActive -> state
             else -> state.copy(
                 checked = mutation.checked,
                 error = state.error.takeIf { it == ConsentError.POLICY_CHANGED }
             )
         }
+        is ConsentMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
         ConsentMutation.OpenPolicyRequested -> state.copy(policyLinkFailed = false)
         ConsentMutation.PolicyLinkFailed -> state.copy(policyLinkFailed = true)
         ConsentMutation.AcceptRequested ->
-            if (state.canAccept) state.copy(isLoading = true, error = null, deleteError = null) else state
+            if (state.canAccept) state.copy(isLoading = true, error = null) else state
         ConsentMutation.Succeeded -> state.copy(isLoading = false, succeeded = true)
         // La política recargada manda: hay que leerla y aceptarla de nuevo.
         is ConsentMutation.PolicyOutdated ->
@@ -25,9 +26,6 @@ object ConsentReducer {
                 error = ConsentError.POLICY_CHANGED
             )
         is ConsentMutation.Failed -> state.copy(isLoading = false, error = mutation.error)
-        ConsentMutation.DeleteStarted -> state.copy(isDeleting = true, deleteError = null)
-        ConsentMutation.DeleteSucceeded -> state.copy(isDeleting = false)
-        is ConsentMutation.DeleteFailed -> state.copy(isDeleting = false, deleteError = mutation.error)
     }
 
     /**

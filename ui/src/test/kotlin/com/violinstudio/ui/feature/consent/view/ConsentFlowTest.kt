@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -34,6 +35,11 @@ import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_BUTTON_TAG
+import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_CANCEL_TAG
+import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_CONFIRM_TAG
+import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_MESSAGE_TAG
+import com.violinstudio.ui.feature.account.viewmodel.DeleteAccountViewModel
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentViewModel
@@ -46,6 +52,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -81,6 +88,7 @@ class ConsentFlowTest {
     private val requestGuardian = mockk<RequestGuardianConsentUseCase>()
     private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
     private val session = mutableStateOf<SessionState>(ready)
+    private lateinit var consentVm: ConsentViewModel
     private var startActivityFailure: RuntimeException? = null
 
     private val failingContext = object : ContextWrapper(context) {
@@ -91,8 +99,10 @@ class ConsentFlowTest {
 
     private fun start(initial: SessionState) {
         session.value = initial
-        val viewModel = ConsentViewModel(accept, getConfig, delete, signOut, trigger)
-        val guardianViewModel = GuardianRequestViewModel(requestGuardian, ownEmail, delete, signOut, trigger)
+        val viewModel = ConsentViewModel(accept, getConfig, signOut, trigger)
+        consentVm = viewModel
+        val deleteViewModel = DeleteAccountViewModel(delete, mockk(), mockk())
+        val guardianViewModel = GuardianRequestViewModel(requestGuardian, ownEmail, signOut, trigger)
         compose.setContent {
             CompositionLocalProvider(LocalContext provides failingContext) {
                 ViolinStudioTheme {
@@ -100,6 +110,7 @@ class ConsentFlowTest {
                         session = session.value,
                         onSignOut = {},
                         home = { PlaceholderScreen("home") },
+                        deleteViewModel = { deleteViewModel },
                         consent = { ConsentSlot(it, minorViewModel = { guardianViewModel }) { viewModel } }
                     )
                 }
@@ -147,9 +158,27 @@ class ConsentFlowTest {
         coEvery { delete() } returns Result.success(Unit)
         start(SessionState.ConsentPending(v2, isMinor = false, reason = ConsentReason.REVOKED))
         compose.onNodeWithText(text(R.string.consent_intro_revoked, 2)).assertIsDisplayed()
-        compose.onNodeWithTag(CONSENT_DELETE_TAG).performScrollTo().performClick()
-        compose.waitForIdle()
+        compose.onNodeWithTag(DELETE_ACCOUNT_BUTTON_TAG).performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag(DELETE_ACCOUNT_CONFIRM_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
+        // Abrir el flujo no borra: hace falta la confirmacion explicita.
+        coVerify(exactly = 0) { delete() }
+        compose.onNodeWithTag(DELETE_ACCOUNT_CONFIRM_TAG).performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag(DELETE_ACCOUNT_MESSAGE_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
         coVerify(exactly = 1) { delete() }
+    }
+
+    @Test
+    fun `opening the shared delete flow tells the consent view model so accept is dropped there too`() {
+        start(SessionState.ConsentPending(v1, isMinor = false, reason = ConsentReason.FIRST))
+        compose.onNodeWithTag(DELETE_ACCOUNT_BUTTON_TAG).performScrollTo().performClick()
+        compose.waitUntil(5_000) { consentVm.state.value.deleteActive }
+        assertTrue(consentVm.state.value.deleteActive)
+        compose.onNodeWithTag(DELETE_ACCOUNT_CANCEL_TAG).performScrollTo().performClick()
+        compose.waitUntil(5_000) { !consentVm.state.value.deleteActive }
     }
 
     @Test

@@ -73,11 +73,10 @@ class ConsentReducerTest {
     }
 
     @Test
-    fun `accept is blocked while loading, deleting or after success`() {
+    fun `accept is blocked while loading or after success`() {
         val ready = loaded.copy(checked = true)
         assertTrue(reduce(ready, ConsentMutation.AcceptRequested).isLoading)
         assertFalse(ready.copy(isLoading = true).canAccept)
-        assertFalse(ready.copy(isDeleting = true).canAccept)
         assertFalse(ready.copy(succeeded = true).canAccept)
         assertEquals(ConsentState(config = v1), reduce(loaded, ConsentMutation.AcceptRequested))
     }
@@ -126,17 +125,6 @@ class ConsentReducerTest {
         val flagged = reduce(loaded, ConsentMutation.PolicyLinkFailed)
         assertTrue(flagged.policyLinkFailed)
         assertFalse(reduce(flagged, ConsentMutation.OpenPolicyRequested).policyLinkFailed)
-    }
-
-    @Test
-    fun `delete states mirror the onboarding pattern`() {
-        val deleting = reduce(loaded.copy(deleteError = ConsentDeleteError.FAILED), ConsentMutation.DeleteStarted)
-        assertTrue(deleting.isDeleting)
-        assertNull(deleting.deleteError)
-        assertFalse(reduce(deleting, ConsentMutation.DeleteSucceeded).isDeleting)
-        val failed = reduce(deleting, ConsentMutation.DeleteFailed(ConsentDeleteError.REAUTH_REQUIRED))
-        assertFalse(failed.isDeleting)
-        assertEquals(ConsentDeleteError.REAUTH_REQUIRED, failed.deleteError)
     }
 
     @Test

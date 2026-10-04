@@ -8,8 +8,16 @@ import com.violinstudio.domain.feature.profile.usecase.AgeGate
 import java.time.LocalDate
 
 object OnboardingReducer {
-    fun reduce(state: OnboardingState, mutation: OnboardingMutation, ageGate: AgeGate): OnboardingState =
+    fun reduce(state: OnboardingState, mutation: OnboardingMutation, ageGate: AgeGate): OnboardingState = when {
+        mutation is OnboardingMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
+        // Con el borrado compartido abierto no se edita ni se envia nada.
+        state.deleteActive -> state
+        else -> reduceActive(state, mutation, ageGate)
+    }
+
+    private fun reduceActive(state: OnboardingState, mutation: OnboardingMutation, ageGate: AgeGate): OnboardingState =
         when (mutation) {
+            is OnboardingMutation.DeleteActiveChanged -> state
             is OnboardingMutation.DisplayNameChanged -> state.edited(ProfileField.DISPLAY_NAME)
                 .copy(displayName = mutation.value)
             is OnboardingMutation.InstrumentSelected -> state.edited(ProfileField.INSTRUMENT)
@@ -27,15 +35,12 @@ object OnboardingReducer {
             }
             OnboardingMutation.SubmitRequested -> {
                 val errors = validate(state)
-                state.copy(fieldErrors = errors, error = null, deleteError = null, isLoading = errors.isEmpty())
+                state.copy(fieldErrors = errors, error = null, isLoading = errors.isEmpty())
             }
             OnboardingMutation.Succeeded -> state.copy(isLoading = false, succeeded = true)
             is OnboardingMutation.FieldRejected ->
                 state.copy(isLoading = false, fieldErrors = state.fieldErrors + mutation.field)
             is OnboardingMutation.Failed -> state.copy(isLoading = false, error = mutation.error)
-            OnboardingMutation.DeleteStarted -> state.copy(isDeleting = true, deleteError = null)
-            OnboardingMutation.DeleteSucceeded -> state.copy(isDeleting = false)
-            is OnboardingMutation.DeleteFailed -> state.copy(isDeleting = false, deleteError = mutation.error)
         }
 
     private fun OnboardingState.edited(field: ProfileField): OnboardingState {

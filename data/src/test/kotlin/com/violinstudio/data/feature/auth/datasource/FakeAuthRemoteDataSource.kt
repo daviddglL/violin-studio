@@ -12,9 +12,15 @@ class FakeAuthRemoteDataSource : AuthRemoteDataSource {
 
     var failure: Exception? = null
     var signOutFailure: Exception? = null
+
+    /** Las N primeras llamadas a `signOut` lanzan; despues funciona. */
+    var signOutFailures = 0
+    var clearFailure: Exception? = null
     var user = AuthUserDto("u1", "a@b.co", false, listOf("password"))
     var claims = ClaimsDto("independent", true)
     val calls = mutableListOf<String>()
+
+    fun lastEmitted(): AuthUserDto? = state.replayCache.last()
 
     fun emit(value: AuthUserDto?) {
         state.tryEmit(value)
@@ -66,8 +72,18 @@ class FakeAuthRemoteDataSource : AuthRemoteDataSource {
         reloadFailure?.let { throw it }
     }
 
+    override fun clearLocalSession() {
+        calls += "clearLocalSession"
+        clearFailure?.let { throw it }
+        emit(null)
+    }
+
     override fun signOut() {
         calls += "signOut"
+        if (signOutFailures > 0) {
+            signOutFailures--
+            error("signOut fallido")
+        }
         signOutFailure?.let { throw it }
         emit(null)
     }

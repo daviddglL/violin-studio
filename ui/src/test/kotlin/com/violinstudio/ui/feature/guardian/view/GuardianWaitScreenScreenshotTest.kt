@@ -1,12 +1,14 @@
 package com.violinstudio.ui.feature.guardian.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.idleDeleteScope
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianEmailError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianWaitNotice
@@ -27,7 +29,13 @@ class GuardianWaitScreenScreenshotTest {
     private val waiting = GuardianWaitState(emailMasked = "t***@example.com", sends = 1, canResend = true)
 
     private fun capture(state: GuardianWaitState, name: String) {
-        compose.setContent { ViolinStudioTheme { GuardianWaitScreen(state, onIntent = {}) } }
+        compose.setContent {
+            ViolinStudioTheme {
+                CompositionLocalProvider(LocalDeleteAccount provides idleDeleteScope()) {
+                    GuardianWaitScreen(state, onIntent = {})
+                }
+            }
+        }
         compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
 
@@ -62,13 +70,6 @@ class GuardianWaitScreenScreenshotTest {
     @Test fun terminal() = capture(
         waiting.copy(canResend = false, error = GuardianRequestError.UNAVAILABLE),
         "guardian_wait_terminal"
-    )
-
-    @Test fun deleting() = capture(waiting.copy(isDeleting = true), "guardian_wait_deleting")
-
-    @Test fun deleteFailed() = capture(
-        waiting.copy(deleteError = ConsentDeleteError.FAILED),
-        "guardian_wait_delete_failed"
     )
 
     @Test fun ownEmail() = capture(

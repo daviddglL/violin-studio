@@ -35,4 +35,10 @@ interface AuthRemoteDataSource {
     suspend fun reloadCurrentUser()
 
     fun signOut()
+
+    /**
+     * Ultimo recurso tras un borrado de cuenta cuyo [signOut] fallo: [authUser] pasa a emitir `null` (sin sesion)
+     * hasta el siguiente inicio de sesion, aunque el SDK aun crea que hay usuario.
+     */
+    fun clearLocalSession()
 }

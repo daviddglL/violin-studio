@@ -2,6 +2,7 @@ package com.violinstudio.ui.feature.settings.view
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -26,6 +27,9 @@ import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.FAKE_DELETE_TAG
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.fakeDeleteScope
 import com.violinstudio.ui.feature.settings.viewmodel.RevokeError
 import com.violinstudio.ui.feature.settings.viewmodel.SettingsError
 import com.violinstudio.ui.feature.settings.viewmodel.SettingsFields
@@ -47,7 +51,6 @@ class SettingsScreenTest {
     private val context: Application = ApplicationProvider.getApplicationContext()
     private fun text(id: Int) = context.getString(id)
     private val intents = mutableListOf<SettingsIntent>()
-    private var deletes = 0
     private var backs = 0
 
     private val fields = SettingsFields("Ana", Instrument.VIOLIN, "es-ES")
@@ -55,11 +58,13 @@ class SettingsScreenTest {
 
     private var current by mutableStateOf(SettingsState())
 
-    private fun show(state: SettingsState, withDelete: Boolean = true) {
+    private fun show(state: SettingsState, deleteActive: Boolean = false) {
         current = state
         compose.setContent {
             ViolinStudioTheme {
-                SettingsScreen(current, { intents += it }, { backs++ }, if (withDelete) ({ deletes++ }) else null)
+                CompositionLocalProvider(LocalDeleteAccount provides fakeDeleteScope(deleteActive)) {
+                    SettingsScreen(current, { intents += it }, { backs++ })
+                }
             }
         }
     }
@@ -85,7 +90,7 @@ class SettingsScreenTest {
         compose.onNodeWithTag(settingsInstrumentTag("cello")).assertIsDisplayed()
         compose.onNodeWithTag(SETTINGS_SAVE_TAG).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(SETTINGS_REVOKE_TAG).performScrollTo().assertIsEnabled()
-        compose.onNodeWithTag(SETTINGS_DELETE_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
     }
 
     @Test
@@ -118,7 +123,7 @@ class SettingsScreenTest {
         compose.onNodeWithTag(SETTINGS_LOCALE_TAG).assertIsNotEnabled()
         compose.onNodeWithTag(settingsInstrumentTag("cello")).assertIsNotEnabled()
         compose.onNodeWithTag(SETTINGS_REVOKE_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag(SETTINGS_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test
@@ -163,7 +168,7 @@ class SettingsScreenTest {
         show(loaded.copy(isRevoking = true))
         compose.onNodeWithText(text(R.string.settings_revoking)).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(SETTINGS_SAVE_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag(SETTINGS_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test
@@ -171,7 +176,7 @@ class SettingsScreenTest {
         show(loaded.copy(revoked = true))
         compose.onNodeWithText(text(R.string.settings_revoked)).assert(polite())
         compose.onNodeWithTag(SETTINGS_REVOKE_TAG).assertDoesNotExist()
-        compose.onNodeWithTag(SETTINGS_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(SETTINGS_NAME_TAG).assertIsNotEnabled()
     }
 
@@ -190,16 +195,18 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `delete account is linked to its handler and hidden when there is none`() {
+    fun `the delete entry is the shared one and is only offered once the profile loaded`() {
         show(loaded)
-        compose.onNodeWithTag(SETTINGS_DELETE_TAG).performScrollTo().performClick()
-        assertEquals(1, deletes)
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
     }
 
     @Test
-    fun `without a delete handler the button is not offered`() {
-        show(loaded, withDelete = false)
-        compose.onNodeWithTag(SETTINGS_DELETE_TAG).assertDoesNotExist()
+    fun `while the shared delete flow is active edit, revoke and back are locked`() {
+        show(loaded.copy(fields = fields.copy(displayName = "Bea")), deleteActive = true)
+        compose.onNodeWithTag(SETTINGS_NAME_TAG).assertIsNotEnabled()
+        compose.onNodeWithTag(SETTINGS_SAVE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(SETTINGS_REVOKE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(SETTINGS_BACK_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test

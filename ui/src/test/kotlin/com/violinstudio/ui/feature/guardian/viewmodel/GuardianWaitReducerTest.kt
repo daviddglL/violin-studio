@@ -1,6 +1,5 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -27,7 +26,6 @@ class GuardianWaitReducerTest {
         assertTrue(waiting.canResendNow)
         assertFalse(waiting.copy(canResend = false).canResendNow)
         assertFalse(waiting.copy(isLoading = true).canResendNow)
-        assertFalse(waiting.copy(isDeleting = true).canResendNow)
         assertFalse(waiting.copy(changingEmail = true).canResendNow)
         assertFalse(waiting.copy(notice = GuardianWaitNotice.ALREADY_APPROVED).canResendNow)
     }
@@ -37,20 +35,18 @@ class GuardianWaitReducerTest {
         val before = waiting.copy(
             error = GuardianRequestError.NETWORK,
             retryAfterSeconds = 60,
-            notice = GuardianWaitNotice.RESENT,
-            deleteError = ConsentDeleteError.FAILED
+            notice = GuardianWaitNotice.RESENT
         )
         val state = reduce(before, GuardianWaitMutation.ResendRequested)
         assertTrue(state.isLoading)
         assertNull(state.error)
         assertNull(state.retryAfterSeconds)
         assertNull(state.notice)
-        assertNull(state.deleteError)
     }
 
     @Test
     fun `resend is ignored without a remembered email or while busy`() {
-        listOf(waiting.copy(canResend = false), waiting.copy(isLoading = true), waiting.copy(isDeleting = true))
+        listOf(waiting.copy(canResend = false), waiting.copy(isLoading = true), waiting.copy(isSigningOut = true))
             .forEach { assertEquals(it, reduce(it, GuardianWaitMutation.ResendRequested)) }
     }
 
@@ -169,17 +165,6 @@ class GuardianWaitReducerTest {
     fun `can resend follows what the app remembers`() {
         assertTrue(reduce(GuardianWaitState(), GuardianWaitMutation.CanResend(true)).canResend)
         assertFalse(reduce(waiting, GuardianWaitMutation.CanResend(false)).canResend)
-    }
-
-    @Test
-    fun `delete started, succeeded and failed`() {
-        val started = reduce(waiting.copy(deleteError = ConsentDeleteError.FAILED), GuardianWaitMutation.DeleteStarted)
-        assertTrue(started.isDeleting)
-        assertNull(started.deleteError)
-        assertFalse(reduce(started, GuardianWaitMutation.DeleteSucceeded).isDeleting)
-        val failed = reduce(started, GuardianWaitMutation.DeleteFailed(ConsentDeleteError.REAUTH_REQUIRED))
-        assertFalse(failed.isDeleting)
-        assertEquals(ConsentDeleteError.REAUTH_REQUIRED, failed.deleteError)
     }
 
     @Test
