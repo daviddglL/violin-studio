@@ -13,6 +13,7 @@ import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.session.ConsentReason
+import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.domain.feature.session.SessionStateResolver
 import com.violinstudio.domain.feature.userProfile
@@ -33,7 +34,9 @@ class ObserveSessionStateUseCaseTest {
     private val auth = FakeAuthRepository()
     private val profile = FakeProfileRepository()
     private val consent = FakeConsentRepository()
-    private val useCase = ObserveSessionStateUseCase(auth, profile, consent, SessionStateResolver(), RetryBackoff())
+    private val trigger = SessionRefreshTrigger()
+    private val useCase =
+        ObserveSessionStateUseCase(auth, profile, consent, SessionStateResolver(), RetryBackoff(), trigger)
 
     private fun claims(consentOk: Boolean) = Result.success(SessionClaims(Role.INDEPENDENT, consentOk))
 
@@ -221,6 +224,43 @@ class ObserveSessionStateUseCaseTest {
         }
         assertEquals(1, auth.calls.count { it == "claims:true" })
         assertEquals(1, consent.calls.count { it == "identityConfig" })
+    }
+
+    @Test
+    fun `un refresco pedido vuelve a leer identityConfig y la sesion se resuelve contra la version nueva`() = runTest {
+        val v1 = config.copy(policyVersion = 1)
+        val v2 = config.copy(policyVersion = 2)
+        consent.configQueue += listOf(Result.success(v1), Result.success(v2))
+        profile.profile.value = userProfile(status = ConsentStatus.PENDING, policyVersion = null)
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.ConsentPending(v1, isMinor = false), awaitItem())
+            // El usuario acepta la v2 tras PolicyOutdated: el perfil ya dice granted/v2 pero la config cacheada es v1.
+            profile.profile.value = userProfile(policyVersion = 2)
+            assertEquals(
+                SessionState.ConsentPending(v1, isMinor = false, reason = ConsentReason.POLICY_UPDATED),
+                awaitItem()
+            )
+            trigger.requestRefresh()
+            assertEquals(SessionState.Ready(userProfile(policyVersion = 2)), awaitItem())
+            assertEquals(2, consent.calls.count { it == "identityConfig" })
+        }
+    }
+
+    @Test
+    fun `un refresco no repite el refresco forzado de claims ni emite Loading`() = runTest {
+        auth.claimsResults = mutableListOf(claims(false))
+        profile.profile.value = userProfile()
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.Ready(userProfile()), awaitItem())
+            trigger.requestRefresh()
+            expectNoEvents()
+        }
+        assertEquals(1, auth.calls.count { it == "claims:true" })
+        assertEquals(2, consent.calls.count { it == "identityConfig" })
     }
 
     private fun TestScope.collectStates(): List<SessionState> {
