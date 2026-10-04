@@ -25,7 +25,9 @@ class SettingsReducerTest {
 
     @Test
     fun `the editable state exposes only displayName, instrument and locale`() {
-        val names = SettingsFields::class.java.declaredFields.map { it.name }.filterNot { it.startsWith("$") || it == "Companion" }.toSet()
+        val names = SettingsFields::class.java.declaredFields.map { it.name }
+            .filterNot { it.startsWith("$") || it == "Companion" }
+            .toSet()
         assertEquals(setOf("displayName", "instrument", "locale"), names)
     }
 

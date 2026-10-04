@@ -26,9 +26,9 @@ import com.violinstudio.ui.feature.home.view.HomeRoute
 import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
 import com.violinstudio.ui.feature.session.view.SplashScreen
-import com.violinstudio.ui.feature.settings.view.SettingsRoute
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent
 import com.violinstudio.ui.feature.session.viewmodel.SessionViewModel
+import com.violinstudio.ui.feature.settings.view.SettingsRoute
 
 @Composable
 fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
