@@ -1,15 +1,12 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
-import com.violinstudio.domain.feature.account.failure.AccountFailure
 import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
-import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.usecase.RequestGuardianConsentUseCase
 import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import com.violinstudio.ui.commons.mvi.UiEffect
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -78,27 +75,15 @@ class GuardianRequestViewModel @Inject constructor(
         }
     }
 
-    private fun failureMutation(failure: Throwable): GuardianRequestMutation = when (failure) {
-        ConsentFailure.GuardianEmailInvalid -> GuardianRequestMutation.EmailRejected
-        is ConsentFailure.InvalidArgument ->
-            if (failure.field == "guardianEmail") {
-                GuardianRequestMutation.EmailRejected
-            } else {
-                GuardianRequestMutation.Failed(GuardianRequestError.UNKNOWN)
-            }
-        ConsentFailure.UnderageNotAllowed,
-        ConsentFailure.NoProfile,
-        ConsentFailure.EmailNotVerified -> GuardianRequestMutation.Failed(GuardianRequestError.UNAVAILABLE)
-        ConsentFailure.AlreadyGranted -> {
+    private fun failureMutation(failure: Throwable): GuardianRequestMutation =
+        when (val outcome = failure.toGuardianOutcome()) {
+        GuardianOutcome.EmailRejected -> GuardianRequestMutation.EmailRejected
+        GuardianOutcome.AlreadyApproved -> {
             // La sesión puede no haberlo visto aún: que se resuelva de nuevo.
             refreshTrigger.requestRefresh()
             GuardianRequestMutation.AlreadyApproved
         }
-        is ConsentFailure.RateLimited ->
-            GuardianRequestMutation.Failed(GuardianRequestError.RATE_LIMITED, failure.retryAfterSeconds)
-        ConsentFailure.NotMinor -> GuardianRequestMutation.Failed(GuardianRequestError.NOT_MINOR)
-        ConsentFailure.Network -> GuardianRequestMutation.Failed(GuardianRequestError.NETWORK)
-        else -> GuardianRequestMutation.Failed(GuardianRequestError.UNKNOWN)
+        is GuardianOutcome.Failed -> GuardianRequestMutation.Failed(outcome.error, outcome.retryAfterSeconds)
     }
 
     private suspend fun onDelete() {
@@ -132,19 +117,5 @@ class GuardianRequestViewModel @Inject constructor(
         return own.trim().equals(typed.trim(), ignoreCase = true)
     }
 
-    private fun Throwable.toDeleteError() = when (this) {
-        AccountFailure.RequiresRecentLogin -> ConsentDeleteError.REAUTH_REQUIRED
-        AccountFailure.Network -> ConsentDeleteError.NETWORK
-        else -> ConsentDeleteError.FAILED
-    }
-
     private fun reduce(mutation: GuardianRequestMutation) = setState { GuardianRequestReducer.reduce(this, mutation) }
-}
-
-private suspend fun <T> runCatchingNonCancellation(block: suspend () -> Result<T>): Result<T> = try {
-    block()
-} catch (e: CancellationException) {
-    throw e
-} catch (e: Throwable) {
-    Result.failure(e)
 }
