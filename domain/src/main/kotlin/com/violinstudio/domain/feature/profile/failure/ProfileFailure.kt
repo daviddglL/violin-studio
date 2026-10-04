@@ -18,7 +18,7 @@ sealed class ProfileFailure(message: String, cause: Throwable? = null) : Excepti
     data object InvalidBirthDate : ProfileFailure("Fecha de nacimiento inválida")
 
     /** Dato inválido (`INVALID_ARGUMENT`, o validación local); [field] es `null` si no se conoce. */
-    class InvalidInput(val field: ProfileField?) : ProfileFailure("Datos de perfil inválidos")
+    data class InvalidInput(val field: ProfileField?) : ProfileFailure("Datos de perfil inválidos")
     data object NoProfile : ProfileFailure("No existe perfil")
     data object EmailNotVerified : ProfileFailure("Email sin verificar")
 

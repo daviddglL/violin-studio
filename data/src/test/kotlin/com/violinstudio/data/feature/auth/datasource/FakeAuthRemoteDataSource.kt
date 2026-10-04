@@ -11,6 +11,7 @@ class FakeAuthRemoteDataSource : AuthRemoteDataSource {
     override val authUser: Flow<AuthUserDto?> = state
 
     var failure: Exception? = null
+    var signOutFailure: Exception? = null
     var user = AuthUserDto("u1", "a@b.co", false, listOf("password"))
     var claims = ClaimsDto("independent", true)
     val calls = mutableListOf<String>()
@@ -57,8 +58,16 @@ class FakeAuthRemoteDataSource : AuthRemoteDataSource {
 
     override suspend fun reauthenticateWithGoogle(idToken: String) = record("reauthGoogle:$idToken")
 
+    var reloadFailure: Exception? = null
+
+    override suspend fun reloadCurrentUser() {
+        calls += "reloadCurrentUser"
+        reloadFailure?.let { throw it }
+    }
+
     override fun signOut() {
         calls += "signOut"
+        signOutFailure?.let { throw it }
         emit(null)
     }
 }

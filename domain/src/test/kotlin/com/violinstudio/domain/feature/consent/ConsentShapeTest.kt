@@ -27,6 +27,7 @@ class ConsentShapeTest {
         AccountFailure.RequiresRecentLogin -> "recent"
         AccountFailure.ErasureFailed -> "erasure"
         AccountFailure.Network -> "network"
+        AccountFailure.Unauthenticated -> "unauthenticated"
         is AccountFailure.Unknown -> "unknown"
     }
 
@@ -45,11 +46,15 @@ class ConsentShapeTest {
         assertEquals("guardian", label(ConsentFailure.GuardianRequired))
         assertEquals("policyVersion", ConsentFailure.InvalidArgument(field = "policyVersion").field)
         assertEquals("invalid-argument", label(ConsentFailure.InvalidArgument(null)))
+        assertEquals(ConsentFailure.PolicyOutdated(2), ConsentFailure.PolicyOutdated(2))
+        assertEquals(ConsentFailure.RateLimited(90), ConsentFailure.RateLimited(90))
+        assertEquals(ConsentFailure.InvalidArgument("x"), ConsentFailure.InvalidArgument("x"))
     }
 
     @Test
     fun `AccountFailure cubre reautenticacion y fallo de borrado`() {
         assertEquals("recent", label(AccountFailure.RequiresRecentLogin))
         assertEquals("erasure", label(AccountFailure.ErasureFailed))
+        assertEquals("unauthenticated", label(AccountFailure.Unauthenticated))
     }
 }

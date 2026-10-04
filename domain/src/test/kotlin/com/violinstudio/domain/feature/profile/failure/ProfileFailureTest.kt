@@ -32,6 +32,7 @@ class ProfileFailureTest {
 
     @Test
     fun `el campo del servidor se resuelve por su nombre de red`() {
+        assertEquals(ProfileFailure.InvalidInput(ProfileField.LOCALE), ProfileFailure.InvalidInput(ProfileField.LOCALE))
         assertEquals(ProfileField.DISPLAY_NAME, ProfileField.fromWire("displayName"))
         assertEquals(ProfileField.BIRTH_DATE, ProfileField.fromWire("birthDate"))
         assertEquals(ProfileField.INSTRUMENT, ProfileField.fromWire("instrument"))

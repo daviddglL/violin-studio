@@ -31,5 +31,8 @@ interface AuthRemoteDataSource {
 
     suspend fun reauthenticateWithGoogle(idToken: String)
 
+    /** `currentUser.reload()`; lanza `IllegalStateException` si no hay sesión y el error crudo del SDK si falla. */
+    suspend fun reloadCurrentUser()
+
     fun signOut()
 }
