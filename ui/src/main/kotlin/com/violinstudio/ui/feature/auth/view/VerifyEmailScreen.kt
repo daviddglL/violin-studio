@@ -16,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,8 @@ const val VERIFY_EMAIL_TAG = "verify_email"
 @Composable
 fun VerifyEmailRoute(email: String?, viewModel: VerifyEmailViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deleteActive = LocalDeleteAccount.current.active
+    LaunchedEffect(deleteActive) { viewModel.onIntent(VerifyEmailIntent.DeleteActiveChanged(deleteActive)) }
     VerifyEmailScreen(email = email, state = state, onIntent = viewModel::onIntent)
 }
 

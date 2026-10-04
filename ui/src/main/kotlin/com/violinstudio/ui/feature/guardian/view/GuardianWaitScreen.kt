@@ -54,6 +54,8 @@ fun GuardianWaitSlot(
 fun GuardianWaitRoute(pending: SessionState.ParentalPending, viewModel: GuardianWaitViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val onIntent by rememberUpdatedState(viewModel::onIntent)
+    val deleteActive = LocalDeleteAccount.current.active
+    LaunchedEffect(deleteActive) { onIntent(GuardianWaitIntent.DeleteActiveChanged(deleteActive)) }
     LaunchedEffect(pending.emailMasked, pending.sends) {
         onIntent(GuardianWaitIntent.SessionUpdated(pending.emailMasked, pending.sends))
     }
@@ -134,7 +136,7 @@ private fun ChangeEmailForm(state: GuardianWaitState, busy: Boolean, onIntent: (
         // El email es de otra persona: sin autorrelleno de las credenciales del propio usuario.
         autofillTypes = emptyList<AutofillType>(),
         enabled = !busy,
-        onDone = { onIntent(GuardianWaitIntent.SubmitNewEmail) }
+        onDone = { if (!busy) onIntent(GuardianWaitIntent.SubmitNewEmail) }
     )
     AuthSubmitButton(
         label = stringResource(

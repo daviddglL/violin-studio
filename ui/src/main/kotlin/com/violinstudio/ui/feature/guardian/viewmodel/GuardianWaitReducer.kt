@@ -4,6 +4,7 @@ import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
 
 object GuardianWaitReducer {
     fun reduce(state: GuardianWaitState, mutation: GuardianWaitMutation): GuardianWaitState = when (mutation) {
+        is GuardianWaitMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
         is GuardianWaitMutation.SessionUpdated ->
             state.copy(
                 emailMasked = mutation.emailMasked,

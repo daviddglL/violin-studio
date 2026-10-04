@@ -9,7 +9,20 @@ import java.time.LocalDate
 
 object OnboardingReducer {
     fun reduce(state: OnboardingState, mutation: OnboardingMutation, ageGate: AgeGate): OnboardingState =
+        when {
+            mutation is OnboardingMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
+            // Con el borrado compartido abierto no se edita ni se envia nada.
+            state.deleteActive -> state
+            else -> reduceActive(state, mutation, ageGate)
+        }
+
+    private fun reduceActive(
+        state: OnboardingState,
+        mutation: OnboardingMutation,
+        ageGate: AgeGate
+    ): OnboardingState =
         when (mutation) {
+            is OnboardingMutation.DeleteActiveChanged -> state
             is OnboardingMutation.DisplayNameChanged -> state.edited(ProfileField.DISPLAY_NAME)
                 .copy(displayName = mutation.value)
             is OnboardingMutation.InstrumentSelected -> state.edited(ProfileField.INSTRUMENT)

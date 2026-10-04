@@ -45,6 +45,7 @@ class VerifyEmailViewModel @Inject constructor(
         VerifyEmailIntent.CheckNow -> onCheckNow()
         VerifyEmailIntent.Resend -> onResend()
         VerifyEmailIntent.SignOut -> onSignOut()
+        is VerifyEmailIntent.DeleteActiveChanged -> reduce(VerifyEmailMutation.DeleteActiveChanged(intent.active))
     }
 
     private suspend fun onCheckNow() {

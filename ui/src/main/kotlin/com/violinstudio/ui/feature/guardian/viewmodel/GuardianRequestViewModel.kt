@@ -46,6 +46,8 @@ class GuardianRequestViewModel @Inject constructor(
         is GuardianRequestIntent.EmailChanged -> reduce(GuardianRequestMutation.EmailChanged(intent.email))
         GuardianRequestIntent.SubmitGuardianEmail -> onSubmit()
         GuardianRequestIntent.SignOut -> onSignOut()
+        is GuardianRequestIntent.DeleteActiveChanged ->
+            reduce(GuardianRequestMutation.DeleteActiveChanged(intent.active))
     }
 
     private suspend fun onSubmit() {

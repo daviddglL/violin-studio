@@ -199,4 +199,19 @@ class OnboardingViewModelTest {
         }
         coVerify(exactly = 0) { register(any()) }
     }
+
+    @Test
+    fun `while the shared delete flow is active submit and edits are dropped`() = runTest {
+        registerAnswers(Result.success(Unit))
+        viewModel().testMvi {
+            fill()
+            intent(OnboardingIntent.DeleteActiveChanged(true))
+            assertState { it.deleteActive && !it.canSubmit }
+            intent(OnboardingIntent.Submit)
+            intent(OnboardingIntent.DisplayNameChanged("Otra"))
+            intent(OnboardingIntent.DeleteActiveChanged(false))
+            assertState { !it.deleteActive && it.canSubmit && it.displayName == "  Ana  " && !it.isLoading }
+        }
+        coVerify(exactly = 0) { register(any()) }
+    }
 }

@@ -40,6 +40,8 @@ const val GUARDIAN_REQUEST_SIGN_OUT_TAG = "guardian_request_sign_out"
 fun GuardianRequestRoute(pending: SessionState.ConsentPending, viewModel: GuardianRequestViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val onIntent by rememberUpdatedState(viewModel::onIntent)
+    val deleteActive = LocalDeleteAccount.current.active
+    LaunchedEffect(deleteActive) { onIntent(GuardianRequestIntent.DeleteActiveChanged(deleteActive)) }
     LaunchedEffect(pending.reason) { onIntent(GuardianRequestIntent.SessionUpdated(pending.reason)) }
     // La razón sale de la sesión desde la primera composición: sin un fotograma con el texto equivocado.
     GuardianRequestScreen(state.copy(reason = pending.reason), viewModel::onIntent)
@@ -73,7 +75,8 @@ fun GuardianRequestScreen(state: GuardianRequestState, onIntent: (GuardianReques
                 tag = AUTH_EMAIL_TAG,
                 // El email es de otra persona: sin autorrelleno de las credenciales del propio usuario.
                 autofillTypes = emptyList<AutofillType>(),
-                onDone = { onIntent(GuardianRequestIntent.SubmitGuardianEmail) }
+                enabled = !delete.active && !state.isLoading,
+                onDone = { if (!delete.active) onIntent(GuardianRequestIntent.SubmitGuardianEmail) }
             )
             state.error?.let { AuthMessage(it.message(state.retryAfterSeconds), isError = true) }
             AuthSubmitButton(

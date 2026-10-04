@@ -69,6 +69,8 @@ fun ConsentRoute(pending: SessionState.ConsentPending, viewModel: ConsentViewMod
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val onIntent by rememberUpdatedState(viewModel::onIntent)
+    val deleteActive = LocalDeleteAccount.current.active
+    LaunchedEffect(deleteActive) { onIntent(ConsentIntent.DeleteActiveChanged(deleteActive)) }
     LaunchedEffect(pending.config, pending.reason) {
         onIntent(ConsentIntent.SessionUpdated(pending.config, pending.reason))
     }

@@ -297,6 +297,22 @@ class ConsentViewModelTest {
         }
         coVerify(exactly = 1) { signOut() }
     }
+
+    @Test
+    fun `while the shared delete flow is active accept and the checkbox are dropped`() = runTest {
+        acceptAnswers(Result.success(Unit))
+        viewModel().testMvi {
+            load()
+            check()
+            intent(ConsentIntent.DeleteActiveChanged(true))
+            assertState { it.deleteActive && !it.canAccept }
+            intent(ConsentIntent.Accept)
+            intent(ConsentIntent.CheckedChanged(false))
+            intent(ConsentIntent.DeleteActiveChanged(false))
+            assertState { !it.deleteActive && it.canAccept && it.checked && !it.isLoading }
+        }
+        coVerify(exactly = 0) { accept(any()) }
+    }
 }
 
 private typealias Scenario = MviScenario<ConsentState, ConsentIntent, ConsentEffect>

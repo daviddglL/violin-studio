@@ -5,9 +5,10 @@ import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
 object GuardianRequestReducer {
     fun reduce(state: GuardianRequestState, mutation: GuardianRequestMutation): GuardianRequestState {
         return when (mutation) {
+            is GuardianRequestMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
             is GuardianRequestMutation.SessionUpdated -> state.copy(reason = mutation.reason)
             is GuardianRequestMutation.EmailChanged ->
-                if (state.isLoading || state.succeeded) {
+                if (state.isLoading || state.succeeded || state.deleteActive) {
                     state
                 } else {
                     state.copy(email = mutation.email, emailError = null, error = null, retryAfterSeconds = null)

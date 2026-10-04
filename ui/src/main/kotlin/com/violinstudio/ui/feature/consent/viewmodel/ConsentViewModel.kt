@@ -42,6 +42,7 @@ class ConsentViewModel @Inject constructor(
         ConsentIntent.PolicyLinkFailed -> reduce(ConsentMutation.PolicyLinkFailed)
         ConsentIntent.Accept -> onAccept()
         ConsentIntent.SignOut -> onSignOut()
+        is ConsentIntent.DeleteActiveChanged -> reduce(ConsentMutation.DeleteActiveChanged(intent.active))
     }
 
     private fun onOpenPolicy() {

@@ -244,6 +244,21 @@ class GuardianRequestViewModelTest {
         }
         coVerify(exactly = 1) { signOut() }
     }
+
+    @Test
+    fun `while the shared delete flow is active submit and typing are dropped`() = runTest {
+        answers(receipt)
+        viewModel().testMvi {
+            type()
+            intent(GuardianRequestIntent.DeleteActiveChanged(true))
+            assertState { it.deleteActive && !it.canSubmit }
+            intent(GuardianRequestIntent.SubmitGuardianEmail)
+            intent(GuardianRequestIntent.EmailChanged("otro@example.com"))
+            intent(GuardianRequestIntent.DeleteActiveChanged(false))
+            assertState { !it.deleteActive && it.canSubmit && it.email == "tutor@example.com" && !it.isLoading }
+        }
+        coVerify(exactly = 0) { request(any()) }
+    }
 }
 
 private typealias Scenario = MviScenario<GuardianRequestState, GuardianRequestIntent, UiEffect>

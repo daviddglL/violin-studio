@@ -14,6 +14,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
@@ -196,5 +197,20 @@ class GuardianRequestScreenTest {
     fun `deleting stays available after success so the screen is never a dead end`() {
         show(GuardianRequestState(email = "t@example.com", succeeded = true))
         compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun `the keyboard done action cannot send while the shared delete flow is active`() {
+        show(GuardianRequestState(email = "t@example.com"), deleteActive = true)
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).assertIsNotEnabled()
+        runCatching { compose.onNodeWithTag(AUTH_EMAIL_TAG).performImeAction() }
+        assertEquals(emptyList<GuardianRequestIntent>(), intents)
+    }
+
+    @Test
+    fun `the keyboard done action sends when nothing blocks it`() {
+        show(GuardianRequestState(email = "t@example.com"))
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).performImeAction()
+        assertEquals(listOf<GuardianRequestIntent>(GuardianRequestIntent.SubmitGuardianEmail), intents)
     }
 }

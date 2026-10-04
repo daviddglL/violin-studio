@@ -29,6 +29,7 @@ object VerifyEmailReducer {
                 state.resendCooldownSeconds
             }
         )
+        is VerifyEmailMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
         is VerifyEmailMutation.CooldownTick -> state.copy(
             resendCooldownSeconds = mutation.remainingSeconds,
             message = if (mutation.remainingSeconds == 0 && state.resendBlockedMessage) {

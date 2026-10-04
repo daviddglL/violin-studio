@@ -17,6 +17,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +62,8 @@ private const val YEAR_DIGITS = 4
 @Composable
 fun OnboardingRoute(viewModel: OnboardingViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deleteActive = LocalDeleteAccount.current.active
+    LaunchedEffect(deleteActive) { viewModel.onIntent(OnboardingIntent.DeleteActiveChanged(deleteActive)) }
     OnboardingScreen(state, viewModel::onIntent)
 }
 
@@ -75,6 +78,7 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
         OutlinedTextField(
             value = state.displayName,
             onValueChange = { onIntent(OnboardingIntent.DisplayNameChanged(it)) },
+            enabled = !delete.active,
             label = { Text(stringResource(R.string.onboarding_name_label)) },
             isError = ProfileField.DISPLAY_NAME in state.fieldErrors,
             supportingText = if (ProfileField.DISPLAY_NAME in state.fieldErrors) {
@@ -123,17 +127,19 @@ private fun InstrumentPicker(state: OnboardingState, onIntent: (OnboardingIntent
         style = MaterialTheme.typography.titleSmall,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
     )
+    val locked = LocalDeleteAccount.current.active
     Column(Modifier.fillMaxWidth().selectableGroup()) {
         for (instrument in Instrument.entries) {
             Row(
                 Modifier.fillMaxWidth().selectable(
                     selected = state.instrument == instrument,
+                    enabled = !locked,
                     onClick = { onIntent(OnboardingIntent.InstrumentSelected(instrument)) },
                     role = Role.RadioButton
                 ).testTag(onboardingInstrumentTag(instrument.wire)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(selected = state.instrument == instrument, onClick = null)
+                RadioButton(selected = state.instrument == instrument, onClick = null, enabled = !locked)
                 Text(stringResource(instrument.labelRes()), Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
             }
         }
@@ -215,6 +221,7 @@ private fun RowScope.DatePart(
     OutlinedTextField(
         value = spec.value,
         onValueChange = { onChange(it.filter(Char::isDigit).take(spec.maxDigits)) },
+        enabled = !LocalDeleteAccount.current.active,
         label = { Text(stringResource(spec.labelRes)) },
         isError = isError,
         supportingText = supporting?.let { { Text(it, Modifier.polite()) } },

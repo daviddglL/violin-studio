@@ -32,9 +32,12 @@ data class GuardianRequestState(
     val succeeded: Boolean = false,
 
     /** El servidor ya tenía el consentimiento: no hay nada que enviar, la sesión continúa sola. */
-    val alreadyApproved: Boolean = false
+    val alreadyApproved: Boolean = false,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado (D1). */
+    val deleteActive: Boolean = false
 ) : UiState {
-    val canSubmit: Boolean get() = email.isNotBlank() && !isLoading && !succeeded
+    val canSubmit: Boolean get() = email.isNotBlank() && !isLoading && !succeeded && !deleteActive
 
     /** El email del tutor es un dato de un tercero: no sale en logs. */
     override fun toString(): String = "GuardianRequestState(loading=$isLoading, succeeded=$succeeded, error=$error)"
@@ -46,9 +49,11 @@ sealed interface GuardianRequestIntent : UiIntent {
     data class EmailChanged(val email: String) : GuardianRequestIntent
     data object SubmitGuardianEmail : GuardianRequestIntent
     data object SignOut : GuardianRequestIntent
+    data class DeleteActiveChanged(val active: Boolean) : GuardianRequestIntent
 }
 
 sealed interface GuardianRequestMutation {
+    data class DeleteActiveChanged(val active: Boolean) : GuardianRequestMutation
     data class SessionUpdated(val reason: ConsentReason) : GuardianRequestMutation
     data class EmailChanged(val email: String) : GuardianRequestMutation
     data object SubmitRequested : GuardianRequestMutation

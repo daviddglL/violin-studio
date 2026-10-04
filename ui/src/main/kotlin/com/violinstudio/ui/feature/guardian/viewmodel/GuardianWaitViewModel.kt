@@ -35,20 +35,23 @@ class GuardianWaitViewModel @Inject constructor(
 
     private val busy get() = sendPending || signOutPending
 
+    /** Ademas, el borrado compartido abierto (lo fija la pantalla) bloquea toda accion. */
+    private val blocked get() = busy || state.value.deleteActive
+
     /** Los flags se activan al encolar (los intents se procesan de uno en uno) para descartar los que llegan después. */
     override fun onIntent(intent: GuardianWaitIntent) {
         when (intent) {
             GuardianWaitIntent.Resend, GuardianWaitIntent.SubmitNewEmail -> {
-                if (busy) return
+                if (blocked) return
                 sendPending = true
             }
             GuardianWaitIntent.SignOut -> {
-                if (busy) return
+                if (blocked) return
                 signOutPending = true
             }
             GuardianWaitIntent.ChangeEmail,
             GuardianWaitIntent.CancelChangeEmail,
-            is GuardianWaitIntent.EmailChanged -> if (busy) return
+            is GuardianWaitIntent.EmailChanged -> if (blocked) return
             else -> Unit
         }
         super.onIntent(intent)
@@ -71,12 +74,17 @@ class GuardianWaitViewModel @Inject constructor(
         GuardianWaitIntent.CancelChangeEmail -> reduce(GuardianWaitMutation.ChangeEmailCancelled)
         is GuardianWaitIntent.EmailChanged -> reduce(GuardianWaitMutation.EmailChanged(intent.email))
         GuardianWaitIntent.SubmitNewEmail -> onSubmitNewEmail()
-        GuardianWaitIntent.CheckAgain -> {
-            refreshTrigger.requestRefresh()
-            reduce(GuardianWaitMutation.NoticeCleared)
-        }
+        is GuardianWaitIntent.DeleteActiveChanged -> reduce(GuardianWaitMutation.DeleteActiveChanged(intent.active))
+        GuardianWaitIntent.CheckAgain -> onCheckAgain()
         GuardianWaitIntent.RetryWaitElapsed -> reduce(GuardianWaitMutation.RetryWaitElapsed)
         GuardianWaitIntent.SignOut -> onSignOut()
+    }
+
+    private fun onCheckAgain() {
+        // Con el borrado compartido abierto no se pide ningun refresco.
+        if (state.value.deleteActive) return
+        refreshTrigger.requestRefresh()
+        reduce(GuardianWaitMutation.NoticeCleared)
     }
 
     private suspend fun onResend() {

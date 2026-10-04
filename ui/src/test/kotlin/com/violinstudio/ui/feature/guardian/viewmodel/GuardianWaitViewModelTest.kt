@@ -408,6 +408,37 @@ class GuardianWaitViewModelTest {
             assertState { it.notice == GuardianWaitNotice.EMAIL_CHANGED && it.emailMasked == "n***@example.com" }
         }
     }
+
+    @Test
+    fun `while the shared delete flow is active resend, change, check again and sign out are dropped`() = runTest {
+        answers(receipt)
+        viewModel().testMvi {
+            open()
+            intent(GuardianWaitIntent.DeleteActiveChanged(true))
+            assertState { it.deleteActive && it.busy && !it.canResendNow }
+            intent(GuardianWaitIntent.Resend)
+            intent(GuardianWaitIntent.ChangeEmail)
+            intent(GuardianWaitIntent.CheckAgain)
+            intent(GuardianWaitIntent.SignOut)
+            intent(GuardianWaitIntent.DeleteActiveChanged(false))
+            assertState { !it.deleteActive && it.canResendNow && !it.changingEmail && !it.isLoading }
+        }
+        coVerify(exactly = 0) { request(any()) }
+        coVerify(exactly = 0) { trigger.requestRefresh() }
+        coVerify(exactly = 0) { signOut() }
+    }
+
+    @Test
+    fun `the rate limit wait still ends while the shared delete flow is active`() = runTest {
+        viewModel().testMvi {
+            open()
+            intent(GuardianWaitIntent.DeleteActiveChanged(true))
+            assertState { it.deleteActive }
+            intent(GuardianWaitIntent.RetryWaitElapsed)
+            intent(GuardianWaitIntent.DeleteActiveChanged(false))
+            assertState { !it.deleteActive && !it.resendBlocked }
+        }
+    }
 }
 
 private typealias WaitScenario = MviScenario<GuardianWaitState, GuardianWaitIntent, UiEffect>

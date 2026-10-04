@@ -25,10 +25,14 @@ data class GuardianWaitState(
     val isSigningOut: Boolean = false,
 
     /** El servidor pidio esperar ([retryAfterSeconds]): reenviar no se ofrece hasta que pase. */
-    val resendBlocked: Boolean = false
+    val resendBlocked: Boolean = false,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado (D1). */
+    val deleteActive: Boolean = false
 ) : UiState {
     /** Mientras algo está en curso, o ya se aprobó, ninguna otra acción de envío está disponible. */
-    val busy: Boolean get() = isLoading || isSigningOut || notice == GuardianWaitNotice.ALREADY_APPROVED
+    val busy: Boolean
+        get() = isLoading || isSigningOut || deleteActive || notice == GuardianWaitNotice.ALREADY_APPROVED
     val canResendNow: Boolean get() = canResend && !resendBlocked && !changingEmail && !busy
 
     /** Fallo que reintentar no arregla: no se ofrece ni reenviar ni cambiar el email. */
@@ -54,9 +58,11 @@ sealed interface GuardianWaitIntent : UiIntent {
     data object CheckAgain : GuardianWaitIntent
     data object RetryWaitElapsed : GuardianWaitIntent
     data object SignOut : GuardianWaitIntent
+    data class DeleteActiveChanged(val active: Boolean) : GuardianWaitIntent
 }
 
 sealed interface GuardianWaitMutation {
+    data class DeleteActiveChanged(val active: Boolean) : GuardianWaitMutation
     data class SessionUpdated(val emailMasked: String?, val sends: Int) : GuardianWaitMutation
     data class CanResend(val value: Boolean) : GuardianWaitMutation
     data object ResendRequested : GuardianWaitMutation

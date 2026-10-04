@@ -24,16 +24,20 @@ data class VerifyEmailState(
     val checking: Boolean = false,
     val resendCooldownSeconds: Int = 0,
     val verified: Boolean = false,
-    val message: VerifyEmailMessage? = null
+    val message: VerifyEmailMessage? = null,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado (D1). */
+    val deleteActive: Boolean = false
 ) : UiState {
-    val canResend: Boolean get() = resendCooldownSeconds == 0 && !verified
-    val canCheck: Boolean get() = !checking && !verified
+    val canResend: Boolean get() = resendCooldownSeconds == 0 && !verified && !deleteActive
+    val canCheck: Boolean get() = !checking && !verified && !deleteActive
 }
 
 sealed interface VerifyEmailIntent : UiIntent {
     data object CheckNow : VerifyEmailIntent
     data object Resend : VerifyEmailIntent
     data object SignOut : VerifyEmailIntent
+    data class DeleteActiveChanged(val active: Boolean) : VerifyEmailIntent
 }
 
 /** Sin efectos: no navega, la sesión decide. */
@@ -48,4 +52,5 @@ sealed interface VerifyEmailMutation {
     data object ResendSent : VerifyEmailMutation
     data class ResendFailed(val message: VerifyEmailMessage) : VerifyEmailMutation
     data class CooldownTick(val remainingSeconds: Int) : VerifyEmailMutation
+    data class DeleteActiveChanged(val active: Boolean) : VerifyEmailMutation
 }

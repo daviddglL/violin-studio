@@ -36,6 +36,7 @@ import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_BUTTON_TAG
+import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_CANCEL_TAG
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_CONFIRM_TAG
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_MESSAGE_TAG
 import com.violinstudio.ui.feature.account.viewmodel.DeleteAccountViewModel
@@ -51,6 +52,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -86,6 +88,7 @@ class ConsentFlowTest {
     private val requestGuardian = mockk<RequestGuardianConsentUseCase>()
     private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
     private val session = mutableStateOf<SessionState>(ready)
+    private lateinit var consentVm: ConsentViewModel
     private var startActivityFailure: RuntimeException? = null
 
     private val failingContext = object : ContextWrapper(context) {
@@ -97,6 +100,7 @@ class ConsentFlowTest {
     private fun start(initial: SessionState) {
         session.value = initial
         val viewModel = ConsentViewModel(accept, getConfig, signOut, trigger)
+        consentVm = viewModel
         val deleteViewModel = DeleteAccountViewModel(delete, mockk(), mockk())
         val guardianViewModel = GuardianRequestViewModel(requestGuardian, ownEmail, signOut, trigger)
         compose.setContent {
@@ -165,6 +169,16 @@ class ConsentFlowTest {
             compose.onAllNodesWithTag(DELETE_ACCOUNT_MESSAGE_TAG).fetchSemanticsNodes().isNotEmpty()
         }
         coVerify(exactly = 1) { delete() }
+    }
+
+    @Test
+    fun `opening the shared delete flow tells the consent view model so accept is dropped there too`() {
+        start(SessionState.ConsentPending(v1, isMinor = false, reason = ConsentReason.FIRST))
+        compose.onNodeWithTag(DELETE_ACCOUNT_BUTTON_TAG).performScrollTo().performClick()
+        compose.waitUntil(5_000) { consentVm.state.value.deleteActive }
+        assertTrue(consentVm.state.value.deleteActive)
+        compose.onNodeWithTag(DELETE_ACCOUNT_CANCEL_TAG).performScrollTo().performClick()
+        compose.waitUntil(5_000) { !consentVm.state.value.deleteActive }
     }
 
     @Test

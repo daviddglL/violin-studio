@@ -39,13 +39,16 @@ data class ConsentState(
     val isLoading: Boolean = false,
     val error: ConsentError? = null,
     val policyLinkFailed: Boolean = false,
-    val succeeded: Boolean = false
+    val succeeded: Boolean = false,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado (D1). */
+    val deleteActive: Boolean = false
 ) : UiState {
     val policyVersion: Int? get() = config?.policyVersion
 
     /** Tras aceptar, el botón sigue bloqueado: la sesión sustituirá la pantalla. */
     val canAccept: Boolean
-        get() = config != null && checked && !isLoading && !succeeded
+        get() = config != null && checked && !isLoading && !succeeded && !deleteActive
 }
 
 sealed interface ConsentIntent : UiIntent {
@@ -58,6 +61,7 @@ sealed interface ConsentIntent : UiIntent {
     data object PolicyLinkFailed : ConsentIntent
     data object Accept : ConsentIntent
     data object SignOut : ConsentIntent
+    data class DeleteActiveChanged(val active: Boolean) : ConsentIntent
 }
 
 sealed interface ConsentEffect : UiEffect {
@@ -74,4 +78,5 @@ sealed interface ConsentMutation {
     data object Succeeded : ConsentMutation
     data class PolicyOutdated(val config: IdentityConfig) : ConsentMutation
     data class Failed(val error: ConsentError) : ConsentMutation
+    data class DeleteActiveChanged(val active: Boolean) : ConsentMutation
 }

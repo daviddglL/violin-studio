@@ -45,6 +45,7 @@ class OnboardingViewModel @Inject constructor(
             reduce(OnboardingMutation.BirthDateChanged(intent.day, intent.month, intent.year))
         OnboardingIntent.Submit -> onSubmit()
         OnboardingIntent.SignOut -> onSignOut()
+        is OnboardingIntent.DeleteActiveChanged -> reduce(OnboardingMutation.DeleteActiveChanged(intent.active))
     }
 
     private suspend fun onSubmit() {

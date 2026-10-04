@@ -38,7 +38,10 @@ data class OnboardingState(
     val error: OnboardingError? = null,
     val succeeded: Boolean = false,
     /** La fecha tecleada es posterior a hoy: error local de campo, no una decision legal. */
-    val birthDateInFuture: Boolean = false
+    val birthDateInFuture: Boolean = false,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado (D1). */
+    val deleteActive: Boolean = false
 ) : UiState {
     /** Fecha completa y válida en el calendario, o `null`. No valida plausibilidad: eso es del servidor. */
     val birthDate: LocalDate?
@@ -56,7 +59,7 @@ data class OnboardingState(
 
     /** Tras un registro correcto el envío sigue bloqueado: la sesión sustituirá la pantalla. */
     val canSubmit: Boolean
-        get() = !isLoading && !succeeded && error != OnboardingError.UNDERAGE_NOT_ALLOWED
+        get() = !isLoading && !succeeded && !deleteActive && error != OnboardingError.UNDERAGE_NOT_ALLOWED
 
     /** La pista solo se ve mientras no haya veredicto del servidor ni fecha futura. */
     val showAgeHint: Boolean get() = ageHint && error != OnboardingError.UNDERAGE_NOT_ALLOWED
@@ -76,6 +79,7 @@ sealed interface OnboardingIntent : UiIntent {
     data class BirthDateChanged(val day: String, val month: String, val year: String) : OnboardingIntent
     data object Submit : OnboardingIntent
     data object SignOut : OnboardingIntent
+    data class DeleteActiveChanged(val active: Boolean) : OnboardingIntent
 }
 
 /** Sin efectos: tras el alta, los claims se refrescan y la sesión lleva a la pantalla siguiente. */
@@ -89,4 +93,5 @@ sealed interface OnboardingMutation {
     data object Succeeded : OnboardingMutation
     data class FieldRejected(val field: ProfileField) : OnboardingMutation
     data class Failed(val error: OnboardingError) : OnboardingMutation
+    data class DeleteActiveChanged(val active: Boolean) : OnboardingMutation
 }
