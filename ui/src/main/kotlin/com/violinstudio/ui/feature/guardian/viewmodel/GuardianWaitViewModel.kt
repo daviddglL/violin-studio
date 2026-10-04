@@ -121,7 +121,7 @@ class GuardianWaitViewModel @Inject constructor(
 
     private suspend fun send(email: String, notice: GuardianWaitNotice) {
         runCatchingNonCancellation { requestConsent(email) }.fold(
-            onSuccess = { reduce(GuardianWaitMutation.Succeeded(notice)) },
+            onSuccess = { reduce(GuardianWaitMutation.Succeeded(notice, it.emailMasked)) },
             onFailure = {
                 reduce(
                     when (val outcome = it.toGuardianOutcome()) {

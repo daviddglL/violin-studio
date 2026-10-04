@@ -33,6 +33,10 @@ data class GuardianWaitState(
     /** Mientras algo está en curso, o ya se aprobó, ninguna otra acción de envío está disponible. */
     val busy: Boolean get() = isLoading || isDeleting || isSigningOut || notice == GuardianWaitNotice.ALREADY_APPROVED
     val canResendNow: Boolean get() = canResend && !resendBlocked && !changingEmail && !busy
+
+    /** Fallo que reintentar no arregla: no se ofrece ni reenviar ni cambiar el email. */
+    val terminal: Boolean
+        get() = error == GuardianRequestError.NOT_MINOR || error == GuardianRequestError.UNAVAILABLE
     val canSubmitNewEmail: Boolean get() = changingEmail && email.isNotBlank() && !busy
 
     override fun toString(): String = "GuardianWaitState(sends=$sends, loading=$isLoading, error=$error)"
@@ -66,7 +70,7 @@ sealed interface GuardianWaitMutation {
         override fun toString(): String = "EmailChanged"
     }
     data object SubmitNewEmailRequested : GuardianWaitMutation
-    data class Succeeded(val notice: GuardianWaitNotice) : GuardianWaitMutation
+    data class Succeeded(val notice: GuardianWaitNotice, val emailMasked: String? = null) : GuardianWaitMutation
     data object EmailRejected : GuardianWaitMutation
     data object OwnEmailRejected : GuardianWaitMutation
     data object AlreadyApproved : GuardianWaitMutation

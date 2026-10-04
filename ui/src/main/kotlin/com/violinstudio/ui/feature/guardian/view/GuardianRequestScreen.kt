@@ -114,7 +114,7 @@ private fun ConsentReason.introRes() = when (this) {
 }
 
 @Composable
-private fun GuardianRequestError.message(retryAfterSeconds: Long?): String = when (this) {
+internal fun GuardianRequestError.message(retryAfterSeconds: Long?): String = when (this) {
     GuardianRequestError.NETWORK -> stringResource(R.string.guardian_request_error_network)
     GuardianRequestError.NOT_MINOR -> stringResource(R.string.guardian_request_error_not_minor)
     GuardianRequestError.RATE_LIMITED ->
@@ -130,13 +130,13 @@ private fun GuardianRequestError.message(retryAfterSeconds: Long?): String = whe
         stringResource(R.string.guardian_request_error_unknown)
 }
 
-private fun ConsentDeleteError.textRes() = when (this) {
+internal fun ConsentDeleteError.textRes() = when (this) {
     ConsentDeleteError.REAUTH_REQUIRED -> R.string.consent_delete_reauth
     ConsentDeleteError.FAILED -> R.string.consent_delete_failed
     ConsentDeleteError.NETWORK -> R.string.consent_delete_network
 }
 
-private fun GuardianEmailError.textRes() = when (this) {
+internal fun GuardianEmailError.textRes() = when (this) {
     GuardianEmailError.INVALID -> R.string.guardian_request_email_invalid
     GuardianEmailError.OWN_EMAIL -> R.string.guardian_request_email_own
 }

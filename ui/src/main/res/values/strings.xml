@@ -121,4 +121,14 @@
     <string name="consent_delete_reauth">Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo. Tu cuenta sigue activa.</string>
     <string name="consent_delete_failed">No se ha podido eliminar la cuenta. Sigue activa; inténtalo de nuevo.</string>
     <string name="consent_delete_network">Sin conexión. Tu cuenta sigue activa; inténtalo de nuevo.</string>
+    <string name="guardian_wait_title">Esperando a tu madre, padre o tutor</string>
+    <string name="guardian_wait_intro">Hemos enviado un enlace a tu madre, padre o tutor. Cuando lo confirme, seguirás automáticamente.</string>
+    <string name="guardian_wait_intro_masked">Hemos enviado un enlace a %1$s. Cuando lo confirme, seguirás automáticamente.</string>
+    <string name="guardian_wait_resend">Reenviar enlace</string>
+    <string name="guardian_wait_change_email">Cambiar email</string>
+    <string name="guardian_wait_send_new">Enviar al nuevo email</string>
+    <string name="guardian_wait_cancel">Cancelar</string>
+    <string name="guardian_wait_resent">Enlace reenviado.</string>
+    <string name="guardian_wait_email_changed">Hemos enviado el enlace al nuevo email.</string>
+    <string name="guardian_wait_check_again">Comprobar de nuevo</string>
 </resources>

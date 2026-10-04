@@ -268,4 +268,21 @@ class GuardianWaitReducerTest {
         assertFalse(GuardianWaitIntent.EmailChanged("tutor@example.com").toString().contains("example"))
         assertFalse(GuardianWaitMutation.EmailChanged("tutor@example.com").toString().contains("example"))
     }
+
+    @Test
+    fun `a successful send carries the receipt's masked email and a null one keeps the current`() {
+        val loading = waiting.copy(isLoading = true)
+        val withReceipt = GuardianWaitMutation.Succeeded(GuardianWaitNotice.EMAIL_CHANGED, "n***@example.com")
+        assertEquals("n***@example.com", reduce(loading, withReceipt).emailMasked)
+        val withoutReceipt = GuardianWaitMutation.Succeeded(GuardianWaitNotice.RESENT)
+        assertEquals("t***@example.com", reduce(loading, withoutReceipt).emailMasked)
+    }
+
+    @Test
+    fun `NOT_MINOR and UNAVAILABLE are terminal and others are not`() {
+        assertTrue(waiting.copy(error = GuardianRequestError.NOT_MINOR).terminal)
+        assertTrue(waiting.copy(error = GuardianRequestError.UNAVAILABLE).terminal)
+        assertFalse(waiting.copy(error = GuardianRequestError.NETWORK).terminal)
+        assertFalse(waiting.terminal)
+    }
 }

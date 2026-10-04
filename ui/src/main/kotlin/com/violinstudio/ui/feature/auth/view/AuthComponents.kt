@@ -86,11 +86,13 @@ internal fun AuthTextField(
     tag: String,
     autofillTypes: List<AutofillType>,
     isPassword: Boolean = false,
+    enabled: Boolean = true,
     onDone: (() -> Unit)? = null
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
+        enabled = enabled,
         label = { Text(label) },
         isError = error != null,
         supportingText = error?.let { { Text(it, Modifier.semantics { liveRegion = LiveRegionMode.Polite }) } },
