@@ -89,10 +89,8 @@ class ObserveSessionStateUseCase @Inject constructor(
                                 }
                             failure?.let {
                                 refreshed = false
-                                emit(
-                                    if (it is ProfileFailure.NoProfile) resolver(user, null, config)
-                                    else SessionState.Unavailable
-                                )
+                                val noProfile = it is ProfileFailure.NoProfile
+                                emit(if (noProfile) resolver(user, null, config) else SessionState.Unavailable)
                             }
                             delay(backoff.delayFor(attempt++))
                         }
