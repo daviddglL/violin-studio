@@ -51,19 +51,34 @@ class AccountRepositoryImpl @Inject constructor(
         }
     }
 
-    // El borrado ya ocurrió: un fallo del cierre local no lo invalida (authUser se corrige en el siguiente refresco).
+    /**
+     * El borrado ya ocurrio: un fallo del cierre local no lo invalida, pero la pantalla no puede quedar bloqueada con
+     * un usuario que ya no existe. Se reintenta [SIGN_OUT_ATTEMPTS] veces y, si sigue fallando, se limpia el estado
+     * local de autenticacion para que `authUser` emita `null` igualmente.
+     */
     private fun signOutLocally(): Result<Unit> {
+        repeat(SIGN_OUT_ATTEMPTS) {
+            try {
+                auth.signOut()
+                return Result.success(Unit)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (ignored: Exception) {
+                // intencionadamente ignorado: se reintenta
+            }
+        }
         try {
-            auth.signOut()
+            auth.clearLocalSession()
         } catch (e: CancellationException) {
             throw e
         } catch (ignored: Exception) {
-            // intencionadamente ignorado
+            // ultimo recurso: la UI ofrece ademas cerrar sesion a mano
         }
         return Result.success(Unit)
     }
 
     private companion object {
         const val UNAUTHENTICATED = "UNAUTHENTICATED"
+        const val SIGN_OUT_ATTEMPTS = 3
     }
 }

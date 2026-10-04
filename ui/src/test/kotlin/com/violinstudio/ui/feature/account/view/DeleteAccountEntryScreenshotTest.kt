@@ -31,11 +31,13 @@ class DeleteAccountEntryScreenshotTest {
     private val confirming = DeleteAccountState(step = DeleteStep.CONFIRMING)
     private val reauthPassword = DeleteAccountState(step = DeleteStep.REAUTH, method = ReauthMethod.PASSWORD)
 
-    private fun capture(state: DeleteAccountState, name: String) {
+    private fun capture(state: DeleteAccountState, name: String, onSignOut: (() -> Unit)? = null) {
         compose.setContent {
             ViolinStudioTheme {
                 Surface {
-                    Column(Modifier.padding(24.dp)) { DeleteAccountEntry(state, onIntent = {}, enabled = true) }
+                    Column(Modifier.padding(24.dp)) {
+                        DeleteAccountEntry(state, {}, enabled = true, onSignOut = onSignOut)
+                    }
                 }
             }
         }
@@ -71,4 +73,7 @@ class DeleteAccountEntryScreenshotTest {
     )
 
     @Test fun done() = capture(DeleteAccountState(deleted = true), "delete_account_done")
+
+    @Test fun doneWithSignOutEscape() =
+        capture(DeleteAccountState(deleted = true), "delete_account_done_sign_out", onSignOut = {})
 }

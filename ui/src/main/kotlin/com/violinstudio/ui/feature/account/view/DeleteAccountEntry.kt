@@ -9,6 +9,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -42,16 +43,30 @@ const val DELETE_ACCOUNT_PASSWORD_TAG = "delete_account_password"
 const val DELETE_ACCOUNT_SUBMIT_TAG = "delete_account_submit"
 const val DELETE_ACCOUNT_GOOGLE_TAG = "delete_account_google"
 const val DELETE_ACCOUNT_MESSAGE_TAG = "delete_account_message"
+const val DELETE_ACCOUNT_SIGN_OUT_TAG = "delete_account_sign_out"
 
 /**
  * Punto de entrada unico al borrado de cuenta (D1): lo usan las pantallas de verificacion, onboarding, consentimiento,
- * espera del tutor y ajustes con el mismo flujo (ver [WithDeleteAccount] y [LocalDeleteAccount]).
+ * espera del tutor y ajustes con el mismo flujo (ver [WithDeleteAccount] y [LocalDeleteAccount]). [enabled] solo
+ * gobierna el boton inicial; con el flujo abierto mandan los flags del propio estado. Tras borrar, [onSignOut] (si el
+ * anfitrion da uno) es la salida de emergencia por si la sesion no cambia sola.
  */
-/** [enabled] solo gobierna el boton inicial; con el flujo abierto mandan los flags del propio estado. */
 @Composable
-fun DeleteAccountEntry(state: DeleteAccountState, onIntent: (DeleteAccountIntent) -> Unit, enabled: Boolean) {
+fun DeleteAccountEntry(
+    state: DeleteAccountState,
+    onIntent: (DeleteAccountIntent) -> Unit,
+    enabled: Boolean,
+    onSignOut: (() -> Unit)? = null
+) {
     when {
-        state.deleted -> Message(stringResource(R.string.delete_account_done), isError = false, announced = true)
+        state.deleted -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Message(stringResource(R.string.delete_account_done), isError = false, announced = true)
+            if (onSignOut != null) {
+                TextButton(onClick = onSignOut, modifier = Modifier.testTag(DELETE_ACCOUNT_SIGN_OUT_TAG)) {
+                    Text(stringResource(R.string.session_sign_out))
+                }
+            }
+        }
         state.step == DeleteStep.IDLE -> OutlinedButton(
             onClick = { onIntent(DeleteAccountIntent.Open) },
             enabled = enabled,

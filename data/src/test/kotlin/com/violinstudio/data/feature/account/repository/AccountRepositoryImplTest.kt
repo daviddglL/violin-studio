@@ -89,6 +89,28 @@ class AccountRepositoryImplTest {
     }
 
     @Test
+    fun `un signOut que falla una vez se reintenta y el borrado sigue siendo correcto`() = runTest {
+        auth.signOutFailures = 1
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("signOut", "signOut"), auth.calls)
+    }
+
+    @Test
+    fun `si el cierre de sesion sigue fallando se limpia el estado local de autenticacion`() = runTest {
+        auth.signOutFailure = IllegalStateException("boom")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("signOut", "signOut", "signOut", "clearLocalSession"), auth.calls)
+        assertEquals(null, auth.lastEmitted())
+    }
+
+    @Test
+    fun `si tampoco se puede limpiar el estado local el borrado ya hecho sigue siendo correcto`() = runTest {
+        auth.signOutFailure = IllegalStateException("boom")
+        auth.clearFailure = IllegalStateException("boom2")
+        assertTrue(repo.deleteAccount().isSuccess)
+    }
+
+    @Test
     fun `un signOut cancelado se propaga`() = runTest {
         auth.signOutFailure = CancellationException("cancelada")
         assertThrows<CancellationException> { repo.deleteAccount() }

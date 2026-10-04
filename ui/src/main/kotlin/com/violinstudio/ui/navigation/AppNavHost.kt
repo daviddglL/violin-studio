@@ -110,11 +110,13 @@ private fun SessionGraph(
         composable<SplashDestination> { SplashScreen() }
         composable<OfflineDestination> { OfflineScreen(onSignOut) }
         composable<AuthDestination> { auth() }
-        composable<VerifyEmailDestination> { WithDeleteAccount(deleteViewModel) { verifyEmail(lastEmail) } }
-        composable<OnboardingDestination> { WithDeleteAccount(deleteViewModel) { onboarding() } }
-        composable<ConsentDestination> { WithDeleteAccount(deleteViewModel) { lastConsent?.let { consent(it) } } }
+        composable<VerifyEmailDestination> { WithDeleteAccount(deleteViewModel, onSignOut) { verifyEmail(lastEmail) } }
+        composable<OnboardingDestination> { WithDeleteAccount(deleteViewModel, onSignOut) { onboarding() } }
+        composable<ConsentDestination> {
+            WithDeleteAccount(deleteViewModel, onSignOut) { lastConsent?.let { consent(it) } }
+        }
         composable<GuardianWaitDestination> {
-            WithDeleteAccount(deleteViewModel) { lastWait?.let { guardianWait(it) } }
+            WithDeleteAccount(deleteViewModel, onSignOut) { lastWait?.let { guardianWait(it) } }
         }
         // Defensa en profundidad: aunque un back stack restaurado o un enlace caiga aquí sin Ready, no se compone
         // contenido de negocio mientras la redirección está en curso.
@@ -127,7 +129,7 @@ private fun SessionGraph(
         }
         composable<SettingsDestination> {
             if (session is SessionState.Ready) {
-                WithDeleteAccount(deleteViewModel) { settings { navController.popBackStack() } }
+                WithDeleteAccount(deleteViewModel, onSignOut) { settings { navController.popBackStack() } }
             } else {
                 SplashScreen()
             }

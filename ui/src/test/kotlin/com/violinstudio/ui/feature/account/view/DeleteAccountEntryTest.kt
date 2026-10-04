@@ -1,7 +1,9 @@
 package com.violinstudio.ui.feature.account.view
 
 import android.app.Application
+import android.content.Context
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,8 +21,12 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.violinstudio.domain.feature.auth.model.GoogleIdToken
 import com.violinstudio.domain.feature.auth.usecase.ReauthMethod
 import com.violinstudio.ui.R
+import com.violinstudio.ui.commons.auth.GoogleIdTokenRequester
+import com.violinstudio.ui.commons.auth.GoogleIdTokenResult
+import com.violinstudio.ui.commons.auth.LocalGoogleIdTokenRequester
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.account.viewmodel.DeleteAccountError
 import com.violinstudio.ui.feature.account.viewmodel.DeleteAccountIntent
@@ -43,11 +49,26 @@ class DeleteAccountEntryTest {
     private val intents = mutableListOf<DeleteAccountIntent>()
     private var current by mutableStateOf(DeleteAccountState())
 
-    private fun show(state: DeleteAccountState, enabled: Boolean = true) {
+    private var signOuts = 0
+
+    private fun show(
+        state: DeleteAccountState,
+        enabled: Boolean = true,
+        withSignOut: Boolean = true,
+        google: GoogleIdTokenResult = GoogleIdTokenResult.Cancelled
+    ) {
         current = state
         compose.setContent {
-            ViolinStudioTheme { DeleteAccountEntry(current, { intents += it }, enabled) }
+            ViolinStudioTheme {
+                CompositionLocalProvider(LocalGoogleIdTokenRequester provides FixedRequester(google)) {
+                    DeleteAccountEntry(current, { intents += it }, enabled, if (withSignOut) ({ signOuts++ }) else null)
+                }
+            }
         }
+    }
+
+    private class FixedRequester(private val result: GoogleIdTokenResult) : GoogleIdTokenRequester {
+        override suspend fun request(context: Context) = result
     }
 
     private val confirming = DeleteAccountState(step = DeleteStep.CONFIRMING)
@@ -158,5 +179,49 @@ class DeleteAccountEntryTest {
         compose.onNodeWithTag(DELETE_ACCOUNT_CONFIRM_TAG).assertDoesNotExist()
         compose.onNodeWithTag(DELETE_ACCOUNT_MESSAGE_TAG).assert(polite())
         compose.onNodeWithText(text(R.string.delete_account_done)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `after success there is a sign out escape in case the session does not change`() {
+        show(DeleteAccountState(deleted = true))
+        compose.onNodeWithTag(DELETE_ACCOUNT_SIGN_OUT_TAG).assertIsDisplayed().performClick()
+        assertEquals(1, signOuts)
+    }
+
+    @Test
+    fun `the sign out escape does not exist before success`() {
+        show(confirming)
+        compose.onNodeWithTag(DELETE_ACCOUNT_SIGN_OUT_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the sign out escape is not offered when the host gives none`() {
+        show(DeleteAccountState(deleted = true), withSignOut = false)
+        compose.onNodeWithTag(DELETE_ACCOUNT_SIGN_OUT_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun `cancelling the google sheet is silent and is not a provider failure`() {
+        show(reauthGoogle, google = GoogleIdTokenResult.Cancelled)
+        compose.onNodeWithTag(DELETE_ACCOUNT_GOOGLE_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals(emptyList<DeleteAccountIntent>(), intents)
+    }
+
+    @Test
+    fun `an unavailable google provider is reported and a token is forwarded`() {
+        show(reauthGoogle, google = GoogleIdTokenResult.ProviderUnavailable)
+        compose.onNodeWithTag(DELETE_ACCOUNT_GOOGLE_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals(listOf<DeleteAccountIntent>(DeleteAccountIntent.GoogleFailed), intents)
+    }
+
+    @Test
+    fun `a google token is forwarded to reauthenticate`() {
+        val token = GoogleIdToken("t")
+        show(reauthGoogle, google = GoogleIdTokenResult.Token(token))
+        compose.onNodeWithTag(DELETE_ACCOUNT_GOOGLE_TAG).performClick()
+        compose.waitForIdle()
+        assertEquals(listOf<DeleteAccountIntent>(DeleteAccountIntent.GoogleToken(token)), intents)
     }
 }

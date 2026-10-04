@@ -20,10 +20,15 @@ val LocalDeleteAccount = compositionLocalOf { DeleteAccountScope(active = false)
 
 /**
  * Da a las pantallas de [content] el mismo flujo de borrado, con un ViewModel propio de este destino (si la sesion
- * cambia de destino, un flujo a medias no viaja a otra pantalla). [viewModel] nulo: sin borrado.
+ * cambia de destino, un flujo a medias no viaja a otra pantalla). [viewModel] nulo: sin borrado. [onSignOut] es la
+ * salida de emergencia tras borrar.
  */
 @Composable
-fun WithDeleteAccount(viewModel: (@Composable () -> DeleteAccountViewModel)?, content: @Composable () -> Unit) {
+fun WithDeleteAccount(
+    viewModel: (@Composable () -> DeleteAccountViewModel)?,
+    onSignOut: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
     if (viewModel == null) {
         content()
         return
@@ -31,7 +36,7 @@ fun WithDeleteAccount(viewModel: (@Composable () -> DeleteAccountViewModel)?, co
     val vm = viewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     val scope = DeleteAccountScope(state.step != DeleteStep.IDLE || state.deleted) { enabled ->
-        DeleteAccountEntry(state, vm::onIntent, enabled)
+        DeleteAccountEntry(state, vm::onIntent, enabled, onSignOut)
     }
     CompositionLocalProvider(LocalDeleteAccount provides scope, content = content)
 }
