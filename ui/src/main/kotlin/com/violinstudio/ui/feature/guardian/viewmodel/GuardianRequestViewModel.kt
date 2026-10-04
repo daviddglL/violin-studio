@@ -77,14 +77,14 @@ class GuardianRequestViewModel @Inject constructor(
 
     private fun failureMutation(failure: Throwable): GuardianRequestMutation =
         when (val outcome = failure.toGuardianOutcome()) {
-        GuardianOutcome.EmailRejected -> GuardianRequestMutation.EmailRejected
-        GuardianOutcome.AlreadyApproved -> {
-            // La sesión puede no haberlo visto aún: que se resuelva de nuevo.
-            refreshTrigger.requestRefresh()
-            GuardianRequestMutation.AlreadyApproved
+            GuardianOutcome.EmailRejected -> GuardianRequestMutation.EmailRejected
+            GuardianOutcome.AlreadyApproved -> {
+                // La sesión puede no haberlo visto aún: que se resuelva de nuevo.
+                refreshTrigger.requestRefresh()
+                GuardianRequestMutation.AlreadyApproved
+            }
+            is GuardianOutcome.Failed -> GuardianRequestMutation.Failed(outcome.error, outcome.retryAfterSeconds)
         }
-        is GuardianOutcome.Failed -> GuardianRequestMutation.Failed(outcome.error, outcome.retryAfterSeconds)
-    }
 
     private suspend fun onDelete() {
         try {

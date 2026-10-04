@@ -56,8 +56,9 @@ class GuardianWaitViewModel @Inject constructor(
             // Una sola emisión: sin un fotograma con el email enmascarado pero sin saber si se puede reenviar.
             val canResend = pendingEmail.email != null
             setState {
+                val updated = GuardianWaitMutation.SessionUpdated(intent.emailMasked, intent.sends)
                 GuardianWaitReducer.reduce(
-                    GuardianWaitReducer.reduce(this, GuardianWaitMutation.SessionUpdated(intent.emailMasked, intent.sends)),
+                    GuardianWaitReducer.reduce(this, updated),
                     GuardianWaitMutation.CanResend(canResend)
                 )
             }
