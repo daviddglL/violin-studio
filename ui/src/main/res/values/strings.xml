@@ -154,6 +154,8 @@
     <string name="settings_revoke_network">Sin conexión. Tu consentimiento sigue vigente; inténtalo de nuevo.</string>
     <string name="settings_revoke_unavailable">Ahora mismo no se puede retirar el consentimiento. Verifica tu email o vuelve a entrar.</string>
     <string name="settings_revoke_unknown">No se ha podido retirar el consentimiento. Sigue vigente; inténtalo de nuevo.</string>
+    <string name="settings_revoke_stalled">Has retirado tu consentimiento, pero no hemos podido actualizar tu estado. Puedes reintentarlo o volver más tarde.</string>
+    <string name="settings_revoke_retry">Reintentar actualización</string>
     <string name="settings_delete">Eliminar mi cuenta</string>
     <string name="settings_back">Volver</string>
     <string name="home_open_settings">Ajustes</string>

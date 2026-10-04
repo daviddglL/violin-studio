@@ -70,4 +70,6 @@ class SettingsScreenScreenshotTest {
     @Test fun revoked() = capture(loaded.copy(revoked = true), "settings_revoked")
 
     @Test fun revokeError() = capture(loaded.copy(revokeError = RevokeError.NETWORK), "settings_revoke_error")
+
+    @Test fun revokeStalled() = capture(loaded.copy(revokeStalled = true), "settings_revoke_stalled")
 }

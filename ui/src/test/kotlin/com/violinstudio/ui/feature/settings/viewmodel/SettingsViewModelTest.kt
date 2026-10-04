@@ -24,7 +24,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -57,7 +59,8 @@ class SettingsViewModelTest {
     private suspend fun TestScope.confirmRevoke(vm: SettingsViewModel) {
         vm.onIntent(SettingsIntent.RevokeConsent)
         vm.onIntent(SettingsIntent.ConfirmRevoke)
-        advanceUntilIdle()
+        // Sin avanzar el reloj virtual: el aviso de "la sesion no se actualizo" tiene su propio plazo.
+        runCurrent()
     }
 
     @Test
@@ -189,7 +192,7 @@ class SettingsViewModelTest {
         advanceUntilIdle()
         coVerify(exactly = 0) { update(any()) }
         gate.complete(Unit)
-        advanceUntilIdle()
+        runCurrent()
         assertTrue(vm.state.value.revoked)
         coVerify(exactly = 1) { revoke() }
         assertEquals(1, refreshes())
@@ -240,5 +243,38 @@ class SettingsViewModelTest {
         confirmRevoke(vm)
         assertTrue(vm.state.value.revoked)
         assertEquals(1, refreshes())
+    }
+
+    @Test
+    fun `if the session does not leave Ready in time the revoke is stalled and retrying refreshes again`() = runTest {
+        val refreshes = refreshCount()
+        coEvery { revoke() } returns Result.success(Unit)
+        val vm = viewModel()
+        advanceUntilIdle()
+        confirmRevoke(vm)
+        assertTrue(vm.state.value.revoked)
+        advanceTimeBy(SettingsViewModel.REVOKE_REFRESH_TIMEOUT_MS - 1)
+        assertTrue(vm.state.value.revoked)
+        advanceTimeBy(2)
+        assertTrue(vm.state.value.revokeStalled)
+        assertFalse(vm.state.value.revoked)
+        assertFalse(vm.state.value.busy)
+        assertEquals(1, refreshes())
+        vm.onIntent(SettingsIntent.RetryRefresh)
+        runCurrent()
+        assertEquals(2, refreshes())
+        assertTrue(vm.state.value.revoked)
+        advanceTimeBy(SettingsViewModel.REVOKE_REFRESH_TIMEOUT_MS + 1)
+        assertTrue(vm.state.value.revokeStalled)
+    }
+
+    @Test
+    fun `a retry without a stalled revoke does nothing`() = runTest {
+        val refreshes = refreshCount()
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.RetryRefresh)
+        advanceUntilIdle()
+        assertEquals(0, refreshes())
     }
 }

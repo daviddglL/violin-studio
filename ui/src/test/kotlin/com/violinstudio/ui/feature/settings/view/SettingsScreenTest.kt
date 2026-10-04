@@ -10,9 +10,11 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -40,7 +42,7 @@ import org.robolectric.annotation.Config
 @Config(application = Application::class)
 class SettingsScreenTest {
     @get:Rule
-    val compose = createComposeRule()
+    val compose = createAndroidComposeRule<ComponentActivity>()
 
     private val context: Application = ApplicationProvider.getApplicationContext()
     private fun text(id: Int) = context.getString(id)
@@ -205,5 +207,30 @@ class SettingsScreenTest {
         show(loaded)
         compose.onNodeWithTag(SETTINGS_BACK_TAG).performScrollTo().performClick()
         assertEquals(1, backs)
+    }
+
+    @Test
+    fun `while confirming, the form is locked and the confirm button takes the focus`() {
+        show(loaded)
+        // Como en una app real: la ventana ya tiene el foco cuando se abre el panel.
+        compose.runOnUiThread { compose.activity.window.decorView.requestFocus() }
+        current = loaded.copy(confirmingRevoke = true)
+        compose.waitForIdle()
+        compose.onNodeWithTag(SETTINGS_NAME_TAG).assertIsNotEnabled()
+        compose.onNodeWithTag(SETTINGS_LOCALE_TAG).assertIsNotEnabled()
+        compose.onNodeWithTag(settingsInstrumentTag("cello")).assertIsNotEnabled()
+        compose.onNodeWithTag(SETTINGS_SAVE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(SETTINGS_REVOKE_CONFIRM_TAG).assertIsFocused()
+    }
+
+    @Test
+    fun `a stalled revoke shows an assertive notice with a retry and unlocks the rest`() {
+        show(loaded.copy(revokeStalled = true))
+        compose.onNodeWithText(text(R.string.settings_revoke_stalled)).assert(assertive())
+        compose.onNodeWithTag(SETTINGS_RETRY_TAG).performScrollTo().assertIsEnabled().performClick()
+        assertEquals(listOf<SettingsIntent>(SettingsIntent.RetryRefresh), intents)
+        compose.onNodeWithTag(SETTINGS_REVOKE_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(SETTINGS_BACK_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(SETTINGS_NAME_TAG).assertIsEnabled()
     }
 }

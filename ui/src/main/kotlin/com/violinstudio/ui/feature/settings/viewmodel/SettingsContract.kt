@@ -41,13 +41,16 @@ data class SettingsState(
     val isRevoking: Boolean = false,
     val revokeError: RevokeError? = null,
     /** Revocación hecha: la sesión cambia sola a re-consentir; hasta entonces todo queda bloqueado. */
-    val revoked: Boolean = false
+    val revoked: Boolean = false,
+    /** La revocacion se hizo pero la sesion no salio de Ready a tiempo: se ofrece reintentar el refresco. */
+    val revokeStalled: Boolean = false
 ) : UiState {
     val loaded: Boolean get() = baseline != null
-    val busy: Boolean get() = isSaving || isRevoking || revoked
+    val busy: Boolean get() = isSaving || isRevoking || revoked || confirmingRevoke
     val dirty: Boolean get() = loaded && fields != baseline
     val canSave: Boolean get() = dirty && !busy && error != SettingsError.UNAVAILABLE
-    val canRevoke: Boolean get() = loaded && !busy && revokeError != RevokeError.UNAVAILABLE
+    val canRevoke: Boolean
+        get() = loaded && !busy && !revokeStalled && revokeError != RevokeError.UNAVAILABLE
 
     override fun toString() =
         "SettingsState(loaded=$loaded, isSaving=$isSaving, error=$error, isRevoking=$isRevoking, revoked=$revoked)"
@@ -61,6 +64,9 @@ sealed interface SettingsIntent : UiIntent {
     data object RevokeConsent : SettingsIntent
     data object ConfirmRevoke : SettingsIntent
     data object CancelRevoke : SettingsIntent
+
+    /** Tras una revocacion que la sesion no refleja: vuelve a pedir el refresco. */
+    data object RetryRefresh : SettingsIntent
 }
 
 sealed interface SettingsEffect : UiEffect
@@ -79,4 +85,6 @@ sealed interface SettingsMutation {
     data object RevokeStarted : SettingsMutation
     data object RevokeSucceeded : SettingsMutation
     data class RevokeFailed(val error: RevokeError) : SettingsMutation
+    data object RevokeStalled : SettingsMutation
+    data object RefreshRetried : SettingsMutation
 }

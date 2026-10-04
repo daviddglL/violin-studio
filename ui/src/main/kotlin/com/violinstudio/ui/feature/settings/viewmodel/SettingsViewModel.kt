@@ -12,6 +12,8 @@ import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -27,6 +29,7 @@ class SettingsViewModel @Inject constructor(
 ) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState()) {
     private var savePending = false
     private var revokePending = false
+    private var staleJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -65,6 +68,7 @@ class SettingsViewModel @Inject constructor(
         SettingsIntent.RevokeConsent -> reduce(SettingsMutation.RevokeAsked)
         SettingsIntent.CancelRevoke -> reduce(SettingsMutation.RevokeCancelled)
         SettingsIntent.ConfirmRevoke -> onRevoke()
+        SettingsIntent.RetryRefresh -> onRetryRefresh()
     }
 
     private suspend fun onSave() {
@@ -124,6 +128,26 @@ class SettingsViewModel @Inject constructor(
     private fun onRevoked() {
         reduce(SettingsMutation.RevokeSucceeded)
         refreshTrigger.requestRefresh()
+        watchSessionCatchUp()
+    }
+
+    private fun onRetryRefresh() {
+        if (!state.value.revokeStalled) return
+        reduce(SettingsMutation.RefreshRetried)
+        refreshTrigger.requestRefresh()
+        watchSessionCatchUp()
+    }
+
+    /**
+     * Si la sesion sale de Ready, la pantalla desaparece y el ViewModel se cancela con ella. Si sigue aqui pasado el
+     * plazo, la revocacion no se ha reflejado: se desbloquea y se ofrece reintentar el refresco (sin callejon).
+     */
+    private fun watchSessionCatchUp() {
+        staleJob?.cancel()
+        staleJob = viewModelScope.launch {
+            delay(REVOKE_REFRESH_TIMEOUT_MS)
+            reduce(SettingsMutation.RevokeStalled)
+        }
     }
 
     private fun Throwable.toSaveMutation(): SettingsMutation = when (this) {
@@ -150,4 +174,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun reduce(mutation: SettingsMutation) = setState { SettingsReducer.reduce(this, mutation) }
+
+    companion object {
+        /** Tiempo que se espera a que la sesion refleje una revocacion antes de avisar y ofrecer reintentar. */
+        const val REVOKE_REFRESH_TIMEOUT_MS = 10_000L
+    }
 }

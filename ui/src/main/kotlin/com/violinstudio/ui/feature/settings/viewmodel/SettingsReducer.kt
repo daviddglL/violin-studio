@@ -25,11 +25,16 @@ object SettingsReducer {
         is SettingsMutation.FieldRejected ->
             state.copy(isSaving = false, fieldErrors = state.fieldErrors + mutation.field)
         is SettingsMutation.SaveFailed -> state.copy(isSaving = false, error = mutation.error)
-        SettingsMutation.RevokeAsked -> state.copy(confirmingRevoke = state.canRevoke, saved = false)
+        SettingsMutation.RevokeAsked ->
+            state.copy(confirmingRevoke = state.confirmingRevoke || state.canRevoke, saved = false)
         SettingsMutation.RevokeCancelled -> state.copy(confirmingRevoke = false)
         SettingsMutation.RevokeStarted -> state.copy(confirmingRevoke = false, isRevoking = true, revokeError = null)
         SettingsMutation.RevokeSucceeded -> state.copy(isRevoking = false, revoked = true)
         is SettingsMutation.RevokeFailed -> state.copy(isRevoking = false, revokeError = mutation.error)
+        SettingsMutation.RevokeStalled ->
+            if (state.revoked) state.copy(revoked = false, revokeStalled = true) else state
+        SettingsMutation.RefreshRetried ->
+            if (state.revokeStalled) state.copy(revokeStalled = false, revoked = true) else state
     }
 
     private fun SettingsState.edited(field: ProfileField, change: (SettingsFields) -> SettingsFields): SettingsState {

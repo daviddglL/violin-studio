@@ -15,9 +15,13 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -48,6 +52,7 @@ const val SETTINGS_SAVE_TAG = "settings_save"
 const val SETTINGS_REVOKE_TAG = "settings_revoke"
 const val SETTINGS_REVOKE_CONFIRM_TAG = "settings_revoke_confirm"
 const val SETTINGS_REVOKE_CANCEL_TAG = "settings_revoke_cancel"
+const val SETTINGS_RETRY_TAG = "settings_retry"
 const val SETTINGS_DELETE_TAG = "settings_delete"
 const val SETTINGS_BACK_TAG = "settings_back"
 
@@ -167,16 +172,13 @@ private fun PrivacySection(state: SettingsState, onIntent: (SettingsIntent) -> U
     state.revokeError?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
     when {
         state.revoked -> AuthMessage(stringResource(R.string.settings_revoked), isError = false)
-        state.confirmingRevoke -> {
-            AuthMessage(stringResource(R.string.settings_revoke_confirm), isError = false)
-            Button(
-                onClick = { onIntent(SettingsIntent.ConfirmRevoke) },
-                modifier = Modifier.fillMaxWidth().testTag(SETTINGS_REVOKE_CONFIRM_TAG)
-            ) { Text(stringResource(R.string.settings_revoke_confirm_yes)) }
+        state.confirmingRevoke -> ConfirmRevokePanel(onIntent)
+        state.revokeStalled -> {
+            AuthMessage(stringResource(R.string.settings_revoke_stalled), isError = true)
             OutlinedButton(
-                onClick = { onIntent(SettingsIntent.CancelRevoke) },
-                modifier = Modifier.fillMaxWidth().testTag(SETTINGS_REVOKE_CANCEL_TAG)
-            ) { Text(stringResource(R.string.settings_revoke_cancel)) }
+                onClick = { onIntent(SettingsIntent.RetryRefresh) },
+                modifier = Modifier.fillMaxWidth().testTag(SETTINGS_RETRY_TAG)
+            ) { Text(stringResource(R.string.settings_revoke_retry)) }
         }
         state.revokeError != RevokeError.UNAVAILABLE -> OutlinedButton(
             onClick = { onIntent(SettingsIntent.RevokeConsent) },
@@ -184,6 +186,22 @@ private fun PrivacySection(state: SettingsState, onIntent: (SettingsIntent) -> U
             modifier = Modifier.fillMaxWidth().testTag(SETTINGS_REVOKE_TAG)
         ) { Text(stringResource(if (state.isRevoking) R.string.settings_revoking else R.string.settings_revoke)) }
     }
+}
+
+/** El foco pasa al boton de confirmar al abrirse el panel, para que TalkBack lea la pregunta y la accion. */
+@Composable
+private fun ConfirmRevokePanel(onIntent: (SettingsIntent) -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    AuthMessage(stringResource(R.string.settings_revoke_confirm), isError = false)
+    Button(
+        onClick = { onIntent(SettingsIntent.ConfirmRevoke) },
+        modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag(SETTINGS_REVOKE_CONFIRM_TAG)
+    ) { Text(stringResource(R.string.settings_revoke_confirm_yes)) }
+    OutlinedButton(
+        onClick = { onIntent(SettingsIntent.CancelRevoke) },
+        modifier = Modifier.fillMaxWidth().testTag(SETTINGS_REVOKE_CANCEL_TAG)
+    ) { Text(stringResource(R.string.settings_revoke_cancel)) }
 }
 
 private fun Modifier.polite() = semantics { liveRegion = LiveRegionMode.Polite }

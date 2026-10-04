@@ -141,4 +141,31 @@ class SettingsReducerTest {
         assertFalse(loaded.toString().contains("Ana"))
         assertFalse(ana.toString().contains("Ana"))
     }
+
+    @Test
+    fun `the form is locked while the revoke confirmation is open`() {
+        val asked = reduce(reduce(loaded, SettingsMutation.DisplayNameChanged("Bea")), SettingsMutation.RevokeAsked)
+        assertTrue(asked.confirmingRevoke)
+        assertTrue(asked.busy)
+        assertFalse(asked.canSave)
+        assertEquals("Bea", reduce(asked, SettingsMutation.DisplayNameChanged("Otra")).fields.displayName)
+        assertTrue(reduce(asked, SettingsMutation.RevokeAsked).confirmingRevoke)
+        val cancelled = reduce(asked, SettingsMutation.RevokeCancelled)
+        assertFalse(cancelled.busy)
+        assertTrue(cancelled.canSave)
+    }
+
+    @Test
+    fun `a stalled revoke unlocks the form and offers to retry the refresh`() {
+        val revoked = reduce(reduce(loaded, SettingsMutation.RevokeStarted), SettingsMutation.RevokeSucceeded)
+        val stalled = reduce(revoked, SettingsMutation.RevokeStalled)
+        assertTrue(stalled.revokeStalled)
+        assertFalse(stalled.revoked)
+        assertFalse(stalled.busy)
+        assertFalse(stalled.canRevoke)
+        val retried = reduce(stalled, SettingsMutation.RefreshRetried)
+        assertTrue(retried.revoked)
+        assertFalse(retried.revokeStalled)
+        assertTrue(retried.busy)
+    }
 }
