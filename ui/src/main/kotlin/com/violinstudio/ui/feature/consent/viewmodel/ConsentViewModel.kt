@@ -6,6 +6,7 @@ import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.usecase.AcceptPolicyUseCase
 import com.violinstudio.domain.feature.consent.usecase.GetIdentityConfigUseCase
+import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -21,7 +22,8 @@ class ConsentViewModel @Inject constructor(
     private val acceptPolicy: AcceptPolicyUseCase,
     private val getConfig: GetIdentityConfigUseCase,
     private val deleteAccount: DeleteAccountUseCase,
-    private val signOut: SignOutUseCase
+    private val signOut: SignOutUseCase,
+    private val refreshTrigger: SessionRefreshTrigger
 ) : MviViewModel<ConsentState, ConsentIntent, ConsentEffect>(ConsentState()) {
     private var acceptPending = false
     private var deletePending = false
@@ -29,11 +31,11 @@ class ConsentViewModel @Inject constructor(
     override fun onIntent(intent: ConsentIntent) {
         when (intent) {
             ConsentIntent.Accept -> {
-                if (acceptPending) return
+                if (acceptPending || deletePending) return
                 acceptPending = true
             }
             ConsentIntent.DeleteAccount -> {
-                if (deletePending) return
+                if (deletePending || acceptPending) return
                 deletePending = true
             }
             else -> Unit
@@ -69,7 +71,10 @@ class ConsentViewModel @Inject constructor(
             if (!current.isLoading || version == null) return
             val result = runCatchingNonCancellation { acceptPolicy(version) }
             result.fold(
-                onSuccess = { reduce(ConsentMutation.Succeeded) },
+                onSuccess = {
+                    reduce(ConsentMutation.Succeeded)
+                    refreshTrigger.requestRefresh()
+                },
                 onFailure = { reduce(failureMutation(it)) }
             )
         } finally {
@@ -79,7 +84,10 @@ class ConsentViewModel @Inject constructor(
 
     private suspend fun failureMutation(failure: Throwable): ConsentMutation = when (failure) {
         is ConsentFailure.PolicyOutdated -> reloadPolicy()
-        ConsentFailure.AlreadyGranted -> ConsentMutation.Succeeded
+        ConsentFailure.AlreadyGranted -> {
+            refreshTrigger.requestRefresh()
+            ConsentMutation.Succeeded
+        }
         ConsentFailure.Network ->
             ConsentMutation.Failed(ConsentError.NETWORK)
         ConsentFailure.GuardianRequired,
@@ -91,6 +99,8 @@ class ConsentViewModel @Inject constructor(
     /** El servidor dice que la versión es antigua: se recarga la política vigente y se pide aceptarla de nuevo. */
     private suspend fun reloadPolicy(): ConsentMutation {
         val result = runCatchingNonCancellation { getConfig() }
+        // La sesión sigue con la política cacheada: que vuelva a consultarla para resolver con la versión nueva.
+        refreshTrigger.requestRefresh()
         return result.fold(
             onSuccess = { ConsentMutation.PolicyOutdated(it) },
             onFailure = { ConsentMutation.Failed(ConsentError.POLICY_UNAVAILABLE) }

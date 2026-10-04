@@ -8,12 +8,14 @@ import com.violinstudio.domain.feature.consent.model.IdentityConfig
 import com.violinstudio.domain.feature.consent.usecase.AcceptPolicyUseCase
 import com.violinstudio.domain.feature.consent.usecase.GetIdentityConfigUseCase
 import com.violinstudio.domain.feature.session.ConsentReason
+import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.MviScenario
 import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -27,10 +29,11 @@ class ConsentViewModelTest {
     private val getConfig = mockk<GetIdentityConfigUseCase>()
     private val delete = mockk<DeleteAccountUseCase>()
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
+    private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val v1 = IdentityConfig(1, "https://example.test/policy/1", 14, true)
     private val v2 = IdentityConfig(2, "https://example.test/policy/2", 14, true)
 
-    private fun viewModel() = ConsentViewModel(accept, getConfig, delete, signOut)
+    private fun viewModel() = ConsentViewModel(accept, getConfig, delete, signOut, trigger)
 
     private fun acceptAnswers(result: Result<Unit>) {
         coEvery { accept(any()) } coAnswers {
@@ -285,6 +288,92 @@ class ConsentViewModelTest {
             assertState { it.deleteError == ConsentDeleteError.FAILED }
         }
         coVerify(exactly = 1) { delete() }
+    }
+
+    @Test
+    fun `an outdated policy asks the session to refresh so it resolves against the new version`() = runTest {
+        acceptAnswers(Result.failure(ConsentFailure.PolicyOutdated(2)))
+        coEvery { getConfig() } returns Result.success(v2)
+        viewModel().testMvi {
+            load()
+            check()
+            intent(ConsentIntent.Accept)
+            assertState { it.isLoading }
+            assertState { it.config == v2 && !it.isLoading }
+        }
+        verify(exactly = 1) { trigger.requestRefresh() }
+    }
+
+    @Test
+    fun `a successful accept asks the session to refresh`() = runTest {
+        acceptAnswers(Result.success(Unit))
+        viewModel().testMvi {
+            load()
+            check()
+            intent(ConsentIntent.Accept)
+            assertState { it.isLoading }
+            assertState { it.succeeded }
+        }
+        verify(exactly = 1) { trigger.requestRefresh() }
+    }
+
+    @Test
+    fun `an already granted answer asks the session to refresh`() = runTest {
+        acceptAnswers(Result.failure(ConsentFailure.AlreadyGranted))
+        viewModel().testMvi {
+            load()
+            check()
+            intent(ConsentIntent.Accept)
+            assertState { it.isLoading }
+            assertState { it.succeeded }
+        }
+        verify(exactly = 1) { trigger.requestRefresh() }
+    }
+
+    @Test
+    fun `failures that keep the user on the screen do not ask for a refresh`() = runTest {
+        acceptAnswers(Result.failure(ConsentFailure.Network))
+        viewModel().testMvi {
+            load()
+            check()
+            intent(ConsentIntent.Accept)
+            assertState { it.isLoading }
+            assertState { it.error == ConsentError.NETWORK }
+        }
+        verify(exactly = 0) { trigger.requestRefresh() }
+    }
+
+    @Test
+    fun `delete is ignored while an accept is pending`() = runTest {
+        acceptAnswers(Result.success(Unit))
+        coEvery { delete() } returns Result.success(Unit)
+        viewModel().testMvi {
+            load()
+            check()
+            intent(ConsentIntent.Accept)
+            intent(ConsentIntent.DeleteAccount)
+            assertState { it.isLoading }
+            assertState { it.succeeded && !it.isDeleting }
+        }
+        coVerify(exactly = 0) { delete() }
+    }
+
+    @Test
+    fun `accept is ignored while a delete is pending`() = runTest {
+        coEvery { delete() } coAnswers {
+            delay(100)
+            Result.failure(AccountFailure.Network)
+        }
+        acceptAnswers(Result.success(Unit))
+        viewModel().testMvi {
+            load()
+            check()
+            intent(ConsentIntent.DeleteAccount)
+            intent(ConsentIntent.Accept)
+            assertState { it.isDeleting }
+            assertState { !it.isDeleting && it.deleteError == ConsentDeleteError.NETWORK && !it.isLoading }
+        }
+        coVerify(exactly = 0) { accept(any()) }
     }
 
     @Test

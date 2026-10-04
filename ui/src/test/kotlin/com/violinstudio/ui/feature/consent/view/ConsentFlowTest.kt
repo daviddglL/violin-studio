@@ -23,6 +23,7 @@ import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.session.ConsentReason
+import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
@@ -66,11 +67,12 @@ class ConsentFlowTest {
     private val getConfig = mockk<GetIdentityConfigUseCase>()
     private val delete = mockk<DeleteAccountUseCase>(relaxed = true)
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
+    private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val session = mutableStateOf<SessionState>(ready)
 
     private fun start(initial: SessionState) {
         session.value = initial
-        val viewModel = ConsentViewModel(accept, getConfig, delete, signOut)
+        val viewModel = ConsentViewModel(accept, getConfig, delete, signOut, trigger)
         compose.setContent {
             ViolinStudioTheme {
                 SessionNavHost(
