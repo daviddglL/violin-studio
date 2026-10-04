@@ -46,8 +46,7 @@ class GuardianRequestScreenScreenshotTest {
         "guardian_request_rate_limited"
     )
 
-    @Test fun revoked() =
-        capture(GuardianRequestState(reason = ConsentReason.REVOKED), "guardian_request_revoked")
+    @Test fun revoked() = capture(GuardianRequestState(reason = ConsentReason.REVOKED), "guardian_request_revoked")
 
     @Test fun sending() = capture(
         GuardianRequestState(email = "tutor@example.com", isLoading = true),

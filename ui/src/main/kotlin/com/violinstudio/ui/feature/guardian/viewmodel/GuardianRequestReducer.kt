@@ -3,8 +3,8 @@ package com.violinstudio.ui.feature.guardian.viewmodel
 import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
 
 object GuardianRequestReducer {
-    fun reduce(state: GuardianRequestState, mutation: GuardianRequestMutation): GuardianRequestState =
-        when (mutation) {
+    fun reduce(state: GuardianRequestState, mutation: GuardianRequestMutation): GuardianRequestState {
+        return when (mutation) {
             is GuardianRequestMutation.SessionUpdated -> state.copy(reason = mutation.reason)
             is GuardianRequestMutation.EmailChanged ->
                 if (state.isLoading || state.succeeded || state.isDeleting) {
@@ -22,6 +22,7 @@ object GuardianRequestReducer {
             GuardianRequestMutation.DeleteSucceeded -> state.copy(isDeleting = false)
             is GuardianRequestMutation.DeleteFailed -> state.copy(isDeleting = false, deleteError = mutation.error)
         }
+    }
 
     private fun submit(state: GuardianRequestState): GuardianRequestState = when {
         !state.canSubmit -> state

@@ -108,8 +108,7 @@ class GuardianRequestViewModel @Inject constructor(
         else -> ConsentDeleteError.FAILED
     }
 
-    private fun reduce(mutation: GuardianRequestMutation) =
-        setState { GuardianRequestReducer.reduce(this, mutation) }
+    private fun reduce(mutation: GuardianRequestMutation) = setState { GuardianRequestReducer.reduce(this, mutation) }
 }
 
 private suspend fun <T> runCatchingNonCancellation(block: suspend () -> Result<T>): Result<T> = try {

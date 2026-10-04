@@ -108,7 +108,8 @@ private fun GuardianRequestError.message(retryAfterSeconds: Long?): String = whe
     GuardianRequestError.RATE_LIMITED ->
         if (retryAfterSeconds != null && retryAfterSeconds > 0) {
             // Siempre hacia arriba: nunca se promete una espera menor que la real.
-            stringResource(R.string.guardian_request_error_rate_limited_minutes, ((retryAfterSeconds + 59) / 60).toInt())
+            val minutes = ((retryAfterSeconds + 59) / 60).toInt()
+            stringResource(R.string.guardian_request_error_rate_limited_minutes, minutes)
         } else {
             stringResource(R.string.guardian_request_error_rate_limited)
         }

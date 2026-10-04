@@ -96,7 +96,13 @@ class GuardianRequestScreenTest {
 
     @Test
     fun `rate limited tells the wait in minutes, rounding up, and is assertive`() {
-        show(GuardianRequestState(email = "t@example.com", error = GuardianRequestError.RATE_LIMITED, retryAfterSeconds = 61))
+        show(
+            GuardianRequestState(
+                email = "t@example.com",
+                error = GuardianRequestError.RATE_LIMITED,
+                retryAfterSeconds = 61
+            )
+        )
         compose.onNode(hasText(text(R.string.guardian_request_error_rate_limited_minutes, 2))).performScrollTo()
             .assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive))
