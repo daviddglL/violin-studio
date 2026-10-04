@@ -19,8 +19,9 @@ import kotlinx.coroutines.tasks.await
 
 /** Adaptador fino sobre el SDK, sin lógica ni traducción de errores; se prueba en el E2E (8b). */
 class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: FirebaseAuth) : AuthRemoteDataSource {
-    // `true` tras un borrado cuyo cierre de sesion fallo: el usuario del SDK ya no existe en el servidor.
-    private val sessionCleared = MutableStateFlow(false)
+    // Uid del usuario cuyo borrado termino pero cuyo cierre de sesion fallo: solo ese usuario se oculta, asi que
+    // nunca puede tapar un inicio de sesion posterior (el estado del SDK es global del proceso).
+    private val clearedUid = MutableStateFlow<String?>(null)
 
     private val sdkUser: Flow<AuthUserDto?> = callbackFlow {
         val listener = FirebaseAuth.IdTokenListener { trySend(it.currentUser?.toDto()) }
@@ -29,19 +30,19 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
     }
 
     override val authUser: Flow<AuthUserDto?> =
-        combine(sdkUser, sessionCleared) { user, cleared -> if (cleared) null else user }
+        combine(sdkUser, clearedUid) { user, cleared -> maskCleared(user, cleared) }
 
     override suspend fun signInWithEmail(email: String, password: String): AuthUserDto =
         auth.signInWithEmailAndPassword(email, password).await().user.toDtoOrThrow()
-            .also { sessionCleared.value = false }
+            .also { clearedUid.value = null }
 
     override suspend fun signUpWithEmail(email: String, password: String): AuthUserDto =
         auth.createUserWithEmailAndPassword(email, password).await().user.toDtoOrThrow()
-            .also { sessionCleared.value = false }
+            .also { clearedUid.value = null }
 
     override suspend fun signInWithGoogle(idToken: String, rawNonce: String?): AuthUserDto =
         auth.signInWithCredential(googleCredential(idToken, rawNonce)).await().user.toDtoOrThrow()
-            .also { sessionCleared.value = false }
+            .also { clearedUid.value = null }
 
     override suspend fun sendEmailVerification() {
         currentUser().sendEmailVerification().await()
@@ -87,7 +88,7 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
     override fun signOut() = auth.signOut()
 
     override fun clearLocalSession() {
-        sessionCleared.value = true
+        clearedUid.value = auth.currentUser?.uid
     }
 
     private fun currentUser(): FirebaseUser = checkNotNull(auth.currentUser) { "Sin sesión" }
@@ -101,3 +102,7 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
         providerIds = providerData.map { it.providerId }
     )
 }
+
+/** Oculta al usuario del SDK solo si es exactamente el que se limpio tras un borrado. */
+internal fun maskCleared(user: AuthUserDto?, clearedUid: String?): AuthUserDto? =
+    if (user != null && user.uid == clearedUid) null else user

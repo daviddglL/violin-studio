@@ -79,4 +79,11 @@ class AuthErrorMapperTest {
         assertEquals("Error de autenticación desconocido", failure.message)
         assertTrue(map("ERROR_ALGO_NUEVO") is AuthFailure.Unknown)
     }
+
+    @Test
+    fun `un codigo de Firebase sin traduccion se conserva en el fallo desconocido sin el mensaje`() {
+        val failure = map("ERROR_INTERNAL_ERROR") as AuthFailure.Unknown
+        assertTrue(failure.message!!.contains("ERROR_INTERNAL_ERROR"))
+        assertTrue(!failure.message!!.contains("detalle con datos"))
+    }
 }

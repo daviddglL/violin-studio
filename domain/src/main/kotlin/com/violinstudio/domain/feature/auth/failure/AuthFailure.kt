@@ -20,5 +20,6 @@ sealed class AuthFailure(message: String, cause: Throwable? = null) : Exception(
     data object RequiresRecentLogin : AuthFailure("Requiere autenticación reciente")
 
     /** La causa puede contener PII (p. ej. el email): no se registra en logs ni se muestra al usuario. */
-    class Unknown(cause: Throwable? = null) : AuthFailure("Error de autenticación desconocido", cause)
+    class Unknown(cause: Throwable? = null, code: String? = null) :
+        AuthFailure("Error de autenticación desconocido" + (code?.let { " ($it)" } ?: ""), cause)
 }

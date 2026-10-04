@@ -155,9 +155,13 @@ class Journey(private val compose: ComposeTestRule) {
             compose.waitUntilExactlyOneExists(matcher, timeoutMs)
         } catch (e: ComposeTimeoutException) {
             val tree = runCatching { compose.onRoot().printToString(maxDepth = 6) }.getOrDefault("(sin arbol)")
-            throw AssertionError("Esperando $what. Pantalla actual: $tree", e)
+            throw AssertionError("Esperando $what. Pantalla actual: $tree logcat ViolinAuth: ${authLog()}", e)
         }
     }
+
+    private fun authLog(): String = runCatching {
+        Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-s", "ViolinAuth:W")).inputStream.bufferedReader().readText()
+    }.getOrDefault("(sin logcat)")
 
     fun waitForTag(tag: String, timeoutMs: Long = E2E_TIMEOUT_MS) = waitOrDump("tag $tag", timeoutMs, hasTestTag(tag))
 

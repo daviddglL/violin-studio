@@ -18,7 +18,7 @@ object AuthErrorMapper {
     fun map(error: Throwable, operation: AuthOperation = AuthOperation.OTHER): AuthFailure = when (error) {
         is FirebaseNetworkException, is IOException -> AuthFailure.Network
         is FirebaseTooManyRequestsException -> AuthFailure.TooManyRequests
-        is FirebaseAuthException -> fromCode(error.errorCode, operation) ?: AuthFailure.Unknown(error)
+        is FirebaseAuthException -> fromCode(error.errorCode, operation) ?: AuthFailure.Unknown(error, error.errorCode)
         else -> AuthFailure.Unknown(error)
     }
 
