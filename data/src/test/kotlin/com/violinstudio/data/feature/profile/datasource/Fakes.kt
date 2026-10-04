@@ -46,7 +46,13 @@ class FakeIdentityFunctionsDataSource : IdentityFunctionsDataSource {
 
     override suspend fun requestGuardianConsent(guardianEmail: String) = call("requestGuardianConsent", guardianEmail)
 
-    override suspend fun deleteAccount() = call("deleteAccount")
+    /** Si no es nulo, `deleteAccount` espera a que se complete (simula la respuesta lenta del servidor). */
+    var deleteGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
+    override suspend fun deleteAccount() {
+        call("deleteAccount")
+        deleteGate?.await()
+    }
 }
 
 suspend fun FakeProfileRemoteDataSource.emitDoc(data: Map<String, Any?>, fromCache: Boolean = false) =

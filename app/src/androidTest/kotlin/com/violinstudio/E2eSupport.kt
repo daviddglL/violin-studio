@@ -1,15 +1,19 @@
 package com.violinstudio
 
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.printToString
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_BUTTON_TAG
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_CONFIRM_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
@@ -145,11 +149,20 @@ fun uniqueEmail(prefix: String) = "$prefix-${UUID.randomUUID().toString().take(1
 /** Pasos de interfaz compartidos por los recorridos E2E. Los textos son los de `strings.xml` (solo hay locale base). */
 @OptIn(ExperimentalTestApi::class)
 class Journey(private val compose: ComposeTestRule) {
-    fun waitForTag(tag: String, timeoutMs: Long = E2E_TIMEOUT_MS) =
-        compose.waitUntilExactlyOneExists(hasTestTag(tag), timeoutMs)
+    /** Si vence el plazo, el error lleva el arbol semantico visible para saber en que pantalla se quedo. */
+    private fun waitOrDump(what: String, timeoutMs: Long, matcher: SemanticsMatcher) {
+        try {
+            compose.waitUntilExactlyOneExists(matcher, timeoutMs)
+        } catch (e: ComposeTimeoutException) {
+            val tree = runCatching { compose.onRoot().printToString(maxDepth = 6) }.getOrDefault("(sin arbol)")
+            throw AssertionError("Esperando $what. Pantalla actual: $tree", e)
+        }
+    }
+
+    fun waitForTag(tag: String, timeoutMs: Long = E2E_TIMEOUT_MS) = waitOrDump("tag $tag", timeoutMs, hasTestTag(tag))
 
     fun waitForText(text: String, timeoutMs: Long = E2E_TIMEOUT_MS) =
-        compose.waitUntilExactlyOneExists(hasText(text), timeoutMs)
+        waitOrDump("texto '$text'", timeoutMs, hasText(text))
 
     // Home no es desplazable: `performScrollTo` falla sin un ancestro con scroll, asi que solo se pide si lo hay.
     private fun SemanticsNodeInteraction.scrolledIfNeeded(): SemanticsNodeInteraction {
