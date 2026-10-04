@@ -2,6 +2,7 @@ package com.violinstudio.ui.feature.guardian.viewmodel
 
 import com.violinstudio.domain.feature.account.failure.AccountFailure
 import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
+import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.usecase.RequestGuardianConsentUseCase
@@ -20,22 +21,30 @@ import kotlinx.coroutines.CancellationException
 @HiltViewModel
 class GuardianRequestViewModel @Inject constructor(
     private val requestConsent: RequestGuardianConsentUseCase,
+    private val getOwnEmail: GetOwnEmailUseCase,
     private val deleteAccount: DeleteAccountUseCase,
     private val signOut: SignOutUseCase,
     private val refreshTrigger: SessionRefreshTrigger
 ) : MviViewModel<GuardianRequestState, GuardianRequestIntent, UiEffect>(GuardianRequestState()) {
     private var submitPending = false
     private var deletePending = false
+    private var signOutPending = false
+
+    private val busy get() = submitPending || deletePending || signOutPending
 
     override fun onIntent(intent: GuardianRequestIntent) {
         when (intent) {
             GuardianRequestIntent.SubmitGuardianEmail -> {
-                if (submitPending || deletePending) return
+                if (busy) return
                 submitPending = true
             }
             GuardianRequestIntent.DeleteAccount -> {
-                if (deletePending || submitPending) return
+                if (busy) return
                 deletePending = true
+            }
+            GuardianRequestIntent.SignOut -> {
+                if (busy) return
+                signOutPending = true
             }
             else -> Unit
         }
@@ -56,6 +65,10 @@ class GuardianRequestViewModel @Inject constructor(
             val current = state.value
             // Un formato inválido no pasa de aquí: ni siquiera sale del dispositivo.
             if (!current.isLoading) return
+            if (isOwnEmail(current.email)) {
+                reduce(GuardianRequestMutation.OwnEmailRejected)
+                return
+            }
             runCatchingNonCancellation { requestConsent(current.email) }.fold(
                 onSuccess = { reduce(GuardianRequestMutation.Succeeded) },
                 onFailure = { reduce(failureMutation(it)) }
@@ -67,10 +80,19 @@ class GuardianRequestViewModel @Inject constructor(
 
     private fun failureMutation(failure: Throwable): GuardianRequestMutation = when (failure) {
         ConsentFailure.GuardianEmailInvalid -> GuardianRequestMutation.EmailRejected
+        is ConsentFailure.InvalidArgument ->
+            if (failure.field == "guardianEmail") {
+                GuardianRequestMutation.EmailRejected
+            } else {
+                GuardianRequestMutation.Failed(GuardianRequestError.UNKNOWN)
+            }
+        ConsentFailure.UnderageNotAllowed,
+        ConsentFailure.NoProfile,
+        ConsentFailure.EmailNotVerified -> GuardianRequestMutation.Failed(GuardianRequestError.UNAVAILABLE)
         ConsentFailure.AlreadyGranted -> {
             // La sesión puede no haberlo visto aún: que se resuelva de nuevo.
             refreshTrigger.requestRefresh()
-            GuardianRequestMutation.Succeeded
+            GuardianRequestMutation.AlreadyApproved
         }
         is ConsentFailure.RateLimited ->
             GuardianRequestMutation.Failed(GuardianRequestError.RATE_LIMITED, failure.retryAfterSeconds)
@@ -99,7 +121,15 @@ class GuardianRequestViewModel @Inject constructor(
             throw e
         } catch (_: Throwable) {
             // Sin registrar la causa; la sesión sigue siendo la fuente de verdad.
+        } finally {
+            signOutPending = false
         }
+    }
+
+    /** Comparación normalizada: sin mayúsculas ni espacios. Sin email propio conocido no se bloquea nada. */
+    private suspend fun isOwnEmail(typed: String): Boolean {
+        val own = runCatchingNonCancellation { Result.success(getOwnEmail()) }.getOrNull() ?: return false
+        return own.trim().equals(typed.trim(), ignoreCase = true)
     }
 
     private fun Throwable.toDeleteError() = when (this) {

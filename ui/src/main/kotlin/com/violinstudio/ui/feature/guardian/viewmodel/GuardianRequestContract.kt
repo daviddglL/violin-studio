@@ -14,11 +14,14 @@ enum class GuardianRequestError {
 
     /** Demasiados envíos; [GuardianRequestState.retryAfterSeconds] dice cuánto esperar si el servidor lo informó. */
     RATE_LIMITED,
+
+    /** Fallo terminal (sin perfil, email sin verificar, menor no permitido): reintentar no lo arregla. */
+    UNAVAILABLE,
     UNKNOWN
 }
 
 /** Error del campo del email del tutor: formato inválido o rechazado por el servidor (p. ej. igual al propio). */
-enum class GuardianEmailError { INVALID }
+enum class GuardianEmailError { INVALID, OWN_EMAIL }
 
 data class GuardianRequestState(
     val email: String = "",
@@ -29,7 +32,10 @@ data class GuardianRequestState(
     val retryAfterSeconds: Long? = null,
     val isDeleting: Boolean = false,
     val deleteError: ConsentDeleteError? = null,
-    val succeeded: Boolean = false
+    val succeeded: Boolean = false,
+
+    /** El servidor ya tenía el consentimiento: no hay nada que enviar, la sesión continúa sola. */
+    val alreadyApproved: Boolean = false
 ) : UiState {
     val canSubmit: Boolean get() = email.isNotBlank() && !isLoading && !succeeded && !isDeleting
 
@@ -52,6 +58,8 @@ sealed interface GuardianRequestMutation {
     data object SubmitRequested : GuardianRequestMutation
     data object Succeeded : GuardianRequestMutation
     data object EmailRejected : GuardianRequestMutation
+    data object OwnEmailRejected : GuardianRequestMutation
+    data object AlreadyApproved : GuardianRequestMutation
     data class Failed(val error: GuardianRequestError, val retryAfterSeconds: Long? = null) : GuardianRequestMutation
     data object DeleteStarted : GuardianRequestMutation
     data object DeleteSucceeded : GuardianRequestMutation

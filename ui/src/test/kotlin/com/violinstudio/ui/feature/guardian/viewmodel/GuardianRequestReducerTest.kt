@@ -114,6 +114,22 @@ class GuardianRequestReducerTest {
     }
 
     @Test
+    fun `the own email is a field error and stops loading`() {
+        val state = reduce(typed.copy(isLoading = true), GuardianRequestMutation.OwnEmailRejected)
+        assertEquals(GuardianEmailError.OWN_EMAIL, state.emailError)
+        assertFalse(state.isLoading)
+    }
+
+    @Test
+    fun `already approved is a success flagged as such`() {
+        val state = reduce(typed.copy(isLoading = true), GuardianRequestMutation.AlreadyApproved)
+        assertTrue(state.succeeded)
+        assertTrue(state.alreadyApproved)
+        assertFalse(state.isLoading)
+        assertFalse(state.canSubmit)
+    }
+
+    @Test
     fun `toString never leaks the guardian email`() {
         assertFalse(typed.toString().contains("tutor@example.com"))
     }

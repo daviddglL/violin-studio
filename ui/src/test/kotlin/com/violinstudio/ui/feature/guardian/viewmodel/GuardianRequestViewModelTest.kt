@@ -2,6 +2,7 @@ package com.violinstudio.ui.feature.guardian.viewmodel
 
 import com.violinstudio.domain.feature.account.failure.AccountFailure
 import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
+import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
@@ -27,12 +28,13 @@ import org.junit.jupiter.api.extension.ExtendWith
 @OptIn(ExperimentalCoroutinesApi::class)
 class GuardianRequestViewModelTest {
     private val request = mockk<RequestGuardianConsentUseCase>()
+    private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
     private val delete = mockk<DeleteAccountUseCase>()
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val receipt = Result.success(GuardianRequestReceipt("t***@example.com"))
 
-    private fun viewModel() = GuardianRequestViewModel(request, delete, signOut, trigger)
+    private fun viewModel() = GuardianRequestViewModel(request, ownEmail, delete, signOut, trigger)
 
     private fun answers(result: Result<GuardianRequestReceipt>) {
         coEvery { request(any()) } coAnswers {
@@ -117,7 +119,11 @@ class GuardianRequestViewModelTest {
             ConsentFailure.NotMinor to GuardianRequestError.NOT_MINOR,
             ConsentFailure.Network to GuardianRequestError.NETWORK,
             ConsentFailure.Unknown() to GuardianRequestError.UNKNOWN,
-            ConsentFailure.EmailNotVerified to GuardianRequestError.UNKNOWN,
+            ConsentFailure.UnderageNotAllowed to GuardianRequestError.UNAVAILABLE,
+            ConsentFailure.NoProfile to GuardianRequestError.UNAVAILABLE,
+            ConsentFailure.EmailNotVerified to GuardianRequestError.UNAVAILABLE,
+            ConsentFailure.InvalidArgument("policyVersion") to GuardianRequestError.UNKNOWN,
+            ConsentFailure.InvalidArgument(null) to GuardianRequestError.UNKNOWN,
             ConsentFailure.RateLimited(null) to GuardianRequestError.RATE_LIMITED
         )
         for ((failure, error) in cases) {
@@ -138,9 +144,79 @@ class GuardianRequestViewModelTest {
             type()
             intent(GuardianRequestIntent.SubmitGuardianEmail)
             assertState { it.isLoading }
-            assertState { it.succeeded && it.error == null }
+            assertState { it.succeeded && it.alreadyApproved && it.error == null }
         }
         verify(exactly = 1) { trigger.requestRefresh() }
+    }
+
+    @Test
+    fun `a plain success is not flagged as already approved`() = runTest {
+        answers(receipt)
+        viewModel().testMvi {
+            type()
+            intent(GuardianRequestIntent.SubmitGuardianEmail)
+            assertState { it.isLoading }
+            assertState { it.succeeded && !it.alreadyApproved }
+        }
+    }
+
+    @Test
+    fun `an invalid argument on the guardian email is a field error`() = runTest {
+        answers(Result.failure(ConsentFailure.InvalidArgument("guardianEmail")))
+        viewModel().testMvi {
+            type()
+            intent(GuardianRequestIntent.SubmitGuardianEmail)
+            assertState { it.isLoading }
+            assertState { it.emailError == GuardianEmailError.INVALID && it.error == null && !it.isLoading }
+        }
+    }
+
+    @Test
+    fun `the own email, normalised, is rejected locally without calling the server`() = runTest {
+        viewModel().testMvi {
+            type("  ME@Example.COM ")
+            intent(GuardianRequestIntent.SubmitGuardianEmail)
+            assertState { it.isLoading }
+            assertState { it.emailError == GuardianEmailError.OWN_EMAIL && !it.isLoading && !it.succeeded }
+        }
+        coVerify(exactly = 0) { request(any()) }
+    }
+
+    @Test
+    fun `without a known own email the request goes ahead`() = runTest {
+        coEvery { ownEmail() } returns null
+        answers(receipt)
+        viewModel().testMvi {
+            type("me@example.com")
+            intent(GuardianRequestIntent.SubmitGuardianEmail)
+            assertState { it.isLoading }
+            assertState { it.succeeded }
+        }
+    }
+
+    @Test
+    fun `sign out excludes submit and delete while pending, and vice versa`() = runTest {
+        answers(receipt)
+        viewModel().testMvi {
+            type()
+            intent(GuardianRequestIntent.SubmitGuardianEmail)
+            intent(GuardianRequestIntent.SignOut)
+            assertState { it.isLoading }
+            assertState { it.succeeded }
+        }
+        coVerify(exactly = 0) { signOut() }
+        coEvery { signOut() } coAnswers { delay(100) }
+        viewModel().testMvi {
+            type()
+            intent(GuardianRequestIntent.SignOut)
+            intent(GuardianRequestIntent.SubmitGuardianEmail)
+            intent(GuardianRequestIntent.DeleteAccount)
+            intent(GuardianRequestIntent.EmailChanged("otro@example.com"))
+            assertState { it.email == "otro@example.com" && !it.isLoading && !it.isDeleting }
+        }
+        coVerify(exactly = 1) { signOut() }
+        coVerify(exactly = 1) { request(any()) }
+        coVerify(exactly = 0) { delete() }
     }
 
     @Test

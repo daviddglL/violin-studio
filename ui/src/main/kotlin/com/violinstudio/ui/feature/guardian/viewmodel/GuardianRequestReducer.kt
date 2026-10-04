@@ -14,6 +14,10 @@ object GuardianRequestReducer {
                 }
             GuardianRequestMutation.SubmitRequested -> submit(state)
             GuardianRequestMutation.Succeeded -> state.copy(isLoading = false, succeeded = true)
+            GuardianRequestMutation.OwnEmailRejected ->
+                state.copy(isLoading = false, emailError = GuardianEmailError.OWN_EMAIL)
+            GuardianRequestMutation.AlreadyApproved ->
+                state.copy(isLoading = false, succeeded = true, alreadyApproved = true)
             GuardianRequestMutation.EmailRejected ->
                 state.copy(isLoading = false, emailError = GuardianEmailError.INVALID)
             is GuardianRequestMutation.Failed ->
