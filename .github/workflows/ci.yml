@@ -110,6 +110,7 @@ jobs:
           api-level: 34
           arch: x86_64
           target: google_apis
+          emulator-build: 15917651
           script: ./gradlew :app:connectedDevDebugAndroidTest
       - if: always()
         uses: actions/upload-artifact@v4
