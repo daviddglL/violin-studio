@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.auth.viewmodel
 
+import com.violinstudio.domain.feature.auth.model.GoogleIdToken
 import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
@@ -7,7 +8,17 @@ import com.violinstudio.ui.commons.mvi.UiState
 enum class LoginFieldError { EMAIL_EMPTY, PASSWORD_EMPTY }
 
 /** Un email inexistente y una contraseña errónea producen el mismo [INVALID_CREDENTIALS]. */
-enum class LoginError { INVALID_CREDENTIALS, TOO_MANY_REQUESTS, NETWORK }
+enum class LoginError {
+    INVALID_CREDENTIALS,
+    TOO_MANY_REQUESTS,
+    NETWORK,
+
+    /** Google no está disponible (sin cuenta, sin Play Services, sin configuración...): el formulario sigue operativo. */
+    GOOGLE_UNAVAILABLE,
+
+    /** El email ya existe con otro proveedor: se guía al usuario, sin vincular cuentas. */
+    ACCOUNT_EXISTS_OTHER_PROVIDER
+}
 
 data class LoginState(
     val email: String = "",
@@ -31,6 +42,12 @@ sealed interface LoginIntent : UiIntent {
     data class PasswordChanged(val value: String) : LoginIntent
     data object Submit : LoginIntent
 
+    /** Credential Manager entregó un ID token de Google. Cancelar la hoja no genera intent: no hay nada que cambiar. */
+    data class GoogleTokenReceived(val token: GoogleIdToken) : LoginIntent
+
+    /** Google no está disponible (el solicitante falló o no hay proveedor). */
+    data object GoogleFailed : LoginIntent
+
     /** Se sale de la pantalla: se olvidan contraseña, mensajes y errores; el email escrito se conserva. */
     data object ScreenLeft : LoginIntent
 }
@@ -46,5 +63,11 @@ sealed interface LoginMutation {
     data object SubmitRequested : LoginMutation
     data object Succeeded : LoginMutation
     data object ScreenLeft : LoginMutation
+
+    /** Empieza el acceso con Google: bloquea el envío mientras dura. */
+    data object GoogleStarted : LoginMutation
+
+    /** El usuario canceló: no es un error y el estado queda como estaba. */
+    data object GoogleCancelled : LoginMutation
     data class Failed(val error: LoginError) : LoginMutation
 }

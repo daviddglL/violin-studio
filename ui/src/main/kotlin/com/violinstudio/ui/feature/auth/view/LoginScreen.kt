@@ -57,6 +57,11 @@ fun LoginScreen(
             enabled = state.canSubmit,
             onClick = { onIntent(LoginIntent.Submit) }
         )
+        GoogleSignInButton(
+            enabled = state.canSubmit,
+            onToken = { onIntent(LoginIntent.GoogleTokenReceived(it)) },
+            onFailed = { onIntent(LoginIntent.GoogleFailed) }
+        )
         TextButton(onClick = onForgotPassword) { Text(stringResource(R.string.login_forgot)) }
         TextButton(onClick = onRegister) { Text(stringResource(R.string.login_to_register)) }
     }
@@ -71,4 +76,6 @@ private fun LoginError.textRes() = when (this) {
     LoginError.INVALID_CREDENTIALS -> R.string.login_error_invalid
     LoginError.TOO_MANY_REQUESTS -> R.string.auth_error_too_many
     LoginError.NETWORK -> R.string.auth_error_network
+    LoginError.GOOGLE_UNAVAILABLE -> R.string.auth_google_unavailable
+    LoginError.ACCOUNT_EXISTS_OTHER_PROVIDER -> R.string.auth_google_other_provider
 }

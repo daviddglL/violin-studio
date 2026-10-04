@@ -80,4 +80,13 @@ class RegisterReducerTest {
         )
         assertEquals(RegisterState(email = "a@b.co"), reduce(s, RegisterMutation.ScreenLeft))
     }
+
+    @Test
+    fun `google sign-in blocks submit while it runs and a cancellation restores the state`() {
+        val before = RegisterState(email = "ana@example.test", password = "secret", error = RegisterError.NETWORK)
+        val started = reduce(before, RegisterMutation.GoogleStarted)
+        assertTrue(started.isLoading)
+        assertFalse(started.canSubmit)
+        assertEquals(before, reduce(started, RegisterMutation.GoogleCancelled))
+    }
 }

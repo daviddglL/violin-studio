@@ -24,7 +24,7 @@ class AuthRepositoryImpl @Inject constructor(private val remote: AuthRemoteDataS
         attempt(AuthOperation.SIGN_UP) { remote.signUpWithEmail(email, password).toDomain() }
 
     override suspend fun signInWithGoogle(token: GoogleIdToken): Result<AuthUser> =
-        attempt(AuthOperation.GOOGLE_SIGN_IN) { remote.signInWithGoogle(token.value).toDomain() }
+        attempt(AuthOperation.GOOGLE_SIGN_IN) { remote.signInWithGoogle(token.value, token.rawNonce).toDomain() }
 
     override suspend fun sendEmailVerification(): Result<Unit> = attempt { remote.sendEmailVerification() }
 
@@ -41,7 +41,7 @@ class AuthRepositoryImpl @Inject constructor(private val remote: AuthRemoteDataS
         attempt { remote.reauthenticateWithPassword(password) }
 
     override suspend fun reauthenticateWithGoogle(token: GoogleIdToken): Result<Unit> =
-        attempt(AuthOperation.GOOGLE_SIGN_IN) { remote.reauthenticateWithGoogle(token.value) }
+        attempt(AuthOperation.GOOGLE_SIGN_IN) { remote.reauthenticateWithGoogle(token.value, token.rawNonce) }
 
     override suspend fun signOut() = remote.signOut()
 

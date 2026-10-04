@@ -17,6 +17,7 @@ android {
 
     defaultConfig {
         applicationId = "com.violinstudio"
+        testInstrumentationRunner = "com.violinstudio.HiltTestRunner"
         versionCode = providers.environmentVariable("GITHUB_RUN_NUMBER").map { it.toInt() }.getOrElse(1)
         versionName = "0.1.0"
     }
@@ -76,4 +77,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
 }

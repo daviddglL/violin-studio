@@ -1,9 +1,11 @@
 package com.violinstudio.data.feature.auth.datasource.firebase
 
+import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.OAuthProvider
 import com.violinstudio.data.feature.auth.datasource.AuthRemoteDataSource
 import com.violinstudio.data.feature.auth.dto.AuthUserDto
 import com.violinstudio.data.feature.auth.dto.ClaimsDto
@@ -27,8 +29,8 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
     override suspend fun signUpWithEmail(email: String, password: String): AuthUserDto =
         auth.createUserWithEmailAndPassword(email, password).await().user.toDtoOrThrow()
 
-    override suspend fun signInWithGoogle(idToken: String): AuthUserDto =
-        auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await().user.toDtoOrThrow()
+    override suspend fun signInWithGoogle(idToken: String, rawNonce: String?): AuthUserDto =
+        auth.signInWithCredential(googleCredential(idToken, rawNonce)).await().user.toDtoOrThrow()
 
     override suspend fun sendEmailVerification() {
         currentUser().sendEmailVerification().await()
@@ -55,8 +57,16 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
         user.reauthenticate(EmailAuthProvider.getCredential(checkNotNull(user.email), password)).await()
     }
 
-    override suspend fun reauthenticateWithGoogle(idToken: String) {
-        currentUser().reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).await()
+    override suspend fun reauthenticateWithGoogle(idToken: String, rawNonce: String?) {
+        currentUser().reauthenticate(googleCredential(idToken, rawNonce)).await()
+    }
+
+    // `GoogleAuthProvider.getCredential(idToken, x)` toma un ACCESS TOKEN como segundo argumento, no un nonce: con nonce
+    // crudo hay que usar el constructor OAuth, que Firebase verifica contra el `nonce` hasheado del ID token.
+    private fun googleCredential(idToken: String, rawNonce: String?): AuthCredential = if (rawNonce == null) {
+        GoogleAuthProvider.getCredential(idToken, null)
+    } else {
+        OAuthProvider.newCredentialBuilder("google.com").setIdTokenWithRawNonce(idToken, rawNonce).build()
     }
 
     override suspend fun reloadCurrentUser() {

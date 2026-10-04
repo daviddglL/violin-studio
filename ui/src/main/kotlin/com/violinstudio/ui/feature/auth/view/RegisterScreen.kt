@@ -51,6 +51,11 @@ fun RegisterScreen(state: RegisterState, onIntent: (RegisterIntent) -> Unit, onB
             enabled = state.canSubmit,
             onClick = { onIntent(RegisterIntent.Submit) }
         )
+        GoogleSignInButton(
+            enabled = state.canSubmit,
+            onToken = { onIntent(RegisterIntent.GoogleTokenReceived(it)) },
+            onFailed = { onIntent(RegisterIntent.GoogleFailed) }
+        )
         TextButton(onClick = onBack) { Text(stringResource(R.string.auth_back_to_login)) }
     }
 }
@@ -68,4 +73,6 @@ private fun RegisterError.textRes() = when (this) {
     RegisterError.TOO_MANY_REQUESTS -> R.string.auth_error_too_many
     RegisterError.NETWORK -> R.string.auth_error_network
     RegisterError.UNKNOWN -> R.string.auth_error_unknown
+    RegisterError.GOOGLE_UNAVAILABLE -> R.string.auth_google_unavailable
+    RegisterError.ACCOUNT_EXISTS_OTHER_PROVIDER -> R.string.auth_google_other_provider
 }

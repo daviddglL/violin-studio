@@ -47,6 +47,16 @@ class AuthScreensScreenshotTest {
         login(LoginState(email = "ana@example.test", password = "secret", isLoading = true))
     )
 
+    @Test fun loginGoogleOtherProvider() = capture(
+        "login_google_other_provider",
+        login(LoginState(email = "ana@example.test", error = LoginError.ACCOUNT_EXISTS_OTHER_PROVIDER))
+    )
+
+    @Test fun registerGoogleUnavailable() = capture(
+        "register_google_unavailable",
+        register(RegisterState(error = RegisterError.GOOGLE_UNAVAILABLE))
+    )
+
     @Test fun registerWeakPassword() = capture(
         "register_weak_password",
         register(

@@ -16,7 +16,7 @@ interface AuthRemoteDataSource {
 
     suspend fun signUpWithEmail(email: String, password: String): AuthUserDto
 
-    suspend fun signInWithGoogle(idToken: String): AuthUserDto
+    suspend fun signInWithGoogle(idToken: String, rawNonce: String?): AuthUserDto
 
     suspend fun sendEmailVerification()
 
@@ -29,7 +29,7 @@ interface AuthRemoteDataSource {
 
     suspend fun reauthenticateWithPassword(password: String)
 
-    suspend fun reauthenticateWithGoogle(idToken: String)
+    suspend fun reauthenticateWithGoogle(idToken: String, rawNonce: String?)
 
     /** `currentUser.reload()`; lanza `IllegalStateException` si no hay sesión y el error crudo del SDK si falla. */
     suspend fun reloadCurrentUser()

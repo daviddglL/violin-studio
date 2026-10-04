@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.auth.viewmodel
 
+import com.violinstudio.domain.feature.auth.model.GoogleIdToken
 import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
@@ -10,7 +11,14 @@ const val MIN_PASSWORD_LENGTH = 6
 enum class RegisterFieldError { EMAIL_EMPTY, EMAIL_INVALID, PASSWORD_EMPTY, PASSWORD_TOO_SHORT, PASSWORD_WEAK }
 
 /** [ACCOUNT_UNAVAILABLE] es genérico a propósito: no añade datos sobre la cuenta existente. */
-enum class RegisterError { ACCOUNT_UNAVAILABLE, TOO_MANY_REQUESTS, NETWORK, UNKNOWN }
+enum class RegisterError {
+    ACCOUNT_UNAVAILABLE,
+    TOO_MANY_REQUESTS,
+    NETWORK,
+    UNKNOWN,
+    GOOGLE_UNAVAILABLE,
+    ACCOUNT_EXISTS_OTHER_PROVIDER
+}
 
 data class RegisterState(
     val email: String = "",
@@ -32,6 +40,8 @@ sealed interface RegisterIntent : UiIntent {
     data class EmailChanged(val value: String) : RegisterIntent
     data class PasswordChanged(val value: String) : RegisterIntent
     data object Submit : RegisterIntent
+    data class GoogleTokenReceived(val token: GoogleIdToken) : RegisterIntent
+    data object GoogleFailed : RegisterIntent
     data object ScreenLeft : RegisterIntent
 }
 
@@ -44,6 +54,8 @@ sealed interface RegisterMutation {
     data object SubmitRequested : RegisterMutation
     data object Succeeded : RegisterMutation
     data object ScreenLeft : RegisterMutation
+    data object GoogleStarted : RegisterMutation
+    data object GoogleCancelled : RegisterMutation
 
     /** El servidor rechazó un campo concreto (`WeakPassword`, `InvalidEmail`). */
     data class Rejected(val emailError: RegisterFieldError?, val passwordError: RegisterFieldError?) :

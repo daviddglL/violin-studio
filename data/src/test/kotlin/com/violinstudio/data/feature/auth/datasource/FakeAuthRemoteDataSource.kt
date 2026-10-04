@@ -35,8 +35,8 @@ class FakeAuthRemoteDataSource : AuthRemoteDataSource {
         return user
     }
 
-    override suspend fun signInWithGoogle(idToken: String): AuthUserDto {
-        record("google:$idToken")
+    override suspend fun signInWithGoogle(idToken: String, rawNonce: String?): AuthUserDto {
+        record("google:$idToken:$rawNonce")
         return user
     }
 
@@ -56,7 +56,8 @@ class FakeAuthRemoteDataSource : AuthRemoteDataSource {
 
     override suspend fun reauthenticateWithPassword(password: String) = record("reauthPassword")
 
-    override suspend fun reauthenticateWithGoogle(idToken: String) = record("reauthGoogle:$idToken")
+    override suspend fun reauthenticateWithGoogle(idToken: String, rawNonce: String?) =
+        record("reauthGoogle:$idToken:$rawNonce")
 
     var reloadFailure: Exception? = null
 
