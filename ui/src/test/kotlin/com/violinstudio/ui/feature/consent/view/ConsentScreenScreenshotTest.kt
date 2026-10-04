@@ -46,6 +46,11 @@ class ConsentScreenScreenshotTest {
         "consent_policy_changed"
     )
 
+    @Test fun policyChangedUpdated() = capture(
+        ConsentState(config = v2, reason = ConsentReason.POLICY_UPDATED, error = ConsentError.POLICY_CHANGED),
+        "consent_policy_changed_updated"
+    )
+
     @Test fun retry() = capture(
         ConsentState(config = v1, checked = true, error = ConsentError.NETWORK),
         "consent_retry"

@@ -80,6 +80,8 @@ fun ConsentRoute(pending: SessionState.ConsentPending, viewModel: ConsentViewMod
                 )
             } catch (_: ActivityNotFoundException) {
                 onIntent(ConsentIntent.PolicyLinkFailed)
+            } catch (_: SecurityException) {
+                onIntent(ConsentIntent.PolicyLinkFailed)
             }
         }
     }

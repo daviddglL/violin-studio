@@ -1,8 +1,11 @@
 package com.violinstudio.ui.feature.consent.view
 
 import android.app.Application
+import android.content.ContextWrapper
 import android.content.Intent
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -69,18 +72,27 @@ class ConsentFlowTest {
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val session = mutableStateOf<SessionState>(ready)
+    private var startActivityFailure: RuntimeException? = null
+
+    private val failingContext = object : ContextWrapper(context) {
+        override fun startActivity(intent: Intent) {
+            startActivityFailure?.let { throw it } ?: super.startActivity(intent)
+        }
+    }
 
     private fun start(initial: SessionState) {
         session.value = initial
         val viewModel = ConsentViewModel(accept, getConfig, delete, signOut, trigger)
         compose.setContent {
-            ViolinStudioTheme {
-                SessionNavHost(
-                    session = session.value,
-                    onSignOut = {},
-                    home = { PlaceholderScreen("home") },
-                    consent = { ConsentSlot(it) { viewModel } }
-                )
+            CompositionLocalProvider(LocalContext provides failingContext) {
+                ViolinStudioTheme {
+                    SessionNavHost(
+                        session = session.value,
+                        onSignOut = {},
+                        home = { PlaceholderScreen("home") },
+                        consent = { ConsentSlot(it) { viewModel } }
+                    )
+                }
             }
         }
         compose.waitForIdle()
@@ -188,6 +200,15 @@ class ConsentFlowTest {
     @Test
     fun `without an app to open the policy the user is told instead of crashing`() {
         shadowOf(context).checkActivities(true)
+        start(SessionState.ConsentPending(v1, isMinor = false, reason = ConsentReason.FIRST))
+        compose.onNodeWithTag(CONSENT_POLICY_LINK_TAG).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.consent_link_failed)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `a viewer that refuses the intent with a security exception tells the user instead of crashing`() {
+        startActivityFailure = SecurityException("not exported")
         start(SessionState.ConsentPending(v1, isMinor = false, reason = ConsentReason.FIRST))
         compose.onNodeWithTag(CONSENT_POLICY_LINK_TAG).performScrollTo().performClick()
         compose.waitForIdle()
