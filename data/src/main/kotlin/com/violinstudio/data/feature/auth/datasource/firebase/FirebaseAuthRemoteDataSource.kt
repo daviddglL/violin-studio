@@ -13,8 +13,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.tasks.await
 
 /** Adaptador fino sobre el SDK, sin lógica ni traducción de errores; se prueba en el E2E (8b). */
@@ -32,7 +32,8 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
         combine(sdkUser, sessionCleared) { user, cleared -> if (cleared) null else user }
 
     override suspend fun signInWithEmail(email: String, password: String): AuthUserDto =
-        auth.signInWithEmailAndPassword(email, password).await().user.toDtoOrThrow().also { sessionCleared.value = false }
+        auth.signInWithEmailAndPassword(email, password).await().user.toDtoOrThrow()
+            .also { sessionCleared.value = false }
 
     override suspend fun signUpWithEmail(email: String, password: String): AuthUserDto =
         auth.createUserWithEmailAndPassword(email, password).await().user.toDtoOrThrow()
