@@ -10,6 +10,8 @@ import com.violinstudio.domain.feature.account.failure.AccountFailure
 import com.violinstudio.domain.feature.account.repository.AccountRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 class AccountRepositoryImpl @Inject constructor(
     private val functions: IdentityFunctionsDataSource,
@@ -23,7 +25,14 @@ class AccountRepositoryImpl @Inject constructor(
      * inválidos): se verifica con `reload()` y solo `GONE` cuenta como "ya borrada" (respuesta perdida en un
      * reintento). Si la cuenta existe es [AccountFailure.Unauthenticated]; si no se puede saber, `Unknown`.
      */
-    override suspend fun deleteAccount(): Result<Unit> {
+    override suspend fun deleteAccount(): Result<Unit> = withContext(NonCancellable) { deleteAccountToCompletion() }
+
+    /**
+     * No cancelable: el listener del perfil ve desaparecer `users/{uid}` ANTES de que responda el callable, la sesion
+     * cambia, la pantalla (y el ViewModel que borra) se destruye y cancelaria la corrutina antes del cierre local,
+     * dejando un usuario fantasma sin Login. Una vez pedido el borrado se termina siempre.
+     */
+    private suspend fun deleteAccountToCompletion(): Result<Unit> {
         try {
             functions.deleteAccount()
         } catch (e: CancellationException) {

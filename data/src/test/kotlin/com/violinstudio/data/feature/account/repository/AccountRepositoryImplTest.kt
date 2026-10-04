@@ -9,6 +9,9 @@ import com.violinstudio.data.feature.profile.datasource.FakeIdentityFunctionsDat
 import com.violinstudio.domain.feature.account.failure.AccountFailure
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -35,6 +38,21 @@ class AccountRepositoryImplTest {
             assertNull(awaitItem())
         }
         assertEquals(listOf("deleteAccount"), functions.calls.map { it.first })
+        assertEquals(listOf("signOut"), auth.calls)
+    }
+
+    @Test
+    fun `cancelar al llamante durante el borrado no impide cerrar la sesion local`() = runTest {
+        // El listener del perfil ve desaparecer el doc antes de que responda el callable, la sesion cambia y se cancela
+        // el ViewModel que borra: el usuario ya no existe en el servidor y la sesion local debe cerrarse igualmente.
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        val gate = CompletableDeferred<Unit>()
+        functions.deleteGate = gate
+        val job = launch { repo.deleteAccount() }
+        runCurrent()
+        job.cancel()
+        gate.complete(Unit)
+        job.join()
         assertEquals(listOf("signOut"), auth.calls)
     }
 

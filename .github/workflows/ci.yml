@@ -98,6 +98,8 @@ jobs:
           echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
       - run: npm ci --prefix functions && npm --prefix functions run build
       - run: npm i -g firebase-tools@15.20.0
+      # requestGuardianConsent (E2E del menor) necesita el pepper del HMAC; valor fijo de PRUEBA, como en el job functions.
+      - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
       - name: Arrancar el emulador de Functions
         run: |
           nohup firebase emulators:start --only functions,auth,firestore,storage --project violin-app-dev-f0b55 > emulators.log 2>&1 &
@@ -119,6 +121,8 @@ jobs:
           api-level: 30
           arch: x86_64
           target: google_apis
+          # Con la pantalla por defecto (320x640 @160dpi) los controles quedaban fuera de pantalla ("Failed to inject touch input").
+          profile: pixel_6
           ram-size: 3072M
           heap-size: 512M
           disk-size: 4096M
