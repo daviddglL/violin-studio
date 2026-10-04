@@ -55,6 +55,24 @@ class ConsentReducerTest {
     }
 
     @Test
+    fun `success is lifted when the session brings a different version or reason`() {
+        val done = loaded.copy(checked = true, succeeded = true)
+        assertFalse(reduce(done, ConsentMutation.SessionUpdated(v2, ConsentReason.POLICY_UPDATED)).succeeded)
+        assertFalse(reduce(done, ConsentMutation.SessionUpdated(v1, ConsentReason.REVOKED)).succeeded)
+        val onV2 = ConsentState(config = v2, checked = true, succeeded = true)
+        val stale = reduce(onV2, ConsentMutation.SessionUpdated(v1, ConsentReason.POLICY_UPDATED))
+        assertFalse(stale.succeeded)
+        assertTrue(stale.canAccept)
+        assertEquals(v2, stale.config)
+    }
+
+    @Test
+    fun `success stays when the session repeats the same version and reason`() {
+        val done = loaded.copy(checked = true, succeeded = true)
+        assertTrue(reduce(done, ConsentMutation.SessionUpdated(v1, ConsentReason.FIRST)).succeeded)
+    }
+
+    @Test
     fun `accept is blocked while loading, deleting or after success`() {
         val ready = loaded.copy(checked = true)
         assertTrue(reduce(ready, ConsentMutation.AcceptRequested).isLoading)
