@@ -4,7 +4,6 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
-import com.violinstudio.ui.feature.auth.view.AUTH_MESSAGE_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_PASSWORD_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
 import com.violinstudio.ui.feature.auth.view.LOGIN_TAG
@@ -42,6 +41,11 @@ class AdultJourneyTest : E2eTest() {
         journey.waitForTag("home_settings")
     }
 
+    private fun awaitConsent(uid: String, status: String, atLeast: Int) =
+        awaitBackend("users/$uid con consentStatus=$status y >= $atLeast consentimientos") {
+            Emulators.stringField("users/$uid", "consentStatus") == status && Emulators.consentCount(uid) >= atLeast
+        }
+
     private fun openSettings() {
         journey.click("home_settings")
         journey.waitForTag(SETTINGS_TAG)
@@ -51,6 +55,8 @@ class AdultJourneyTest : E2eTest() {
     fun adultRegistersConsentsRevokesReconsentsAndDeletesTheAccount() {
         val email = uniqueEmail("adult")
         registerUpToHome(email)
+        val uid = checkNotNull(Emulators.authUser(email)).getString("localId")
+        awaitConsent(uid, "granted", atLeast = 1)
 
         // Home real tras la sesion (sustituye al antiguo test de salud, que ya no llegaba a Home sin sesion).
         journey.clickText("Comprobar servidor")
@@ -61,11 +67,13 @@ class AdultJourneyTest : E2eTest() {
         journey.click(SETTINGS_REVOKE_CONFIRM_TAG)
         // Revocar devuelve a la pantalla de consentimiento con el motivo REVOKED.
         journey.waitForText("Vuelve a aceptar la política")
+        awaitConsent(uid, "revoked", atLeast = 1)
+        val before = Emulators.consentCount(uid)
         acceptPolicy()
         journey.waitForTag("home_settings")
+        awaitConsent(uid, "granted", atLeast = before + 1)
 
         openSettings()
-        val uid = checkNotNull(Emulators.authUser(email)).getString("localId")
         journey.deleteAccount()
 
         awaitBackend("la cuenta de Auth borrada") { Emulators.authUser(email) == null }
@@ -75,7 +83,7 @@ class AdultJourneyTest : E2eTest() {
         journey.type(AUTH_EMAIL_TAG, email)
         journey.type(AUTH_PASSWORD_TAG, E2E_PASSWORD)
         journey.click(AUTH_SUBMIT_TAG)
-        compose.waitUntilExactlyOneExists(hasTestTag(AUTH_MESSAGE_TAG), E2E_TIMEOUT_MS)
+        journey.waitForText("Email o contraseña incorrectos.")
         journey.waitForTag(LOGIN_TAG)
         assertNull(Emulators.authUser(email))
     }

@@ -38,7 +38,7 @@ abstract class E2eTest {
 
     @After
     fun closeApp() {
-        scenario?.close()
-        runBlocking { signOut() }
+        runCatching { scenario?.close() }
+        runCatching { runBlocking { signOut() } }
     }
 }

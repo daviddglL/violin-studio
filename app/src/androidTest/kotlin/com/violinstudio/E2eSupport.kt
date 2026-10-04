@@ -1,6 +1,7 @@
 package com.violinstudio
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
@@ -29,6 +30,7 @@ import java.util.UUID
 import org.json.JSONObject
 
 const val E2E_TIMEOUT_MS = 45_000L
+const val FIRST_SCREEN_TIMEOUT_MS = 90_000L
 const val E2E_PASSWORD = "Violin-E2e-2026!x"
 
 /**
@@ -70,10 +72,8 @@ object Emulators {
 
     /** Cuenta de Auth por email (`localId`, `emailVerified`) o `null` si no existe. */
     fun authUser(email: String): JSONObject? {
-        val body = request("GET", "${authBase()}/accounts:batchGet?maxResults=1000").body
-        val users = JSONObject(body).optJSONArray("users")
-        val all = (0 until (users?.length() ?: 0)).map { users!!.getJSONObject(it) }
-        return all.firstOrNull { it.optString("email") == email }
+        val body = request("POST", "${authBase()}/accounts:lookup", """{"email":["$email"]}""").body
+        return JSONObject(body).optJSONArray("users")?.optJSONObject(0)
     }
 
     /** Equivale a abrir el enlace del correo de verificacion. */
@@ -82,6 +82,15 @@ object Emulators {
         val response = request("POST", "${authBase()}/accounts:update", """{"localId":"$uid","emailVerified":true}""")
         check(response.code == 200) { "accounts:update fallo: ${response.code}" }
     }
+
+    /** Valor de un campo string de un documento (p. ej. `consentStatus`), o `null` si no existe. */
+    fun stringField(path: String, field: String): String? {
+        val r = request("GET", docsUrl(path))
+        if (r.code != 200) return null
+        return JSONObject(r.body).optJSONObject("fields")?.optJSONObject(field)?.optString("stringValue")
+    }
+
+    fun consentCount(uid: String): Int = docs("users/$uid/consents").size
 
     fun docExists(path: String): Boolean = request("GET", docsUrl(path)).code == 200
 
@@ -118,11 +127,17 @@ object Emulators {
 /** Espera sondeando el backend (fuera de Compose): verdadero antes del plazo o falla con [what]. */
 fun awaitBackend(what: String, timeoutMs: Long = E2E_TIMEOUT_MS, condition: () -> Boolean) {
     val deadline = System.currentTimeMillis() + timeoutMs
+    var last: Throwable? = null
     while (System.currentTimeMillis() < deadline) {
-        if (runCatching(condition).getOrDefault(false)) return
+        try {
+            if (condition()) return
+            last = null
+        } catch (e: Exception) {
+            last = e
+        }
         Thread.sleep(500)
     }
-    throw AssertionError("Plazo agotado esperando: $what")
+    throw AssertionError("Plazo agotado esperando: $what" + (last?.let { " (ultimo error: $it)" } ?: ""), last)
 }
 
 fun uniqueEmail(prefix: String) = "$prefix-${UUID.randomUUID().toString().take(12)}@example.test"
@@ -136,20 +151,26 @@ class Journey(private val compose: ComposeTestRule) {
     fun waitForText(text: String, timeoutMs: Long = E2E_TIMEOUT_MS) =
         compose.waitUntilExactlyOneExists(hasText(text), timeoutMs)
 
+    // Home no es desplazable: `performScrollTo` falla sin un ancestro con scroll, asi que solo se pide si lo hay.
+    private fun SemanticsNodeInteraction.scrolledIfNeeded(): SemanticsNodeInteraction {
+        runCatching { performScrollTo() }
+        return this
+    }
+
     fun click(tag: String) {
-        compose.onNodeWithTag(tag).performScrollTo().performClick()
+        compose.onNodeWithTag(tag).scrolledIfNeeded().performClick()
     }
 
     fun clickText(text: String) {
-        compose.onNodeWithText(text).performScrollTo().performClick()
+        compose.onNodeWithText(text).scrolledIfNeeded().performClick()
     }
 
     fun type(tag: String, text: String) {
-        compose.onNodeWithTag(tag).performScrollTo().performTextInput(text)
+        compose.onNodeWithTag(tag).scrolledIfNeeded().performTextInput(text)
     }
 
     fun register(email: String) {
-        waitForTag(LOGIN_TAG)
+        waitForTag(LOGIN_TAG, FIRST_SCREEN_TIMEOUT_MS)
         clickText("Crear cuenta")
         waitForTag(REGISTER_TAG)
         type(AUTH_EMAIL_TAG, email)

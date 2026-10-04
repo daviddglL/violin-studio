@@ -51,6 +51,9 @@ class MinorJourneyTest : E2eTest() {
 
         // La sesion cambia sola (listener del perfil) y la espera desaparece.
         compose.waitUntilExactlyOneExists(hasTestTag("home_settings"), E2E_TIMEOUT_MS)
+        awaitBackend("consentStatus=granted y un consentimiento tras la confirmacion del tutor") {
+            Emulators.stringField("users/$uid", "consentStatus") == "granted" && Emulators.consentCount(uid) >= 1
+        }
     }
 
     @Test
