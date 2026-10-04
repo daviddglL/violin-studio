@@ -75,6 +75,7 @@ class AppNavHostSessionTest {
                     navController = nav,
                     auth = { PlaceholderScreen("auth") },
                     verifyEmail = { PlaceholderScreen("verify_email") },
+                    onboarding = { PlaceholderScreen("onboarding") },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")
@@ -202,6 +203,7 @@ class AppNavHostSessionTest {
                     navController = nav,
                     auth = { PlaceholderScreen("auth") },
                     verifyEmail = { PlaceholderScreen("verify_email") },
+                    onboarding = { PlaceholderScreen("onboarding") },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")

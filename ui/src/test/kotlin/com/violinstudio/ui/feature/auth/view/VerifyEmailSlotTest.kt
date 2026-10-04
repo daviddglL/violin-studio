@@ -30,6 +30,7 @@ class VerifyEmailSlotTest {
                     session = session.value,
                     onSignOut = {},
                     auth = {},
+                    onboarding = {},
                     verifyEmail = { seen += it }
                 )
             }
