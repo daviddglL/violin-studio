@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.violinstudio.domain.feature.session.SessionState
+import com.violinstudio.ui.feature.auth.view.AuthRoute
 import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.home.view.HomeRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
@@ -45,7 +46,7 @@ fun SessionNavHost(
     onSignOut: () -> Unit,
     navController: NavHostController = rememberNavController(),
     home: @Composable () -> Unit = { HomeRoute() },
-    auth: @Composable () -> Unit = { PlaceholderScreen("auth") },
+    auth: @Composable () -> Unit = { AuthRoute() },
     verifyEmail: @Composable (email: String?) -> Unit = { VerifyEmailRoute(it) },
     onboarding: @Composable () -> Unit = { PlaceholderScreen("onboarding") },
     consent: @Composable () -> Unit = { PlaceholderScreen("consent") },
