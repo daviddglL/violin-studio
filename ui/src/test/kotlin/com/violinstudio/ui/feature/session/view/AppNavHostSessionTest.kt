@@ -60,6 +60,7 @@ class AppNavHostSessionTest {
 
     private val session = mutableStateOf<SessionState>(SessionState.Loading)
     private var homeComposed = false
+    private val guardianWaitSeen = mutableListOf<SessionState.ParentalPending>()
     private var signedOut = 0
     private lateinit var nav: NavHostController
 
@@ -77,7 +78,10 @@ class AppNavHostSessionTest {
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     onboarding = { PlaceholderScreen("onboarding") },
                     consent = { PlaceholderScreen("consent") },
-                    guardianWait = { PlaceholderScreen("guardian_wait") },
+                    guardianWait = {
+                        guardianWaitSeen += it
+                        PlaceholderScreen("guardian_wait")
+                    },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")
@@ -133,6 +137,22 @@ class AppNavHostSessionTest {
         assertAt(waiting)
         compose.onNodeWithTag("guardian_wait").assertIsDisplayed()
         assertFalse("home was composed while the guardian is pending", homeComposed)
+    }
+
+    @Test
+    fun theWaitSlotReceivesTheParentalPendingAndKeepsTheLastOneWhileLeaving() {
+        val waiting = SessionState.ParentalPending("t***@example.com", 1)
+        start(waiting)
+        assertAt(waiting)
+        assertEquals(waiting, guardianWaitSeen.last())
+        val resent = SessionState.ParentalPending("t***@example.com", 2)
+        session.value = resent
+        assertAt(resent)
+        assertEquals(resent, guardianWaitSeen.last())
+        // Leaving: the exit transition must still compose the slot with the last pending, never without data.
+        session.value = ready
+        assertAt(ready)
+        assertTrue(guardianWaitSeen.all { it.emailMasked == "t***@example.com" })
     }
 
     @Test
@@ -219,7 +239,10 @@ class AppNavHostSessionTest {
                     verifyEmail = { PlaceholderScreen("verify_email") },
                     onboarding = { PlaceholderScreen("onboarding") },
                     consent = { PlaceholderScreen("consent") },
-                    guardianWait = { PlaceholderScreen("guardian_wait") },
+                    guardianWait = {
+                        guardianWaitSeen += it
+                        PlaceholderScreen("guardian_wait")
+                    },
                     home = {
                         homeComposed = true
                         PlaceholderScreen("home")
