@@ -13,14 +13,18 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
+import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
+import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
 import com.violinstudio.domain.feature.consent.model.IdentityConfig
 import com.violinstudio.domain.feature.consent.usecase.AcceptPolicyUseCase
 import com.violinstudio.domain.feature.consent.usecase.GetIdentityConfigUseCase
+import com.violinstudio.domain.feature.consent.usecase.RequestGuardianConsentUseCase
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
@@ -30,8 +34,11 @@ import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentViewModel
+import com.violinstudio.ui.feature.guardian.view.GUARDIAN_REQUEST_TAG
+import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestViewModel
 import com.violinstudio.ui.feature.session.view.PlaceholderScreen
 import com.violinstudio.ui.navigation.SessionNavHost
 import io.mockk.coEvery
@@ -71,6 +78,8 @@ class ConsentFlowTest {
     private val delete = mockk<DeleteAccountUseCase>(relaxed = true)
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
+    private val requestGuardian = mockk<RequestGuardianConsentUseCase>()
+    private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
     private val session = mutableStateOf<SessionState>(ready)
     private var startActivityFailure: RuntimeException? = null
 
@@ -83,6 +92,7 @@ class ConsentFlowTest {
     private fun start(initial: SessionState) {
         session.value = initial
         val viewModel = ConsentViewModel(accept, getConfig, delete, signOut, trigger)
+        val guardianViewModel = GuardianRequestViewModel(requestGuardian, ownEmail, delete, signOut, trigger)
         compose.setContent {
             CompositionLocalProvider(LocalContext provides failingContext) {
                 ViolinStudioTheme {
@@ -90,7 +100,7 @@ class ConsentFlowTest {
                         session = session.value,
                         onSignOut = {},
                         home = { PlaceholderScreen("home") },
-                        consent = { ConsentSlot(it) { viewModel } }
+                        consent = { ConsentSlot(it, minorViewModel = { guardianViewModel }) { viewModel } }
                     )
                 }
             }
@@ -143,10 +153,22 @@ class ConsentFlowTest {
     }
 
     @Test
-    fun `a minor keeps the placeholder until the guardian flow exists`() {
+    fun `a minor sees the guardian request instead of the adult consent and sends the typed email`() {
+        coEvery { requestGuardian(any()) } returns Result.success(GuardianRequestReceipt("t***@example.com"))
         start(SessionState.ConsentPending(v1, isMinor = true, reason = ConsentReason.FIRST))
-        compose.onNodeWithTag(CONSENT_TAG).assertIsDisplayed()
+        compose.onNodeWithTag(GUARDIAN_REQUEST_TAG).assertIsDisplayed()
         compose.onNodeWithTag(CONSENT_CHECKBOX_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(AUTH_EMAIL_TAG).performTextInput("tutor@example.com")
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().performClick()
+        compose.waitForIdle()
+        coVerify(exactly = 1) { requestGuardian("tutor@example.com") }
+    }
+
+    @Test
+    fun `a revoked minor sees the revoked copy`() {
+        start(SessionState.ConsentPending(v1, isMinor = true, reason = ConsentReason.REVOKED))
+        compose.onNodeWithText(text(R.string.guardian_request_intro_revoked)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.guardian_request_intro_first)).assertDoesNotExist()
     }
 
     @Test
