@@ -1,7 +1,5 @@
 package com.violinstudio.ui.feature.onboarding.viewmodel
 
-import com.violinstudio.domain.feature.account.failure.AccountFailure
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.failure.ProfileField
@@ -22,24 +20,18 @@ import kotlinx.coroutines.CancellationException
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val registerProfile: RegisterProfileUseCase,
-    private val deleteAccount: DeleteAccountUseCase,
     private val signOut: SignOutUseCase,
     private val ageGate: AgeGate
 ) : MviViewModel<OnboardingState, OnboardingIntent, OnboardingEffect>(
     OnboardingState(locale = localeTagOf(Locale.getDefault()))
 ) {
     private var submitPending = false
-    private var deletePending = false
 
     override fun onIntent(intent: OnboardingIntent) {
         when (intent) {
             OnboardingIntent.Submit -> {
                 if (submitPending) return
                 submitPending = true
-            }
-            OnboardingIntent.DeleteAccount -> {
-                if (deletePending) return
-                deletePending = true
             }
             else -> Unit
         }
@@ -52,7 +44,6 @@ class OnboardingViewModel @Inject constructor(
         is OnboardingIntent.BirthDateChanged ->
             reduce(OnboardingMutation.BirthDateChanged(intent.day, intent.month, intent.year))
         OnboardingIntent.Submit -> onSubmit()
-        OnboardingIntent.DeleteAccount -> onDelete()
         OnboardingIntent.SignOut -> onSignOut()
     }
 
@@ -86,26 +77,6 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    private suspend fun onDelete() {
-        try {
-            reduce(OnboardingMutation.DeleteStarted)
-            val result = try {
-                deleteAccount()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Throwable) {
-                Result.failure(AccountFailure.Unknown())
-            }
-            // Éxito: el repositorio cierra la sesión y el host de sesión sustituye la pantalla; no se afirma nada más.
-            result.fold(
-                onSuccess = { reduce(OnboardingMutation.DeleteSucceeded) },
-                onFailure = { reduce(OnboardingMutation.DeleteFailed(it.toDeleteError())) }
-            )
-        } finally {
-            deletePending = false
-        }
-    }
-
     private suspend fun onSignOut() {
         try {
             signOut()
@@ -123,12 +94,6 @@ class OnboardingViewModel @Inject constructor(
             ?: OnboardingMutation.Failed(OnboardingError.UNKNOWN)
         ProfileFailure.Network -> OnboardingMutation.Failed(OnboardingError.NETWORK)
         else -> OnboardingMutation.Failed(OnboardingError.UNKNOWN)
-    }
-
-    private fun Throwable.toDeleteError() = when (this) {
-        AccountFailure.RequiresRecentLogin -> OnboardingDeleteError.REAUTH_REQUIRED
-        AccountFailure.Network -> OnboardingDeleteError.NETWORK
-        else -> OnboardingDeleteError.FAILED
     }
 
     private fun reduce(mutation: OnboardingMutation) = setState { OnboardingReducer.reduce(this, mutation, ageGate) }

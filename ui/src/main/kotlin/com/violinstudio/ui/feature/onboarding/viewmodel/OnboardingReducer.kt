@@ -27,15 +27,12 @@ object OnboardingReducer {
             }
             OnboardingMutation.SubmitRequested -> {
                 val errors = validate(state)
-                state.copy(fieldErrors = errors, error = null, deleteError = null, isLoading = errors.isEmpty())
+                state.copy(fieldErrors = errors, error = null, isLoading = errors.isEmpty())
             }
             OnboardingMutation.Succeeded -> state.copy(isLoading = false, succeeded = true)
             is OnboardingMutation.FieldRejected ->
                 state.copy(isLoading = false, fieldErrors = state.fieldErrors + mutation.field)
             is OnboardingMutation.Failed -> state.copy(isLoading = false, error = mutation.error)
-            OnboardingMutation.DeleteStarted -> state.copy(isDeleting = true, deleteError = null)
-            OnboardingMutation.DeleteSucceeded -> state.copy(isDeleting = false)
-            is OnboardingMutation.DeleteFailed -> state.copy(isDeleting = false, deleteError = mutation.error)
         }
 
     private fun OnboardingState.edited(field: ProfileField): OnboardingState {

@@ -119,17 +119,6 @@ class OnboardingReducerTest {
     }
 
     @Test
-    fun `deleting blocks submit, and a failed deletion keeps the account on screen with its reason`() {
-        val deleting = reduce(filled, OnboardingMutation.DeleteStarted)
-        assertTrue(deleting.isDeleting)
-        assertFalse(deleting.canSubmit)
-        val failed = reduce(deleting, OnboardingMutation.DeleteFailed(OnboardingDeleteError.REAUTH_REQUIRED))
-        assertFalse(failed.isDeleting)
-        assertEquals(OnboardingDeleteError.REAUTH_REQUIRED, failed.deleteError)
-        assertNull(reduce(failed, OnboardingMutation.DeleteStarted).deleteError)
-    }
-
-    @Test
     fun `toString leaves out the name and the birth date`() {
         val text = filled.toString()
         assertFalse(text.contains("Ana"))

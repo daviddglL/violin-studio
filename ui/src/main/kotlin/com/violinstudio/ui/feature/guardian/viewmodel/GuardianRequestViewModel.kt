@@ -1,6 +1,5 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.usecase.RequestGuardianConsentUseCase
@@ -19,25 +18,19 @@ import kotlinx.coroutines.CancellationException
 class GuardianRequestViewModel @Inject constructor(
     private val requestConsent: RequestGuardianConsentUseCase,
     private val getOwnEmail: GetOwnEmailUseCase,
-    private val deleteAccount: DeleteAccountUseCase,
     private val signOut: SignOutUseCase,
     private val refreshTrigger: SessionRefreshTrigger
 ) : MviViewModel<GuardianRequestState, GuardianRequestIntent, UiEffect>(GuardianRequestState()) {
     private var submitPending = false
-    private var deletePending = false
     private var signOutPending = false
 
-    private val busy get() = submitPending || deletePending || signOutPending
+    private val busy get() = submitPending || signOutPending
 
     override fun onIntent(intent: GuardianRequestIntent) {
         when (intent) {
             GuardianRequestIntent.SubmitGuardianEmail -> {
                 if (busy) return
                 submitPending = true
-            }
-            GuardianRequestIntent.DeleteAccount -> {
-                if (busy) return
-                deletePending = true
             }
             GuardianRequestIntent.SignOut -> {
                 if (busy) return
@@ -52,7 +45,6 @@ class GuardianRequestViewModel @Inject constructor(
         is GuardianRequestIntent.SessionUpdated -> reduce(GuardianRequestMutation.SessionUpdated(intent.reason))
         is GuardianRequestIntent.EmailChanged -> reduce(GuardianRequestMutation.EmailChanged(intent.email))
         GuardianRequestIntent.SubmitGuardianEmail -> onSubmit()
-        GuardianRequestIntent.DeleteAccount -> onDelete()
         GuardianRequestIntent.SignOut -> onSignOut()
     }
 
@@ -85,19 +77,6 @@ class GuardianRequestViewModel @Inject constructor(
             }
             is GuardianOutcome.Failed -> GuardianRequestMutation.Failed(outcome.error, outcome.retryAfterSeconds)
         }
-
-    private suspend fun onDelete() {
-        try {
-            reduce(GuardianRequestMutation.DeleteStarted)
-            // Éxito: el repositorio cierra la sesión y el host sustituye la pantalla; no se afirma nada más.
-            runCatchingNonCancellation { deleteAccount() }.fold(
-                onSuccess = { reduce(GuardianRequestMutation.DeleteSucceeded) },
-                onFailure = { reduce(GuardianRequestMutation.DeleteFailed(it.toDeleteError())) }
-            )
-        } finally {
-            deletePending = false
-        }
-    }
 
     private suspend fun onSignOut() {
         try {

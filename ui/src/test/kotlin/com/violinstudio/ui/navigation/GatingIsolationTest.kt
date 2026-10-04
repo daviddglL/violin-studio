@@ -49,6 +49,27 @@ class GatingIsolationTest {
     }
 
     @Test
+    fun `account may use only its delete and reauthentication symbols`() {
+        val allowed = ACCOUNT_ALLOWED
+        val ok = allowed.joinToString(NL) { "import $it" }
+        assertEquals(emptyList<String>(), violationsIn("${ok}${NL}class A", allowed))
+        val base = "com.violinstudio"
+        val forbidden = listOf(
+            "$base.domain.feature.session.SessionState",
+            "$base.domain.feature.auth.repository.AuthRepository",
+            "$base.domain.feature.account.repository.AccountRepository",
+            "$base.domain.feature.auth.usecase.SignOutUseCase",
+            "$base.domain.feature.auth.usecase.SignInWithEmailUseCase",
+            "$base.domain.feature.consent.usecase.RevokeConsentUseCase",
+            "$base.ui.navigation.HomeDestination"
+        )
+        for (import in forbidden) {
+            val found = violationsIn("${ok}${NL}import $import${NL}class A", allowed)
+            assertTrue(found.isNotEmpty(), "not caught: $import")
+        }
+    }
+
+    @Test
     fun `scanner flags session imports, including wildcards, and ignores comments`() {
         assertEquals(emptyList<String>(), violationsIn("// SessionState AuthRepository\n/* rootRoute */\nclass A"))
         assertTrue(violationsIn("import com.violinstudio.domain.feature.session.*\nclass A").isNotEmpty())
@@ -82,7 +103,21 @@ class GatingIsolationTest {
             "$BASE.consent.failure.ConsentFailure",
             "$BASE.session.SessionRefreshTrigger"
         )
-        val ALLOWED_BY_FEATURE = mapOf("settings" to SETTINGS_ALLOWED)
+
+        /**
+         * El borrado compartido necesita borrar la cuenta y reautenticar (sin conocer la sesion): solo estos simbolos.
+         * Repositorios, `SessionState` y la navegacion siguen vetados.
+         */
+        val ACCOUNT_ALLOWED = listOf(
+            "$BASE.account.usecase.DeleteAccountUseCase",
+            "$BASE.account.failure.AccountFailure",
+            "$BASE.auth.usecase.ReauthenticateUseCase",
+            "$BASE.auth.usecase.GetReauthMethodUseCase",
+            "$BASE.auth.usecase.ReauthMethod",
+            "$BASE.auth.failure.AuthFailure",
+            "$BASE.auth.model.GoogleIdToken"
+        )
+        val ALLOWED_BY_FEATURE = mapOf("settings" to SETTINGS_ALLOWED, "account" to ACCOUNT_ALLOWED)
 
         private val forbiddenPackages = listOf(
             "com.violinstudio.domain.feature.session",

@@ -1,7 +1,5 @@
 package com.violinstudio.ui.feature.consent.viewmodel
 
-import com.violinstudio.domain.feature.account.failure.AccountFailure
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.usecase.AcceptPolicyUseCase
@@ -21,22 +19,16 @@ import kotlinx.coroutines.CancellationException
 class ConsentViewModel @Inject constructor(
     private val acceptPolicy: AcceptPolicyUseCase,
     private val getConfig: GetIdentityConfigUseCase,
-    private val deleteAccount: DeleteAccountUseCase,
     private val signOut: SignOutUseCase,
     private val refreshTrigger: SessionRefreshTrigger
 ) : MviViewModel<ConsentState, ConsentIntent, ConsentEffect>(ConsentState()) {
     private var acceptPending = false
-    private var deletePending = false
 
     override fun onIntent(intent: ConsentIntent) {
         when (intent) {
             ConsentIntent.Accept -> {
-                if (acceptPending || deletePending) return
+                if (acceptPending) return
                 acceptPending = true
-            }
-            ConsentIntent.DeleteAccount -> {
-                if (deletePending || acceptPending) return
-                deletePending = true
             }
             else -> Unit
         }
@@ -49,7 +41,6 @@ class ConsentViewModel @Inject constructor(
         ConsentIntent.OpenPolicy -> onOpenPolicy()
         ConsentIntent.PolicyLinkFailed -> reduce(ConsentMutation.PolicyLinkFailed)
         ConsentIntent.Accept -> onAccept()
-        ConsentIntent.DeleteAccount -> onDelete()
         ConsentIntent.SignOut -> onSignOut()
     }
 
@@ -107,19 +98,6 @@ class ConsentViewModel @Inject constructor(
         )
     }
 
-    private suspend fun onDelete() {
-        try {
-            reduce(ConsentMutation.DeleteStarted)
-            // Éxito: el repositorio cierra la sesión y el host sustituye la pantalla; no se afirma nada más.
-            runCatchingNonCancellation { deleteAccount() }.fold(
-                onSuccess = { reduce(ConsentMutation.DeleteSucceeded) },
-                onFailure = { reduce(ConsentMutation.DeleteFailed(it.toDeleteError())) }
-            )
-        } finally {
-            deletePending = false
-        }
-    }
-
     private suspend fun onSignOut() {
         // El estado de sesión sigue siendo la fuente de verdad; un fallo no debe matar el bucle de intents.
         try {
@@ -129,12 +107,6 @@ class ConsentViewModel @Inject constructor(
         } catch (_: Throwable) {
             // Sin registrar la causa.
         }
-    }
-
-    private fun Throwable.toDeleteError() = when (this) {
-        AccountFailure.RequiresRecentLogin -> ConsentDeleteError.REAUTH_REQUIRED
-        AccountFailure.Network -> ConsentDeleteError.NETWORK
-        else -> ConsentDeleteError.FAILED
     }
 
     private fun reduce(mutation: ConsentMutation) = setState { ConsentReducer.reduce(this, mutation) }

@@ -33,8 +33,9 @@ class DeleteAccountReducerTest {
 
     @Test
     fun `cancel is ignored while working or after deletion`() {
-        assertEquals(DeleteStep.CONFIRMING, reduce(confirming.copy(isWorking = true), DeleteAccountMutation.Cancelled).step)
-        assertEquals(DeleteStep.CONFIRMING, reduce(confirming.copy(deleted = true), DeleteAccountMutation.Cancelled).step)
+        val cancel = DeleteAccountMutation.Cancelled
+        assertEquals(DeleteStep.CONFIRMING, reduce(confirming.copy(isWorking = true), cancel).step)
+        assertEquals(DeleteStep.CONFIRMING, reduce(confirming.copy(deleted = true), cancel).step)
     }
 
     @Test

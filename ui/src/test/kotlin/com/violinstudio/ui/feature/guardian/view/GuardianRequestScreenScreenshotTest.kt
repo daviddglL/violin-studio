@@ -1,12 +1,15 @@
 package com.violinstudio.ui.feature.guardian.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.violinstudio.domain.feature.session.ConsentReason
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.idleDeleteScope
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianEmailError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestState
@@ -24,7 +27,13 @@ class GuardianRequestScreenScreenshotTest {
     val compose = createComposeRule()
 
     private fun capture(state: GuardianRequestState, name: String) {
-        compose.setContent { ViolinStudioTheme { GuardianRequestScreen(state, onIntent = {}) } }
+        compose.setContent {
+            ViolinStudioTheme {
+                CompositionLocalProvider(LocalDeleteAccount provides idleDeleteScope()) {
+                    GuardianRequestScreen(state, onIntent = {})
+                }
+            }
+        }
         compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
 

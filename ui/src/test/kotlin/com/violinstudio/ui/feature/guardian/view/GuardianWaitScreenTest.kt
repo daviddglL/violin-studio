@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.guardian.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -19,9 +20,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.FAKE_DELETE_TAG
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.fakeDeleteScope
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianEmailError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianRequestError
 import com.violinstudio.ui.feature.guardian.viewmodel.GuardianWaitIntent
@@ -43,8 +46,12 @@ class GuardianWaitScreenTest {
     private fun text(id: Int, vararg args: Any) = context.getString(id, *args)
     private val intents = mutableListOf<GuardianWaitIntent>()
 
-    private fun show(state: GuardianWaitState) = compose.setContent {
-        ViolinStudioTheme { GuardianWaitScreen(state) { intents += it } }
+    private fun show(state: GuardianWaitState, deleteActive: Boolean = false) = compose.setContent {
+        ViolinStudioTheme {
+            CompositionLocalProvider(LocalDeleteAccount provides fakeDeleteScope(deleteActive)) {
+                GuardianWaitScreen(state) { intents += it }
+            }
+        }
     }
 
     private val waiting = GuardianWaitState(emailMasked = "t***@example.com", sends = 1, canResend = true)
@@ -59,7 +66,7 @@ class GuardianWaitScreenTest {
         compose.onNodeWithText(text(R.string.guardian_wait_intro_masked, "t***@example.com")).assertIsDisplayed()
         compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(GUARDIAN_WAIT_CHANGE_TAG).performScrollTo().assertIsEnabled()
-        compose.onNodeWithTag(GUARDIAN_WAIT_DELETE_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(GUARDIAN_WAIT_SIGN_OUT_TAG).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(AUTH_EMAIL_TAG).assertDoesNotExist()
         compose.onNodeWithTag(GUARDIAN_WAIT_CHECK_TAG).assertDoesNotExist()
@@ -79,19 +86,13 @@ class GuardianWaitScreenTest {
     }
 
     @Test
-    fun `the four actions send their intents`() {
+    fun `the screen actions send their intents and delete is the shared entry`() {
         show(waiting)
         compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).performScrollTo().performClick()
         compose.onNodeWithTag(GUARDIAN_WAIT_CHANGE_TAG).performScrollTo().performClick()
-        compose.onNodeWithTag(GUARDIAN_WAIT_DELETE_TAG).performScrollTo().performClick()
         compose.onNodeWithTag(GUARDIAN_WAIT_SIGN_OUT_TAG).performScrollTo().performClick()
         assertEquals(
-            listOf(
-                GuardianWaitIntent.Resend,
-                GuardianWaitIntent.ChangeEmail,
-                GuardianWaitIntent.DeleteAccount,
-                GuardianWaitIntent.SignOut
-            ),
+            listOf(GuardianWaitIntent.Resend, GuardianWaitIntent.ChangeEmail, GuardianWaitIntent.SignOut),
             intents
         )
     }
@@ -101,16 +102,16 @@ class GuardianWaitScreenTest {
         show(waiting.copy(isLoading = true))
         compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(GUARDIAN_WAIT_CHANGE_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag(GUARDIAN_WAIT_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(GUARDIAN_WAIT_SIGN_OUT_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test
-    fun `while deleting or signing out the others are disabled`() {
-        show(waiting.copy(isDeleting = true))
+    fun `while the shared delete flow is active every other action is disabled`() {
+        show(waiting, deleteActive = true)
         compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(GUARDIAN_WAIT_CHANGE_TAG).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(GUARDIAN_WAIT_SIGN_OUT_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText(text(R.string.consent_deleting)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -203,12 +204,6 @@ class GuardianWaitScreenTest {
     }
 
     @Test
-    fun `a delete failure is shown`() {
-        show(waiting.copy(deleteError = ConsentDeleteError.REAUTH_REQUIRED))
-        compose.onNodeWithText(text(R.string.consent_delete_reauth)).performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
     fun `while sending the email field is disabled and resend says sending`() {
         show(waiting.copy(isLoading = true))
         compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).performScrollTo().assertIsNotEnabled()
@@ -226,7 +221,7 @@ class GuardianWaitScreenTest {
         show(waiting.copy(canResend = false, error = GuardianRequestError.UNAVAILABLE))
         compose.onNodeWithTag(GUARDIAN_WAIT_RESEND_TAG).assertDoesNotExist()
         compose.onNodeWithTag(GUARDIAN_WAIT_CHANGE_TAG).assertDoesNotExist()
-        compose.onNodeWithTag(GUARDIAN_WAIT_DELETE_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(GUARDIAN_WAIT_SIGN_OUT_TAG).performScrollTo().assertIsEnabled()
     }
 }

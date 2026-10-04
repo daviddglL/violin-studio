@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.consent.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -21,14 +22,15 @@ import com.violinstudio.domain.feature.consent.model.IdentityConfig
 import com.violinstudio.domain.feature.session.ConsentReason
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.FAKE_DELETE_TAG
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.fakeDeleteScope
 import com.violinstudio.ui.feature.auth.view.AUTH_MESSAGE_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentError
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentIntent
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentState
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,8 +48,12 @@ class ConsentScreenTest {
     private val v1 = IdentityConfig(1, "https://example.test/policy/1", 14, true)
     private val v2 = IdentityConfig(2, "https://example.test/policy/2", 14, true)
 
-    private fun show(state: ConsentState) = compose.setContent {
-        ViolinStudioTheme { ConsentScreen(state) { intents += it } }
+    private fun show(state: ConsentState, deleteActive: Boolean = false) = compose.setContent {
+        ViolinStudioTheme {
+            CompositionLocalProvider(LocalDeleteAccount provides fakeDeleteScope(deleteActive)) {
+                ConsentScreen(state) { intents += it }
+            }
+        }
     }
 
     private fun loaded(config: IdentityConfig = v1, reason: ConsentReason = ConsentReason.FIRST) =
@@ -60,7 +66,7 @@ class ConsentScreenTest {
         compose.onNodeWithText(text(R.string.consent_intro_first)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.consent_read_policy, 1)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.consent_checkbox, 1)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag(CONSENT_DELETE_TAG).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(CONSENT_SIGN_OUT_TAG).performScrollTo().assertIsDisplayed()
     }
 
@@ -79,7 +85,7 @@ class ConsentScreenTest {
         compose.onNodeWithText(text(R.string.consent_title_revoked)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.consent_intro_revoked, 2)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.consent_intro_updated, 2)).assertDoesNotExist()
-        compose.onNodeWithTag(CONSENT_DELETE_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
     }
 
     @Test
@@ -112,7 +118,7 @@ class ConsentScreenTest {
         show(loaded().copy(checked = true, isLoading = true))
         compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText(text(R.string.consent_accepting)).assertIsDisplayed()
-        compose.onNodeWithTag(CONSENT_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(CONSENT_CHECKBOX_TAG).performScrollTo().performClick()
         assertEquals(emptyList<ConsentIntent>(), intents)
     }
@@ -171,39 +177,25 @@ class ConsentScreenTest {
         assertAssertive(text(R.string.consent_link_failed), loaded().copy(policyLinkFailed = true))
 
     @Test
-    fun `delete and sign out send their intents`() {
+    fun `sign out sends its intent and delete is the shared entry`() {
         show(loaded(reason = ConsentReason.REVOKED))
-        compose.onNodeWithTag(CONSENT_DELETE_TAG).performScrollTo().performClick()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(CONSENT_SIGN_OUT_TAG).performScrollTo().performClick()
-        assertEquals(listOf(ConsentIntent.DeleteAccount, ConsentIntent.SignOut), intents)
-    }
-
-    private fun assertDeleteFailure(error: ConsentDeleteError, messageId: Int) {
-        show(loaded().copy(deleteError = error))
-        compose.onNodeWithText(text(messageId)).performScrollTo().assertIsDisplayed()
-        // Nunca se afirma el borrado: el mensaje dice que la cuenta sigue activa.
-        assertTrue(text(messageId).contains("sigue activa", ignoreCase = true))
-        compose.onNodeWithTag(CONSENT_DELETE_TAG).performScrollTo().assertIsEnabled()
+        assertEquals(listOf<ConsentIntent>(ConsentIntent.SignOut), intents)
     }
 
     @Test
-    fun `a deletion that needs a recent login says the account is still active`() =
-        assertDeleteFailure(ConsentDeleteError.REAUTH_REQUIRED, R.string.consent_delete_reauth)
-
-    @Test
-    fun `a failed deletion says the account is still active`() =
-        assertDeleteFailure(ConsentDeleteError.FAILED, R.string.consent_delete_failed)
-
-    @Test
-    fun `an offline deletion says the account is still active`() =
-        assertDeleteFailure(ConsentDeleteError.NETWORK, R.string.consent_delete_network)
-
-    @Test
-    fun `while deleting the actions that change the outcome are blocked`() {
-        show(loaded().copy(checked = true, isDeleting = true))
-        compose.onNodeWithTag(CONSENT_DELETE_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText(text(R.string.consent_deleting)).assertIsDisplayed()
+    fun `while the shared delete flow is active accept, the checkbox and sign out are blocked`() {
+        show(loaded().copy(checked = true), deleteActive = true)
         compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(CONSENT_SIGN_OUT_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(CONSENT_CHECKBOX_TAG).performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `while accepting the delete entry is not offered to start`() {
+        show(loaded().copy(checked = true, isLoading = true))
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test

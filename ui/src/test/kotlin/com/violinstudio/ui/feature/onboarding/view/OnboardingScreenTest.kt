@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.onboarding.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -26,9 +27,11 @@ import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.FAKE_DELETE_TAG
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.fakeDeleteScope
 import com.violinstudio.ui.feature.auth.view.AUTH_MESSAGE_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
-import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingDeleteError
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingError
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingIntent
 import com.violinstudio.ui.feature.onboarding.viewmodel.OnboardingState
@@ -50,8 +53,12 @@ class OnboardingScreenTest {
     private fun text(id: Int) = context.getString(id)
     private val intents = mutableListOf<OnboardingIntent>()
 
-    private fun show(state: OnboardingState = OnboardingState()) = compose.setContent {
-        ViolinStudioTheme { OnboardingScreen(state) { intents += it } }
+    private fun show(state: OnboardingState = OnboardingState(), deleteActive: Boolean = false) = compose.setContent {
+        ViolinStudioTheme {
+            CompositionLocalProvider(LocalDeleteAccount provides fakeDeleteScope(deleteActive)) {
+                OnboardingScreen(state) { intents += it }
+            }
+        }
     }
 
     @Test
@@ -127,39 +134,34 @@ class OnboardingScreenTest {
     }
 
     @Test
-    fun `an underage verdict offers deleting the account and signing out and nothing else`() {
+    fun `an underage verdict offers the shared delete entry and sign out and nothing else`() {
         show(OnboardingState(error = OnboardingError.UNDERAGE_NOT_ALLOWED))
         compose.onNodeWithText(text(R.string.onboarding_error_underage)).performScrollTo().assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive))
-        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).performScrollTo().performClick()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(ONBOARDING_SIGN_OUT_TAG).performScrollTo().performClick()
-        assertEquals(listOf(OnboardingIntent.DeleteAccount, OnboardingIntent.SignOut), intents)
+        assertEquals(listOf<OnboardingIntent>(OnboardingIntent.SignOut), intents)
     }
 
     @Test
-    fun `account deletion is only offered after the underage verdict`() {
+    fun `account deletion is offered in every state, not only after the underage verdict`() {
         show(OnboardingState(error = OnboardingError.NETWORK))
-        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(ONBOARDING_SIGN_OUT_TAG).performScrollTo().assertIsDisplayed()
     }
 
     @Test
-    fun `a deletion that failed says the account is still active`() {
-        show(
-            OnboardingState(
-                error = OnboardingError.UNDERAGE_NOT_ALLOWED,
-                deleteError = OnboardingDeleteError.REAUTH_REQUIRED
-            )
+    fun `while the shared delete flow is active submit and sign out are blocked`() {
+        val filled = OnboardingState(
+            displayName = "Ana",
+            day = "1",
+            month = "1",
+            year = "2000",
+            instrument = Instrument.VIOLIN
         )
-        compose.onNodeWithText(text(R.string.onboarding_delete_reauth)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
-    fun `while deleting both actions are blocked`() {
-        show(OnboardingState(error = OnboardingError.UNDERAGE_NOT_ALLOWED, isDeleting = true))
-        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText(text(R.string.onboarding_deleting)).assertIsDisplayed()
+        show(filled, deleteActive = true)
+        compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(ONBOARDING_SIGN_OUT_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test
@@ -174,7 +176,7 @@ class OnboardingScreenTest {
         show(OnboardingState(ageHint = true, error = OnboardingError.UNDERAGE_NOT_ALLOWED))
         compose.onNodeWithTag(ONBOARDING_AGE_HINT_TAG).assertDoesNotExist()
         compose.onNodeWithTag(AUTH_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).performScrollTo().assertIsEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsEnabled()
     }
 
     @Test
@@ -187,7 +189,7 @@ class OnboardingScreenTest {
     @Test
     fun `deleting the account is blocked while a registration is loading`() {
         show(OnboardingState(error = OnboardingError.UNDERAGE_NOT_ALLOWED, isLoading = true))
-        compose.onNodeWithTag(ONBOARDING_DELETE_TAG).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag(FAKE_DELETE_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test

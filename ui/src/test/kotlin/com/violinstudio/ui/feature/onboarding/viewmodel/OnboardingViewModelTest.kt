@@ -1,7 +1,5 @@
 package com.violinstudio.ui.feature.onboarding.viewmodel
 
-import com.violinstudio.domain.feature.account.failure.AccountFailure
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.failure.ProfileField
@@ -32,11 +30,10 @@ import org.junit.jupiter.api.extension.ExtendWith
 @OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingViewModelTest {
     private val register = mockk<RegisterProfileUseCase>()
-    private val delete = mockk<DeleteAccountUseCase>()
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val gate = AgeGate(14, Clock.fixed(Instant.parse("2026-06-15T12:00:00Z"), ZoneOffset.UTC))
 
-    private fun viewModel() = OnboardingViewModel(register, delete, signOut, gate)
+    private fun viewModel() = OnboardingViewModel(register, signOut, gate)
 
     private fun registerAnswers(result: Result<Unit>) {
         coEvery { register(any()) } coAnswers {
@@ -163,43 +160,6 @@ class OnboardingViewModelTest {
             assertState { it.succeeded }
         }
         coVerify(exactly = 1) { register(any()) }
-    }
-
-    @Test
-    fun `deleting the account calls the use case once and never invents a message on success`() = runTest {
-        coEvery { delete() } coAnswers {
-            delay(100)
-            Result.success(Unit)
-        }
-        viewModel().testMvi {
-            intent(OnboardingIntent.DeleteAccount)
-            intent(OnboardingIntent.DeleteAccount)
-            assertState { it.isDeleting }
-            assertState { !it.isDeleting && it.deleteError == null }
-        }
-        coVerify(exactly = 1) { delete() }
-    }
-
-    @Test
-    fun `a deletion that did not happen is never reported as done`() = runTest {
-        val cases = listOf(
-            AccountFailure.RequiresRecentLogin to OnboardingDeleteError.REAUTH_REQUIRED,
-            AccountFailure.Unauthenticated to OnboardingDeleteError.FAILED,
-            AccountFailure.ErasureFailed to OnboardingDeleteError.FAILED,
-            AccountFailure.Network to OnboardingDeleteError.NETWORK,
-            AccountFailure.Unknown() to OnboardingDeleteError.FAILED
-        )
-        for ((failure, expected) in cases) {
-            coEvery { delete() } coAnswers {
-                delay(100)
-                Result.failure(failure)
-            }
-            viewModel().testMvi {
-                intent(OnboardingIntent.DeleteAccount)
-                assertState { it.isDeleting }
-                assertState { !it.isDeleting && it.deleteError == expected }
-            }
-        }
     }
 
     @Test

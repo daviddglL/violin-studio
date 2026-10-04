@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,10 +29,10 @@ import com.violinstudio.domain.feature.session.ConsentReason
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.ObserveAsEvents
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.auth.view.AuthMessage
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
 import com.violinstudio.ui.feature.auth.view.AuthSubmitButton
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentEffect
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentError
 import com.violinstudio.ui.feature.consent.viewmodel.ConsentIntent
@@ -46,7 +45,6 @@ const val CONSENT_TAG = "consent"
 const val CONSENT_INTRO_TAG = "consent_intro"
 const val CONSENT_CHECKBOX_TAG = "consent_checkbox"
 const val CONSENT_POLICY_LINK_TAG = "consent_policy_link"
-const val CONSENT_DELETE_TAG = "consent_delete"
 const val CONSENT_SIGN_OUT_TAG = "consent_sign_out"
 
 /**
@@ -92,6 +90,7 @@ fun ConsentRoute(pending: SessionState.ConsentPending, viewModel: ConsentViewMod
 
 @Composable
 fun ConsentScreen(state: ConsentState, onIntent: (ConsentIntent) -> Unit) {
+    val delete = LocalDeleteAccount.current
     val version = state.policyVersion
     AuthScaffold(CONSENT_TAG, stringResource(state.reason.titleRes())) {
         Text(
@@ -105,7 +104,7 @@ fun ConsentScreen(state: ConsentState, onIntent: (ConsentIntent) -> Unit) {
                 onClick = { onIntent(ConsentIntent.OpenPolicy) },
                 modifier = Modifier.testTag(CONSENT_POLICY_LINK_TAG)
             ) { Text(stringResource(R.string.consent_read_policy, version)) }
-            val editable = !state.isLoading && !state.succeeded && !state.isDeleting
+            val editable = !state.isLoading && !state.succeeded && !delete.active
             Row(
                 Modifier.fillMaxWidth().padding(vertical = 8.dp).toggleable(
                     value = state.checked,
@@ -124,22 +123,16 @@ fun ConsentScreen(state: ConsentState, onIntent: (ConsentIntent) -> Unit) {
         }
         state.error?.let { AuthMessage(it.message(version), isError = true) }
         if (state.policyLinkFailed) AuthMessage(stringResource(R.string.consent_link_failed), isError = true)
-        state.deleteError?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
         AuthSubmitButton(
             label = stringResource(if (state.isLoading) R.string.consent_accepting else R.string.consent_accept),
-            enabled = state.canAccept,
+            enabled = state.canAccept && !delete.active,
             onClick = { onIntent(ConsentIntent.Accept) }
         )
-        // Quien no acepta solo puede borrar la cuenta o cerrar sesión (C5): no hay otra salida de esta pantalla.
-        OutlinedButton(
-            onClick = { onIntent(ConsentIntent.DeleteAccount) },
-            enabled = !state.isDeleting && !state.isLoading,
-            modifier = Modifier.fillMaxWidth().testTag(CONSENT_DELETE_TAG)
-        ) {
-            Text(stringResource(if (state.isDeleting) R.string.consent_deleting else R.string.consent_delete))
-        }
+        // Quien no acepta solo puede borrar la cuenta o cerrar sesion (C5): borrar es el flujo compartido.
+        delete.entry(!state.isLoading && !state.succeeded)
         TextButton(
             onClick = { onIntent(ConsentIntent.SignOut) },
+            enabled = !delete.active,
             modifier = Modifier.testTag(CONSENT_SIGN_OUT_TAG)
         ) { Text(stringResource(R.string.session_sign_out)) }
     }
@@ -175,10 +168,4 @@ private fun ConsentError.message(version: Int?): String = when (this) {
     ConsentError.POLICY_UNAVAILABLE -> stringResource(R.string.consent_error_policy_unavailable)
     ConsentError.GUARDIAN_REQUIRED -> stringResource(R.string.consent_error_guardian)
     ConsentError.UNKNOWN -> stringResource(R.string.consent_error_unknown)
-}
-
-private fun ConsentDeleteError.textRes() = when (this) {
-    ConsentDeleteError.REAUTH_REQUIRED -> R.string.consent_delete_reauth
-    ConsentDeleteError.FAILED -> R.string.consent_delete_failed
-    ConsentDeleteError.NETWORK -> R.string.consent_delete_network
 }

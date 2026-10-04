@@ -1,7 +1,5 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
-import com.violinstudio.domain.feature.account.failure.AccountFailure
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.model.AuthProvider
 import com.violinstudio.domain.feature.auth.model.AuthUser
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
@@ -18,7 +16,6 @@ import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.MviScenario
 import com.violinstudio.ui.commons.testing.testMvi
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -43,7 +40,6 @@ class GuardianWaitViewModelTest {
     private val pending = PendingGuardianEmail().also { it.remember("u1", "tutor@example.com") }
     private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
     private val ownUid = mockk<GetOwnUidUseCase> { coEvery { this@mockk() } returns "u1" }
-    private val delete = mockk<DeleteAccountUseCase>()
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val receipt = Result.success(GuardianRequestReceipt("t***@example.com"))
@@ -51,7 +47,7 @@ class GuardianWaitViewModelTest {
     private fun viewModel(
         remembered: PendingGuardianEmail = pending,
         useCase: RequestGuardianConsentUseCase = request
-    ) = GuardianWaitViewModel(useCase, remembered, ownEmail, ownUid, delete, signOut, trigger)
+    ) = GuardianWaitViewModel(useCase, remembered, ownEmail, ownUid, signOut, trigger)
 
     private fun answers(result: Result<GuardianRequestReceipt>) {
         coEvery { request(any()) } coAnswers {
@@ -311,14 +307,12 @@ class GuardianWaitViewModelTest {
     }
 
     @Test
-    fun `while a send is pending delete, sign out and the change field are all ignored`() = runTest {
+    fun `while a send is pending sign out and the change field are ignored`() = runTest {
         answers(receipt)
-        coEvery { delete() } returns Result.success(Unit)
         val vm = viewModel()
         vm.testMvi {
             open()
             intent(GuardianWaitIntent.Resend)
-            intent(GuardianWaitIntent.DeleteAccount)
             intent(GuardianWaitIntent.SignOut)
             intent(GuardianWaitIntent.ChangeEmail)
             intent(GuardianWaitIntent.EmailChanged("x@y.zz"))
@@ -329,35 +323,10 @@ class GuardianWaitViewModelTest {
         }
         val last = vm.state.value
         assertEquals(GuardianWaitNotice.RESENT, last.notice)
-        assertFalse(last.changingEmail || last.isDeleting || last.isSigningOut)
+        assertFalse(last.changingEmail || last.isSigningOut)
         assertEquals("", last.email)
-        coVerify(exactly = 0) { delete() }
         coVerify(exactly = 0) { signOut() }
         coVerify(exactly = 1) { request(any()) }
-    }
-
-    @Test
-    fun `while a delete is pending sending and the change field are ignored`() = runTest {
-        coEvery { delete() } coAnswers {
-            delay(100)
-            Result.success(Unit)
-        }
-        val vm = viewModel()
-        vm.testMvi {
-            open()
-            intent(GuardianWaitIntent.DeleteAccount)
-            intent(GuardianWaitIntent.Resend)
-            intent(GuardianWaitIntent.ChangeEmail)
-            intent(GuardianWaitIntent.SignOut)
-            assertState { it.isDeleting }
-            assertState { !it.isDeleting }
-            advanceUntilIdle()
-        }
-        val last = vm.state.value
-        assertFalse(last.changingEmail || last.isLoading || last.isSigningOut)
-        coVerify(exactly = 0) { request(any()) }
-        coVerify(exactly = 0) { signOut() }
-        coVerify(exactly = 1) { delete() }
     }
 
     @Test
@@ -368,34 +337,15 @@ class GuardianWaitViewModelTest {
             open()
             intent(GuardianWaitIntent.SignOut)
             intent(GuardianWaitIntent.Resend)
-            intent(GuardianWaitIntent.DeleteAccount)
             intent(GuardianWaitIntent.ChangeEmail)
             assertState { it.isSigningOut && !it.canResendNow }
             assertState { !it.isSigningOut }
             advanceUntilIdle()
         }
         val last = vm.state.value
-        assertFalse(last.changingEmail || last.isLoading || last.isDeleting)
+        assertFalse(last.changingEmail || last.isLoading)
         coVerify(exactly = 1) { signOut() }
         coVerify(exactly = 0) { request(any()) }
-        coVerify(exactly = 0) { delete() }
-    }
-
-    @Test
-    fun `delete failures never claim the account was deleted`() = runTest {
-        val cases = listOf(
-            AccountFailure.RequiresRecentLogin to ConsentDeleteError.REAUTH_REQUIRED,
-            AccountFailure.Network to ConsentDeleteError.NETWORK,
-            AccountFailure.ErasureFailed to ConsentDeleteError.FAILED
-        )
-        for ((failure, error) in cases) {
-            coEvery { delete() } returns Result.failure(failure)
-            viewModel().testMvi {
-                intent(GuardianWaitIntent.DeleteAccount)
-                assertState { it.isDeleting }
-                assertState { !it.isDeleting && it.deleteError == error }
-            }
-        }
     }
 
     @Test

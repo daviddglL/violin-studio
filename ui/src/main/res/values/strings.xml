@@ -156,7 +156,22 @@
     <string name="settings_revoke_unknown">No se ha podido retirar el consentimiento. Sigue vigente; inténtalo de nuevo.</string>
     <string name="settings_revoke_stalled">Has retirado tu consentimiento, pero no hemos podido actualizar tu estado. Puedes reintentarlo o volver más tarde.</string>
     <string name="settings_revoke_retry">Reintentar actualización</string>
-    <string name="settings_delete">Eliminar mi cuenta</string>
+    <string name="delete_account_button">Eliminar mi cuenta</string>
+    <string name="delete_account_confirm_message">¿Eliminar tu cuenta? Se borrarán tu cuenta y todos tus datos de forma permanente. No se puede deshacer.</string>
+    <string name="delete_account_confirm_yes">Sí, eliminar mi cuenta</string>
+    <string name="delete_account_deleting">Eliminando…</string>
+    <string name="delete_account_cancel">Cancelar</string>
+    <string name="delete_account_reauth_message">Por seguridad, confirma que eres tú para eliminar la cuenta.</string>
+    <string name="delete_account_password_label">Tu contraseña</string>
+    <string name="delete_account_reauth_submit">Confirmar y eliminar</string>
+    <string name="delete_account_google">Confirmar con Google</string>
+    <string name="delete_account_done">Cuenta eliminada. Cerrando sesión…</string>
+    <string name="delete_account_error_wrong_password">La contraseña no es correcta. Tu cuenta sigue activa.</string>
+    <string name="delete_account_error_too_many">Demasiados intentos. Tu cuenta sigue activa; inténtalo de nuevo más tarde.</string>
+    <string name="delete_account_error_network">Sin conexión. Tu cuenta sigue activa; inténtalo de nuevo.</string>
+    <string name="delete_account_error_provider">No se ha podido confirmar tu identidad con Google. Tu cuenta sigue activa; inténtalo de nuevo.</string>
+    <string name="delete_account_error_reauth_unavailable">Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo. Tu cuenta sigue activa.</string>
+    <string name="delete_account_error_failed">No se ha podido eliminar la cuenta. Sigue activa; inténtalo de nuevo.</string>
     <string name="settings_back">Volver</string>
     <string name="home_open_settings">Ajustes</string>
 </resources>

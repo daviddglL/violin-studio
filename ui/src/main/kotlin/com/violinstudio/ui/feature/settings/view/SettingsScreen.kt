@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.R
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.auth.view.AuthMessage
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
 import com.violinstudio.ui.feature.onboarding.view.labelRes
@@ -53,46 +54,34 @@ const val SETTINGS_REVOKE_TAG = "settings_revoke"
 const val SETTINGS_REVOKE_CONFIRM_TAG = "settings_revoke_confirm"
 const val SETTINGS_REVOKE_CANCEL_TAG = "settings_revoke_cancel"
 const val SETTINGS_RETRY_TAG = "settings_retry"
-const val SETTINGS_DELETE_TAG = "settings_delete"
 const val SETTINGS_BACK_TAG = "settings_back"
 
 fun settingsInstrumentTag(wire: String) = "settings_instrument_$wire"
 
-/** [onDeleteAccount] es nulo hasta que 8b aporta el flujo de borrado: sin destino no se ofrece el boton. */
 @Composable
-fun SettingsRoute(
-    onBack: () -> Unit,
-    onDeleteAccount: (() -> Unit)? = null,
-    viewModel: SettingsViewModel = hiltViewModel()
-) {
+fun SettingsRoute(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    SettingsScreen(state, viewModel::onIntent, onBack, onDeleteAccount)
+    SettingsScreen(state, viewModel::onIntent, onBack)
 }
 
+/** El borrado de cuenta es el flujo compartido (D1): con el flujo abierto o terminado el resto queda bloqueado. */
 @Composable
-fun SettingsScreen(
-    state: SettingsState,
-    onIntent: (SettingsIntent) -> Unit,
-    onBack: () -> Unit,
-    onDeleteAccount: (() -> Unit)?
-) {
+fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, onBack: () -> Unit) {
+    val delete = LocalDeleteAccount.current
+    val shown = state.copy(deleteActive = delete.active)
     AuthScaffold(SETTINGS_TAG, stringResource(R.string.settings_title)) {
-        if (!state.loaded) {
+        if (!shown.loaded) {
             Text(stringResource(R.string.settings_loading), Modifier.polite())
         } else {
-            ProfileForm(state, onIntent)
-            PrivacySection(state, onIntent)
-            if (onDeleteAccount != null) {
-                OutlinedButton(
-                    onClick = onDeleteAccount,
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth().testTag(SETTINGS_DELETE_TAG)
-                ) { Text(stringResource(R.string.settings_delete)) }
-            }
+            ProfileForm(shown, onIntent)
+            PrivacySection(shown, onIntent)
+            delete.entry(!shown.busy)
         }
-        TextButton(onClick = onBack, enabled = !state.revoked, modifier = Modifier.testTag(SETTINGS_BACK_TAG)) {
-            Text(stringResource(R.string.settings_back))
-        }
+        TextButton(
+            onClick = onBack,
+            enabled = !shown.revoked && !shown.deleteActive,
+            modifier = Modifier.testTag(SETTINGS_BACK_TAG)
+        ) { Text(stringResource(R.string.settings_back)) }
     }
 }
 

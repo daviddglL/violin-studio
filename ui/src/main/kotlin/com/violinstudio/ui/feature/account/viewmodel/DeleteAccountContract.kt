@@ -32,7 +32,8 @@ data class DeleteAccountState(
 ) : UiState {
     val canOpen: Boolean get() = step == DeleteStep.IDLE && !deleted
     val canConfirm: Boolean
-        get() = step == DeleteStep.CONFIRMING && !isWorking && !deleted && error != DeleteAccountError.REAUTH_UNAVAILABLE
+        get() = step == DeleteStep.CONFIRMING && !isWorking && !deleted &&
+            error != DeleteAccountError.REAUTH_UNAVAILABLE
     val canCancel: Boolean get() = step != DeleteStep.IDLE && !isWorking && !deleted
     val canSubmitPassword: Boolean
         get() = step == DeleteStep.REAUTH && method == ReauthMethod.PASSWORD && password.isNotBlank() &&

@@ -1,7 +1,5 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
-import com.violinstudio.domain.feature.account.failure.AccountFailure
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
@@ -13,7 +11,6 @@ import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.MviScenario
 import com.violinstudio.ui.commons.testing.testMvi
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -29,12 +26,11 @@ import org.junit.jupiter.api.extension.ExtendWith
 class GuardianRequestViewModelTest {
     private val request = mockk<RequestGuardianConsentUseCase>()
     private val ownEmail = mockk<GetOwnEmailUseCase> { coEvery { this@mockk() } returns "me@example.com" }
-    private val delete = mockk<DeleteAccountUseCase>()
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
     private val trigger = mockk<SessionRefreshTrigger>(relaxed = true)
     private val receipt = Result.success(GuardianRequestReceipt("t***@example.com"))
 
-    private fun viewModel() = GuardianRequestViewModel(request, ownEmail, delete, signOut, trigger)
+    private fun viewModel() = GuardianRequestViewModel(request, ownEmail, signOut, trigger)
 
     private fun answers(result: Result<GuardianRequestReceipt>) {
         coEvery { request(any()) } coAnswers {
@@ -195,7 +191,7 @@ class GuardianRequestViewModelTest {
     }
 
     @Test
-    fun `sign out excludes submit and delete while pending, and vice versa`() = runTest {
+    fun `sign out excludes submit while pending, and vice versa`() = runTest {
         answers(receipt)
         viewModel().testMvi {
             type()
@@ -210,13 +206,11 @@ class GuardianRequestViewModelTest {
             type()
             intent(GuardianRequestIntent.SignOut)
             intent(GuardianRequestIntent.SubmitGuardianEmail)
-            intent(GuardianRequestIntent.DeleteAccount)
             intent(GuardianRequestIntent.EmailChanged("otro@example.com"))
-            assertState { it.email == "otro@example.com" && !it.isLoading && !it.isDeleting }
+            assertState { it.email == "otro@example.com" && !it.isLoading }
         }
         coVerify(exactly = 1) { signOut() }
         coVerify(exactly = 1) { request(any()) }
-        coVerify(exactly = 0) { delete() }
     }
 
     @Test
@@ -239,50 +233,6 @@ class GuardianRequestViewModelTest {
             intent(GuardianRequestIntent.SessionUpdated(ConsentReason.POLICY_UPDATED))
             assertState { it.reason == ConsentReason.POLICY_UPDATED }
         }
-    }
-
-    @Test
-    fun `delete account success shows no message because the session changes`() = runTest {
-        coEvery { delete() } coAnswers {
-            delay(100)
-            Result.success(Unit)
-        }
-        viewModel().testMvi {
-            intent(GuardianRequestIntent.DeleteAccount)
-            assertState { it.isDeleting }
-            assertState { !it.isDeleting && it.deleteError == null }
-        }
-    }
-
-    @Test
-    fun `delete failures never claim the account was deleted`() = runTest {
-        val cases = listOf(
-            AccountFailure.RequiresRecentLogin to ConsentDeleteError.REAUTH_REQUIRED,
-            AccountFailure.Network to ConsentDeleteError.NETWORK,
-            AccountFailure.ErasureFailed to ConsentDeleteError.FAILED
-        )
-        for ((failure, error) in cases) {
-            coEvery { delete() } returns Result.failure(failure)
-            viewModel().testMvi {
-                intent(GuardianRequestIntent.DeleteAccount)
-                assertState { it.isDeleting }
-                assertState { !it.isDeleting && it.deleteError == error }
-            }
-        }
-    }
-
-    @Test
-    fun `submit and delete exclude each other while one is pending`() = runTest {
-        answers(receipt)
-        coEvery { delete() } returns Result.success(Unit)
-        viewModel().testMvi {
-            type()
-            intent(GuardianRequestIntent.SubmitGuardianEmail)
-            intent(GuardianRequestIntent.DeleteAccount)
-            assertState { it.isLoading }
-            assertState { it.succeeded }
-        }
-        coVerify(exactly = 0) { delete() }
     }
 
     @Test

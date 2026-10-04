@@ -43,10 +43,13 @@ data class SettingsState(
     /** Revocación hecha: la sesión cambia sola a re-consentir; hasta entonces todo queda bloqueado. */
     val revoked: Boolean = false,
     /** La revocacion se hizo pero la sesion no salio de Ready a tiempo: se ofrece reintentar el refresco. */
-    val revokeStalled: Boolean = false
+    val revokeStalled: Boolean = false,
+
+    /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado. */
+    val deleteActive: Boolean = false
 ) : UiState {
     val loaded: Boolean get() = baseline != null
-    val busy: Boolean get() = isSaving || isRevoking || revoked || confirmingRevoke
+    val busy: Boolean get() = isSaving || isRevoking || revoked || confirmingRevoke || deleteActive
     val dirty: Boolean get() = loaded && fields != baseline
     val canSave: Boolean get() = dirty && !busy && error != SettingsError.UNAVAILABLE
     val canRevoke: Boolean

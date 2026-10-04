@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.auth.view
 
 import android.app.Application
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -19,6 +20,10 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.account.view.DeleteAccountScope
+import com.violinstudio.ui.feature.account.view.FAKE_DELETE_TAG
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
+import com.violinstudio.ui.feature.account.view.fakeDeleteScope
 import com.violinstudio.ui.feature.auth.viewmodel.VerifyEmailIntent
 import com.violinstudio.ui.feature.auth.viewmodel.VerifyEmailMessage
 import com.violinstudio.ui.feature.auth.viewmodel.VerifyEmailState
@@ -37,10 +42,18 @@ class VerifyEmailScreenTest {
     private val context: Application = ApplicationProvider.getApplicationContext()
     private val sent = mutableListOf<VerifyEmailIntent>()
 
-    private fun show(state: VerifyEmailState = VerifyEmailState(), email: String? = "ana@example.test") {
+    private fun show(
+        state: VerifyEmailState = VerifyEmailState(),
+        email: String? = "ana@example.test",
+        deleteScope: DeleteAccountScope = DeleteAccountScope(active = false) { }
+    ) {
         sent.clear()
         compose.setContent {
-            ViolinStudioTheme { VerifyEmailScreen(email = email, state = state, onIntent = { sent += it }) }
+            ViolinStudioTheme {
+                CompositionLocalProvider(LocalDeleteAccount provides deleteScope) {
+                    VerifyEmailScreen(email = email, state = state, onIntent = { sent += it })
+                }
+            }
         }
     }
 
@@ -146,5 +159,20 @@ class VerifyEmailScreenTest {
             message.value = m
             compose.onNodeWithText(text(id)).assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun offersTheSharedDeleteEntryWithoutBlockingTheOtherActions() {
+        show(deleteScope = fakeDeleteScope())
+        compose.onNodeWithTag(FAKE_DELETE_TAG).assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithText(text(R.string.session_sign_out)).assertIsEnabled()
+    }
+
+    @Test
+    fun whileTheSharedDeleteFlowIsActiveEveryOtherActionIsDisabled() {
+        show(deleteScope = fakeDeleteScope(active = true))
+        compose.onNodeWithText(text(R.string.verify_email_check)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.verify_email_resend)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.session_sign_out)).assertIsNotEnabled()
     }
 }

@@ -153,7 +153,13 @@ private fun Modifier.autofill(types: List<AutofillType>, onFill: (String) -> Uni
  * la hoja no avisa a nadie: no es un error ni cambia nada.
  */
 @Composable
-internal fun GoogleSignInButton(enabled: Boolean, onToken: (GoogleIdToken) -> Unit, onFailed: () -> Unit) {
+internal fun GoogleSignInButton(
+    enabled: Boolean,
+    onToken: (GoogleIdToken) -> Unit,
+    onFailed: () -> Unit,
+    tag: String = AUTH_GOOGLE_TAG,
+    label: String = stringResource(R.string.auth_google_button)
+) {
     val requester = LocalGoogleIdTokenRequester.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -179,9 +185,9 @@ internal fun GoogleSignInButton(enabled: Boolean, onToken: (GoogleIdToken) -> Un
             }
         },
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().testTag(AUTH_GOOGLE_TAG)
+        modifier = Modifier.fillMaxWidth().testTag(tag)
     ) {
-        Text(stringResource(R.string.auth_google_button))
+        Text(label)
     }
 }
 

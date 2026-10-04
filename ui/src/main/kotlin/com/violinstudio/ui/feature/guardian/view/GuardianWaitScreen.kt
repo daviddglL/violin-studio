@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
+import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
 import com.violinstudio.ui.feature.auth.view.AuthMessage
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
@@ -36,7 +37,6 @@ const val GUARDIAN_WAIT_RESEND_TAG = "guardian_wait_resend"
 const val GUARDIAN_WAIT_CHANGE_TAG = "guardian_wait_change"
 const val GUARDIAN_WAIT_CANCEL_TAG = "guardian_wait_cancel"
 const val GUARDIAN_WAIT_CHECK_TAG = "guardian_wait_check"
-const val GUARDIAN_WAIT_DELETE_TAG = "guardian_wait_delete"
 const val GUARDIAN_WAIT_SIGN_OUT_TAG = "guardian_wait_sign_out"
 
 /** Destino `guardian_wait` del host de sesión. [viewModel] se inyecta para poder probarlo sin Hilt. */
@@ -70,6 +70,9 @@ fun GuardianWaitRoute(pending: SessionState.ParentalPending, viewModel: Guardian
  */
 @Composable
 fun GuardianWaitScreen(state: GuardianWaitState, onIntent: (GuardianWaitIntent) -> Unit) {
+    val delete = LocalDeleteAccount.current
+    // Con el borrado compartido abierto (o terminado) nada mas puede empezar.
+    val busy = state.busy || delete.active
     AuthScaffold(GUARDIAN_WAIT_TAG, stringResource(R.string.guardian_wait_title)) {
         Text(
             state.emailMasked?.let { stringResource(R.string.guardian_wait_intro_masked, it) }
@@ -83,16 +86,17 @@ fun GuardianWaitScreen(state: GuardianWaitState, onIntent: (GuardianWaitIntent) 
         if (state.notice == GuardianWaitNotice.ALREADY_APPROVED) {
             OutlinedButton(
                 onClick = { onIntent(GuardianWaitIntent.CheckAgain) },
+                enabled = !delete.active,
                 modifier = Modifier.fillMaxWidth().testTag(GUARDIAN_WAIT_CHECK_TAG)
             ) { Text(stringResource(R.string.guardian_wait_check_again)) }
         }
         if (state.changingEmail) {
-            ChangeEmailForm(state, onIntent)
+            ChangeEmailForm(state, busy, onIntent)
         } else {
             if ((state.canResend || state.resendBlocked) && !state.terminal) {
                 OutlinedButton(
                     onClick = { onIntent(GuardianWaitIntent.Resend) },
-                    enabled = state.canResendNow,
+                    enabled = state.canResendNow && !delete.active,
                     modifier = Modifier.fillMaxWidth().testTag(GUARDIAN_WAIT_RESEND_TAG)
                 ) {
                     Text(
@@ -105,29 +109,22 @@ fun GuardianWaitScreen(state: GuardianWaitState, onIntent: (GuardianWaitIntent) 
             if (!state.terminal) {
                 OutlinedButton(
                     onClick = { onIntent(GuardianWaitIntent.ChangeEmail) },
-                    enabled = !state.busy,
+                    enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag(GUARDIAN_WAIT_CHANGE_TAG)
                 ) { Text(stringResource(R.string.guardian_wait_change_email)) }
             }
         }
-        state.deleteError?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
-        OutlinedButton(
-            onClick = { onIntent(GuardianWaitIntent.DeleteAccount) },
-            enabled = !state.busy,
-            modifier = Modifier.fillMaxWidth().testTag(GUARDIAN_WAIT_DELETE_TAG)
-        ) {
-            Text(stringResource(if (state.isDeleting) R.string.consent_deleting else R.string.consent_delete))
-        }
+        delete.entry(!state.busy)
         TextButton(
             onClick = { onIntent(GuardianWaitIntent.SignOut) },
-            enabled = !state.busy,
+            enabled = !busy,
             modifier = Modifier.testTag(GUARDIAN_WAIT_SIGN_OUT_TAG)
         ) { Text(stringResource(R.string.session_sign_out)) }
     }
 }
 
 @Composable
-private fun ChangeEmailForm(state: GuardianWaitState, onIntent: (GuardianWaitIntent) -> Unit) {
+private fun ChangeEmailForm(state: GuardianWaitState, busy: Boolean, onIntent: (GuardianWaitIntent) -> Unit) {
     AuthTextField(
         value = state.email,
         onValueChange = { onIntent(GuardianWaitIntent.EmailChanged(it)) },
@@ -136,19 +133,19 @@ private fun ChangeEmailForm(state: GuardianWaitState, onIntent: (GuardianWaitInt
         tag = AUTH_EMAIL_TAG,
         // El email es de otra persona: sin autorrelleno de las credenciales del propio usuario.
         autofillTypes = emptyList<AutofillType>(),
-        enabled = !state.busy,
+        enabled = !busy,
         onDone = { onIntent(GuardianWaitIntent.SubmitNewEmail) }
     )
     AuthSubmitButton(
         label = stringResource(
             if (state.isLoading) R.string.guardian_request_sending else R.string.guardian_wait_send_new
         ),
-        enabled = state.canSubmitNewEmail,
+        enabled = state.canSubmitNewEmail && !busy,
         onClick = { onIntent(GuardianWaitIntent.SubmitNewEmail) }
     )
     TextButton(
         onClick = { onIntent(GuardianWaitIntent.CancelChangeEmail) },
-        enabled = !state.busy,
+        enabled = !busy,
         modifier = Modifier.testTag(GUARDIAN_WAIT_CANCEL_TAG)
     ) { Text(stringResource(R.string.guardian_wait_cancel)) }
 }

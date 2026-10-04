@@ -1,7 +1,6 @@
 package com.violinstudio.ui.feature.guardian.viewmodel
 
 import androidx.lifecycle.viewModelScope
-import com.violinstudio.domain.feature.account.usecase.DeleteAccountUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnEmailUseCase
 import com.violinstudio.domain.feature.auth.usecase.GetOwnUidUseCase
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
@@ -28,15 +27,13 @@ class GuardianWaitViewModel @Inject constructor(
     private val pendingEmail: PendingGuardianEmail,
     private val getOwnEmail: GetOwnEmailUseCase,
     private val getOwnUid: GetOwnUidUseCase,
-    private val deleteAccount: DeleteAccountUseCase,
     private val signOut: SignOutUseCase,
     private val refreshTrigger: SessionRefreshTrigger
 ) : MviViewModel<GuardianWaitState, GuardianWaitIntent, UiEffect>(GuardianWaitState()) {
     private var sendPending = false
-    private var deletePending = false
     private var signOutPending = false
 
-    private val busy get() = sendPending || deletePending || signOutPending
+    private val busy get() = sendPending || signOutPending
 
     /** Los flags se activan al encolar (los intents se procesan de uno en uno) para descartar los que llegan después. */
     override fun onIntent(intent: GuardianWaitIntent) {
@@ -44,10 +41,6 @@ class GuardianWaitViewModel @Inject constructor(
             GuardianWaitIntent.Resend, GuardianWaitIntent.SubmitNewEmail -> {
                 if (busy) return
                 sendPending = true
-            }
-            GuardianWaitIntent.DeleteAccount -> {
-                if (busy) return
-                deletePending = true
             }
             GuardianWaitIntent.SignOut -> {
                 if (busy) return
@@ -83,7 +76,6 @@ class GuardianWaitViewModel @Inject constructor(
             reduce(GuardianWaitMutation.NoticeCleared)
         }
         GuardianWaitIntent.RetryWaitElapsed -> reduce(GuardianWaitMutation.RetryWaitElapsed)
-        GuardianWaitIntent.DeleteAccount -> onDelete()
         GuardianWaitIntent.SignOut -> onSignOut()
     }
 
@@ -146,19 +138,6 @@ class GuardianWaitViewModel @Inject constructor(
         viewModelScope.launch {
             delay(seconds * MILLIS_PER_SECOND)
             onIntent(GuardianWaitIntent.RetryWaitElapsed)
-        }
-    }
-
-    private suspend fun onDelete() {
-        try {
-            reduce(GuardianWaitMutation.DeleteStarted)
-            // Éxito: el repositorio cierra la sesión y el host sustituye la pantalla; no se afirma nada más.
-            runCatchingNonCancellation { deleteAccount() }.fold(
-                onSuccess = { reduce(GuardianWaitMutation.DeleteSucceeded) },
-                onFailure = { reduce(GuardianWaitMutation.DeleteFailed(it.toDeleteError())) }
-            )
-        } finally {
-            deletePending = false
         }
     }
 

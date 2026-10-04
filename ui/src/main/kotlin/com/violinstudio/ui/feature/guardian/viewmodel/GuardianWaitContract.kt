@@ -2,7 +2,6 @@ package com.violinstudio.ui.feature.guardian.viewmodel
 
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
-import com.violinstudio.ui.feature.consent.viewmodel.ConsentDeleteError
 
 /** Resultado positivo que la pantalla de espera confirma con un mensaje cortés (nunca dice nada del tutor). */
 enum class GuardianWaitNotice { RESENT, EMAIL_CHANGED, ALREADY_APPROVED }
@@ -23,15 +22,13 @@ data class GuardianWaitState(
     val error: GuardianRequestError? = null,
     val retryAfterSeconds: Long? = null,
     val notice: GuardianWaitNotice? = null,
-    val isDeleting: Boolean = false,
     val isSigningOut: Boolean = false,
 
     /** El servidor pidio esperar ([retryAfterSeconds]): reenviar no se ofrece hasta que pase. */
-    val resendBlocked: Boolean = false,
-    val deleteError: ConsentDeleteError? = null
+    val resendBlocked: Boolean = false
 ) : UiState {
     /** Mientras algo está en curso, o ya se aprobó, ninguna otra acción de envío está disponible. */
-    val busy: Boolean get() = isLoading || isDeleting || isSigningOut || notice == GuardianWaitNotice.ALREADY_APPROVED
+    val busy: Boolean get() = isLoading || isSigningOut || notice == GuardianWaitNotice.ALREADY_APPROVED
     val canResendNow: Boolean get() = canResend && !resendBlocked && !changingEmail && !busy
 
     /** Fallo que reintentar no arregla: no se ofrece ni reenviar ni cambiar el email. */
@@ -56,7 +53,6 @@ sealed interface GuardianWaitIntent : UiIntent {
     /** "Comprobar de nuevo": pide a la sesion resolverse otra vez (p. ej. tras ALREADY_APPROVED). */
     data object CheckAgain : GuardianWaitIntent
     data object RetryWaitElapsed : GuardianWaitIntent
-    data object DeleteAccount : GuardianWaitIntent
     data object SignOut : GuardianWaitIntent
 }
 
@@ -79,7 +75,4 @@ sealed interface GuardianWaitMutation {
     data object RetryWaitElapsed : GuardianWaitMutation
     data object SignOutStarted : GuardianWaitMutation
     data object SignOutFinished : GuardianWaitMutation
-    data object DeleteStarted : GuardianWaitMutation
-    data object DeleteSucceeded : GuardianWaitMutation
-    data class DeleteFailed(val error: ConsentDeleteError) : GuardianWaitMutation
 }

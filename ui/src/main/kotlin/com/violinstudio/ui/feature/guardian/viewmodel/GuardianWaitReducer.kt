@@ -67,9 +67,6 @@ object GuardianWaitReducer {
         )
         GuardianWaitMutation.SignOutStarted -> state.copy(isSigningOut = true)
         GuardianWaitMutation.SignOutFinished -> state.copy(isSigningOut = false)
-        GuardianWaitMutation.DeleteStarted -> state.copy(isDeleting = true, deleteError = null)
-        GuardianWaitMutation.DeleteSucceeded -> state.copy(isDeleting = false)
-        is GuardianWaitMutation.DeleteFailed -> state.copy(isDeleting = false, deleteError = mutation.error)
     }
 
     /**
@@ -104,5 +101,5 @@ object GuardianWaitReducer {
     }
 
     private fun startLoading(state: GuardianWaitState) =
-        state.copy(isLoading = true, error = null, retryAfterSeconds = null, notice = null, deleteError = null)
+        state.copy(isLoading = true, error = null, retryAfterSeconds = null, notice = null)
 }
