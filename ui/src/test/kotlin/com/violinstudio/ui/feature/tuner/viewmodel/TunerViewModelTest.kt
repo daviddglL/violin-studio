@@ -670,4 +670,27 @@ class TunerViewModelTest {
         advanceUntilIdle()
         assertEquals(ConfigError.STORAGE, vm.state.value.configError)
     }
+
+    @Test
+    fun `editar un campo limpia el error en linea`() = runTest {
+        coEvery { updateConfig(500.0, 50) } returns
+            Result.failure(TunerFailure.InvalidConfig(TunerField.REFERENCE_PITCH))
+        val vm = vm()
+        vm.onIntent(TunerIntent.UpdateConfig(500.0, 50))
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.ClearConfigError)
+        advanceUntilIdle()
+        assertNull(vm.state.value.configError)
+    }
+
+    @Test
+    fun `reemitir una config igual no reabre la captura`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        val before = configsSeen.size
+        vm.onIntent(TunerIntent.ConfigLoaded(TunerConfig()))
+        advanceUntilIdle()
+        assertEquals(before, configsSeen.size)
+    }
 }

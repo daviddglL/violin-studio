@@ -87,6 +87,7 @@ class TunerViewModel @Inject constructor(
             is TunerIntent.ConfigLoaded -> onConfigLoaded(intent.config)
             TunerIntent.OpenConfig -> reduce(TunerMutation.ConfigOpened)
             TunerIntent.CloseConfig -> reduce(TunerMutation.ConfigClosed)
+            TunerIntent.ClearConfigError -> reduce(TunerMutation.ConfigErrorCleared)
             is TunerIntent.UpdateConfig -> configAction(closeOnSuccess = true) {
                 updateConfig(intent.referenceHz, intent.maxCents)
             }

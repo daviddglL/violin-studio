@@ -16,7 +16,7 @@ enum class MicState { UNKNOWN, GRANTED, DENIED, PERMANENTLY_DENIED }
 enum class TunerError { MIC_BUSY, MIC_UNAVAILABLE, AUDIO_OUTPUT_UNAVAILABLE, UNKNOWN }
 
 /** Fallo de la hoja de configuración: uno por campo inválido, más límite, no encontrado y almacenamiento. */
-enum class ConfigError { REFERENCE_PITCH, MAX_CENTS, LABEL, PRESET_LIMIT, PRESET_NOT_FOUND, STORAGE, UNKNOWN }
+enum class ConfigError { REFERENCE_PITCH, MAX_CENTS, LABEL, DUPLICATE_LABEL, PRESET_LIMIT, PRESET_NOT_FOUND, STORAGE, NO_SESSION, UNKNOWN }
 
 data class TunerState(
     /** Arranca en el instrumento del perfil y se cambia solo aquí (D3): nunca se escribe en el perfil. */
@@ -73,6 +73,9 @@ sealed interface TunerIntent : UiIntent {
     data object OpenConfig : TunerIntent
 
     data object CloseConfig : TunerIntent
+
+    /** El usuario edita un campo: el error en línea deja de aplicar a lo que ya cambió. */
+    data object ClearConfigError : TunerIntent
 
     /** Aplica referencia y tope a la vez; sin validar aquí: el caso de uso rechaza lo inválido sin escribir. */
     data class UpdateConfig(val referenceHz: Double, val maxCents: Int) : TunerIntent

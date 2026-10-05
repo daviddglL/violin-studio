@@ -57,9 +57,11 @@ object TunerReducer {
             TunerField.LABEL -> ConfigError.LABEL
             TunerField.ID -> ConfigError.UNKNOWN
         }
+        TunerFailure.DuplicatePresetLabel -> ConfigError.DUPLICATE_LABEL
         TunerFailure.PresetLimitReached -> ConfigError.PRESET_LIMIT
         TunerFailure.PresetNotFound -> ConfigError.PRESET_NOT_FOUND
         TunerFailure.StorageUnavailable -> ConfigError.STORAGE
+        TunerFailure.NoSession -> ConfigError.NO_SESSION
         else -> ConfigError.UNKNOWN
     }
 

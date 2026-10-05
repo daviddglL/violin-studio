@@ -214,16 +214,30 @@ class TunerReducerTest {
     }
 
     @Test
-    fun `cada fallo de configuracion tiene su error`() {
-        fun error(failure: TunerFailure) = reduce(initial, TunerMutation.ConfigFailed(failure)).configError
-        assertEquals(ConfigError.REFERENCE_PITCH, error(TunerFailure.InvalidConfig(TunerField.REFERENCE_PITCH)))
-        assertEquals(ConfigError.MAX_CENTS, error(TunerFailure.InvalidConfig(TunerField.MAX_CENTS)))
-        assertEquals(ConfigError.LABEL, error(TunerFailure.InvalidConfig(TunerField.LABEL)))
-        assertEquals(ConfigError.UNKNOWN, error(TunerFailure.InvalidConfig(TunerField.ID)))
-        assertEquals(ConfigError.PRESET_LIMIT, error(TunerFailure.PresetLimitReached))
-        assertEquals(ConfigError.PRESET_NOT_FOUND, error(TunerFailure.PresetNotFound))
-        assertEquals(ConfigError.STORAGE, error(TunerFailure.StorageUnavailable))
-        assertEquals(ConfigError.UNKNOWN, error(TunerFailure.NoSession))
+    fun `cada TunerFailure de configuracion se traduce a su ConfigError`() {
+        val expected = mapOf(
+            TunerFailure.InvalidConfig(TunerField.REFERENCE_PITCH) to ConfigError.REFERENCE_PITCH,
+            TunerFailure.InvalidConfig(TunerField.MAX_CENTS) to ConfigError.MAX_CENTS,
+            TunerFailure.InvalidConfig(TunerField.LABEL) to ConfigError.LABEL,
+            TunerFailure.InvalidConfig(TunerField.ID) to ConfigError.UNKNOWN,
+            TunerFailure.DuplicatePresetLabel to ConfigError.DUPLICATE_LABEL,
+            TunerFailure.PresetLimitReached to ConfigError.PRESET_LIMIT,
+            TunerFailure.PresetNotFound to ConfigError.PRESET_NOT_FOUND,
+            TunerFailure.StorageUnavailable to ConfigError.STORAGE,
+            TunerFailure.NoSession to ConfigError.NO_SESSION,
+            TunerFailure.MicBusy to ConfigError.UNKNOWN
+        )
+        expected.forEach { (failure, error) ->
+            assertEquals(error, reduce(initial, TunerMutation.ConfigFailed(failure)).configError, "$failure")
+        }
+    }
+
+    @Test
+    fun `limpiar el error de configuracion lo borra y mantiene la hoja abierta`() {
+        val failed = initial.copy(showConfig = true, configError = ConfigError.LABEL)
+        val s = reduce(failed, TunerMutation.ConfigErrorCleared)
+        assertNull(s.configError)
+        assertTrue(s.showConfig)
     }
 
     @Test
