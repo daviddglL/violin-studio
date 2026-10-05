@@ -91,10 +91,17 @@ fun HomeScreen(
                 OutlinedButton(onClick = it.onOpenTuner, modifier = Modifier.testTag("home_tuner")) {
                     Text(stringResource(R.string.tuner_home_card))
                 }
+                OutlinedButton(onClick = it.onOpenMetronome, modifier = Modifier.testTag("home_metronome")) {
+                    Text(stringResource(R.string.metronome_home_card))
+                }
             }
         }
     }
 }
 
 /** Accesos de Home a las rutas de negocio; el resto de tarjetas llegan con cada slice. */
-data class HomeNavigation(val onOpenSettings: () -> Unit, val onOpenTuner: () -> Unit)
+data class HomeNavigation(
+    val onOpenSettings: () -> Unit,
+    val onOpenTuner: () -> Unit,
+    val onOpenMetronome: () -> Unit
+)

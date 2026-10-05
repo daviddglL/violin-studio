@@ -26,6 +26,7 @@ import com.violinstudio.ui.feature.consent.view.ConsentSlot
 import com.violinstudio.ui.feature.guardian.view.GuardianWaitSlot
 import com.violinstudio.ui.feature.home.view.HomeNavigation
 import com.violinstudio.ui.feature.home.view.HomeRoute
+import com.violinstudio.ui.feature.metronome.view.MetronomeRoute
 import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
 import com.violinstudio.ui.feature.session.view.SplashScreen
@@ -61,6 +62,7 @@ fun SessionNavHost(
     guardianWait: @Composable (SessionState.ParentalPending) -> Unit = { GuardianWaitSlot(it) },
     settings: @Composable (onBack: () -> Unit) -> Unit = { SettingsRoute(onBack = it) },
     tuner: @Composable (onBack: () -> Unit) -> Unit = { TunerRoute(onBack = it) },
+    metronome: @Composable (onBack: () -> Unit) -> Unit = { MetronomeRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
 ) {
@@ -81,7 +83,7 @@ fun SessionNavHost(
         Box {
             SessionGraph(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
-                tuner, deleteViewModel
+                tuner, metronome, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -103,6 +105,7 @@ private fun SessionGraph(
     guardianWait: @Composable (SessionState.ParentalPending) -> Unit,
     settings: @Composable (onBack: () -> Unit) -> Unit,
     tuner: @Composable (onBack: () -> Unit) -> Unit,
+    metronome: @Composable (onBack: () -> Unit) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
@@ -129,7 +132,8 @@ private fun SessionGraph(
                 home(
                     HomeNavigation(
                         onOpenSettings = { navController.navigate(SettingsDestination) { launchSingleTop = true } },
-                        onOpenTuner = { navController.navigate(TunerDestination) { launchSingleTop = true } }
+                        onOpenTuner = { navController.navigate(TunerDestination) { launchSingleTop = true } },
+                        onOpenMetronome = { navController.navigate(MetronomeDestination) { launchSingleTop = true } }
                     )
                 )
             } else {
@@ -138,6 +142,9 @@ private fun SessionGraph(
         }
         composable<TunerDestination> {
             if (session is SessionState.Ready) tuner { navController.popBackStack() } else SplashScreen()
+        }
+        composable<MetronomeDestination> {
+            if (session is SessionState.Ready) metronome { navController.popBackStack() } else SplashScreen()
         }
         composable<SettingsDestination> {
             if (session is SessionState.Ready) {

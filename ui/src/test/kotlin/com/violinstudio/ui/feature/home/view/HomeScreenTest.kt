@@ -62,11 +62,24 @@ class HomeScreenTest {
         var opened = 0
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ })
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ }, onOpenMetronome = {})
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
         compose.onNodeWithTag("home_tuner").performClick()
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun laTarjetaDelMetronomoNavegaAlMetronomo() {
+        var opened = 0
+        compose.setContent {
+            ViolinStudioTheme {
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = { opened++ })
+                HomeScreen(HomeState(), {}, navigation = navigation)
+            }
+        }
+        compose.onNodeWithTag("home_metronome").performClick()
         assertEquals(1, opened)
     }
 }

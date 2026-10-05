@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -28,6 +29,7 @@ import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
+import com.violinstudio.ui.navigation.MetronomeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
 import com.violinstudio.ui.navigation.TunerDestination
@@ -70,6 +72,9 @@ class AppNavHostSessionTest {
     private var homeComposed = false
     private var settingsComposed = false
     private var tunerComposed = false
+    private var metronomeComposed = false
+    private var tunerOnScreen = false
+    private var tunerOnScreenWhenMetronomeOpened: Boolean? = null
     private val guardianWaitSeen = mutableListOf<SessionState.ParentalPending>()
     private var signedOut = 0
     private lateinit var nav: NavHostController
@@ -104,12 +109,24 @@ class AppNavHostSessionTest {
                             Button(onClick = navigation.onOpenTuner, modifier = Modifier.testTag("open_tuner")) {
                                 Text("t")
                             }
+                            Button(
+                                onClick = navigation.onOpenMetronome,
+                                modifier = Modifier.testTag("open_metronome")
+                            ) { Text("m") }
                         }
                     },
                     tuner = { onBack ->
                         tunerComposed = true
+                        tunerOnScreen = true
+                        DisposableEffect(Unit) { onDispose { tunerOnScreen = false } }
                         PlaceholderScreen("tuner")
                         Button(onClick = onBack, modifier = Modifier.testTag("tuner_back")) { Text("b") }
+                    },
+                    metronome = { onBack ->
+                        metronomeComposed = true
+                        tunerOnScreenWhenMetronomeOpened = tunerOnScreen
+                        PlaceholderScreen("metronome")
+                        Button(onClick = onBack, modifier = Modifier.testTag("metronome_back")) { Text("b") }
                     },
                     settings = { onBack ->
                         settingsComposed = true
@@ -207,6 +224,40 @@ class AppNavHostSessionTest {
         compose.onNodeWithTag("tuner").assertIsDisplayed()
         compose.onNodeWithTag("tuner_back").performClick()
         assertAt(ready)
+    }
+
+    @Test
+    fun metronomeIsReachableFromHomeAndBackReturnsToIt() {
+        start(ready)
+        assertAt(ready)
+        compose.onNodeWithTag("open_metronome").performClick()
+        compose.waitForIdle()
+        assertTrue(nav.currentDestination?.hasRoute(MetronomeDestination::class) == true)
+        compose.onNodeWithTag("metronome").assertIsDisplayed()
+        compose.onNodeWithTag("metronome_back").performClick()
+        assertAt(ready)
+    }
+
+    @Test
+    fun metronomeWithoutReadyRedirectsAndIsNeverComposed() {
+        start(SessionState.LoggedOut)
+        compose.runOnUiThread { nav.navigate(MetronomeDestination) }
+        assertAt(SessionState.LoggedOut)
+        assertFalse(metronomeComposed)
+    }
+
+    /** M2b.0: tono y metronomo se excluyen porque la ruta que se abandona sale de la composicion antes. */
+    @Test
+    fun theTunerLeavesTheCompositionBeforeTheMetronomeOpens() {
+        start(ready)
+        compose.onNodeWithTag("open_tuner").performClick()
+        compose.waitForIdle()
+        assertTrue(tunerOnScreen)
+        compose.onNodeWithTag("tuner_back").performClick()
+        assertAt(ready)
+        compose.onNodeWithTag("open_metronome").performClick()
+        compose.waitForIdle()
+        assertEquals(false, tunerOnScreenWhenMetronomeOpened)
     }
 
     @Test
