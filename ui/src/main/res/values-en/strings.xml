@@ -64,4 +64,20 @@
     <string name="tuner_config_preset_select_named">Use %1$s</string>
     <string name="tuner_config_preset_edit_named">Edit %1$s</string>
     <string name="tuner_config_preset_delete_named">Delete %1$s</string>
+    <string name="metronome_home_card">Metronome</string>
+    <string name="metronome_title">Metronome</string>
+    <string name="metronome_back">Back</string>
+    <string name="metronome_bpm">%1$d BPM</string>
+    <string name="metronome_start">Start</string>
+    <string name="metronome_stop">Stop</string>
+    <string name="metronome_retry">Try again</string>
+    <string name="metronome_tap">Tap tempo</string>
+    <string name="metronome_increase">Increase one BPM</string>
+    <string name="metronome_decrease">Decrease one BPM</string>
+    <string name="metronome_slider">Tempo</string>
+    <string name="metronome_six_eight_hint">In 6/8 the tempo counts eighth notes.</string>
+    <string name="metronome_error_output">The metronome could not be played.</string>
+    <string name="metronome_error_unknown">The metronome could not start.</string>
+    <string name="metronome_beat_description">Beat %1$d of %2$d</string>
+    <string name="metronome_beats_description">%1$d beats per bar</string>
 </resources>

@@ -71,6 +71,10 @@ class TunerViewModel @Inject constructor(
         when (intent) {
             is TunerIntent.Start -> onStart(intent.granted, intent.rationale)
             TunerIntent.Stop -> onStop()
+            TunerIntent.StopListening -> {
+                resumeOnStart = false
+                onStop(keepResume = false)
+            }
             is TunerIntent.Resume -> onResume(intent.granted, intent.rationale)
             is TunerIntent.PermissionResult -> {
                 reduce(TunerMutation.PermissionResolved(intent.granted, intent.rationale))
@@ -127,8 +131,9 @@ class TunerViewModel @Inject constructor(
         }
     }
 
-    private suspend fun onStop() {
-        resumeOnStart = state.value.isListening
+    /** `ON_STOP` y salir de la composicion llegan seguidos al rotar: el segundo no borra la reanudacion. */
+    private suspend fun onStop(keepResume: Boolean = true) {
+        if (keepResume) resumeOnStart = resumeOnStart || state.value.isListening
         stopCapture()
         stopTone()
         reduce(TunerMutation.ListeningStopped)
@@ -171,6 +176,7 @@ class TunerViewModel @Inject constructor(
     }
 
     private suspend fun startCapture() {
+        resumeOnStart = false
         stopCapture()
         stopTone()
         val current = state.value

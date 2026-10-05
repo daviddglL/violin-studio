@@ -35,8 +35,12 @@ data object SettingsDestination
 @Serializable
 data object TunerDestination
 
+@Serializable
+data object MetronomeDestination
+
 /** Rutas de negocio: solo se mantienen con Ready; con otro estado SessionRedirect las lleva a la raíz. */
-val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> = listOf(SettingsDestination::class, TunerDestination::class)
+val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
+    listOf(SettingsDestination::class, TunerDestination::class, MetronomeDestination::class)
 
 /** Ruta raíz que corresponde a cada estado de sesión: solo `Ready` llega a rutas de negocio. */
 fun SessionState.rootRoute(): Any = when (this) {

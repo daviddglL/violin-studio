@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.home.viewmodel.HealthStatus
@@ -62,11 +63,36 @@ class HomeScreenTest {
         var opened = 0
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ })
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ }, onOpenMetronome = {})
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
         compose.onNodeWithTag("home_tuner").performClick()
         assertEquals(1, opened)
+    }
+
+    @Test
+    fun laTarjetaDelMetronomoNavegaAlMetronomo() {
+        var opened = 0
+        compose.setContent {
+            ViolinStudioTheme {
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = { opened++ })
+                HomeScreen(HomeState(), {}, navigation = navigation)
+            }
+        }
+        compose.onNodeWithTag("home_metronome").performClick()
+        assertEquals(1, opened)
+    }
+
+    @Test
+    @Config(qualifiers = "es-w360dp-h300dp")
+    fun enUnaPantallaBajaLaTarjetaDelMetronomoSePuedeAlcanzar() {
+        compose.setContent {
+            ViolinStudioTheme {
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = {})
+                HomeScreen(HomeState(), {}, navigation = navigation)
+            }
+        }
+        compose.onNodeWithTag("home_metronome").performScrollTo().assertIsDisplayed()
     }
 }
