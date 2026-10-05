@@ -11,18 +11,29 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class MetronomeGeneratorTest {
-    private fun scheduler(bpm: Int = 120, origin: Long = 0) = BeatScheduler(Tempo(bpm), TimeSignature.FOUR_FOUR, origin)
+    private fun scheduler(bpm: Int = 120, origin: Long = 0, signature: TimeSignature = TimeSignature.FOUR_FOUR) =
+        BeatScheduler(Tempo(bpm), signature, origin)
 
-    private fun render(generator: MetronomeGenerator, total: Int, block: Int): FloatArray {
+    private fun render(generator: MetronomeGenerator, total: Int, block: Int, offset: Long = 0): FloatArray {
         val out = FloatArray(total)
         var start = 0
         while (start < total) {
             val buffer = FloatArray(minOf(block, total - start))
-            generator.fill(buffer, start.toLong())
+            generator.fill(buffer, offset + start)
             buffer.copyInto(out, start)
             start += buffer.size
         }
         return out
+    }
+
+    /** Buffer de [total] muestras con los clics dados por (indice, acento) y silencio en el resto. */
+    private fun expectedClicks(total: Int, vararg clicks: Pair<Int, Boolean>): List<Float> {
+        val out = FloatArray(total)
+        clicks.forEach { (at, accent) ->
+            val click = if (accent) ClickSynth.accent else ClickSynth.normal
+            click.copyInto(out, at)
+        }
+        return out.toList()
     }
 
     @Test
@@ -57,5 +68,81 @@ class MetronomeGeneratorTest {
         assertEquals(whole.slice(1_000 until 2_000).take(323), tail.toList().take(323))
         assertTrue(tail.drop(323).all { it == 0f })
         assertEquals(false, MetronomeGenerator(scheduler(origin = 5_000)).finish(FloatArray(1_000), 0))
+    }
+
+    @Test
+    fun `un cambio de tempo a mitad de clic no corta el clic en curso`() {
+        val reference = render(MetronomeGenerator(scheduler(100)), 3_000, 3_000)
+        val generator = MetronomeGenerator(scheduler(100))
+        val out = FloatArray(3_000)
+        listOf(0, 1_000, 2_000).forEach { start ->
+            if (start == 1_000) generator.requestTempo(Tempo(200))
+            val buffer = FloatArray(1_000).also { generator.fill(it, start.toLong()) }
+            buffer.copyInto(out, start)
+        }
+        assertEquals(reference.slice(0 until ClickSynth.accent.size), out.slice(0 until ClickSynth.accent.size))
+        assertEquals(0f, out[ClickSynth.accent.size + 10])
+    }
+
+    @Test
+    fun `un cambio de tempo en el limite de bloque no duplica ni pierde clics`() {
+        val generator = MetronomeGenerator(scheduler(120))
+        val out = FloatArray(80_000)
+        var start = 0
+        while (start < out.size) {
+            if (start == 22_050) generator.requestTempo(Tempo(100))
+            val buffer = FloatArray(minOf(1_050, out.size - start))
+            generator.fill(buffer, start.toLong())
+            buffer.copyInto(out, start)
+            start += buffer.size
+        }
+        // El clic 1 conserva su posicion (22050); despues el intervalo es el de 100 BPM (26460).
+        val expected = expectedClicks(80_000, 0 to true, 22_050 to false, 48_510 to false, 74_970 to false)
+        assertEquals(expected, out.toList())
+    }
+
+    @Test
+    fun `requestTempo desde otro hilo no corrompe el estado`() {
+        val generator = MetronomeGenerator(scheduler(120))
+        val running = java.util.concurrent.atomic.AtomicBoolean(true)
+        val requester = Thread {
+            var bpm = 30
+            while (running.get()) {
+                generator.requestTempo(Tempo(bpm))
+                bpm = if (bpm >= 250) 30 else bpm + 7
+            }
+        }
+        requester.start()
+        val out = render(generator, 1_024 * 2_000, 1_024)
+        running.set(false)
+        requester.join()
+        assertTrue(out.all { it.isFinite() && kotlin.math.abs(it) <= 1f })
+        assertTrue(out.any { it != 0f })
+    }
+
+    @Test
+    fun `finish con un clic que sigue mas alla del bloque lo cierra con una rampa a cero`() {
+        val tail = FloatArray(1_024)
+        assertTrue(MetronomeGenerator(scheduler()).finish(tail, 100))
+        val raw = ClickSynth.accent
+        assertEquals(raw.slice(100 until 100 + 1_024 - 88), tail.slice(0 until 1_024 - 88))
+        assertEquals(0f, kotlin.math.abs(tail.last()))
+        assertTrue((1_024 - 88 until 1_024).all { kotlin.math.abs(tail[it]) <= kotlin.math.abs(raw[100 + it]) })
+    }
+
+    @Test
+    fun `con un startSample enorme el resultado es el mismo que cerca de cero`() {
+        val big = 3_000_000_000_000L
+        val near = render(MetronomeGenerator(scheduler(250, origin = 100)), 30_000, 1_000)
+        val far = render(MetronomeGenerator(scheduler(250, origin = big + 100)), 30_000, 1_000, offset = big)
+        assertEquals(near.toList(), far.toList())
+    }
+
+    @Test
+    fun `en 6-8 solo el primer tiempo de cada compas suena acentuado`() {
+        val s = scheduler(120, signature = TimeSignature.SIX_EIGHT)
+        val out = render(MetronomeGenerator(s), 7 * 22_050, 1_024)
+        val expected = (0 until 7).map { s.sampleOf(it.toLong()).toInt() to (it % 6 == 0) }.toTypedArray()
+        assertEquals(expectedClicks(7 * 22_050, *expected), out.toList())
     }
 }
