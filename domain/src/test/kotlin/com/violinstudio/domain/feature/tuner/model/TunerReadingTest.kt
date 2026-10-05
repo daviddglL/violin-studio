@@ -1,6 +1,7 @@
 package com.violinstudio.domain.feature.tuner.model
 
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
+import com.violinstudio.domain.feature.tuner.failure.TunerField
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -19,7 +20,7 @@ class TunerReadingTest {
     @Test
     fun `label vacio, en blanco o de 31 caracteres se rechaza`() {
         for (bad in listOf("", "   ", "x".repeat(31))) {
-            assertSame(TunerFailure.InvalidConfig, assertThrows<TunerFailure> { config(bad) })
+            assertEquals(TunerFailure.InvalidConfig(TunerField.LABEL), assertThrows<TunerFailure> { config(bad) })
         }
     }
 

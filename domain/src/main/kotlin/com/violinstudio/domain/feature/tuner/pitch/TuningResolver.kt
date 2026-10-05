@@ -12,22 +12,34 @@ import kotlin.math.roundToInt
 data class TuningResolution(val target: TuningTarget, val cents: Double)
 
 object TuningResolver {
+    private const val TIE_EPSILON_CENTS = 1e-9
+
     /**
      * Resuelve el objetivo de [frequency]. Con [selected] (índice de cuerda, modo manual) usa esa cuerda;
-     * si no, la de menor |cents|. [Instrument.OTHER] es cromático. Los cents no se acotan.
+     * si no, la de menor |cents| (empate, incluso con ruido de coma flotante: la cuerda más grave).
+     * [Instrument.OTHER] es cromático. Los cents no se acotan.
+     *
+     * Devuelve `null` si [frequency] no es finita o es <= 0 (no hay tono que resolver).
      */
     fun resolve(
         frequency: Double,
         instrument: Instrument,
         ref: ReferencePitch,
         selected: Int? = null
-    ): TuningResolution {
+    ): TuningResolution? {
+        if (!frequency.isFinite() || frequency <= 0.0) return null
         val strings = StringSet.of(instrument)
             ?: return chromatic(frequency, ref)
         val index = selected?.takeIf { it in strings.indices }
-            ?: strings.indices.minBy { abs(cents(frequency, strings[it], ref)) }
+            ?: nearest(frequency, strings, ref)
         val note = strings[index]
         return TuningResolution(TuningTarget.OpenString(note, index), cents(frequency, note, ref))
+    }
+
+    private fun nearest(frequency: Double, strings: List<Note>, ref: ReferencePitch): Int {
+        val distances = strings.map { abs(cents(frequency, it, ref)) }
+        val min = distances.min()
+        return distances.indexOfFirst { it - min <= TIE_EPSILON_CENTS }
     }
 
     private fun chromatic(frequency: Double, ref: ReferencePitch): TuningResolution {

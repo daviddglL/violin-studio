@@ -2,6 +2,7 @@ package com.violinstudio.domain.feature.tuner.model
 
 import kotlin.math.pow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -32,7 +33,10 @@ class NoteTest {
     fun `442 desplaza todas las notas`() {
         val ref = ReferencePitch(442.0)
         for (m in 28..100) {
-            assert(Note(m).frequency(ref) > Note(m).frequency(ReferencePitch.DEFAULT))
+            val shifted = Note(m).frequency(ref)
+            val base = Note(m).frequency(ReferencePitch.DEFAULT)
+            assertTrue(shifted > base)
+            assertEquals(442.0 / 440.0, shifted / base, 1e-12)
         }
     }
 

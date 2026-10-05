@@ -1,6 +1,7 @@
 package com.violinstudio.domain.feature.tuner.model
 
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
+import com.violinstudio.domain.feature.tuner.failure.TunerField
 
 data class TuningConfiguration(
     val id: String,
@@ -9,11 +10,17 @@ data class TuningConfiguration(
     val maxCents: MaxCents
 ) {
     init {
-        if (label.isBlank() || label.length > MAX_LABEL) throw TunerFailure.InvalidConfig
+        if (label.isBlank() || label.length > MAX_LABEL) throw TunerFailure.InvalidConfig(TunerField.LABEL)
     }
 
     companion object {
         const val MAX_LABEL = 30
+
+        /** Valida y construye desde valores crudos (p. ej. datos persistidos). */
+        fun create(id: String, label: String, referenceHz: Double, maxCents: Int): Result<TuningConfiguration> =
+            runCatching {
+                TuningConfiguration(id, label, ReferencePitch(referenceHz), MaxCents(maxCents))
+            }
     }
 }
 
