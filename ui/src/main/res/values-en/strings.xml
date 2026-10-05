@@ -16,6 +16,8 @@
     <string name="tuner_in_tune">In tune</string>
     <string name="tuner_wheel_description">%1$s, %2$s</string>
     <string name="tuner_wheel_description_empty">No reading</string>
+    <string name="tuner_wheel_description_off_scale">%1$s, %2$s, off scale</string>
+    <string name="tuner_off_scale">Off scale</string>
     <string name="tuner_mic_denied">We need the microphone to tune.</string>
     <string name="tuner_mic_blocked">Microphone permission is blocked. Enable it in the app settings.</string>
     <string name="tuner_open_settings">Open settings</string>

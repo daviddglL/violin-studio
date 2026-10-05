@@ -114,29 +114,37 @@ private fun ReadingPanel(state: TunerState) {
     val reading = state.reading
     val pitch = reading as? TunerReading.Pitch
     val maxCents = state.config.maxCents.value
-    val overflow = pitch?.let { overflowLabel(it.cents, maxCents) }
+    val offScale = pitch != null && isOffScale(pitch.cents, maxCents)
     val text = when (reading) {
         TunerReading.Idle -> stringResource(R.string.tuner_status_idle)
         TunerReading.NoPitch -> stringResource(R.string.tuner_status_no_pitch)
         is TunerReading.Pitch -> "${reading.target.note.label()}  ${centsLabel(reading.cents)}"
     }
-    val description = if (pitch == null) {
-        stringResource(R.string.tuner_wheel_description_empty)
-    } else {
-        stringResource(R.string.tuner_wheel_description, pitch.target.note.label(), centsLabel(pitch.cents))
+    val description = when {
+        pitch == null -> stringResource(R.string.tuner_wheel_description_empty)
+        offScale -> stringResource(
+            R.string.tuner_wheel_description_off_scale,
+            pitch.target.note.label(),
+            centsLabel(pitch.cents)
+        )
+        else -> stringResource(R.string.tuner_wheel_description, pitch.target.note.label(), centsLabel(pitch.cents))
     }
     TuningWheel(pitch?.cents, maxCents, state.isInTune, description)
+    // La lectura cambia a cada fotograma: no es región activa (TalkBack la repetiría sin parar).
     Text(
         text,
         style = MaterialTheme.typography.headlineSmall,
         color = when {
-            overflow != null -> MaterialTheme.colorScheme.error
+            offScale -> MaterialTheme.colorScheme.error
             state.isInTune -> InTuneGreen
             else -> MaterialTheme.colorScheme.onSurface
         },
-        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }.testTag(TUNER_READING_TAG)
+        modifier = Modifier.testTag(TUNER_READING_TAG)
     )
-    if (state.isInTune) Text(stringResource(R.string.tuner_in_tune), color = InTuneGreen)
+    // Fuera de escala no depende solo del color (REQ-TUN-13): lleva texto propio.
+    if (offScale) Text(stringResource(R.string.tuner_off_scale), color = MaterialTheme.colorScheme.error)
+    // Solo este mensaje se anuncia, y solo cuando aparece (la transición a afinado).
+    if (state.isInTune) Text(stringResource(R.string.tuner_in_tune), color = InTuneGreen, modifier = Modifier.polite())
 }
 
 /** Permiso y fallos del micro: selector y rueda siguen visibles (degradación), solo cambia la acción. */

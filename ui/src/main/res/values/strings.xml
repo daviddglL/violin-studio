@@ -191,6 +191,8 @@
     <string name="tuner_in_tune">En afinación</string>
     <string name="tuner_wheel_description">%1$s, %2$s</string>
     <string name="tuner_wheel_description_empty">Sin lectura</string>
+    <string name="tuner_wheel_description_off_scale">%1$s, %2$s, fuera de escala</string>
+    <string name="tuner_off_scale">Fuera de escala</string>
     <string name="tuner_mic_denied">Necesitamos el micrófono para afinar.</string>
     <string name="tuner_mic_blocked">El permiso del micrófono está bloqueado. Actívalo en los ajustes de la app.</string>
     <string name="tuner_open_settings">Abrir ajustes</string>

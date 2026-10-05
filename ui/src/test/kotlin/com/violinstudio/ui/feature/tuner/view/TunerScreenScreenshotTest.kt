@@ -21,7 +21,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(application = Application::class, qualifiers = "w411dp-h1200dp-xxhdpi")
+@Config(application = Application::class, qualifiers = "es-rES-w411dp-h1200dp-xxhdpi")
 class TunerScreenScreenshotTest {
     @get:Rule
     val compose = createComposeRule()
@@ -36,6 +36,8 @@ class TunerScreenScreenshotTest {
     }
 
     @Test fun idle() = capture(violin, "tuner_idle")
+
+    @Test fun noPitch() = capture(violin.copy(reading = TunerReading.NoPitch, isListening = true), "tuner_no_pitch")
 
     @Test fun inTune() = capture(violin.copy(reading = pitch(1.0), isListening = true), "tuner_in_tune")
 

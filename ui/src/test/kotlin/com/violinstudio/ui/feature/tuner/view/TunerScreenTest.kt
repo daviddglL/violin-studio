@@ -1,13 +1,21 @@
 package com.violinstudio.ui.feature.tuner.view
 
 import android.app.Application
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.profile.model.Instrument
+import com.violinstudio.domain.feature.tuner.model.Note
+import com.violinstudio.domain.feature.tuner.model.TunerReading
+import com.violinstudio.domain.feature.tuner.model.TuningTarget
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.tuner.viewmodel.MicState
 import com.violinstudio.ui.feature.tuner.viewmodel.TunerError
@@ -20,7 +28,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(application = Application::class)
+@Config(application = Application::class, qualifiers = "es")
 class TunerScreenTest {
     @get:Rule
     val compose = createComposeRule()
@@ -83,14 +91,42 @@ class TunerScreenTest {
     @Test
     fun chromaticModeHasNoStringChips() {
         show(TunerState(instrument = Instrument.OTHER))
-        compose.onNodeWithText("Chromatic mode: any note is detected").assertIsDisplayed()
+        compose.onNodeWithText("Modo cromático: se detecta cualquier nota").assertIsDisplayed()
         compose.onNodeWithTag(tunerStringTag(0)).assertDoesNotExist()
     }
 
     @Test
-    @Config(application = Application::class, qualifiers = "es")
-    fun spanishDevicesGetSpanishText() {
+    @Config(application = Application::class, qualifiers = "en")
+    fun englishDevicesGetEnglishText() {
         show(TunerState())
-        compose.onNodeWithText("Escuchar").assertIsDisplayed()
+        compose.onNodeWithText("Listen").assertIsDisplayed()
     }
+
+    @Test
+    fun aPitchShowsCentsInTuneAndTheWheelDescription() {
+        show(TunerState(instrument = Instrument.VIOLIN, reading = pitch(1.0)))
+        compose.onNodeWithTag(TUNER_READING_TAG).assertTextEquals("A4  +1 ¢")
+        compose.onNodeWithText("En afinación").assertIsDisplayed()
+        compose.onNodeWithContentDescription("A4, +1 ¢").assertIsDisplayed()
+        compose.onNodeWithText("Fuera de escala").assertDoesNotExist()
+    }
+
+    @Test
+    fun anOffScalePitchSaysSoInTextAndInTheWheelDescription() {
+        show(TunerState(instrument = Instrument.VIOLIN, reading = pitch(-87.0)))
+        compose.onNodeWithTag(TUNER_READING_TAG).assertTextEquals("A4  -87 ¢")
+        compose.onNodeWithText("Fuera de escala").assertIsDisplayed()
+        compose.onNodeWithContentDescription("A4, -87 ¢, fuera de escala").assertIsDisplayed()
+        compose.onNodeWithText("En afinación").assertDoesNotExist()
+    }
+
+    @Test
+    fun theReadingIsNotALiveRegionButTheInTuneMessageIs() {
+        show(TunerState(instrument = Instrument.VIOLIN, reading = pitch(1.0)))
+        compose.onNodeWithTag(TUNER_READING_TAG)
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
+        compose.onNodeWithText("En afinación").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion))
+    }
+
+    private fun pitch(cents: Double) = TunerReading.Pitch(440.0, TuningTarget.OpenString(Note(69), 2), cents, 0.9)
 }
