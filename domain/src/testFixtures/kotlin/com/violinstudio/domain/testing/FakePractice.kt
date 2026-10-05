@@ -8,6 +8,7 @@ import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
 import com.violinstudio.domain.feature.practice.repository.RunningSessionStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 /** Historial en memoria por uid; `created` registra cada escritura y `calls` toda interaccion. */
@@ -62,15 +63,20 @@ class FakeRunningSessionStore : RunningSessionStore {
     private val store = MutableStateFlow<Map<String, RunningSession>>(emptyMap())
     val cleared = mutableListOf<String>()
     var onStart: suspend () -> Unit = {}
+    var failure: Throwable? = null
+    var failOnlyWrites = false
 
-    override fun observe(uid: String): Flow<RunningSession?> = store.map { it[uid] }
+    override fun observe(uid: String): Flow<RunningSession?> =
+        failure?.takeIf { !failOnlyWrites }?.let { error -> flow { throw error } } ?: store.map { it[uid] }
 
     override suspend fun start(uid: String, session: RunningSession) {
+        failure?.let { throw it }
         onStart()
         store.value = store.value + (uid to session)
     }
 
     override suspend fun clear(uid: String) {
+        failure?.let { throw it }
         cleared += uid
         store.value = store.value - uid
     }

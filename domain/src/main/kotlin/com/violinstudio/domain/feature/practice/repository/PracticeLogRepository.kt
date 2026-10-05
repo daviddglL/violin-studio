@@ -15,7 +15,12 @@ interface PracticeLogRepository {
 
     suspend fun create(uid: String, draft: PracticeDraft): Result<Unit>
 
-    /** Si ya existe el doc [id] (lectura de caché local, donde se ven las escrituras en cola). */
+    /**
+     * Si ya existe el doc [id], leído de la caché local (donde se ven las escrituras en cola). Límite conocido: si la
+     * caché no lo tiene (persistencia desactivada, expulsión o purga) devuelve `false`; entonces un `create` sobre un
+     * doc que sí existe en el servidor se evalúa como update, las reglas lo deniegan y el servidor conserva el doc
+     * original: las notas nuevas se pierden en silencio.
+     */
     suspend fun exists(uid: String, id: String): Boolean
 
     /** `null` borra las notas. Solo las notas son editables. */

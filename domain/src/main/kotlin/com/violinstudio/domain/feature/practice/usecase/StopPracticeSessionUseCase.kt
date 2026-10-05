@@ -32,6 +32,10 @@ class StopPracticeSessionUseCase @Inject constructor(
     private val lock: PracticeSessionLock
 ) {
     suspend operator fun invoke(notes: String? = null): Result<StoppedPractice> = lock.mutex.withLock {
+        guardedStore { run(notes) }
+    }
+
+    private suspend fun run(notes: String?): Result<StoppedPractice> {
         val uid = auth.authUser.first()?.uid ?: return Result.failure(PracticeFailure.NoSession)
         val running = store.observe(uid).first() ?: return Result.failure(PracticeFailure.NotRunning)
         val now = clock.instant()
@@ -47,6 +51,6 @@ class StopPracticeSessionUseCase @Inject constructor(
         val alreadySaved = repo.exists(uid, running.id)
         if (!alreadySaved) repo.create(uid, draft).onFailure { return Result.failure(it) }
         store.clear(uid)
-        Result.success(StoppedPractice(draft, clamped, alreadySaved))
+        return Result.success(StoppedPractice(draft, clamped, alreadySaved))
     }
 }

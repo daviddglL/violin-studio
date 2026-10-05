@@ -34,12 +34,16 @@ class StartPracticeSessionUseCase(
     ) : this(auth, profiles, store, clock, lock, { UUID.randomUUID().toString() })
 
     suspend operator fun invoke(instrument: Instrument? = null): Result<RunningSession> = lock.mutex.withLock {
+        guardedStore { run(instrument) }
+    }
+
+    private suspend fun run(instrument: Instrument?): Result<RunningSession> {
         val uid = auth.authUser.first()?.uid ?: return Result.failure(PracticeFailure.NoSession)
         if (store.observe(uid).first() != null) return Result.failure(PracticeFailure.AlreadyRunning)
         val chosen = instrument ?: profiles.observe(uid).first()?.instrument
             ?: return Result.failure(PracticeFailure.NoSession)
         val running = RunningSession(newId(), clock.instant(), chosen)
         store.start(uid, running)
-        Result.success(running)
+        return Result.success(running)
     }
 }

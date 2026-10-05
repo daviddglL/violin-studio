@@ -85,4 +85,16 @@ class FirestorePracticeLogRepositoryTest {
         assertTrue(repo.exists("u1", "id-1"))
         assertFalse(repo.exists("u1", "id-2"))
     }
+
+    @Test
+    fun `una lista identica dos veces emite una sola vez`() = runTest {
+        repo.observeHistory("u1").test {
+            remote.snapshots.emit(listOf(doc("a")))
+            assertEquals(1, awaitItem().size)
+            remote.snapshots.emit(listOf(doc("a")))
+            remote.snapshots.emit(listOf(doc("a"), doc("c")))
+            assertEquals(2, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

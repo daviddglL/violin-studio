@@ -13,12 +13,14 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 class FirestorePracticeLogRepository @Inject constructor(private val remote: PracticeRemoteDataSource) :
     PracticeLogRepository {
     override fun observeHistory(uid: String, limit: Int): Flow<List<PracticeSession>> = remote.observe(uid, limit)
         .map { docs -> docs.mapNotNull { PracticeSessionParser.parse(it.id, it.data, it.hasPendingWrites).toDomain() } }
+        .distinctUntilChanged()
         .catch { throw PracticeErrorMapper.map(it) }
 
     override suspend fun create(uid: String, draft: PracticeDraft): Result<Unit> =

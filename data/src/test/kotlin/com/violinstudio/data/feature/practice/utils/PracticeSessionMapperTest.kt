@@ -80,4 +80,11 @@ class PracticeSessionMapperTest {
             ok + ("startedAt" to "ayer")
         ).forEach { assertNull(PracticeSessionParser.parse("a", it, false).toDomain(), it.toString()) }
     }
+
+    @Test
+    fun `startedAt conserva los nanosegundos`() {
+        val precise = PracticeDraft.create("id-1", start.plusNanos(123_000_000), 90, Instrument.VIOLIN, null, now)
+            .getOrThrow()
+        assertEquals(Timestamp(start.epochSecond, 123_000_000), precise.toFields()["startedAt"])
+    }
 }
