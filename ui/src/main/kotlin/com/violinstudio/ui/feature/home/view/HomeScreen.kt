@@ -1,11 +1,16 @@
 package com.violinstudio.ui.feature.home.view
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -21,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,39 +67,49 @@ fun HomeScreen(
     navigation: HomeNavigation? = null
 ) {
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Centrado cuando cabe y con scroll cuando no (horizontal, pantallas bajas, fuente grande): las tarjetas
+        // inferiores siempre son alcanzables (REQ-NAV-P01).
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            HomeContent(state, onIntent, navigation, maxHeight)
+        }
+    }
+}
+
+@Composable
+private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, navigation: HomeNavigation?, minHeight: Dp) {
+    Column(
+        modifier = Modifier.fillMaxWidth().heightIn(min = minHeight).verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(24.dp))
+        when (val status = state.status) {
+            HealthStatus.Idle -> Text(stringResource(R.string.home_status_idle))
+            HealthStatus.Loading -> LoadingIndicator()
+            is HealthStatus.Ok -> Text(
+                text = stringResource(R.string.home_status_ok, status.version),
+                modifier = Modifier.testTag("health_ok")
+            )
+            is HealthStatus.Error -> ErrorView(status.message ?: stringResource(R.string.error_unknown))
+        }
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = { onIntent(HomeIntent.CheckHealth) },
+            enabled = state.status !is HealthStatus.Loading
         ) {
-            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(24.dp))
-            when (val status = state.status) {
-                HealthStatus.Idle -> Text(stringResource(R.string.home_status_idle))
-                HealthStatus.Loading -> LoadingIndicator()
-                is HealthStatus.Ok -> Text(
-                    text = stringResource(R.string.home_status_ok, status.version),
-                    modifier = Modifier.testTag("health_ok")
-                )
-                is HealthStatus.Error -> ErrorView(status.message ?: stringResource(R.string.error_unknown))
+            Text(stringResource(R.string.home_check_health))
+        }
+        navigation?.let {
+            OutlinedButton(onClick = it.onOpenSettings, modifier = Modifier.testTag("home_settings")) {
+                Text(stringResource(R.string.home_open_settings))
             }
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = { onIntent(HomeIntent.CheckHealth) },
-                enabled = state.status !is HealthStatus.Loading
-            ) {
-                Text(stringResource(R.string.home_check_health))
+            OutlinedButton(onClick = it.onOpenTuner, modifier = Modifier.testTag("home_tuner")) {
+                Text(stringResource(R.string.tuner_home_card))
             }
-            navigation?.let {
-                OutlinedButton(onClick = it.onOpenSettings, modifier = Modifier.testTag("home_settings")) {
-                    Text(stringResource(R.string.home_open_settings))
-                }
-                OutlinedButton(onClick = it.onOpenTuner, modifier = Modifier.testTag("home_tuner")) {
-                    Text(stringResource(R.string.tuner_home_card))
-                }
-                OutlinedButton(onClick = it.onOpenMetronome, modifier = Modifier.testTag("home_metronome")) {
-                    Text(stringResource(R.string.metronome_home_card))
-                }
+            OutlinedButton(onClick = it.onOpenMetronome, modifier = Modifier.testTag("home_metronome")) {
+                Text(stringResource(R.string.metronome_home_card))
             }
         }
     }
