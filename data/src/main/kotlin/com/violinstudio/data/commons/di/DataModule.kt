@@ -11,6 +11,10 @@ import com.violinstudio.data.feature.consent.repository.ConsentRepositoryImpl
 import com.violinstudio.data.feature.health.datasource.HealthRemoteDataSource
 import com.violinstudio.data.feature.health.datasource.firebase.FirebaseHealthRemoteDataSource
 import com.violinstudio.data.feature.health.repository.HealthRepositoryImpl
+import com.violinstudio.data.feature.practice.datasource.PracticeRemoteDataSource
+import com.violinstudio.data.feature.practice.datasource.firebase.FirebasePracticeRemoteDataSource
+import com.violinstudio.data.feature.practice.repository.DataStoreRunningSessionStore
+import com.violinstudio.data.feature.practice.repository.FirestorePracticeLogRepository
 import com.violinstudio.data.feature.profile.datasource.IdentityFunctionsDataSource
 import com.violinstudio.data.feature.profile.datasource.ProfileRemoteDataSource
 import com.violinstudio.data.feature.profile.datasource.firebase.FirebaseIdentityFunctionsDataSource
@@ -26,6 +30,8 @@ import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
+import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
+import com.violinstudio.domain.feature.practice.repository.RunningSessionStore
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
 import com.violinstudio.domain.feature.tuner.audio.AudioInputSource
 import com.violinstudio.domain.feature.tuner.audio.AudioOutput
@@ -82,4 +88,13 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindTunerConfigRepository(impl: DataStoreTunerConfigRepository): TunerConfigRepository
+
+    @Binds
+    abstract fun bindPracticeRemoteDataSource(impl: FirebasePracticeRemoteDataSource): PracticeRemoteDataSource
+
+    @Binds
+    abstract fun bindPracticeLogRepository(impl: FirestorePracticeLogRepository): PracticeLogRepository
+
+    @Binds
+    abstract fun bindRunningSessionStore(impl: DataStoreRunningSessionStore): RunningSessionStore
 }
