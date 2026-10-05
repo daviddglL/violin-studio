@@ -15,6 +15,7 @@ export type ErasurePolicy =
 export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   users: { kind: "userDoc" },
   consents: { kind: "subcollectionOf", parent: "users" },
+  practiceSessions: { kind: "subcollectionOf", parent: "users" },
   guardianRequests: { kind: "queryByField", field: "uid" },
   mail: { kind: "queryByField", field: "uid" },
   guardianEmailLimits: { kind: "exempt", reason: "clave HMAC del tutor, sin uid; TTL 24 h" },

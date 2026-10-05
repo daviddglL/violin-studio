@@ -2,6 +2,7 @@
 export const COLLECTIONS = {
   users: "users",
   consents: "consents",
+  practiceSessions: "practiceSessions",
   guardianRequests: "guardianRequests",
   guardianEmailLimits: "guardianEmailLimits",
   mail: "mail",

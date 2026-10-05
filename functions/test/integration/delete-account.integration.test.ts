@@ -25,6 +25,7 @@ async function usuario(perfil: Record<string, unknown> | null) {
     const ref = db.collection(COLLECTIONS.users).doc(uid);
     await ref.set({ role: "independent", isMinor: false, birthDate: "1990-01-01", ...perfil });
     await ref.collection(COLLECTIONS.consents).doc("terms_v1_self_e0").set({ type: "terms" });
+    for (const id of ["s1", "s2", "s3"]) await ref.collection(COLLECTIONS.practiceSessions).doc(id).set({ durationSec: 60 });
     await db.collection(COLLECTIONS.guardianRequests).doc(`r-${uid}`).set({ uid });
     await db.collection(COLLECTIONS.mail).doc(`m-${uid}`).set({ uid });
     await bucket.file(`users/${uid}/a.txt`).save("a");
@@ -37,6 +38,7 @@ async function todoBorrado(uid: string) {
   const ref = db.collection(COLLECTIONS.users).doc(uid);
   expect((await ref.get()).exists).toBe(false);
   expect((await ref.collection(COLLECTIONS.consents).get()).size).toBe(0);
+  expect((await ref.collection(COLLECTIONS.practiceSessions).get()).size).toBe(0);
   expect((await db.collection(COLLECTIONS.guardianRequests).where("uid", "==", uid).get()).size).toBe(0);
   expect((await db.collection(COLLECTIONS.mail).where("uid", "==", uid).get()).size).toBe(0);
   expect((await bucket.getFiles({ prefix: `users/${uid}/` }))[0]).toHaveLength(0);

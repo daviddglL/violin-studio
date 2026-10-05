@@ -6,6 +6,7 @@ describe("COLLECTIONS", () => {
     expect(COLLECTIONS).toEqual({
       users: "users",
       consents: "consents",
+      practiceSessions: "practiceSessions",
       guardianRequests: "guardianRequests",
       guardianEmailLimits: "guardianEmailLimits",
       mail: "mail",
