@@ -3,11 +3,11 @@ package com.violinstudio.domain.feature.tuner.audio
 import app.cash.turbine.test
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.testing.FakeAudioInputSource
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.assertEquals
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class FakeAudioInputSourceTest {
     @Test
