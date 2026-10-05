@@ -2,13 +2,16 @@ package com.violinstudio.data.commons.audio
 
 import com.violinstudio.domain.feature.metronome.BeatScheduler
 import com.violinstudio.domain.feature.metronome.MetronomeGenerator
+import com.violinstudio.domain.feature.metronome.model.BeatTick
 import com.violinstudio.domain.feature.metronome.model.Tempo
 import com.violinstudio.domain.feature.metronome.model.TimeSignature
+import com.violinstudio.domain.feature.metronome.usecase.RunMetronomeUseCase
 import com.violinstudio.domain.feature.tuner.audio.PcmFormat
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.first
@@ -28,7 +31,7 @@ class AudioTrackMetronomeIntegrationTest {
         executor.shutdownNow()
     }
 
-    private class RecordingTrack : PcmTrack {
+    private class RecordingTrack(private val lag: Int = 0) : PcmTrack {
         val samples: MutableList<Float> = Collections.synchronizedList(mutableListOf())
         val released = CountDownLatch(1)
 
@@ -40,7 +43,7 @@ class AudioTrackMetronomeIntegrationTest {
             return size
         }
 
-        override fun playbackHeadPosition(): Int = samples.size
+        override fun playbackHeadPosition(): Int = maxOf(0, samples.size - lag)
 
         override fun pause() = Unit
 
@@ -67,5 +70,31 @@ class AudioTrackMetronomeIntegrationTest {
         }
         assertEquals(0f, peak(3_000, perBeat - 1), "silencio entre clics")
         assertTrue(peak(0, 1_000) > peak(perBeat, perBeat + 1_000), "acento mayor que tiempo normal")
+    }
+
+    @Test
+    fun `el caso de uso con setTempo en vivo da ticks consecutivos y clics en los indices escritos`() {
+        val track = RecordingTrack(lag = 2 * PcmFormat.BLOCK_SIZE)
+        val output = AudioTrackOutput({ track }, executor.asCoroutineDispatcher())
+        val session = RunMetronomeUseCase(output)(Tempo(240), TimeSignature.FOUR_FOUR)
+        val ticks = Collections.synchronizedList(mutableListOf<BeatTick>())
+        val changed = AtomicBoolean()
+        runBlocking {
+            withTimeout(10_000) {
+                session.ticks.first {
+                    ticks += it
+                    if (ticks.size == 2 && changed.compareAndSet(false, true)) session.setTempo(Tempo(120))
+                    ticks.size >= 5
+                }
+            }
+        }
+        assertTrue(track.released.await(5, TimeUnit.SECONDS))
+        assertEquals(ticks.indices.map { it.toLong() }, ticks.map { it.beat })
+        assertEquals(listOf(true, false, false, false, true), ticks.map { it.accent })
+        val written = track.samples.toFloatArray()
+        // Los dos primeros tiempos a 240 BPM (11 025 muestras) suenan en sus indices.
+        for (start in listOf(0, 11_025)) {
+            assertTrue((start until start + 1_000).maxOf { abs(written[it]) } > 0.3f, "clic en $start")
+        }
     }
 }
