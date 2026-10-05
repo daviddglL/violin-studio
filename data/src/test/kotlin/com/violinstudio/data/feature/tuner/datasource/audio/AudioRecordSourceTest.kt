@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AudioRecordSourceTest {
-    private val executor = Executors.newSingleThreadExecutor { Thread(it, "audio-in-test") }
+    private val executor = Executors.newSingleThreadExecutor { Thread(it, "audio-in-test").apply { isDaemon = true } }
     private val dispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
 
     @AfterEach

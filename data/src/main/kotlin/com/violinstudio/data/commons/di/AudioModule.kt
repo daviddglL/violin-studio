@@ -40,15 +40,17 @@ object AudioModule {
     @Provides
     @Singleton
     @AudioInputDispatcher
-    fun provideAudioInputDispatcher(): CoroutineDispatcher =
-        Executors.newSingleThreadExecutor { Thread(it, AUDIO_INPUT_THREAD) }.asCoroutineDispatcher()
+    fun provideAudioInputDispatcher(): CoroutineDispatcher = daemonDispatcher(AUDIO_INPUT_THREAD)
 
     /** Hilo unico y dedicado: `AudioTrack.write` bloquea. */
     @Provides
     @Singleton
     @AudioOutputDispatcher
-    fun provideAudioOutputDispatcher(): CoroutineDispatcher =
-        Executors.newSingleThreadExecutor { Thread(it, AUDIO_OUTPUT_THREAD) }.asCoroutineDispatcher()
+    fun provideAudioOutputDispatcher(): CoroutineDispatcher = daemonDispatcher(AUDIO_OUTPUT_THREAD)
+
+    /** Hilo daemon: un bloqueo en el driver de audio nunca debe impedir que el proceso (o el JVM de tests) termine. */
+    internal fun daemonDispatcher(name: String): CoroutineDispatcher =
+        Executors.newSingleThreadExecutor { Thread(it, name).apply { isDaemon = true } }.asCoroutineDispatcher()
 
     @Provides
     @DefaultDispatcher

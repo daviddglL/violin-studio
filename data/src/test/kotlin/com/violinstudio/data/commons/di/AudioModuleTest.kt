@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AudioModuleTest {
@@ -24,6 +25,15 @@ class AudioModuleTest {
         val names = runBlocking { List(3) { withContext(dispatcher) { threadName() } } }
         assertEquals(listOf(AudioModule.AUDIO_OUTPUT_THREAD), names.distinct())
         (dispatcher as AutoCloseable).close()
+    }
+
+    @Test
+    fun `los hilos de audio son daemon para no retener el JVM si el driver se bloquea`() {
+        listOf(AudioModule.provideAudioInputDispatcher(), AudioModule.provideAudioOutputDispatcher()).forEach {
+            val daemon = runBlocking { withContext(it) { Thread.currentThread().isDaemon } }
+            (it as AutoCloseable).close()
+            assertTrue(daemon)
+        }
     }
 
     @Test
