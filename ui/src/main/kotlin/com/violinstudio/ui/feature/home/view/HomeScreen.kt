@@ -35,7 +35,7 @@ import com.violinstudio.ui.feature.home.viewmodel.HomeState
 import com.violinstudio.ui.feature.home.viewmodel.HomeViewModel
 
 @Composable
-fun HomeRoute(onOpenSettings: (() -> Unit)? = null, viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeRoute(navigation: HomeNavigation? = null, viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -49,7 +49,7 @@ fun HomeRoute(onOpenSettings: (() -> Unit)? = null, viewModel: HomeViewModel = h
         state = state,
         onIntent = viewModel::onIntent,
         snackbarHostState = snackbarHostState,
-        onOpenSettings = onOpenSettings
+        navigation = navigation
     )
 }
 
@@ -58,7 +58,7 @@ fun HomeScreen(
     state: HomeState,
     onIntent: (HomeIntent) -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onOpenSettings: (() -> Unit)? = null
+    navigation: HomeNavigation? = null
 ) {
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Column(
@@ -84,11 +84,17 @@ fun HomeScreen(
             ) {
                 Text(stringResource(R.string.home_check_health))
             }
-            if (onOpenSettings != null) {
-                OutlinedButton(onClick = onOpenSettings, modifier = Modifier.testTag("home_settings")) {
+            navigation?.let {
+                OutlinedButton(onClick = it.onOpenSettings, modifier = Modifier.testTag("home_settings")) {
                     Text(stringResource(R.string.home_open_settings))
+                }
+                OutlinedButton(onClick = it.onOpenTuner, modifier = Modifier.testTag("home_tuner")) {
+                    Text(stringResource(R.string.tuner_home_card))
                 }
             }
         }
     }
 }
+
+/** Accesos de Home a las rutas de negocio; el resto de tarjetas llegan con cada slice. */
+data class HomeNavigation(val onOpenSettings: () -> Unit, val onOpenTuner: () -> Unit)

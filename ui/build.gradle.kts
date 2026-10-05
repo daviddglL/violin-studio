@@ -7,7 +7,12 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-android { namespace = "com.violinstudio.ui" }
+android {
+    namespace = "com.violinstudio.ui"
+    // values (es) es el idioma por defecto y values-en solo trae las claves de la fase 3: la línea base recoge las
+    // claves heredadas sin traducir; cualquier clave nueva sin traducción vuelve a fallar.
+    lint { baseline = file("lint-baseline.xml") }
+}
 
 configureCoverage(
     classPaths = listOf("com/violinstudio/ui/commons/mvi/**", "com/violinstudio/ui/**/*Reducer*.class")

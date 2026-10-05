@@ -1,0 +1,32 @@
+<resources>
+    <string name="tuner_home_card">Tuner</string>
+    <string name="tuner_title">Tuner</string>
+    <string name="tuner_back">Back</string>
+    <string name="tuner_instrument_violin">Violin</string>
+    <string name="tuner_instrument_viola">Viola</string>
+    <string name="tuner_instrument_cello">Cello</string>
+    <string name="tuner_instrument_double_bass">Double bass</string>
+    <string name="tuner_instrument_other">Chromatic</string>
+    <string name="tuner_chromatic_hint">Chromatic mode: any note is detected</string>
+    <string name="tuner_string_auto">Auto</string>
+    <string name="tuner_listen">Listen</string>
+    <string name="tuner_stop">Stop</string>
+    <string name="tuner_status_idle">Tap Listen to start tuning</string>
+    <string name="tuner_status_no_pitch">No pitch detected</string>
+    <string name="tuner_in_tune">In tune</string>
+    <string name="tuner_wheel_description">%1$s, %2$s</string>
+    <string name="tuner_wheel_description_empty">No reading</string>
+    <string name="tuner_wheel_description_off_scale">%1$s, %2$s, off scale</string>
+    <string name="tuner_off_scale">Off scale</string>
+    <string name="tuner_mic_denied">We need the microphone to tune.</string>
+    <string name="tuner_mic_blocked">Microphone permission is blocked. Enable it in the app settings.</string>
+    <string name="tuner_open_settings">Open settings</string>
+    <string name="tuner_rationale_title">Microphone permission</string>
+    <string name="tuner_rationale_message">The tuner uses the microphone only while this screen is open and never stores audio.</string>
+    <string name="tuner_rationale_confirm">Continue</string>
+    <string name="tuner_rationale_dismiss">Not now</string>
+    <string name="tuner_error_busy">The microphone is in use by another app.</string>
+    <string name="tuner_error_unavailable">The microphone could not be accessed.</string>
+    <string name="tuner_error_unknown">The tuner could not start.</string>
+    <string name="tuner_retry">Try again</string>
+</resources>

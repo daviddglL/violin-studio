@@ -56,4 +56,17 @@ class HomeScreenTest {
         show(HomeState(HealthStatus.Error(null)))
         compose.onNodeWithText("Error desconocido").assertIsDisplayed()
     }
+
+    @Test
+    fun laTarjetaDelAfinadorNavegaAlAfinador() {
+        var opened = 0
+        compose.setContent {
+            ViolinStudioTheme {
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ })
+                HomeScreen(HomeState(), {}, navigation = navigation)
+            }
+        }
+        compose.onNodeWithTag("home_tuner").performClick()
+        assertEquals(1, opened)
+    }
 }
