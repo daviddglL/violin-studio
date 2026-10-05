@@ -15,6 +15,8 @@ import com.violinstudio.data.feature.profile.datasource.firebase.FirebaseProfile
 import com.violinstudio.data.feature.profile.repository.ProfileRepositoryImpl
 import com.violinstudio.data.feature.tuner.datasource.audio.AndroidPcmRecorderFactory
 import com.violinstudio.data.feature.tuner.datasource.audio.AudioRecordSource
+import com.violinstudio.data.feature.tuner.datasource.audio.ContextMicPermission
+import com.violinstudio.data.feature.tuner.datasource.audio.MicPermission
 import com.violinstudio.data.feature.tuner.datasource.audio.PcmRecorderFactory
 import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
@@ -59,6 +61,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindPcmRecorderFactory(impl: AndroidPcmRecorderFactory): PcmRecorderFactory
+
+    @Binds
+    abstract fun bindMicPermission(impl: ContextMicPermission): MicPermission
 
     @Binds
     abstract fun bindAudioInputSource(impl: AudioRecordSource): AudioInputSource

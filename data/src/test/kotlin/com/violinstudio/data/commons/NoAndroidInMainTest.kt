@@ -14,7 +14,11 @@ class NoAndroidInMainTest {
     /** Imports permitidos explícitamente (ruta relativa a `src/main/kotlin` -> import): solo los adaptadores de audio. */
     private val allowList = setOf(
         "com/violinstudio/data/commons/di/AudioModule.kt" to "android.content.Context",
-        "com/violinstudio/data/commons/di/AudioModule.kt" to "android.media.AudioManager"
+        "com/violinstudio/data/commons/di/AudioModule.kt" to "android.media.AudioManager",
+        "com/violinstudio/data/feature/tuner/datasource/audio/ContextMicPermission.kt" to "android.Manifest",
+        "com/violinstudio/data/feature/tuner/datasource/audio/ContextMicPermission.kt" to "android.content.Context",
+        "com/violinstudio/data/feature/tuner/datasource/audio/ContextMicPermission.kt" to
+            "android.content.pm.PackageManager"
     ) + listOf(
         "android.media.AudioFormat",
         "android.media.AudioManager",
