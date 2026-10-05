@@ -13,7 +13,7 @@ class AudioModuleTest {
     @Test
     fun `el dispatcher de entrada es un unico hilo dedicado llamado audio-in`() {
         val dispatcher = AudioModule.provideAudioInputDispatcher()
-        val names = runBlocking { List(3) { withContext(dispatcher) { Thread.currentThread().name.substringBefore(" @") } } }
+        val names = runBlocking { List(3) { withContext(dispatcher) { threadName() } } }
         assertEquals(listOf(AudioModule.AUDIO_INPUT_THREAD), names.distinct())
         (dispatcher as AutoCloseable).close()
     }
@@ -25,3 +25,5 @@ class AudioModuleTest {
         assertNotEquals(default, Dispatchers.IO)
     }
 }
+
+private fun threadName(): String = Thread.currentThread().name.substringBefore(" @")
