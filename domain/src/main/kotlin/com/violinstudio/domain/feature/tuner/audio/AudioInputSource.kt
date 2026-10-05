@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 interface AudioInputSource {
     /**
      * Chunks de [chunkSize] muestras mono a 44 100 Hz hasta cancelar la coleccion.
+     * La lectura puede bloquear: la implementacion DEBE hacer su propio `flowOn` a un dispatcher
+     * dedicado o IO; el use case ejecuta su pipeline en otro dispatcher (de calculo).
      * Los fallos llegan como [com.violinstudio.domain.feature.tuner.failure.TunerFailure].
      */
     fun frames(chunkSize: Int): Flow<FloatArray>

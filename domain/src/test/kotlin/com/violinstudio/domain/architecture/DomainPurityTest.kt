@@ -9,10 +9,14 @@ class DomainPurityTest {
     private val sources = File("src/main/kotlin")
 
     @Test
-    fun `domain no importa android`() {
+    fun `domain no importa android androidx ni dagger`() {
         val files = sources.walkTopDown().filter { it.extension == "kt" }.toList()
         assertTrue(files.isNotEmpty()) { "no sources found from ${File(".").absolutePath}" }
-        val offenders = files.filter { f -> f.readLines().any { it.trimStart().startsWith("import android.") } }
+        // javax.inject se permite: domain lo usa para @Inject
+        val forbidden = listOf("import android.", "import androidx.", "import dagger.")
+        val offenders = files.filter { f ->
+            f.readLines().any { line -> forbidden.any { line.trimStart().startsWith(it) } }
+        }
         assertEquals(emptyList<File>(), offenders)
     }
 }

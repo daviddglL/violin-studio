@@ -62,15 +62,26 @@ class PitchSmootherTest {
     }
 
     @Test
-    fun `silencio mantiene hasta 3 ventanas y luego NoPitch`() {
-        val s = PitchSmoother()
+    fun `silencio mantiene holdFrames ventanas y a la siguiente es NoPitch`() {
+        val s = PitchSmoother(holdFrames = 3)
         repeat(5) { s.update(est(440.0)) }
-        assertNotNull(s.update(null))
-        assertNotNull(s.update(null))
+        repeat(3) { assertEquals(440.0, s.update(null)!!.frequency, 1e-6) }
         assertNull(s.update(null))
         assertNull(s.update(null))
         // tras el silencio no se arrastra historia previa
         assertEquals(220.0, s.update(est(220.0))!!.frequency, 1e-6)
+    }
+
+    @Test
+    fun `los candidatos de salto deben coincidir entre si`() {
+        val s = PitchSmoother()
+        repeat(5) { s.update(est(440.0)) }
+        s.update(est(880.0))
+        s.update(est(hz(1200.0 + 45.0)))
+        // 2400 cents no coincide con el primer candidato (1200): reinicia la cuenta
+        s.update(est(hz(2400.0)))
+        assertEquals(440.0, s.update(est(hz(2400.0)))!!.frequency, 1e-6)
+        assertEquals(hz(2400.0), s.update(est(hz(2400.0)))!!.frequency, 1e-6)
     }
 
     @Test

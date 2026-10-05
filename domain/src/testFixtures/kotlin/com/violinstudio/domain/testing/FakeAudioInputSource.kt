@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 /**
- * Fuente fake: [chunk] produce el chunk numero `index` de `size` muestras. Emite [limit] chunks
+ * Fuente fake (1 chunk por milisegundo virtual): [chunk] produce el chunk numero `index` de `size` muestras. Emite [limit] chunks
  * (sin limite hasta cancelar) y despues lanza [failure] si existe.
  */
 class FakeAudioInputSource(

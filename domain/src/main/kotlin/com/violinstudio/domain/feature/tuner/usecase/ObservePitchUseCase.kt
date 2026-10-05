@@ -12,6 +12,8 @@ import com.violinstudio.domain.feature.tuner.pitch.PitchEstimate
 import com.violinstudio.domain.feature.tuner.pitch.PitchSmoother
 import com.violinstudio.domain.feature.tuner.pitch.TuningResolver
 import com.violinstudio.domain.feature.tuner.pitch.YinPitchDetector
+import kotlin.math.ceil
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -23,8 +25,14 @@ import kotlinx.coroutines.flow.map
 /**
  * Observa el tono del micro: chunks -> frames solapados -> deteccion (en [dispatcher]) -> suavizado ->
  * objetivo/cents. `conflate` acota la cola a una lectura: un consumidor lento recibe la mas reciente.
- * Cada coleccion crea su propio detector y suavizador (no son thread-safe). Los fallos de la fuente
- * que no sean [TunerFailure] se notifican como [TunerFailure.MicUnavailable].
+ * Cada coleccion crea su propio detector y suavizador (no son thread-safe): cambiar de instrumento
+ * o de configuracion exige volver a suscribirse, lo que tambien reinicia el suavizador. Las
+ * `Exception` de la fuente que no sean [TunerFailure] ni cancelaciones se notifican como
+ * [TunerFailure.MicUnavailable]; los `Error` y las cancelaciones se propagan tal cual.
+ *
+ * El hold dura [HOLD_MILLIS] ms de senal ([holdFrames]): tras el ultimo tono se repite durante ese
+ * numero de ventanas sin tono y la siguiente emite `NoPitch`. No se debe insertar `buffer()` antes
+ * de detectar: los frames son el buffer reutilizado del ensamblador.
  */
 class ObservePitchUseCase(
     private val source: AudioInputSource,
@@ -36,14 +44,14 @@ class ObservePitchUseCase(
         return flow {
             val detector = detectorFactory(profile)
             val assembler = FrameAssembler(profile.frameSize, profile.hop)
-            val smoother = PitchSmoother()
+            val smoother = PitchSmoother(holdFrames(profile))
             source.frames(profile.hop)
                 .assemble(assembler)
                 .map { detector.detect(it) }
                 .flowOn(dispatcher)
                 .map { smoother.update(it) }
                 .map { reading(it, instrument, config, selected) }
-                .catch { throw if (it is TunerFailure) it else TunerFailure.MicUnavailable }
+                .catch { throw if (it is Exception && it !is CancellationException && it !is TunerFailure) TunerFailure.MicUnavailable else it }
                 .collect { emit(it) }
         }.conflate()
     }
@@ -60,5 +68,13 @@ class ObservePitchUseCase(
             assembler.offer(chunk)
             while (true) emit(assembler.poll() ?: break)
         }
+    }
+
+    companion object {
+        const val HOLD_MILLIS = 300
+
+        /** Ventanas de hold: `ceil(300 ms / hop)`. */
+        fun holdFrames(profile: DetectorProfile): Int =
+            ceil(HOLD_MILLIS * profile.sampleRate / 1000.0 / profile.hop).toInt()
     }
 }

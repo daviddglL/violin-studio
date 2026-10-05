@@ -32,6 +32,7 @@ class FrameAssembler(private val size: Int, private val hop: Int) {
         System.arraycopy(pending, position, buffer, filled, count)
         filled += count
         position += count
+        if (position >= pending.size) pending = EMPTY.also { position = 0 }
         return if (filled == size) buffer else null
     }
 

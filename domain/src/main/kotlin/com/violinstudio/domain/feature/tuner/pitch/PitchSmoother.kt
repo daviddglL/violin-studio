@@ -8,7 +8,7 @@ import kotlin.math.roundToInt
 /**
  * Suaviza estimaciones de tono (una por ventana): mediana de [WINDOW] lecturas en cents absolutos,
  * histeresis de octava (un salto de 1200 +- 50 cents solo se acepta si persiste [JUMP_FRAMES] frames)
- * y espera de [holdFrames] ventanas sin tono antes de devolver `null`. No es thread-safe.
+ * y espera: durante [holdFrames] ventanas consecutivas sin tono repite el ultimo tono; la siguiente devuelve `null`. No es thread-safe.
  */
 class PitchSmoother(private val holdFrames: Int = DEFAULT_HOLD_FRAMES) {
     private val history = ArrayDeque<Double>(WINDOW)
@@ -20,13 +20,14 @@ class PitchSmoother(private val holdFrames: Int = DEFAULT_HOLD_FRAMES) {
         require(holdFrames >= 1) { "holdFrames must be >= 1" }
     }
 
-    /** Devuelve el tono suavizado, o `null` (NoPitch) tras [holdFrames] ventanas sin tono. */
+    /** Devuelve el tono suavizado, o `null` (NoPitch) cuando se agota el hold. */
     fun update(estimate: PitchEstimate?): PitchEstimate? {
         if (estimate == null) return onSilence()
         misses = 0
         val cents = 1200 * log2(estimate.frequency / REFERENCE_HZ)
         val stable = last?.let { 1200 * log2(it.frequency / REFERENCE_HZ) }
         if (stable != null && isOctaveJump(cents - stable)) {
+            if (jump.isNotEmpty() && abs(cents - jump[0]) > OCTAVE_TOLERANCE) jump.clear()
             jump += cents
             if (jump.size < JUMP_FRAMES) return last
             history.clear()
@@ -41,7 +42,7 @@ class PitchSmoother(private val holdFrames: Int = DEFAULT_HOLD_FRAMES) {
 
     private fun onSilence(): PitchEstimate? {
         jump.clear()
-        if (++misses < holdFrames) return last
+        if (++misses <= holdFrames) return last
         history.clear()
         last = null
         return null

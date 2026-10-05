@@ -10,6 +10,9 @@ data class PitchEstimate(val frequency: Double, val confidence: Double) {
 
 /** Detector de tono sobre un frame de muestras normalizadas (-1..1). */
 interface PitchDetector {
-    /** Devuelve `null` si no hay tono; nunca lanza por entrada vacia o con NaN. */
+    /**
+     * Devuelve `null` si no hay tono; nunca lanza por entrada vacia o con NaN.
+     * No debe retener ni modificar [frame]: el llamante reutiliza su buffer.
+     */
     fun detect(frame: FloatArray): PitchEstimate?
 }
