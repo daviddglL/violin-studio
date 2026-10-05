@@ -55,6 +55,11 @@ class TunerScreenScreenshotTest {
         "tuner_chromatic"
     )
 
+    @Test fun referencePlaying() = capture(
+        violin.copy(selectedString = 2, isPlayingReference = true),
+        "tuner_reference_playing"
+    )
+
     @Test fun rationale() = capture(
         violin.copy(mic = MicState.DENIED, showRationale = true),
         "tuner_rationale"

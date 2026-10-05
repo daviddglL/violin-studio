@@ -42,6 +42,7 @@ const val TUNER_RATIONALE_CONFIRM_TAG = "tuner_rationale_confirm"
 const val TUNER_RATIONALE_DISMISS_TAG = "tuner_rationale_dismiss"
 const val TUNER_BACK_TAG = "tuner_back"
 const val TUNER_READING_TAG = "tuner_reading"
+const val TUNER_REFERENCE_TAG = "tuner_reference"
 
 fun tunerInstrumentTag(wire: String) = "tuner_instrument_$wire"
 
@@ -59,6 +60,7 @@ fun TunerScreen(state: TunerState, onIntent: (TunerIntent) -> Unit, onStart: () 
         ReadingPanel(state)
         Spacer(Modifier.height(16.dp))
         Actions(state, onIntent, onStart)
+        ReferenceButton(state, onIntent)
         TextButton(onClick = onBack, modifier = Modifier.testTag(TUNER_BACK_TAG)) {
             Text(stringResource(R.string.tuner_back))
         }
@@ -161,7 +163,7 @@ private fun Actions(state: TunerState, onIntent: (TunerIntent) -> Unit, onStart:
             onClick = { onIntent(TunerIntent.OpenAppSettings) },
             modifier = Modifier.fillMaxWidth().testTag(TUNER_SETTINGS_TAG)
         ) { Text(stringResource(R.string.tuner_open_settings)) }
-        state.error != null -> OutlinedButton(
+        state.error != null && state.error != TunerError.AUDIO_OUTPUT_UNAVAILABLE -> OutlinedButton(
             onClick = onStart,
             modifier = Modifier.fillMaxWidth().testTag(TUNER_RETRY_TAG)
         ) { Text(stringResource(R.string.tuner_retry)) }
@@ -197,6 +199,17 @@ private fun RationaleDialog(onIntent: (TunerIntent) -> Unit) {
     )
 }
 
+/** Tono de la cuerda elegida (hace falta una concreta); excluyente con la escucha del micro. */
+@Composable
+private fun ReferenceButton(state: TunerState, onIntent: (TunerIntent) -> Unit) {
+    val playing = state.isPlayingReference
+    OutlinedButton(
+        onClick = { onIntent(TunerIntent.ToggleReference) },
+        enabled = !state.isListening && (playing || state.selectedString != null),
+        modifier = Modifier.fillMaxWidth().testTag(TUNER_REFERENCE_TAG)
+    ) { Text(stringResource(if (playing) R.string.tuner_reference_stop else R.string.tuner_reference_play)) }
+}
+
 private fun Modifier.polite() = semantics { liveRegion = LiveRegionMode.Polite }
 
 private fun Note.label() = "$name$octave"
@@ -212,5 +225,6 @@ private fun Instrument.tunerLabelRes() = when (this) {
 private fun TunerError.textRes() = when (this) {
     TunerError.MIC_BUSY -> R.string.tuner_error_busy
     TunerError.MIC_UNAVAILABLE -> R.string.tuner_error_unavailable
+    TunerError.AUDIO_OUTPUT_UNAVAILABLE -> R.string.tuner_error_output
     TunerError.UNKNOWN -> R.string.tuner_error_unknown
 }

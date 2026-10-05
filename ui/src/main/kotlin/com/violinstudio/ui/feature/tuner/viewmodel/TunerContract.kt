@@ -12,8 +12,8 @@ import kotlin.math.abs
 
 enum class MicState { UNKNOWN, GRANTED, DENIED, PERMANENTLY_DENIED }
 
-/** Fallos del micro que la pantalla muestra con su acción de reintento. */
-enum class TunerError { MIC_BUSY, MIC_UNAVAILABLE, UNKNOWN }
+/** Fallos de micro (con reintento) y de salida de audio (sin reintento) que la pantalla muestra. */
+enum class TunerError { MIC_BUSY, MIC_UNAVAILABLE, AUDIO_OUTPUT_UNAVAILABLE, UNKNOWN }
 
 data class TunerState(
     /** Arranca en el instrumento del perfil y se cambia solo aquí (D3): nunca se escribe en el perfil. */
@@ -63,6 +63,9 @@ sealed interface TunerIntent : UiIntent {
     data class ProfileLoaded(val instrument: Instrument) : TunerIntent
 
     data class SelectInstrument(val instrument: Instrument) : TunerIntent
+
+    /** Reproduce o detiene el tono de la cuerda elegida; ignorado sin cuerda o mientras se escucha. */
+    data object ToggleReference : TunerIntent
 
     /** `null` = auto-detección. */
     data class SelectString(val index: Int?) : TunerIntent

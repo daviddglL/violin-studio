@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
+import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -22,9 +23,11 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class TunerViewModel @Inject constructor(
     observeProfile: ObserveProfileUseCase,
-    private val observePitch: ObservePitchUseCase
+    private val observePitch: ObservePitchUseCase,
+    private val playReference: PlayReferenceToneUseCase
 ) : MviViewModel<TunerState, TunerIntent, TunerEffect>(TunerState()) {
     private var captureJob: Job? = null
+    private var toneJob: Job? = null
     private var resumeOnStart = false
 
     init {
@@ -55,14 +58,17 @@ class TunerViewModel @Inject constructor(
             }
             TunerIntent.DismissRationale -> reduce(TunerMutation.RationaleDismissed)
             TunerIntent.OpenAppSettings -> sendEffect(TunerEffect.OpenAppSettings)
+            TunerIntent.ToggleReference -> onToggleReference()
             is TunerIntent.ProfileLoaded -> onProfileLoaded(intent.instrument)
             is TunerIntent.SelectInstrument -> {
                 reduce(TunerMutation.InstrumentSelected(intent.instrument))
                 restartIfListening()
+                restartTone()
             }
             is TunerIntent.SelectString -> {
                 reduce(TunerMutation.StringSelected(intent.index))
                 restartIfListening()
+                restartTone()
             }
         }
     }
@@ -88,6 +94,7 @@ class TunerViewModel @Inject constructor(
     private suspend fun onStop() {
         resumeOnStart = state.value.isListening
         stopCapture()
+        stopTone()
         reduce(TunerMutation.ListeningStopped)
     }
 
@@ -103,6 +110,7 @@ class TunerViewModel @Inject constructor(
 
     private suspend fun startCapture() {
         stopCapture()
+        stopTone()
         val current = state.value
         reduce(TunerMutation.ListeningStarted)
         captureJob = viewModelScope.launch {
@@ -118,6 +126,43 @@ class TunerViewModel @Inject constructor(
                 reduce(TunerMutation.Failed(e))
             }
         }
+    }
+
+    private suspend fun onToggleReference() {
+        val current = state.value
+        when {
+            current.isPlayingReference -> stopTone()
+            !current.isListening -> startTone()
+        }
+    }
+
+    private suspend fun restartTone() {
+        if (state.value.isPlayingReference) startTone()
+    }
+
+    /** Una sola salida: cancela y espera la anterior (su rampa de salida) antes de abrir la nueva. */
+    private suspend fun startTone() {
+        stopTone()
+        val current = state.value
+        val note = current.selectedString?.let { current.strings?.getOrNull(it) } ?: return
+        toneJob = viewModelScope.launch {
+            try {
+                playReference(note, current.config.referencePitch).collect {
+                    reduce(TunerMutation.ReferencePlaying(true))
+                }
+                reduce(TunerMutation.ReferencePlaying(false))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reduce(TunerMutation.Failed(e))
+            }
+        }
+    }
+
+    private suspend fun stopTone() {
+        toneJob?.cancelAndJoin()
+        toneJob = null
+        reduce(TunerMutation.ReferencePlaying(false))
     }
 
     private suspend fun stopCapture() {

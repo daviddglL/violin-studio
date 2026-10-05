@@ -120,6 +120,14 @@ class TunerReducerTest {
     }
 
     @Test
+    fun `un fallo de la salida apaga la referencia y marca el error`() {
+        val failed = TunerMutation.Failed(TunerFailure.AudioOutputUnavailable)
+        val s = reduce(initial.copy(isPlayingReference = true), failed)
+        assertFalse(s.isPlayingReference)
+        assertEquals(TunerError.AUDIO_OUTPUT_UNAVAILABLE, s.error)
+    }
+
+    @Test
     fun `la referencia no suena mientras se escucha`() {
         assertFalse(reduce(initial.copy(isListening = true), TunerMutation.ReferencePlaying(true)).isPlayingReference)
         assertTrue(reduce(initial, TunerMutation.ReferencePlaying(true)).isPlayingReference)

@@ -36,7 +36,10 @@ object TunerReducer {
         is TunerMutation.Reading -> state.copy(reading = mutation.reading)
         is TunerMutation.Failed -> failed(state, mutation.failure)
         is TunerMutation.ReferencePlaying ->
-            state.copy(isPlayingReference = mutation.playing && !state.isListening)
+            state.copy(
+                isPlayingReference = mutation.playing && !state.isListening,
+                error = if (mutation.playing) null else state.error
+            )
     }
 
     /** Qué hace "Escuchar" según el permiso que lee la pantalla. */
@@ -58,6 +61,8 @@ object TunerReducer {
         val stopped = state.copy(isListening = false, reading = TunerReading.Idle)
         return when (failure) {
             TunerFailure.MicPermissionDenied -> stopped.copy(mic = MicState.DENIED, error = null)
+            TunerFailure.AudioOutputUnavailable ->
+                state.copy(isPlayingReference = false, error = TunerError.AUDIO_OUTPUT_UNAVAILABLE)
             TunerFailure.MicBusy -> stopped.copy(error = TunerError.MIC_BUSY)
             TunerFailure.MicUnavailable -> stopped.copy(error = TunerError.MIC_UNAVAILABLE)
             is TunerFailure -> stopped.copy(error = TunerError.UNKNOWN)
