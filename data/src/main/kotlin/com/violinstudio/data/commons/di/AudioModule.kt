@@ -2,6 +2,7 @@ package com.violinstudio.data.commons.di
 
 import android.content.Context
 import android.media.AudioManager
+import com.violinstudio.domain.feature.metronome.usecase.RunMetronomeUseCase
 import com.violinstudio.domain.feature.tuner.audio.AudioInputSource
 import com.violinstudio.domain.feature.tuner.audio.AudioOutput
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
@@ -62,6 +63,9 @@ object AudioModule {
     @Provides
     fun providePlayReferenceToneUseCase(output: AudioOutput): PlayReferenceToneUseCase =
         PlayReferenceToneUseCase(output)
+
+    @Provides
+    fun provideRunMetronomeUseCase(output: AudioOutput): RunMetronomeUseCase = RunMetronomeUseCase(output)
 
     @Provides
     fun provideObservePitchUseCase(

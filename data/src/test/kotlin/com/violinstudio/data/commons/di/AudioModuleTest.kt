@@ -1,7 +1,12 @@
 package com.violinstudio.data.commons.di
 
+import com.violinstudio.domain.feature.metronome.model.Tempo
+import com.violinstudio.domain.feature.metronome.model.TimeSignature
+import com.violinstudio.domain.feature.tuner.audio.AudioOutput
+import com.violinstudio.domain.feature.tuner.audio.PcmGenerator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,6 +36,15 @@ class AudioModuleTest {
         val default: CoroutineDispatcher = AudioModule.provideDefaultDispatcher()
         assertSame(Dispatchers.Default, default)
         assertNotEquals(default, Dispatchers.IO)
+    }
+
+    @Test
+    fun `el caso de uso del metronomo se construye sobre la salida compartida`() {
+        val run = AudioModule.provideRunMetronomeUseCase(object : AudioOutput {
+            override fun play(generator: PcmGenerator) = emptyFlow<Long>()
+        })
+        val session = run(Tempo(90), TimeSignature.TWO_FOUR)
+        assertEquals(90, session.tempo.bpm)
     }
 }
 
