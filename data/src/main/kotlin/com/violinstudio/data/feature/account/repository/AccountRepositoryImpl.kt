@@ -1,5 +1,6 @@
 package com.violinstudio.data.feature.account.repository
 
+import com.violinstudio.data.commons.erasure.CachePurgeFlag
 import com.violinstudio.data.commons.erasure.LocalUserDataEraser
 import com.violinstudio.data.commons.firebase.FunctionsCallException
 import com.violinstudio.data.commons.firebase.FunctionsErrorMapper
@@ -14,14 +15,14 @@ import java.util.logging.Logger
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 class AccountRepositoryImpl @Inject constructor(
     private val functions: IdentityFunctionsDataSource,
     private val auth: AuthRemoteDataSource,
-    private val erasers: Set<@JvmSuppressWildcards LocalUserDataEraser>
+    private val erasers: Set<@JvmSuppressWildcards LocalUserDataEraser>,
+    private val cachePurge: CachePurgeFlag
 ) : AccountRepository {
     /**
      * Tras borrar en el servidor el SDK aún cree que hay sesión hasta el siguiente refresco del token: se cierra la
@@ -39,7 +40,7 @@ class AccountRepositoryImpl @Inject constructor(
      * dejando un usuario fantasma sin Login. Una vez pedido el borrado se termina siempre.
      */
     private suspend fun deleteAccountToCompletion(): Result<Unit> {
-        val uid = currentUid()
+        val uid = auth.currentUid()
         try {
             functions.deleteAccount()
         } catch (e: CancellationException) {
@@ -66,22 +67,29 @@ class AccountRepositoryImpl @Inject constructor(
             AccountState.UNKNOWN -> Result.failure(AccountFailure.Unknown(cause))
         }
     }
+    /**
+     * Mejor esfuerzo y SIN propagar nada: dentro de NonCancellable la unica cancelacion posible la lanza el propio
+     * eraser (p. ej. un `TimeoutCancellationException`), y relanzarla saltaria el resto y el cierre de sesion. Cada
+     * eraser tiene un limite de tiempo y solo se registra la clase del error (sin PII). Programar la purga de la cache
+     * no depende del uid, asi que se hace siempre; los erasers por uid se omiten si no hay uid.
+     */
+    private suspend fun eraseLocalData(uid: String?) {
+        guarded { cachePurge.request() }
+        if (uid == null) {
+            LOG.warning("Borrado local omitido: sin uid de sesion")
+            return
+        }
+        erasers.forEach { eraser -> guarded { withTimeoutOrNull(ERASER_TIMEOUT_MS) { eraser.erase(uid) } } }
+    }
 
-    /** El uid se toma ANTES de borrar: tras el borrado el SDK puede dejar de emitir al usuario. */
-    private suspend fun currentUid(): String? = withTimeoutOrNull(UID_TIMEOUT_MS) { auth.authUser.first()?.uid }
-
-    /** Mejor esfuerzo: un eraser que falla (se registra solo la clase del error, sin PII) no frena a los demas. */
-    private suspend fun eraseLocalData(uid: String) {
-        erasers.forEach { eraser ->
-            try {
-                eraser.erase(uid)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                LOG.log(Level.WARNING, "Fallo al borrar datos locales: ${e::class.java.simpleName}")
-            }
+    private suspend fun guarded(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            LOG.log(Level.WARNING, "Fallo al borrar datos locales: ${e::class.java.simpleName}")
         }
     }
+
 
     /**
      * El borrado ya ocurrio: un fallo del cierre local no lo invalida, pero la pantalla no puede quedar bloqueada con
@@ -89,7 +97,7 @@ class AccountRepositoryImpl @Inject constructor(
      * local de autenticacion para que `authUser` emita `null` igualmente.
      */
     private suspend fun signOutLocally(uid: String?): Result<Unit> {
-        if (uid != null) eraseLocalData(uid)
+        eraseLocalData(uid)
         repeat(SIGN_OUT_ATTEMPTS) {
             try {
                 auth.signOut()
@@ -113,7 +121,7 @@ class AccountRepositoryImpl @Inject constructor(
     private companion object {
         const val UNAUTHENTICATED = "UNAUTHENTICATED"
         const val SIGN_OUT_ATTEMPTS = 3
-        const val UID_TIMEOUT_MS = 2_000L
+        const val ERASER_TIMEOUT_MS = 2_000L
         val LOG: Logger = Logger.getLogger("AccountRepository")
     }
 }

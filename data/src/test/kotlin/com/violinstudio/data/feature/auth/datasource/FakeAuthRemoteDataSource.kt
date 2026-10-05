@@ -67,6 +67,8 @@ class FakeAuthRemoteDataSource : AuthRemoteDataSource {
 
     var reloadFailure: Exception? = null
 
+    override fun currentUid(): String? = state.replayCache.lastOrNull()?.uid
+
     override suspend fun reloadCurrentUser() {
         calls += "reloadCurrentUser"
         reloadFailure?.let { throw it }

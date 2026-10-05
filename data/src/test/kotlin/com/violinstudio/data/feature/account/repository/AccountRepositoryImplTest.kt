@@ -2,6 +2,7 @@ package com.violinstudio.data.feature.account.repository
 
 import app.cash.turbine.test
 import com.google.firebase.auth.FirebaseAuthException
+import com.violinstudio.data.commons.erasure.FakeCachePurgeFlag
 import com.violinstudio.data.commons.erasure.LocalUserDataEraser
 import com.violinstudio.data.commons.firebase.FunctionsCallException
 import com.violinstudio.data.feature.auth.datasource.FakeAuthRemoteDataSource
@@ -11,9 +12,11 @@ import com.violinstudio.domain.feature.account.failure.AccountFailure
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -24,9 +27,10 @@ import org.junit.jupiter.api.assertThrows
 class AccountRepositoryImplTest {
     private val functions = FakeIdentityFunctionsDataSource()
     private val auth = FakeAuthRemoteDataSource()
+    private val purgeFlag = FakeCachePurgeFlag()
     private val order = mutableListOf<String>()
     private val erasers = mutableListOf<LocalUserDataEraser>()
-    private val repo by lazy { AccountRepositoryImpl(functions, auth, erasers.toSet()) }
+    private val repo by lazy { AccountRepositoryImpl(functions, auth, erasers.toSet(), purgeFlag) }
 
     private fun eraser(name: String, failure: Exception? = null) = object : LocalUserDataEraser {
         override suspend fun erase(uid: String) {
@@ -180,11 +184,76 @@ class AccountRepositoryImplTest {
         assertEquals(emptyList<String>(), order)
     }
 
+
     @Test
-    fun `cerrar sesion sin borrar la cuenta no ejecuta los erasers`() = runTest {
+    fun `un eraser que lanza CancellationException o TimeoutCancellationException no frena a los demas ni el signOut`() =
+        runTest {
+            auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+            erasers += eraser("a", CancellationException("cancelada"))
+            erasers += object : LocalUserDataEraser {
+                override suspend fun erase(uid: String) {
+                    order += "t:$uid"
+                    withTimeout(1) { awaitCancellation() }
+                }
+            }
+            erasers += eraser("b")
+            assertTrue(repo.deleteAccount().isSuccess)
+            assertEquals(listOf("a:u1", "t:u1", "b:u1"), order)
+            assertEquals(listOf("signOut"), auth.calls)
+        }
+
+    @Test
+    fun `un eraser colgado vence su limite y el cierre de sesion sigue`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        erasers += object : LocalUserDataEraser {
+            override suspend fun erase(uid: String) = awaitCancellation()
+        }
+        erasers += eraser("b")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("b:u1"), order)
+        assertEquals(listOf("signOut"), auth.calls)
+    }
+
+    @Test
+    fun `sin uid conocido se omiten los erasers por uid pero se programa la purga y se cierra sesion`() = runTest {
         erasers += eraser("a")
-        repo // fuerza la construccion con el eraser registrado
-        auth.signOut()
+        assertTrue(repo.deleteAccount().isSuccess)
         assertEquals(emptyList<String>(), order)
+        assertTrue(purgeFlag.pending)
+        assertEquals(listOf("signOut"), auth.calls)
+    }
+
+    @Test
+    fun `la purga de cache se programa en el borrado correcto`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertTrue(purgeFlag.pending)
+    }
+
+    @Test
+    fun `si la purga no se puede programar el cierre de sesion sigue`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        purgeFlag.fail = IllegalStateException("disco")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("signOut"), auth.calls)
+    }
+
+    @Test
+    fun `unauthenticated con la cuenta desaparecida tambien ejecuta los erasers y la purga`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        erasers += eraser("a")
+        functions.failure = failure("UNAUTHENTICATED")
+        auth.reloadFailure = FirebaseAuthException("ERROR_USER_NOT_FOUND", "x")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("a:u1"), order)
+        assertTrue(purgeFlag.pending)
+    }
+
+    @Test
+    fun `un fallo de borrado no programa la purga`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        functions.failure = IOException("sin red")
+        repo.deleteAccount()
+        assertFalse(purgeFlag.pending)
     }
 }

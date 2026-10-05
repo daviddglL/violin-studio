@@ -17,7 +17,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import java.time.Clock
 import javax.inject.Singleton
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 
 const val FUNCTIONS_REGION = "europe-west1"
@@ -40,13 +39,13 @@ object FirebaseModule {
 
     /**
      * Si un borrado de cuenta dejo la marca, la cache offline se purga aqui, antes de cualquier uso. El bloqueo es breve
-     * (borrado de ficheros locales) y solo ocurre en el primer arranque tras un borrado.
+     * (borrado de ficheros locales, acotado a 3 s) y solo ocurre en el primer arranque tras un borrado.
      */
     @Provides
     @Singleton
     fun provideFirestore(config: EmulatorConfig, purgeFlag: CachePurgeFlag): FirebaseFirestore =
         Firebase.firestore.apply {
-            FirestoreCachePurge.runIfRequested(purgeFlag) { runBlocking { clearPersistence().await() } }
+            FirestoreCachePurge.runIfRequested(purgeFlag) { clearPersistence().await() }
             config.firestore()?.let { e -> EmulatorOnce.process.apply("firestore") { useEmulator(e.host, e.port) } }
         }
 

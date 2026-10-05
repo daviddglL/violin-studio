@@ -2,6 +2,7 @@ package com.violinstudio.data.commons.erasure
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.logging.Logger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +20,9 @@ class SharedPrefsCachePurgeFlag @Inject constructor(
     override fun isRequested(): Boolean = prefs.getBoolean(KEY, false)
 
     override fun clear() {
-        prefs.edit().remove(KEY).commit()
+        if (!prefs.edit().remove(KEY).commit()) {
+            Logger.getLogger("CachePurgeFlag").warning("no se pudo bajar la marca de purga")
+        }
     }
 
     private companion object {
