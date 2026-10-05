@@ -10,6 +10,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +53,8 @@ fun TunerRoute(onBack: () -> Unit, viewModel: TunerViewModel = hiltViewModel()) 
         viewModel.onIntent(TunerIntent.Resume(permission.granted, permission.rationale))
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onIntent(TunerIntent.Stop) }
+    // Con la ruta enterrada en la pila el observador puede liberarse antes de ON_STOP: Stop es idempotente.
+    DisposableEffect(viewModel) { onDispose { viewModel.onIntent(TunerIntent.Stop) } }
     TunerScreen(
         state = state,
         onIntent = viewModel::onIntent,
