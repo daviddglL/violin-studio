@@ -37,8 +37,11 @@ service cloud.firestore {
     function validSession(d) {
       return d.keys().hasOnly(['startedAt', 'durationSec', 'instrument', 'notes', 'createdAt'])
         && d.keys().hasAll(['startedAt', 'durationSec', 'instrument', 'createdAt'])
-        && d.startedAt is timestamp && d.startedAt <= request.time && d.startedAt > timestamp.date(2020, 1, 1)
+        && d.startedAt is timestamp && d.startedAt > timestamp.date(2020, 1, 1)
+        // Tolerancia de 10 min: el reloj del dispositivo puede ir adelantado y la escritura offline no se espera.
+        && d.startedAt <= request.time + duration.value(10, 'm')
         && d.durationSec is int && d.durationSec >= 1 && d.durationSec <= 43200
+        && d.startedAt + duration.value(d.durationSec, 's') <= request.time + duration.value(10, 'm')
         && d.instrument in ['violin', 'viola', 'cello', 'double_bass', 'other']
         && validNotes(d) && d.createdAt == request.time;
     }
@@ -61,9 +64,10 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // id <= 64: el cliente usa UUIDs (36).
       match /practiceSessions/{id} {
         allow get, list: if isOwner(uid);
-        allow create: if isOwner(uid) && emailVerified() && hasConsent() && userDocActive(uid)
+        allow create: if id.size() <= 64 && isOwner(uid) && emailVerified() && hasConsent() && userDocActive(uid)
           && validSession(request.resource.data);
         allow update: if isOwner(uid) && emailVerified() && hasConsent() && userDocActive(uid)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes'])

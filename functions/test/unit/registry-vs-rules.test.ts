@@ -31,6 +31,7 @@ function topLevelMatches(rules: string): string[] {
  * Nombres de las subcolecciones declaradas bajo `match /<parent>/{id}` (profundidad de llaves 3).
  * Solo se admiten `match` de la forma `/nombre/{id}`; cualquier otra falla en voz alta.
  */
+// Limitación: cuenta llaves sobre el texto sin comentarios; una llave dentro de un literal de cadena la desajustaría.
 function subcollectionMatches(rules: string, parent: string): string[] {
   const src = rules.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   const names: string[] = [];

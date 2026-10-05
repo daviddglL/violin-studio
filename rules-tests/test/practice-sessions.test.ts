@@ -1,5 +1,5 @@
 import { assertFails, assertSucceeds, RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { Claims, createEnv, OK, seed, userDoc } from "./helpers";
 
 let env: RulesTestEnvironment;
@@ -45,6 +45,9 @@ describe("lectura (REQ-SEC-P01)", () => {
   test("el dueño sin claims al día también lee", async () => {
     await assertSucceeds(getDoc(doc(as("alice", { email_verified: false, consentOk: false }), PATH)));
   });
+  test("un collection group de practiceSessions se deniega incluso al dueño", async () => {
+    await assertFails(getDocs(collectionGroup(alice(), "practiceSessions")));
+  });
   test("otro usuario y anónimo no leen ni listan", async () => {
     for (const db of [bob(), anon()]) {
       await assertFails(getDoc(doc(db, PATH)));
@@ -81,7 +84,32 @@ describe("create (REQ-SEC-P02)", () => {
     await assertFails(setDoc(doc(anon(), NEW), valid()));
   });
 
+  test("tolera un reloj adelantado hasta 10 minutos", async () => {
+    const ahead = Timestamp.fromDate(new Date(Date.now() + 5 * 60_000));
+    await assertSucceeds(setDoc(doc(alice(), NEW), valid({ startedAt: ahead, durationSec: 60 })));
+  });
+  test("notes se mide en unidades UTF-16: 250 emoji sí, 251 no", async () => {
+    await assertSucceeds(setDoc(doc(alice(), NEW), valid({ notes: "😀".repeat(250) })));
+    await assertFails(setDoc(doc(alice(), "users/alice/practiceSessions/s3"), valid({ notes: "😀".repeat(251) })));
+  });
+  test("el id de la sesión admite 64 caracteres, no 65", async () => {
+    await assertSucceeds(setDoc(doc(alice(), `users/alice/practiceSessions/${"a".repeat(64)}`), valid()));
+    await assertFails(setDoc(doc(alice(), `users/alice/practiceSessions/${"a".repeat(65)}`), valid()));
+  });
+  test("deniega si falta el doc de usuario", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), "users/alice"));
+    });
+    await assertFails(setDoc(doc(alice(), NEW), valid()));
+  });
+  test("deniega sobrescribir una sesión existente con un doc completo válido", async () => {
+    await assertFails(setDoc(doc(alice(), PATH), valid()));
+  });
+
   test.each<[string, Record<string, unknown>]>([
+    ["notes null", { notes: null }],
+    ["startedAt 11 min en el futuro", { startedAt: Timestamp.fromDate(new Date(Date.now() + 11 * 60_000)), durationSec: 60 }],
+    ["startedAt ahora con duración de 12 h", { startedAt: Timestamp.fromDate(new Date()), durationSec: 43200 }],
     ["campo extra audioUrl", { audioUrl: "x" }],
     ["durationSec 0", { durationSec: 0 }],
     ["durationSec 43201", { durationSec: 43201 }],
@@ -120,6 +148,9 @@ describe("create (REQ-SEC-P02)", () => {
 });
 
 describe("update (REQ-SEC-P03)", () => {
+  test("el dueño puede quitar notes con deleteField", async () => {
+    await assertSucceeds(updateDoc(doc(alice(), PATH), { notes: deleteField() }));
+  });
   test("el dueño actualiza solo notes (<= 500)", async () => {
     await assertSucceeds(updateDoc(doc(alice(), PATH), { notes: "nuevas" }));
     await assertSucceeds(updateDoc(doc(alice(), PATH), { notes: "a".repeat(500) }));
