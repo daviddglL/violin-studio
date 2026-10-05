@@ -2,7 +2,11 @@ package com.violinstudio.ui.feature.tuner.viewmodel
 
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
+import com.violinstudio.domain.feature.tuner.failure.TunerField
+import com.violinstudio.domain.feature.tuner.model.MaxCents
 import com.violinstudio.domain.feature.tuner.model.Note
+import com.violinstudio.domain.feature.tuner.model.ReferencePitch
+import com.violinstudio.domain.feature.tuner.model.TunerConfig
 import com.violinstudio.domain.feature.tuner.model.TunerReading
 import com.violinstudio.domain.feature.tuner.model.TuningTarget
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -192,5 +196,41 @@ class TunerReducerTest {
             StartDecision.REQUEST,
             TunerReducer.startDecision(initial.copy(mic = MicState.GRANTED), false, false)
         )
+    }
+
+    @Test
+    fun `la config persistida sustituye a la del estado`() {
+        val config = TunerConfig(referencePitch = ReferencePitch(442.0), maxCents = MaxCents(100))
+        assertEquals(config, reduce(initial, TunerMutation.ConfigLoaded(config)).config)
+    }
+
+    @Test
+    fun `abrir y cerrar la hoja limpia el error`() {
+        val failed = reduce(initial, TunerMutation.ConfigFailed(TunerFailure.PresetLimitReached))
+        val opened = reduce(failed, TunerMutation.ConfigOpened)
+        assertTrue(opened.showConfig)
+        assertNull(opened.configError)
+        assertFalse(reduce(opened, TunerMutation.ConfigClosed).showConfig)
+    }
+
+    @Test
+    fun `cada fallo de configuracion tiene su error`() {
+        fun error(failure: TunerFailure) = reduce(initial, TunerMutation.ConfigFailed(failure)).configError
+        assertEquals(ConfigError.REFERENCE_PITCH, error(TunerFailure.InvalidConfig(TunerField.REFERENCE_PITCH)))
+        assertEquals(ConfigError.MAX_CENTS, error(TunerFailure.InvalidConfig(TunerField.MAX_CENTS)))
+        assertEquals(ConfigError.LABEL, error(TunerFailure.InvalidConfig(TunerField.LABEL)))
+        assertEquals(ConfigError.UNKNOWN, error(TunerFailure.InvalidConfig(TunerField.ID)))
+        assertEquals(ConfigError.PRESET_LIMIT, error(TunerFailure.PresetLimitReached))
+        assertEquals(ConfigError.PRESET_NOT_FOUND, error(TunerFailure.PresetNotFound))
+        assertEquals(ConfigError.STORAGE, error(TunerFailure.StorageUnavailable))
+        assertEquals(ConfigError.UNKNOWN, error(TunerFailure.NoSession))
+    }
+
+    @Test
+    fun `un fallo de configuracion no toca la lectura ni la escucha`() {
+        val listening = initial.copy(isListening = true, reading = pitch(3.0))
+        val s = reduce(listening, TunerMutation.ConfigFailed(TunerFailure.StorageUnavailable))
+        assertTrue(s.isListening)
+        assertEquals(listening.reading, s.reading)
     }
 }

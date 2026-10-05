@@ -1,12 +1,18 @@
 package com.violinstudio.ui.feature.tuner.viewmodel
 
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
+import com.violinstudio.domain.feature.tuner.failure.TunerField
 import com.violinstudio.domain.feature.tuner.model.TunerReading
 
 object TunerReducer {
     fun reduce(state: TunerState, mutation: TunerMutation): TunerState = when (mutation) {
         is TunerMutation.ProfileInstrument ->
             if (state.instrumentChosen) state else state.copy(instrument = mutation.instrument)
+        is TunerMutation.ConfigLoaded -> state.copy(config = mutation.config)
+        TunerMutation.ConfigOpened -> state.copy(showConfig = true, configError = null)
+        TunerMutation.ConfigClosed -> state.copy(showConfig = false, configError = null)
+        TunerMutation.ConfigErrorCleared -> state.copy(configError = null)
+        is TunerMutation.ConfigFailed -> state.copy(configError = configErrorOf(mutation.failure))
         is TunerMutation.InstrumentSelected ->
             state.copy(
                 instrument = mutation.instrument,
@@ -42,6 +48,19 @@ object TunerReducer {
                 isPlayingReference = mutation.playing && !state.isListening,
                 error = if (mutation.playing) null else state.error
             )
+    }
+
+    private fun configErrorOf(failure: Throwable) = when (failure) {
+        is TunerFailure.InvalidConfig -> when (failure.field) {
+            TunerField.REFERENCE_PITCH -> ConfigError.REFERENCE_PITCH
+            TunerField.MAX_CENTS -> ConfigError.MAX_CENTS
+            TunerField.LABEL -> ConfigError.LABEL
+            TunerField.ID -> ConfigError.UNKNOWN
+        }
+        TunerFailure.PresetLimitReached -> ConfigError.PRESET_LIMIT
+        TunerFailure.PresetNotFound -> ConfigError.PRESET_NOT_FOUND
+        TunerFailure.StorageUnavailable -> ConfigError.STORAGE
+        else -> ConfigError.UNKNOWN
     }
 
     /** Qué hace "Escuchar" según el permiso que lee la pantalla. */

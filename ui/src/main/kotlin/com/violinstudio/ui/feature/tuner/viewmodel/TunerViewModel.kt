@@ -3,8 +3,14 @@ package com.violinstudio.ui.feature.tuner.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
+import com.violinstudio.domain.feature.tuner.model.TunerConfig
+import com.violinstudio.domain.feature.tuner.usecase.DeleteTuningPresetUseCase
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
+import com.violinstudio.domain.feature.tuner.usecase.ObserveTunerConfigUseCase
 import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
+import com.violinstudio.domain.feature.tuner.usecase.SaveTuningPresetUseCase
+import com.violinstudio.domain.feature.tuner.usecase.SelectTuningPresetUseCase
+import com.violinstudio.domain.feature.tuner.usecase.UpdateTunerConfigUseCase
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -25,7 +31,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 class TunerViewModel @Inject constructor(
     observeProfile: ObserveProfileUseCase,
     private val observePitch: ObservePitchUseCase,
-    private val playReference: PlayReferenceToneUseCase
+    private val playReference: PlayReferenceToneUseCase,
+    observeConfig: ObserveTunerConfigUseCase,
+    private val updateConfig: UpdateTunerConfigUseCase,
+    private val savePreset: SaveTuningPresetUseCase,
+    private val deletePreset: DeleteTuningPresetUseCase,
+    private val selectPreset: SelectTuningPresetUseCase
 ) : MviViewModel<TunerState, TunerIntent, TunerEffect>(TunerState()) {
     private var captureJob: Job? = null
     private var toneJob: Job? = null
@@ -40,6 +51,18 @@ class TunerViewModel @Inject constructor(
                 throw e
             } catch (_: Exception) {
                 // Sin perfil el afinador sigue en modo cromático.
+            }
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            try {
+                observeConfig().collect { onIntent(TunerIntent.ConfigLoaded(it)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Sin config persistida el afinador sigue con los valores por defecto.
             }
         }
     }
@@ -61,6 +84,17 @@ class TunerViewModel @Inject constructor(
             TunerIntent.OpenAppSettings -> sendEffect(TunerEffect.OpenAppSettings)
             TunerIntent.ToggleReference -> onToggleReference()
             is TunerIntent.ProfileLoaded -> onProfileLoaded(intent.instrument)
+            is TunerIntent.ConfigLoaded -> onConfigLoaded(intent.config)
+            TunerIntent.OpenConfig -> reduce(TunerMutation.ConfigOpened)
+            TunerIntent.CloseConfig -> reduce(TunerMutation.ConfigClosed)
+            is TunerIntent.UpdateConfig -> configAction(closeOnSuccess = true) {
+                updateConfig(intent.referenceHz, intent.maxCents)
+            }
+            is TunerIntent.SavePreset -> configAction {
+                savePreset(intent.id, intent.label, intent.referenceHz, intent.maxCents)
+            }
+            is TunerIntent.DeletePreset -> configAction { deletePreset(intent.id) }
+            is TunerIntent.SelectPreset -> configAction { selectPreset(intent.id) }
             is TunerIntent.SelectInstrument -> {
                 reduce(TunerMutation.InstrumentSelected(intent.instrument))
                 restartIfListening()
@@ -103,6 +137,32 @@ class TunerViewModel @Inject constructor(
         val before = state.value.instrument
         reduce(TunerMutation.ProfileInstrument(instrument))
         if (state.value.instrument != before) restartIfListening()
+    }
+
+    /** Captura y tono usan la config activa: solo referencia o tope los reabren, no los presets. */
+    private suspend fun onConfigLoaded(config: TunerConfig) {
+        val before = state.value.config
+        reduce(TunerMutation.ConfigLoaded(config))
+        if (config.maxCents != before.maxCents || config.referencePitch != before.referencePitch) {
+            restartIfListening()
+            restartTone()
+        }
+    }
+
+    private suspend fun configAction(closeOnSuccess: Boolean = false, action: suspend () -> Result<*>) {
+        val result = try {
+            action()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure<Unit>(e)
+        }
+        val failure = result.exceptionOrNull()
+        when {
+            failure != null -> reduce(TunerMutation.ConfigFailed(failure))
+            closeOnSuccess -> reduce(TunerMutation.ConfigClosed)
+            else -> reduce(TunerMutation.ConfigErrorCleared)
+        }
     }
 
     private suspend fun restartIfListening() {
