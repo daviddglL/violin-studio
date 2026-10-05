@@ -1,5 +1,6 @@
 package com.violinstudio.domain.testing
 
+import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.feature.tuner.model.TunerConfig
 import com.violinstudio.domain.feature.tuner.repository.TunerConfigRepository
 import kotlinx.coroutines.flow.Flow
@@ -10,10 +11,12 @@ import kotlinx.coroutines.flow.map
 class FakeTunerConfigRepository : TunerConfigRepository {
     private val store = MutableStateFlow<Map<String, TunerConfig>>(emptyMap())
     val cleared = mutableListOf<String>()
+    var updateFailure: TunerFailure? = null
 
     override fun observe(uid: String): Flow<TunerConfig> = store.map { it[uid] ?: TunerConfig() }
 
     override suspend fun update(uid: String, transform: (TunerConfig) -> TunerConfig) {
+        updateFailure?.let { throw it }
         store.value = store.value + (uid to transform(store.value[uid] ?: TunerConfig()))
     }
 

@@ -10,6 +10,7 @@ data class TuningConfiguration(
     val maxCents: MaxCents
 ) {
     init {
+        if (id.isBlank()) throw TunerFailure.InvalidConfig(TunerField.ID)
         if (label.isBlank() || label.length > MAX_LABEL) throw TunerFailure.InvalidConfig(TunerField.LABEL)
     }
 

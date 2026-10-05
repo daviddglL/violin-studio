@@ -1,5 +1,6 @@
 package com.violinstudio.domain.feature.tuner.usecase
 
+import app.cash.turbine.test
 import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.feature.tuner.failure.TunerField
@@ -69,10 +70,45 @@ class TunerConfigUseCasesTest {
     }
 
     @Test
-    fun `sin sesion las escrituras fallan sin tocar el repositorio`() = runTest {
+    fun `sin sesion las escrituras devuelven NoSession`() = runTest {
         auth.user = null
-        assertTrue(update(440.0, 50).isFailure)
-        assertTrue(select("x").isFailure)
+        assertEquals(TunerFailure.NoSession, update(440.0, 50).exceptionOrNull())
+        assertEquals(TunerFailure.NoSession, select("x").exceptionOrNull())
         assertTrue(repo.cleared.isEmpty())
+    }
+
+    @Test
+    fun `seleccionar un preset desconocido falla y un id en blanco se rechaza`() = runTest {
+        assertEquals(TunerFailure.PresetNotFound, select("nope").exceptionOrNull())
+        invalid(save(" ", "Barroco", 415.0, 50), TunerField.ID)
+    }
+
+    @Test
+    fun `editar el preset activo actualiza la config activa`() = runTest {
+        val id = save(null, "Barroco", 415.0, 75).getOrThrow()
+        select(id)
+        save(id, "Barroco", 430.0, 100)
+        observe().first().let {
+            assertEquals(ReferencePitch(430.0), it.referencePitch)
+            assertEquals(MaxCents(100), it.maxCents)
+            assertEquals(id, it.selectedPresetId)
+        }
+    }
+
+    @Test
+    fun `un fallo de almacenamiento del repositorio llega como Result failure`() = runTest {
+        repo.updateFailure = TunerFailure.StorageUnavailable
+        assertEquals(TunerFailure.StorageUnavailable, update(440.0, 50).exceptionOrNull())
+    }
+
+    @Test
+    fun `observar sigue el cambio de uid`() = runTest {
+        repo.update("u1") { it.copy(maxCents = MaxCents(100)) }
+        observe().test {
+            assertEquals(MaxCents(100), awaitItem().maxCents)
+            auth.user = verifiedUser.copy(uid = "u2")
+            assertEquals(MaxCents.DEFAULT, awaitItem().maxCents)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }
