@@ -3,6 +3,7 @@ package com.violinstudio.domain.feature.tuner.pitch
 import com.violinstudio.domain.testing.Signals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -54,5 +55,15 @@ class FftDifferenceTest {
         assertThrows(IllegalArgumentException::class.java) { FftDifference(2048, 2048) }
         assertThrows(IllegalArgumentException::class.java) { FftDifference(2048, 0) }
         assertThrows(IllegalArgumentException::class.java) { FftDifference(2048, 245).compute(FloatArray(100)) }
+    }
+
+    @Test
+    fun `silencio y senales constantes dan d finita y no negativa`() {
+        val inputs =
+            listOf(Signals.silence(2048), FloatArray(2048) { 0.7f }, Signals.sine(440.0, 2048, amplitude = 1.0))
+        for (x in inputs) {
+            val d = FftDifference(2048, 245).compute(x)
+            assertTrue(d.all { it.isFinite() && it >= 0.0 })
+        }
     }
 }

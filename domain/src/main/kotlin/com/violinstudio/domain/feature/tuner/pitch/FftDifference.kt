@@ -44,7 +44,7 @@ class FftDifference(private val frameSize: Int, private val maxLag: Int) {
         fft.inverse(aRe, aIm)
         val energy0 = prefix[window]
         return DoubleArray(maxLag + 1) { tau ->
-            energy0 + (prefix[tau + window] - prefix[tau]) - 2 * aRe[tau]
+            maxOf(0.0, energy0 + (prefix[tau + window] - prefix[tau]) - 2 * aRe[tau])
         }
     }
 }
