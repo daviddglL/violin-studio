@@ -7,7 +7,6 @@ import android.media.MediaRecorder
 import com.violinstudio.data.feature.tuner.utils.AudioErrorMapper
 import com.violinstudio.data.feature.tuner.utils.AudioRecordConfig
 import com.violinstudio.data.feature.tuner.utils.CaptureSource
-import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import javax.inject.Inject
 
 /** Adaptador fino sobre `AudioRecord`: sin logica propia salvo trasladar estados al [AudioErrorMapper]. */
@@ -24,7 +23,7 @@ class AndroidPcmRecorderFactory @Inject constructor(private val audioManager: Au
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        if (minBuffer <= 0) throw TunerFailure.MicUnavailable
+        AudioErrorMapper.fromMinBuffer(minBuffer)?.let { throw it }
         val record = AudioRecord(
             source,
             AudioRecordConfig.SAMPLE_RATE,
@@ -32,14 +31,11 @@ class AndroidPcmRecorderFactory @Inject constructor(private val audioManager: Au
             AudioFormat.ENCODING_PCM_16BIT,
             AudioRecordConfig.bufferBytes(minBuffer, chunkSize)
         )
-        AudioErrorMapper.fromInitState(record.state)?.let {
-            record.release()
-            throw it
-        }
+        AudioErrorMapper.requireInitialized(record.state) { record.release() }
         return object : PcmRecorder {
             override fun start() {
                 record.startRecording()
-                AudioErrorMapper.fromRecordingState(record.recordingState)?.let { throw it }
+                AudioErrorMapper.requireRecording(record.recordingState)
             }
 
             override fun read(buffer: ShortArray): Int = record.read(buffer, 0, buffer.size)

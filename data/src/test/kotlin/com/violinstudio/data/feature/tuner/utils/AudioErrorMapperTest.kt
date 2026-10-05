@@ -44,3 +44,28 @@ class AudioErrorMapperTest {
         assertEquals(TunerFailure.MicUnavailable, AudioErrorMapper.fromReadResult(-2))
     }
 }
+
+class AudioErrorMapperGuardsTest {
+    @Test
+    fun `minBuffer no positivo es no disponible`() {
+        assertNull(AudioErrorMapper.fromMinBuffer(3528))
+        assertSame(TunerFailure.MicUnavailable, AudioErrorMapper.fromMinBuffer(-2))
+        assertSame(TunerFailure.MicUnavailable, AudioErrorMapper.fromMinBuffer(0))
+    }
+
+    @Test
+    fun `requireInitialized libera una vez y lanza si no esta inicializado`() {
+        var released = 0
+        val thrown = runCatching { AudioErrorMapper.requireInitialized(0) { released++ } }.exceptionOrNull()
+        assertSame(TunerFailure.MicUnavailable, thrown)
+        assertEquals(1, released)
+        AudioErrorMapper.requireInitialized(AudioErrorMapper.STATE_INITIALIZED) { released++ }
+        assertEquals(1, released)
+    }
+
+    @Test
+    fun `requireRecording lanza ocupado si no graba`() {
+        AudioErrorMapper.requireRecording(AudioErrorMapper.RECORDSTATE_RECORDING)
+        assertSame(TunerFailure.MicBusy, runCatching { AudioErrorMapper.requireRecording(1) }.exceptionOrNull())
+    }
+}
