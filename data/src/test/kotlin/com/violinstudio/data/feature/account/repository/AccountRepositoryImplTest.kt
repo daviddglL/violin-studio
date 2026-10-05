@@ -184,23 +184,21 @@ class AccountRepositoryImplTest {
         assertEquals(emptyList<String>(), order)
     }
 
-
     @Test
-    fun `un eraser que lanza CancellationException o TimeoutCancellationException no frena a los demas ni el signOut`() =
-        runTest {
-            auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
-            erasers += eraser("a", CancellationException("cancelada"))
-            erasers += object : LocalUserDataEraser {
-                override suspend fun erase(uid: String) {
-                    order += "t:$uid"
-                    withTimeout(1) { awaitCancellation() }
-                }
+    fun `un eraser que lanza una cancelacion no frena a los demas ni el signOut`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        erasers += eraser("a", CancellationException("cancelada"))
+        erasers += object : LocalUserDataEraser {
+            override suspend fun erase(uid: String) {
+                order += "t:$uid"
+                withTimeout(1) { awaitCancellation() }
             }
-            erasers += eraser("b")
-            assertTrue(repo.deleteAccount().isSuccess)
-            assertEquals(listOf("a:u1", "t:u1", "b:u1"), order)
-            assertEquals(listOf("signOut"), auth.calls)
         }
+        erasers += eraser("b")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("a:u1", "t:u1", "b:u1"), order)
+        assertEquals(listOf("signOut"), auth.calls)
+    }
 
     @Test
     fun `un eraser colgado vence su limite y el cierre de sesion sigue`() = runTest {

@@ -67,6 +67,7 @@ class AccountRepositoryImpl @Inject constructor(
             AccountState.UNKNOWN -> Result.failure(AccountFailure.Unknown(cause))
         }
     }
+
     /**
      * Mejor esfuerzo y SIN propagar nada: dentro de NonCancellable la unica cancelacion posible la lanza el propio
      * eraser (p. ej. un `TimeoutCancellationException`), y relanzarla saltaria el resto y el cierre de sesion. Cada
@@ -89,7 +90,6 @@ class AccountRepositoryImpl @Inject constructor(
             LOG.log(Level.WARNING, "Fallo al borrar datos locales: ${e::class.java.simpleName}")
         }
     }
-
 
     /**
      * El borrado ya ocurrio: un fallo del cierre local no lo invalida, pero la pantalla no puede quedar bloqueada con
