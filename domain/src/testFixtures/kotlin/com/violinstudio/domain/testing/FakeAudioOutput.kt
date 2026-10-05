@@ -7,7 +7,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
-/** Salida fake: pide [blockSize] muestras cada [BLOCK_INTERVAL_MS] ms virtuales, las captura y emite los frames "reproducidos". */
+/**
+ * Salida fake: pide [blockSize] muestras cada [BLOCK_INTERVAL_MS] ms virtuales, las captura y emite los frames
+ * "reproducidos". Al terminar o cancelar escribe el bloque de [PcmGenerator.finish] y cuenta una liberacion.
+ */
 class FakeAudioOutput(private val blockSize: Int = 1024, private val failure: Throwable? = null) : AudioOutput {
     private val captured = java.util.Collections.synchronizedList(mutableListOf<Float>())
     private val activeCount = AtomicInteger()
@@ -21,10 +24,10 @@ class FakeAudioOutput(private val blockSize: Int = 1024, private val failure: Th
 
     override fun play(generator: PcmGenerator): Flow<Long> = flow {
         maxActiveCount.accumulateAndGet(activeCount.incrementAndGet(), ::maxOf)
+        var position = 0L
+        val buffer = FloatArray(blockSize)
         try {
             failure?.let { throw it }
-            var position = 0L
-            val buffer = FloatArray(blockSize)
             while (true) {
                 generator.fill(buffer, position)
                 captured.addAll(buffer.toList())
@@ -33,6 +36,7 @@ class FakeAudioOutput(private val blockSize: Int = 1024, private val failure: Th
                 delay(BLOCK_INTERVAL_MS)
             }
         } finally {
+            if (failure == null && generator.finish(buffer, position)) captured.addAll(buffer.toList())
             activeCount.decrementAndGet()
             releaseCount.incrementAndGet()
         }

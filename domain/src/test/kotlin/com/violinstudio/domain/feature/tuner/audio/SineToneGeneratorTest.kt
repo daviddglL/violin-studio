@@ -46,12 +46,12 @@ class SineToneGeneratorTest {
     }
 
     @Test
-    fun `fadeOut baja a cero en 20 ms sin saltos`() {
+    fun `finish entrega un ultimo bloque que baja a cero en 20 ms sin saltos`() {
         val generator = SineToneGenerator(440.0)
         block(generator, 4410)
-        generator.fadeOut()
-        val tail = block(generator, rampSamples + 100, 4410)
-        assertEquals(0f, abs(tail.last()))
-        assertTrue(tail.toList().zipWithNext().all { (a, b) -> abs(b - a) < 0.05f })
+        val closing = FloatArray(PcmFormat.BLOCK_SIZE)
+        assertTrue(generator.finish(closing, 4410))
+        assertEquals(0f, abs(closing.last()))
+        assertTrue(closing.toList().zipWithNext().all { (a, b) -> abs(b - a) < 0.05f })
     }
 }

@@ -6,7 +6,6 @@ import com.violinstudio.domain.feature.tuner.model.ReferencePitch
 import com.violinstudio.domain.testing.FakeAudioOutput
 import kotlin.math.abs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -23,15 +22,17 @@ class PlayReferenceToneUseCaseTest {
     private val ref = ReferencePitch.DEFAULT
 
     @Test
-    fun `emite al arrancar y libera la salida al terminar la coleccion`() = runTest {
-        assertEquals(Unit, play(a4, ref).first())
+    fun `emite una sola vez cuando la salida ya suena`() = runTest {
+        var emissions = 0
+        val job = launch { play(a4, ref).collect { emissions++ } }
+        advanceTimeBy(200)
+        job.cancel()
         advanceUntilIdle()
-        assertEquals(0, output.active)
-        assertEquals(1, output.releases)
+        assertEquals(1, emissions)
     }
 
     @Test
-    fun `cancelar baja el tono con rampa y libera la salida una vez`() = runTest {
+    fun `cancelar cierra el tono con rampa y libera la salida una vez`() = runTest {
         val job = launch { play(a4, ref).collect { } }
         advanceTimeBy(200)
         job.cancel()

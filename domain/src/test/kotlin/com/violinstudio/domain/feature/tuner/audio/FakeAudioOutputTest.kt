@@ -37,4 +37,27 @@ class FakeAudioOutputTest {
         assertEquals(1, output.releases)
         assertTrue(output.written.isNotEmpty())
     }
+
+    @Test
+    fun `un generador sin bloque de cierre no escribe nada al cancelar`() = runTest {
+        val output = FakeAudioOutput(blockSize = 4)
+        assertEquals(false, ramp.finish(FloatArray(4), 0))
+        output.play(ramp).take(1).toList()
+        assertEquals(4, output.written.size)
+    }
+
+    @Test
+    fun `al cancelar escribe el bloque de cierre del generador`() = runTest {
+        val output = FakeAudioOutput(blockSize = 4)
+        val closing = object : PcmGenerator {
+            override fun fill(buffer: FloatArray, startSample: Long) = buffer.fill(1f)
+
+            override fun finish(buffer: FloatArray, startSample: Long): Boolean {
+                buffer.fill(0f)
+                return true
+            }
+        }
+        output.play(closing).take(1).toList()
+        assertEquals(listOf(1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f), output.written.toList())
+    }
 }
