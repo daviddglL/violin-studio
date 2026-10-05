@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.session.view
 
 import android.app.Application
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,7 @@ import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
+import com.violinstudio.ui.navigation.TunerDestination
 import com.violinstudio.ui.navigation.rootRoute
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -67,6 +69,7 @@ class AppNavHostSessionTest {
     private val session = mutableStateOf<SessionState>(SessionState.Loading)
     private var homeComposed = false
     private var settingsComposed = false
+    private var tunerComposed = false
     private val guardianWaitSeen = mutableListOf<SessionState.ParentalPending>()
     private var signedOut = 0
     private lateinit var nav: NavHostController
@@ -75,6 +78,7 @@ class AppNavHostSessionTest {
         session.value = initial
         homeComposed = false
         settingsComposed = false
+        tunerComposed = false
         compose.setContent {
             ViolinStudioTheme {
                 nav = rememberNavController()
@@ -90,10 +94,22 @@ class AppNavHostSessionTest {
                         guardianWaitSeen += it
                         PlaceholderScreen("guardian_wait")
                     },
-                    home = { openSettings ->
+                    home = { navigation ->
                         homeComposed = true
                         PlaceholderScreen("home")
-                        Button(onClick = openSettings, modifier = Modifier.testTag("open_settings")) { Text("s") }
+                        Column {
+                            Button(onClick = navigation.onOpenSettings, modifier = Modifier.testTag("open_settings")) {
+                                Text("s")
+                            }
+                            Button(onClick = navigation.onOpenTuner, modifier = Modifier.testTag("open_tuner")) {
+                                Text("t")
+                            }
+                        }
+                    },
+                    tuner = { onBack ->
+                        tunerComposed = true
+                        PlaceholderScreen("tuner")
+                        Button(onClick = onBack, modifier = Modifier.testTag("tuner_back")) { Text("b") }
                     },
                     settings = { onBack ->
                         settingsComposed = true
@@ -179,6 +195,35 @@ class AppNavHostSessionTest {
         compose.onNodeWithTag("settings").assertIsDisplayed()
         compose.onNodeWithTag("settings_back").performClick()
         assertAt(ready)
+    }
+
+    @Test
+    fun tunerIsReachableFromHomeAndBackReturnsToIt() {
+        start(ready)
+        assertAt(ready)
+        compose.onNodeWithTag("open_tuner").performClick()
+        compose.waitForIdle()
+        assertTrue(nav.currentDestination?.hasRoute(TunerDestination::class) == true)
+        compose.onNodeWithTag("tuner").assertIsDisplayed()
+        compose.onNodeWithTag("tuner_back").performClick()
+        assertAt(ready)
+    }
+
+    @Test
+    fun tunerWithoutReadyRedirectsAndIsNeverComposed() {
+        start(SessionState.LoggedOut)
+        compose.runOnUiThread { nav.navigate(TunerDestination) }
+        assertAt(SessionState.LoggedOut)
+        assertFalse(tunerComposed)
+    }
+
+    @Test
+    fun leavingReadyFromTheTunerRedirectsToTheNewRoot() {
+        start(ready)
+        compose.runOnUiThread { nav.navigate(TunerDestination) }
+        compose.waitForIdle()
+        session.value = consentPending
+        assertAt(consentPending)
     }
 
     @Test
@@ -289,10 +334,22 @@ class AppNavHostSessionTest {
                         guardianWaitSeen += it
                         PlaceholderScreen("guardian_wait")
                     },
-                    home = { openSettings ->
+                    home = { navigation ->
                         homeComposed = true
                         PlaceholderScreen("home")
-                        Button(onClick = openSettings, modifier = Modifier.testTag("open_settings")) { Text("s") }
+                        Column {
+                            Button(onClick = navigation.onOpenSettings, modifier = Modifier.testTag("open_settings")) {
+                                Text("s")
+                            }
+                            Button(onClick = navigation.onOpenTuner, modifier = Modifier.testTag("open_tuner")) {
+                                Text("t")
+                            }
+                        }
+                    },
+                    tuner = { onBack ->
+                        tunerComposed = true
+                        PlaceholderScreen("tuner")
+                        Button(onClick = onBack, modifier = Modifier.testTag("tuner_back")) { Text("b") }
                     },
                     settings = { onBack ->
                         settingsComposed = true

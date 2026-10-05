@@ -24,6 +24,7 @@ import com.violinstudio.ui.feature.auth.view.AuthRoute
 import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.consent.view.ConsentSlot
 import com.violinstudio.ui.feature.guardian.view.GuardianWaitSlot
+import com.violinstudio.ui.feature.home.view.HomeNavigation
 import com.violinstudio.ui.feature.home.view.HomeRoute
 import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
@@ -31,6 +32,7 @@ import com.violinstudio.ui.feature.session.view.SplashScreen
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent
 import com.violinstudio.ui.feature.session.viewmodel.SessionViewModel
 import com.violinstudio.ui.feature.settings.view.SettingsRoute
+import com.violinstudio.ui.feature.tuner.view.TunerRoute
 
 @Composable
 fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
@@ -51,13 +53,14 @@ fun SessionNavHost(
     session: SessionState,
     onSignOut: () -> Unit,
     navController: NavHostController = rememberNavController(),
-    home: @Composable (onOpenSettings: () -> Unit) -> Unit = { HomeRoute(onOpenSettings = it) },
+    home: @Composable (HomeNavigation) -> Unit = { HomeRoute(it) },
     auth: @Composable () -> Unit = { AuthRoute() },
     verifyEmail: @Composable (email: String?) -> Unit = { VerifyEmailRoute(it) },
     onboarding: @Composable () -> Unit = { OnboardingRoute() },
     consent: @Composable (SessionState.ConsentPending) -> Unit = { ConsentSlot(it) },
     guardianWait: @Composable (SessionState.ParentalPending) -> Unit = { GuardianWaitSlot(it) },
     settings: @Composable (onBack: () -> Unit) -> Unit = { SettingsRoute(onBack = it) },
+    tuner: @Composable (onBack: () -> Unit) -> Unit = { TunerRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
 ) {
@@ -78,7 +81,7 @@ fun SessionNavHost(
         Box {
             SessionGraph(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
-                deleteViewModel
+                tuner, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -92,13 +95,14 @@ private fun SessionGraph(
     session: SessionState,
     navController: NavHostController,
     onSignOut: () -> Unit,
-    home: @Composable (onOpenSettings: () -> Unit) -> Unit,
+    home: @Composable (HomeNavigation) -> Unit,
     auth: @Composable () -> Unit,
     verifyEmail: @Composable (email: String?) -> Unit,
     onboarding: @Composable () -> Unit,
     consent: @Composable (SessionState.ConsentPending) -> Unit,
     guardianWait: @Composable (SessionState.ParentalPending) -> Unit,
     settings: @Composable (onBack: () -> Unit) -> Unit,
+    tuner: @Composable (onBack: () -> Unit) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
@@ -122,10 +126,18 @@ private fun SessionGraph(
         // contenido de negocio mientras la redirección está en curso.
         composable<HomeDestination> {
             if (session is SessionState.Ready) {
-                home { navController.navigate(SettingsDestination) { launchSingleTop = true } }
+                home(
+                    HomeNavigation(
+                        onOpenSettings = { navController.navigate(SettingsDestination) { launchSingleTop = true } },
+                        onOpenTuner = { navController.navigate(TunerDestination) { launchSingleTop = true } }
+                    )
+                )
             } else {
                 SplashScreen()
             }
+        }
+        composable<TunerDestination> {
+            if (session is SessionState.Ready) tuner { navController.popBackStack() } else SplashScreen()
         }
         composable<SettingsDestination> {
             if (session is SessionState.Ready) {
@@ -154,10 +166,10 @@ private fun SessionRedirect(session: SessionState, navController: NavHostControl
     val current by navController.currentBackStackEntryAsState()
     LaunchedEffect(session, current) {
         val target = session.rootRoute()
-        // Ajustes es una ruta de negocio más: solo se mantiene con Ready.
-        val onSettings = session is SessionState.Ready &&
-            current?.destination?.hasRoute(SettingsDestination::class) == true
-        if (!onSettings && current?.destination?.hasRoute(target::class) != true) {
+        // Las rutas de negocio (Ajustes, Afinador) solo se mantienen con Ready.
+        val onBusiness = session is SessionState.Ready &&
+            BUSINESS_ROUTES.any { current?.destination?.hasRoute(it) == true }
+        if (!onBusiness && current?.destination?.hasRoute(target::class) != true) {
             navController.navigate(target) {
                 popUpTo(navController.graph.id) { inclusive = true }
                 launchSingleTop = true
