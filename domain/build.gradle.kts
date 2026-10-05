@@ -1,6 +1,7 @@
 import com.violinstudio.buildlogic.configureCoverage
 
 plugins {
+    `java-test-fixtures`
     alias(libs.plugins.violin.jvm.library)
 }
 
