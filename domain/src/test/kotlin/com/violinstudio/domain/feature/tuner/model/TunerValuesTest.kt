@@ -47,7 +47,7 @@ class TunerValuesTest {
             TunerFailure.MicBusy,
             TunerFailure.AudioOutputUnavailable,
             TunerFailure.InvalidConfig,
-            TunerFailure.PresetLimitReached,
+            TunerFailure.PresetLimitReached
         )
         assertEquals(6, all.map { it::class }.toSet().size)
     }

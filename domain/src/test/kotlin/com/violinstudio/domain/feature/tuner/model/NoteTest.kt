@@ -1,10 +1,10 @@
 package com.violinstudio.domain.feature.tuner.model
 
+import kotlin.math.pow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.math.pow
 
 class NoteTest {
     private fun expected(midi: Int, ref: Double) = ref * 2.0.pow((midi - 69) / 12.0)

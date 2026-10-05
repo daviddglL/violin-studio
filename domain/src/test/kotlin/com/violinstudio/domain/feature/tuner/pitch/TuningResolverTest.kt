@@ -4,10 +4,10 @@ import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.tuner.model.Note
 import com.violinstudio.domain.feature.tuner.model.ReferencePitch
 import com.violinstudio.domain.feature.tuner.model.TuningTarget
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
 import kotlin.math.log2
 import kotlin.math.pow
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class TuningResolverTest {
     private val ref = ReferencePitch.DEFAULT

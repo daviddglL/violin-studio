@@ -20,7 +20,7 @@ object TuningResolver {
         frequency: Double,
         instrument: Instrument,
         ref: ReferencePitch,
-        selected: Int? = null,
+        selected: Int? = null
     ): TuningResolution {
         val strings = StringSet.of(instrument)
             ?: return chromatic(frequency, ref)
