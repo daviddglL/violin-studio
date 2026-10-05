@@ -46,8 +46,29 @@ class TapTempoCalculatorTest {
     }
 
     @Test
-    fun `promedia solo los ultimos 4 intervalos`() {
+    fun `usa solo los ultimos 4 intervalos`() {
         listOf(1_000L, 1_000L, 500L, 500L, 500L, 500L).forEach { tap(it) }
+        assertEquals(120, calculator.tap()?.bpm)
+    }
+
+    @Test
+    fun `un hueco de exactamente 2000 ms no reinicia y da 30 BPM`() {
+        tap(2_000)
+        assertEquals(30, calculator.tap()?.bpm)
+    }
+
+    @Test
+    fun `un reloj que retrocede reinicia la secuencia`() {
+        repeat(3) { tap(500) }
+        clock.millis -= 5_000
+        assertNull(calculator.tap())
+        clock.millis += 500
+        assertEquals(120, calculator.tap()?.bpm)
+    }
+
+    @Test
+    fun `un toque atipico no mueve la mediana de los intervalos`() {
+        listOf(500L, 500L, 1_500L, 500L).forEach { tap(it) }
         assertEquals(120, calculator.tap()?.bpm)
     }
 }
