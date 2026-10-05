@@ -6,7 +6,7 @@ import android.media.AudioTrack
 import com.violinstudio.domain.feature.tuner.audio.PcmFormat
 import javax.inject.Inject
 
-/** Adaptador fino sobre `AudioTrack` (PCM float mono, stream, baja latencia, `USAGE_MEDIA`/sonificacion). */
+/** Adaptador fino sobre `AudioTrack` (PCM float mono, stream, baja latencia, `USAGE_MEDIA`/`CONTENT_TYPE_MUSIC`). */
 class AndroidPcmTrackFactory @Inject constructor() : PcmTrackFactory {
     override fun create(blockSize: Int): PcmTrack {
         val format = AudioFormat.Builder()
@@ -24,7 +24,7 @@ class AndroidPcmTrackFactory @Inject constructor() : PcmTrackFactory {
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
             )
             .setAudioFormat(format)
@@ -39,8 +39,8 @@ class AndroidPcmTrackFactory @Inject constructor() : PcmTrackFactory {
         return object : PcmTrack {
             override fun play() = track.play()
 
-            override fun write(buffer: FloatArray, size: Int): Int =
-                track.write(buffer, 0, size, AudioTrack.WRITE_BLOCKING)
+            override fun write(buffer: FloatArray, offset: Int, size: Int): Int =
+                track.write(buffer, offset, size, AudioTrack.WRITE_BLOCKING)
 
             override fun playbackHeadPosition(): Int = track.playbackHeadPosition
 

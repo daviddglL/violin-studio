@@ -4,8 +4,8 @@ package com.violinstudio.data.commons.audio
 interface PcmTrack {
     fun play()
 
-    /** Escritura bloqueante de [size] muestras: devuelve las escritas (>= 0) o un codigo de error negativo. */
-    fun write(buffer: FloatArray, size: Int): Int
+    /** Escritura bloqueante desde [offset]: devuelve las muestras escritas (puede ser < [size]) o un codigo de error negativo. */
+    fun write(buffer: FloatArray, offset: Int, size: Int): Int
 
     /** Contador de frames de 32 bits de `AudioTrack` (sin signo: desborda a las ~27 h). */
     fun playbackHeadPosition(): Int
@@ -17,7 +17,7 @@ interface PcmTrack {
     fun release()
 }
 
-/** Crea una [PcmTrack] ya inicializada (buffer de al menos [blockSize] muestras) o lanza si no se puede. */
+/** Crea una [PcmTrack] ya inicializada (buffer de al menos DOS bloques de [blockSize] muestras) o lanza. */
 fun interface PcmTrackFactory {
     fun create(blockSize: Int): PcmTrack
 }
