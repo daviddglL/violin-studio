@@ -5,6 +5,7 @@ import com.violinstudio.domain.feature.metronome.model.TimeSignature
 import java.math.BigDecimal
 import java.math.RoundingMode
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class BeatSchedulerTest {
@@ -69,5 +70,54 @@ class BeatSchedulerTest {
         assertEquals(next + 2 * 22_050, changed.sampleOf(5))
         assertEquals(true, changed.isAccent(4))
         assertEquals(3, changed.firstBeatAtOrAfter(atSample))
+    }
+
+    @Test
+    fun `k enorme con un origen Long grande sigue siendo exacto`() {
+        val origin = 5_000_000_000_000L
+        listOf(30, 137, 250).forEach { bpm ->
+            val scheduler = BeatScheduler(Tempo(bpm), TimeSignature.FOUR_FOUR, origin)
+            val k = 1_000_000_000L
+            assertEquals(exact(k, bpm, origin), scheduler.sampleOf(k))
+            assertEquals(k, scheduler.beatAt(scheduler.sampleOf(k)))
+            assertEquals(k - 1, scheduler.beatAt(scheduler.sampleOf(k) - 1))
+        }
+    }
+
+    @Test
+    fun `beatAt es la inversa de sampleOf para todos los BPM hasta k 10000`() {
+        (Tempo.MIN_BPM..Tempo.MAX_BPM).forEach { bpm ->
+            val scheduler = BeatScheduler(Tempo(bpm), TimeSignature.SIX_EIGHT)
+            ((0L..10_000L step 97) + 10_000L).forEach { k ->
+                assertEquals(k, scheduler.beatAt(scheduler.sampleOf(k)), "bpm=$bpm k=$k")
+                assertEquals(k - 1, scheduler.beatAt(scheduler.sampleOf(k) - 1), "bpm=$bpm k=$k")
+            }
+        }
+    }
+
+    @Test
+    fun `retempo exactamente sobre un clic lo conserva como nuevo origen`() {
+        val old = BeatScheduler(Tempo(100), TimeSignature.FOUR_FOUR)
+        val changed = old.retempo(Tempo(120), old.sampleOf(3))
+        assertEquals(3, changed.firstBeat)
+        assertEquals(old.sampleOf(3), changed.sampleOf(3))
+    }
+
+    @Test
+    fun `retempos encadenados componen las posiciones`() {
+        val first = BeatScheduler(Tempo(100), TimeSignature.THREE_FOUR)
+        val second = first.retempo(Tempo(120), first.sampleOf(1) + 5)
+        val third = second.retempo(Tempo(60), second.sampleOf(4) - 1)
+        assertEquals(second.sampleOf(4), third.sampleOf(4))
+        assertEquals(second.sampleOf(4) + 44_100, third.sampleOf(5))
+        assertEquals(first.sampleOf(2), second.sampleOf(2))
+        assertEquals(true, third.isAccent(6))
+    }
+
+    @Test
+    fun `sampleOf rechaza tiempos anteriores al primero`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BeatScheduler(Tempo(120), TimeSignature.FOUR_FOUR, 0, firstBeat = 3).sampleOf(2)
+        }
     }
 }

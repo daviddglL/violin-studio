@@ -11,8 +11,9 @@ object ClickSynth {
     private const val TAU_SECONDS = 0.008
     private const val RAMP_MS = 2
 
-    val accent: FloatArray = synth(hz = 1500.0, amplitude = 0.9)
-    val normal: FloatArray = synth(hz = 1000.0, amplitude = 0.6)
+    /** Solo lectura: son internos y compartidos; no modificar. */
+    internal val accent: FloatArray = synth(hz = 1500.0, amplitude = 0.9)
+    internal val normal: FloatArray = synth(hz = 1000.0, amplitude = 0.6)
 
     private fun synth(hz: Double, amplitude: Double): FloatArray {
         val rate = PcmFormat.SAMPLE_RATE

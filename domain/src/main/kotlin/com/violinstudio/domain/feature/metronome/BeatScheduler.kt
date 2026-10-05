@@ -20,6 +20,7 @@ class BeatScheduler(
 
     /** Muestra en la que suena el tiempo [beat] (>= [firstBeat]). */
     fun sampleOf(beat: Long): Long {
+        require(beat >= firstBeat) { "beat $beat < firstBeat $firstBeat" }
         val numerator = (beat - firstBeat) * 60L * sampleRate
         return originSample + (2 * numerator + tempo.bpm) / (2L * tempo.bpm)
     }
