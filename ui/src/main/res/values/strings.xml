@@ -253,4 +253,6 @@
     <string name="metronome_six_eight_hint">En 6/8 el tempo cuenta corcheas.</string>
     <string name="metronome_error_output">No se pudo reproducir el metrónomo.</string>
     <string name="metronome_error_unknown">No se pudo iniciar el metrónomo.</string>
+    <string name="metronome_beat_description">Tiempo %1$d de %2$d</string>
+    <string name="metronome_beats_description">%1$d tiempos por compás</string>
 </resources>

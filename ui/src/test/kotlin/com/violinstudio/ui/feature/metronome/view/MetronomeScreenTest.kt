@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -37,7 +38,7 @@ class MetronomeScreenTest {
         compose.setContent { ViolinStudioTheme { MetronomeScreen(state, { sent += it }, onBack = {}) } }
     }
 
-    private fun assertLit(index: Int) = compose.onNodeWithTag(metronomeBeatTag(index))
+    private fun assertLit(index: Int) = compose.onNodeWithTag(metronomeBeatTag(index), useUnmergedTree = true)
         .assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
 
     @Test
@@ -70,8 +71,9 @@ class MetronomeScreenTest {
     @Test
     fun oneDotPerBeatWithTheCurrentOneSelected() {
         show(MetronomeState(signature = TimeSignature.SIX_EIGHT, isPlaying = true, tick = BeatTick(8, 2, false)))
-        compose.onNodeWithTag(metronomeBeatTag(5)).assertIsDisplayed()
+        compose.onNodeWithTag(metronomeBeatTag(5), useUnmergedTree = true).assertIsDisplayed()
         assertLit(2)
+        compose.onNodeWithContentDescription("Tiempo 3 de 6").assertIsDisplayed()
         compose.onNodeWithText("En 6/8 el tempo cuenta corcheas.").assertIsDisplayed()
     }
 

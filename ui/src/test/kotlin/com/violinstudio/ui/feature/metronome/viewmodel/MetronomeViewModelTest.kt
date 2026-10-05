@@ -17,7 +17,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -25,6 +28,7 @@ import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -132,6 +136,36 @@ class MetronomeViewModelTest {
         assertEquals(1, output.maxActive)
         assertEquals(1, output.active)
         assertEquals(TimeSignature.SIX_EIGHT, output.generator.scheduler.signature)
+    }
+
+    @Test
+    fun `repetir el bpm vigente no reancla el generador`() = runTest {
+        val vm = playing()
+        output.writeBlock()
+        val anchored = output.generator.scheduler
+        vm.onIntent(MetronomeIntent.SetBpm(vm.state.value.tempo.bpm))
+        vm.onIntent(MetronomeIntent.SetBpm(999))
+        vm.onIntent(MetronomeIntent.SetBpm(250))
+        advanceUntilIdle()
+        output.writeBlock()
+        assertEquals(250, output.generator.scheduler.tempo.bpm)
+        val at250 = output.generator.scheduler
+        vm.onIntent(MetronomeIntent.SetBpm(999)) // acotado a 250: igual al vigente
+        advanceUntilIdle()
+        output.writeBlock()
+        assertSame(at250, output.generator.scheduler)
+        assertEquals(100, anchored.tempo.bpm)
+    }
+
+    @Test
+    fun `cambiar de compas sonando no pasa por un estado parado`() = runTest {
+        val vm = playing()
+        val seen = mutableListOf<MetronomeState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.toList(seen) }
+        vm.onIntent(MetronomeIntent.SetSignature(TimeSignature.THREE_FOUR))
+        advanceUntilIdle()
+        assertTrue(seen.isNotEmpty())
+        assertTrue(seen.all { it.isPlaying })
     }
 
     @Test

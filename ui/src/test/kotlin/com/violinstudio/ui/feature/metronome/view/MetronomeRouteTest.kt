@@ -98,4 +98,16 @@ class MetronomeRouteTest {
         compose.runOnUiThread { shown = false }
         awaitActive(0)
     }
+
+    @Test
+    fun rotationResumesExactlyOnce() {
+        playing()
+        compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.CREATED }
+        compose.runOnUiThread { shown = false }
+        awaitActive(0)
+        compose.runOnUiThread { shown = true }
+        compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.STARTED }
+        awaitActive(1)
+        assertEquals(1, maxActive.get())
+    }
 }

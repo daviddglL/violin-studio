@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
@@ -112,10 +113,17 @@ private fun StepButton(symbol: String, description: String, tag: String, onClick
 /** Un punto por tiempo: el que suena va relleno y el acento es mayor, asi que no depende solo del color. */
 @Composable
 private fun BeatIndicator(state: MetronomeState) {
+    val tick = state.tick
+    val description = if (tick == null) {
+        stringResource(R.string.metronome_beats_description, state.signature.beats)
+    } else {
+        stringResource(R.string.metronome_beat_description, tick.position + 1, state.signature.beats)
+    }
+    // Una sola descripcion para el indicador (sin ruido por punto); los puntos conservan etiqueta de prueba.
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.height(32.dp)
+        modifier = Modifier.height(32.dp).clearAndSetSemantics { contentDescription = description }
     ) {
         for (position in 0 until state.signature.beats) {
             val lit = state.tick?.position == position

@@ -246,9 +246,9 @@ class AppNavHostSessionTest {
         assertFalse(metronomeComposed)
     }
 
-    /** M2b.0: tono y metronomo se excluyen porque la ruta que se abandona sale de la composicion antes. */
+    /** M2b.0: la ruta del afinador sale de la composicion antes de abrir la del metronomo (el Stop real: TunerRouteTest). */
     @Test
-    fun theTunerLeavesTheCompositionBeforeTheMetronomeOpens() {
+    fun theTunerSlotLeavesTheCompositionBeforeTheMetronomeSlotOpens() {
         start(ready)
         compose.onNodeWithTag("open_tuner").performClick()
         compose.waitForIdle()

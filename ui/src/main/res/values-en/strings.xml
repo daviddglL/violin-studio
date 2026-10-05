@@ -78,4 +78,6 @@
     <string name="metronome_six_eight_hint">In 6/8 the tempo counts eighth notes.</string>
     <string name="metronome_error_output">The metronome could not be played.</string>
     <string name="metronome_error_unknown">The metronome could not start.</string>
+    <string name="metronome_beat_description">Beat %1$d of %2$d</string>
+    <string name="metronome_beats_description">%1$d beats per bar</string>
 </resources>

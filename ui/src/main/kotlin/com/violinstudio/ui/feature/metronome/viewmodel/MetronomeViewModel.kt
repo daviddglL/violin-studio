@@ -2,6 +2,7 @@ package com.violinstudio.ui.feature.metronome.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.metronome.TapTempoCalculator
+import com.violinstudio.domain.feature.metronome.model.Tempo
 import com.violinstudio.domain.feature.metronome.usecase.MetronomeSession
 import com.violinstudio.domain.feature.metronome.usecase.RunMetronomeUseCase
 import com.violinstudio.ui.commons.di.MonotonicClock
@@ -63,12 +64,15 @@ class MetronomeViewModel @Inject constructor(
     }
 
     private fun setBpm(bpm: Int) {
+        val tempo = Tempo(bpm.coerceIn(Tempo.MIN_BPM, Tempo.MAX_BPM))
+        // Mismo tempo (p. ej. el deslizador repite el valor): no se reancla el generador en cada evento.
+        if (tempo == state.value.tempo) return
         reduce(MetronomeMutation.Bpm(bpm))
-        session?.setTempo(state.value.tempo)
+        session?.setTempo(tempo)
     }
 
     private suspend fun start() {
-        stop()
+        halt() // sin pasar por Stopped: al cambiar de compas el estado sigue sonando
         val current = state.value
         val next = run(current.tempo, current.signature)
         session = next
@@ -87,11 +91,19 @@ class MetronomeViewModel @Inject constructor(
     }
 
     private suspend fun stop() {
-        // Acotado: una salida que no termina de cancelarse no debe bloquear la cola de intenciones.
+        halt()
+        reduce(MetronomeMutation.Stopped)
+    }
+
+    /**
+     * Cancela y espera la reproduccion, acotado: una salida que no termina de cancelarse no debe bloquear la cola
+     * de intenciones. Si vence el limite, el job viejo puede emitir aun algun `Beat` (tiempo viejo) hasta que la
+     * salida termine de soltarse; es acotado (~un bloque) y el siguiente `Started` o `Stopped` lo borra.
+     */
+    private suspend fun halt() {
         withTimeoutOrNull(STOP_JOIN_TIMEOUT_MS) { playJob?.cancelAndJoin() }
         playJob = null
         session = null
-        reduce(MetronomeMutation.Stopped)
     }
 
     private fun reduce(mutation: MetronomeMutation) = setState { MetronomeReducer.reduce(this, mutation) }
