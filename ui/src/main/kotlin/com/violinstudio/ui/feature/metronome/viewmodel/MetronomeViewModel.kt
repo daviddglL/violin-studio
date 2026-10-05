@@ -45,9 +45,13 @@ class MetronomeViewModel @Inject constructor(
                 if (state.value.isPlaying) start()
             }
             MetronomeIntent.Tap -> tapTempo.tap()?.let { setBpm(it.bpm) }
-            MetronomeIntent.Toggle -> if (state.value.isPlaying) stop() else start()
+            MetronomeIntent.Toggle -> {
+                resumeOnStart = false
+                if (state.value.isPlaying) stop() else start()
+            }
             MetronomeIntent.Stop -> {
-                resumeOnStart = state.value.isPlaying
+                // ON_STOP y salir de la composicion llegan seguidos al rotar: el segundo no borra la reanudacion.
+                resumeOnStart = resumeOnStart || state.value.isPlaying
                 stop()
             }
             MetronomeIntent.Resume -> {

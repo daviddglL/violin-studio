@@ -147,6 +147,7 @@ class MetronomeViewModelTest {
     fun `Stop detiene y Resume reanuda solo si sonaba`() = runTest {
         val vm = playing()
         vm.onIntent(MetronomeIntent.Stop)
+        vm.onIntent(MetronomeIntent.Stop) // ON_STOP y onDispose seguidos (rotacion)
         advanceUntilIdle()
         assertEquals(0, output.active)
         vm.onIntent(MetronomeIntent.Resume)

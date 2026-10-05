@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class StringsParityTest {
-    private val entry = Regex("""<string name="((?:tuner_)[^"]+)">(.*)</string>""")
+    private val entry = Regex("""<string name="((?:tuner_|metronome_)[^"]+)">(.*)</string>""")
 
     private fun load(dir: String) = File("src/main/res/$dir/strings.xml").readLines()
         .mapNotNull { entry.find(it) }.associate { it.groupValues[1] to it.groupValues[2] }

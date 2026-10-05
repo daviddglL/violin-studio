@@ -239,4 +239,18 @@
     <string name="tuner_config_preset_select_named">Usar %1$s</string>
     <string name="tuner_config_preset_edit_named">Editar %1$s</string>
     <string name="tuner_config_preset_delete_named">Borrar %1$s</string>
+    <string name="metronome_home_card">Metrónomo</string>
+    <string name="metronome_title">Metrónomo</string>
+    <string name="metronome_back">Volver</string>
+    <string name="metronome_bpm">%1$d BPM</string>
+    <string name="metronome_start">Iniciar</string>
+    <string name="metronome_stop">Parar</string>
+    <string name="metronome_retry">Reintentar</string>
+    <string name="metronome_tap">Marcar tempo</string>
+    <string name="metronome_increase">Subir un BPM</string>
+    <string name="metronome_decrease">Bajar un BPM</string>
+    <string name="metronome_slider">Tempo</string>
+    <string name="metronome_six_eight_hint">En 6/8 el tempo cuenta corcheas.</string>
+    <string name="metronome_error_output">No se pudo reproducir el metrónomo.</string>
+    <string name="metronome_error_unknown">No se pudo iniciar el metrónomo.</string>
 </resources>
