@@ -3,6 +3,7 @@ import com.violinstudio.buildlogic.configureCoverage
 plugins {
     alias(libs.plugins.violin.android.library)
     alias(libs.plugins.violin.android.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // `isReturnDefaultValues`: el SDK de Firebase llama a android.* (TextUtils) al construir sus excepciones en los tests.
@@ -24,4 +25,6 @@ dependencies {
     implementation(libs.firebase.firestore)
     api(libs.firebase.functions)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.serialization.json)
 }
