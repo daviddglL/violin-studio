@@ -2,6 +2,8 @@ package com.violinstudio.data.commons.di
 
 import android.content.Context
 import android.media.AudioManager
+import com.violinstudio.domain.feature.tuner.audio.AudioInputSource
+import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,4 +44,10 @@ object AudioModule {
     @Singleton
     fun provideAudioManager(@ApplicationContext context: Context): AudioManager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    @Provides
+    fun provideObservePitchUseCase(
+        source: AudioInputSource,
+        @DefaultDispatcher dispatcher: CoroutineDispatcher
+    ): ObservePitchUseCase = ObservePitchUseCase(source, dispatcher)
 }
