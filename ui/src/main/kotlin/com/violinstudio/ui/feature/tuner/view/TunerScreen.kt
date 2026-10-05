@@ -61,11 +61,16 @@ fun TunerScreen(state: TunerState, onIntent: (TunerIntent) -> Unit, onStart: () 
         Spacer(Modifier.height(16.dp))
         Actions(state, onIntent, onStart)
         ReferenceButton(state, onIntent)
+        TextButton(
+            onClick = { onIntent(TunerIntent.OpenConfig) },
+            modifier = Modifier.testTag(TUNER_CONFIG_OPEN_TAG)
+        ) { Text(stringResource(R.string.tuner_config_open)) }
         TextButton(onClick = onBack, modifier = Modifier.testTag(TUNER_BACK_TAG)) {
             Text(stringResource(R.string.tuner_back))
         }
     }
     if (state.showRationale) RationaleDialog(onIntent)
+    TunerConfigSheet(state, onIntent)
 }
 
 @Composable

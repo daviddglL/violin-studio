@@ -21,6 +21,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.domain.feature.tuner.model.ReferencePitch
+import com.violinstudio.domain.feature.tuner.model.TunerConfig
 import com.violinstudio.domain.feature.tuner.model.TunerReading
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
 import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
@@ -106,10 +107,21 @@ class TunerRouteTest {
         }
     }
 
+    private fun newViewModel() = TunerViewModel(
+        observeProfile,
+        observePitch,
+        playTone,
+        mockk { every { this@mockk() } returns MutableStateFlow(TunerConfig()) },
+        mockk(),
+        mockk(),
+        mockk(),
+        mockk()
+    )
+
     private fun awaitActive(expected: Int) = compose.waitUntil(5_000) { active.get() == expected }
 
     private fun listening(): TunerViewModel {
-        val viewModel = TunerViewModel(observeProfile, observePitch, playTone)
+        val viewModel = newViewModel()
         show(viewModel)
         compose.onNodeWithTag(TUNER_LISTEN_TAG).performClick()
         awaitActive(1)
@@ -134,7 +146,7 @@ class TunerRouteTest {
 
     @Test
     fun theReferenceToneStopsOnStopAndWhenLeavingTheRoute() {
-        val viewModel = TunerViewModel(observeProfile, observePitch, playTone)
+        val viewModel = newViewModel()
         show(viewModel)
         compose.runOnUiThread {
             viewModel.onIntent(TunerIntent.SelectInstrument(Instrument.VIOLIN))
@@ -148,7 +160,7 @@ class TunerRouteTest {
 
     @Test
     fun theSettingsEffectOpensTheAppDetailsOfThisPackage() {
-        val viewModel = TunerViewModel(observeProfile, observePitch, playTone)
+        val viewModel = newViewModel()
         show(viewModel)
         compose.runOnUiThread { viewModel.onIntent(TunerIntent.OpenAppSettings) }
         compose.waitUntil(5_000) { shadowOf(application).peekNextStartedActivity() != null }

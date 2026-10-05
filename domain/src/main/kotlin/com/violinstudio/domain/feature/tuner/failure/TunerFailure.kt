@@ -10,6 +10,7 @@ sealed class TunerFailure(message: String) : Exception(message) {
     data object AudioOutputUnavailable : TunerFailure("Salida de audio no disponible")
     data class InvalidConfig(val field: TunerField) : TunerFailure("Configuración del afinador inválida: $field")
     data object PresetLimitReached : TunerFailure("Límite de presets alcanzado")
+    data object DuplicatePresetLabel : TunerFailure("Ya existe un preset con esa etiqueta")
     data object PresetNotFound : TunerFailure("Preset no encontrado")
     data object NoSession : TunerFailure("Sin sesión")
 

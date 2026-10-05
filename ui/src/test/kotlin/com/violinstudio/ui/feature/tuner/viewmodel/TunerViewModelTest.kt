@@ -9,14 +9,24 @@ import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
+import com.violinstudio.domain.feature.tuner.failure.TunerField
+import com.violinstudio.domain.feature.tuner.model.MaxCents
 import com.violinstudio.domain.feature.tuner.model.Note
 import com.violinstudio.domain.feature.tuner.model.ReferencePitch
+import com.violinstudio.domain.feature.tuner.model.TunerConfig
 import com.violinstudio.domain.feature.tuner.model.TunerReading
 import com.violinstudio.domain.feature.tuner.model.TuningTarget
+import com.violinstudio.domain.feature.tuner.usecase.DeleteTuningPresetUseCase
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
+import com.violinstudio.domain.feature.tuner.usecase.ObserveTunerConfigUseCase
 import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
+import com.violinstudio.domain.feature.tuner.usecase.SaveTuningPresetUseCase
+import com.violinstudio.domain.feature.tuner.usecase.SelectTuningPresetUseCase
+import com.violinstudio.domain.feature.tuner.usecase.UpdateTunerConfigUseCase
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.testMvi
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
@@ -52,10 +62,19 @@ class TunerViewModelTest {
     private var maxActive = 0
     private var finishes = false
     private val calls = mutableListOf<Pair<Instrument, Int?>>()
+    private val configsSeen = mutableListOf<TunerConfig>()
+    private val persisted = MutableStateFlow(TunerConfig())
+    private val observeConfig = mockk<ObserveTunerConfigUseCase> { every { this@mockk() } returns persisted }
+    private val updateConfig = mockk<UpdateTunerConfigUseCase>()
+    private val savePreset = mockk<SaveTuningPresetUseCase>()
+    private val deletePreset = mockk<DeleteTuningPresetUseCase>()
+    private val selectPreset = mockk<SelectTuningPresetUseCase>()
+    private val tonePitches = mutableListOf<Double>()
     private var failure: Throwable? = null
     private val observePitch = mockk<ObservePitchUseCase> {
         every { this@mockk(any(), any(), any()) } answers {
             calls += firstArg<Instrument>() to thirdArg<Int?>()
+            configsSeen += secondArg<TunerConfig>()
             capture()
         }
     }
@@ -67,10 +86,14 @@ class TunerViewModelTest {
     private var toneStuck = false
     private val toneCalls = mutableListOf<Note>()
     private val playTone = mockk<PlayReferenceToneUseCase> {
-        every { this@mockk(any(), ReferencePitch.DEFAULT) } answers {
-            // La funcion con value classes se compila con parametros crudos (Int).
-            toneCalls += Note(firstArg<Int>())
-            tone()
+        // any() no vale para value classes (mockk construiria ReferencePitch(0.0)): un stub por referencia.
+        for (ref in listOf(ReferencePitch.DEFAULT, ReferencePitch(442.0))) {
+            every { this@mockk(any(), ref) } answers {
+                // La funcion con value classes se compila con parametros crudos (Int, Double).
+                toneCalls += Note(firstArg<Int>())
+                tonePitches += secondArg<Double>()
+                tone()
+            }
         }
     }
 
@@ -99,7 +122,16 @@ class TunerViewModelTest {
         }
     }
 
-    private fun vm() = TunerViewModel(observeProfile, observePitch, playTone)
+    private fun vm() = TunerViewModel(
+        observeProfile,
+        observePitch,
+        playTone,
+        observeConfig,
+        updateConfig,
+        savePreset,
+        deletePreset,
+        selectPreset
+    )
 
     private fun profileOf(instrument: Instrument) =
         UserProfile("u1", "Ana", instrument, "es", Role.INDEPENDENT, false, ConsentStatus.GRANTED, 1, null, false)
@@ -541,5 +573,124 @@ class TunerViewModelTest {
         vm.onIntent(TunerIntent.SelectString(2))
         advanceTimeBy(600)
         assertEquals(2, vm.state.value.selectedString)
+    }
+
+    private val c442 = TunerConfig(referencePitch = ReferencePitch(442.0), maxCents = MaxCents(100))
+
+    @Test
+    fun `la config persistida llega al estado`() = runTest {
+        val vm = vm()
+        persisted.value = c442
+        advanceUntilIdle()
+        assertEquals(c442, vm.state.value.config)
+    }
+
+    @Test
+    fun `cambiar la config escuchando reabre la captura con la nueva`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        val before = configsSeen.size
+        persisted.value = c442
+        advanceUntilIdle()
+        assertEquals(1, active)
+        assertEquals(c442, configsSeen.last())
+        assertEquals(before + 1, configsSeen.size)
+    }
+
+    @Test
+    fun `cambiar solo los presets no reabre la captura`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        val before = configsSeen.size
+        persisted.value = TunerConfig(selectedPresetId = "x")
+        advanceUntilIdle()
+        assertEquals(before, configsSeen.size)
+    }
+
+    @Test
+    fun `cambiar la referencia con el tono sonando lo reinicia con la nueva`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.SelectInstrument(Instrument.VIOLIN))
+        vm.onIntent(TunerIntent.SelectString(2))
+        vm.onIntent(TunerIntent.ToggleReference)
+        advanceUntilIdle()
+        persisted.value = c442
+        advanceUntilIdle()
+        assertEquals(listOf(440.0, 442.0), tonePitches)
+        assertEquals(1, toneActive)
+    }
+
+    @Test
+    fun `aplicar valores validos guarda y cierra la hoja`() = runTest {
+        coEvery { updateConfig(442.0, 100) } returns Result.success(Unit)
+        val vm = vm()
+        vm.onIntent(TunerIntent.OpenConfig)
+        vm.onIntent(TunerIntent.UpdateConfig(442.0, 100))
+        advanceUntilIdle()
+        coVerify { updateConfig(442.0, 100) }
+        assertFalse(vm.state.value.showConfig)
+    }
+
+    @Test
+    fun `aplicar un valor invalido deja la hoja abierta con su error`() = runTest {
+        coEvery { updateConfig(500.0, 50) } returns
+            Result.failure(TunerFailure.InvalidConfig(TunerField.REFERENCE_PITCH))
+        val vm = vm()
+        vm.onIntent(TunerIntent.OpenConfig)
+        vm.onIntent(TunerIntent.UpdateConfig(500.0, 50))
+        advanceUntilIdle()
+        assertTrue(vm.state.value.showConfig)
+        assertEquals(ConfigError.REFERENCE_PITCH, vm.state.value.configError)
+    }
+
+    @Test
+    fun `guardar un preset delega y el limite se muestra`() = runTest {
+        coEvery { savePreset(null, "Barroco", 415.0, 50) } returns Result.success("id1")
+        coEvery { savePreset("id1", "", 415.0, 50) } returns Result.failure(TunerFailure.PresetLimitReached)
+        val vm = vm()
+        vm.onIntent(TunerIntent.SavePreset(null, "Barroco", 415.0, 50))
+        advanceUntilIdle()
+        assertNull(vm.state.value.configError)
+        vm.onIntent(TunerIntent.SavePreset("id1", "", 415.0, 50))
+        advanceUntilIdle()
+        assertEquals(ConfigError.PRESET_LIMIT, vm.state.value.configError)
+    }
+
+    @Test
+    fun `borrar y seleccionar delegan y sus fallos se muestran`() = runTest {
+        coEvery { deletePreset("a") } returns Result.failure(TunerFailure.PresetNotFound)
+        coEvery { selectPreset("b") } returns Result.failure(TunerFailure.StorageUnavailable)
+        val vm = vm()
+        vm.onIntent(TunerIntent.DeletePreset("a"))
+        advanceUntilIdle()
+        assertEquals(ConfigError.PRESET_NOT_FOUND, vm.state.value.configError)
+        vm.onIntent(TunerIntent.SelectPreset("b"))
+        advanceUntilIdle()
+        assertEquals(ConfigError.STORAGE, vm.state.value.configError)
+    }
+
+    @Test
+    fun `editar un campo limpia el error en linea`() = runTest {
+        coEvery { updateConfig(500.0, 50) } returns
+            Result.failure(TunerFailure.InvalidConfig(TunerField.REFERENCE_PITCH))
+        val vm = vm()
+        vm.onIntent(TunerIntent.UpdateConfig(500.0, 50))
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.ClearConfigError)
+        advanceUntilIdle()
+        assertNull(vm.state.value.configError)
+    }
+
+    @Test
+    fun `reemitir una config igual no reabre la captura`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        val before = configsSeen.size
+        vm.onIntent(TunerIntent.ConfigLoaded(TunerConfig()))
+        advanceUntilIdle()
+        assertEquals(before, configsSeen.size)
     }
 }

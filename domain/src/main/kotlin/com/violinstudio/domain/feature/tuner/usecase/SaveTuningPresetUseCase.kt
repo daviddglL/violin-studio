@@ -1,6 +1,7 @@
 package com.violinstudio.domain.feature.tuner.usecase
 
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
+import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.feature.tuner.model.TunerConfig
 import com.violinstudio.domain.feature.tuner.model.TuningConfiguration
 import com.violinstudio.domain.feature.tuner.repository.TunerConfigRepository
@@ -8,7 +9,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 /**
- * Crea (`id == null`) o edita un preset; devuelve su id. Máximo [TunerConfig.MAX_PRESETS]. Si se edita el preset
+ * Crea (`id == null`) o edita un preset; devuelve su id. Máximo [TunerConfig.MAX_PRESETS]; la etiqueta no puede repetirse (sin mayúsculas ni espacios). Si se edita el preset
  * activo, la config activa toma sus nuevos valores.
  */
 class SaveTuningPresetUseCase @Inject constructor(
@@ -20,6 +21,10 @@ class SaveTuningPresetUseCase @Inject constructor(
         val preset = TuningConfiguration.create(presetId, label, referenceHz, maxCents)
             .getOrElse { return Result.failure(it) }
         return updateTunerConfig(auth, repo) { config ->
+            val key = preset.label.trim().lowercase()
+            if (config.presets.any { it.id != presetId && it.label.trim().lowercase() == key }) {
+                throw TunerFailure.DuplicatePresetLabel
+            }
             val exists = config.presets.any { it.id == presetId }
             val presets =
                 if (exists) config.presets.map { if (it.id == presetId) preset else it } else config.presets + preset

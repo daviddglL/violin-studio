@@ -111,4 +111,14 @@ class TunerConfigUseCasesTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `una etiqueta repetida se rechaza sin mayusculas ni espacios, salvo en el propio preset`() = runTest {
+        val id = save(null, "Barroco", 415.0, 50).getOrThrow()
+        assertEquals(TunerFailure.DuplicatePresetLabel, save(null, "  barroco ", 440.0, 50).exceptionOrNull())
+        assertEquals(1, observe().first().presets.size)
+        assertTrue(save(id, "BARROCO", 415.0, 60).isSuccess)
+        val other = save(null, "Clasico", 430.0, 50).getOrThrow()
+        assertEquals(TunerFailure.DuplicatePresetLabel, save(other, "barroco", 430.0, 50).exceptionOrNull())
+    }
 }
