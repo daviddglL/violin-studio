@@ -39,7 +39,7 @@ class AudioRecordSourceTest {
         val calls = java.util.Collections.synchronizedList(mutableListOf<String>())
         val released = CountDownLatch(1)
         val readEntered = CountDownLatch(1)
-        private val stopped = CountDownLatch(1)
+        val stopCalled = CountDownLatch(1)
         private val sequence = AtomicInteger()
 
         init {
@@ -54,7 +54,7 @@ class AudioRecordSourceTest {
         override fun read(buffer: ShortArray): Int {
             readEntered.countDown()
             if (blockUntilStopped) {
-                stopped.await()
+                stopCalled.await(READ_BLOCK_LIMIT_SECONDS, TimeUnit.SECONDS)
                 return 0
             }
             Thread.sleep(1)
@@ -65,7 +65,7 @@ class AudioRecordSourceTest {
 
         override fun stop() {
             calls += "stop"
-            stopped.countDown()
+            stopCalled.countDown()
         }
 
         override fun release() {
@@ -216,5 +216,24 @@ class AudioRecordSourceTest {
         recorder.awaitReleased()
         assertEquals(4, values.size)
         assertTrue((values[3] - values[0]) * 32768f > 3.5f, "no se descarto nada: $values")
+    }
+
+    @Test
+    fun `cancelar justo tras entrar en read nunca deja el stop sin llamar`() = runBlocking {
+        repeat(CANCEL_RACE_ITERATIONS) {
+            val recorder = FakeRecorder(blockUntilStopped = true)
+            val job = launch(Dispatchers.Default) { source { recorder }.frames(4).collect { } }
+            assertTrue(recorder.readEntered.await(5, TimeUnit.SECONDS))
+            job.cancel()
+            // Sin withTimeout: un hijo bloqueado en read impediria que el propio timeout terminase.
+            assertTrue(recorder.stopCalled.await(5, TimeUnit.SECONDS), "stop no llamado en la iteracion $it")
+            job.join()
+            recorder.awaitReleased()
+        }
+    }
+
+    private companion object {
+        const val CANCEL_RACE_ITERATIONS = 300
+        const val READ_BLOCK_LIMIT_SECONDS = 10L
     }
 }
