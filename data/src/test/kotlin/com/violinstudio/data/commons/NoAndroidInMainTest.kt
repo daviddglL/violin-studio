@@ -11,8 +11,16 @@ import org.junit.jupiter.api.Test
  * sin ejecutar nada real, así que el código principal no puede importar `android.*`.
  */
 class NoAndroidInMainTest {
-    /** Imports permitidos explícitamente (ruta relativa a `src/main/kotlin` -> import). Hoy ninguno. */
-    private val allowList = emptySet<Pair<String, String>>()
+    /** Imports permitidos explícitamente (ruta relativa a `src/main/kotlin` -> import): solo los adaptadores de audio. */
+    private val allowList = setOf(
+        "com/violinstudio/data/commons/di/AudioModule.kt" to "android.content.Context",
+        "com/violinstudio/data/commons/di/AudioModule.kt" to "android.media.AudioManager"
+    ) + listOf(
+        "android.media.AudioFormat",
+        "android.media.AudioManager",
+        "android.media.AudioRecord",
+        "android.media.MediaRecorder"
+    ).map { "com/violinstudio/data/feature/tuner/datasource/audio/AndroidPcmRecorderFactory.kt" to it }
 
     @Test
     fun `el codigo principal de data no importa android`() {

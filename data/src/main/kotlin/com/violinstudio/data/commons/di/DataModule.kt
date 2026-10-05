@@ -13,11 +13,15 @@ import com.violinstudio.data.feature.profile.datasource.ProfileRemoteDataSource
 import com.violinstudio.data.feature.profile.datasource.firebase.FirebaseIdentityFunctionsDataSource
 import com.violinstudio.data.feature.profile.datasource.firebase.FirebaseProfileRemoteDataSource
 import com.violinstudio.data.feature.profile.repository.ProfileRepositoryImpl
+import com.violinstudio.data.feature.tuner.datasource.audio.AndroidPcmRecorderFactory
+import com.violinstudio.data.feature.tuner.datasource.audio.AudioRecordSource
+import com.violinstudio.data.feature.tuner.datasource.audio.PcmRecorderFactory
 import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
+import com.violinstudio.domain.feature.tuner.audio.AudioInputSource
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -52,4 +56,10 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository
+
+    @Binds
+    abstract fun bindPcmRecorderFactory(impl: AndroidPcmRecorderFactory): PcmRecorderFactory
+
+    @Binds
+    abstract fun bindAudioInputSource(impl: AudioRecordSource): AudioInputSource
 }
