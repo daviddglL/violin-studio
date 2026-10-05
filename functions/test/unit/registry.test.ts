@@ -5,6 +5,7 @@ test("el registro cubre todas las colecciones con la política prevista", () => 
   expect(Object.keys(ERASABLE_COLLECTIONS).sort()).toEqual(Object.values(COLLECTIONS).sort());
   expect(ERASABLE_COLLECTIONS.users).toEqual({ kind: "userDoc" });
   expect(ERASABLE_COLLECTIONS.consents).toEqual({ kind: "subcollectionOf", parent: "users" });
+  expect(ERASABLE_COLLECTIONS.practiceSessions).toEqual({ kind: "subcollectionOf", parent: "users" });
   expect(ERASABLE_COLLECTIONS.guardianRequests).toEqual({ kind: "queryByField", field: "uid" });
   expect(ERASABLE_COLLECTIONS.mail).toEqual({ kind: "queryByField", field: "uid" });
   const exempt = ERASABLE_COLLECTIONS.guardianEmailLimits;
@@ -21,6 +22,7 @@ test("una colección sin política no compila", () => {
   const incompleto: Record<CollectionName, ErasurePolicy> = {
     users: { kind: "userDoc" },
     consents: { kind: "subcollectionOf", parent: "users" },
+    practiceSessions: { kind: "subcollectionOf", parent: "users" },
     guardianRequests: { kind: "queryByField", field: "uid" },
     mail: { kind: "queryByField", field: "uid" },
   };

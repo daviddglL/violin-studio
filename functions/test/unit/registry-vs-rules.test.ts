@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { COLLECTIONS } from "../../src/common/collections";
-import { ERASABLE_COLLECTIONS } from "../../src/erasure/registry";
+import { ERASABLE_COLLECTIONS, ErasurePolicy } from "../../src/erasure/registry";
 
 /**
  * Primer segmento de los `match` de primer nivel bajo `/databases/{database}/documents` (profundidad de llaves 2).
@@ -27,6 +27,42 @@ function topLevelMatches(rules: string): string[] {
   return names;
 }
 
+/**
+ * Nombres de las subcolecciones declaradas bajo `match /<parent>/{id}` (profundidad de llaves 3).
+ * Solo se admiten `match` de la forma `/nombre/{id}`; cualquier otra falla en voz alta.
+ */
+// Limitación: cuenta llaves sobre el texto sin comentarios; una llave dentro de un literal de cadena la desajustaría.
+function subcollectionMatches(rules: string, parent: string): string[] {
+  const src = rules.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const names: string[] = [];
+  let depth = 0;
+  let inParent = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (c === "{") depth++;
+    else if (c === "}") depth--;
+    else if (src.startsWith("match", i) && /\W/.test(src[i - 1] ?? " ")) {
+      const m = /^match\s+(\S+)\s*\{/.exec(src.slice(i));
+      if (!m) continue;
+      if (depth === 2) inParent = m[1].split("/")[1] === parent;
+      else if (depth === 3 && inParent) {
+        const segs = m[1].split("/").filter(Boolean);
+        if (segs.length !== 2 || !/^\w+$/.test(segs[0])) throw new Error(`subcolección no soportada en match ${m[1]}`);
+        names.push(segs[0]);
+      }
+    }
+  }
+  return names;
+}
+
+function unregisteredSubs(names: string[], parent: string): string[] {
+  const policies: Record<string, ErasurePolicy> = ERASABLE_COLLECTIONS;
+  return names.filter((n) => {
+    const p = policies[n];
+    return !Object.values(COLLECTIONS).includes(n as never) || p?.kind !== "subcollectionOf" || p.parent !== parent;
+  });
+}
+
 function unregistered(names: string[]): string[] {
   const known = new Set<string>(Object.values(COLLECTIONS));
   const registered = new Set<string>(Object.keys(ERASABLE_COLLECTIONS));
@@ -41,6 +77,26 @@ test("el parser ve las colecciones de primer nivel y no las subcolecciones", () 
   expect(names).not.toContain("consents");
 });
 
+const wrap = (body: string) =>
+  "service cloud.firestore {\n  match /databases/{database}/documents {\n" + body + "\n  }\n}";
+
+test("el parser ve las subcolecciones de users y exige su registro como subcollectionOf users", () => {
+  const subs = subcollectionMatches(rules, "users");
+  expect(subs).toEqual(expect.arrayContaining(["consents", "practiceSessions"]));
+  expect(unregisteredSubs(subs, "users")).toEqual([]);
+});
+
+test("una subcolección inventada bajo users falla nombrándola", () => {
+  const conNueva = rules.replace("match /consents/{id} {", "match /inventada/{id} { allow read: if false; }\n      match /consents/{id} {");
+  expect(unregisteredSubs(subcollectionMatches(conNueva, "users"), "users")).toEqual(["inventada"]);
+});
+
+test("las subcolecciones solo se leen del padre pedido y las formas raras fallan", () => {
+  const src = wrap("match /users/{u} { match /a/{id} { } }\nmatch /otros/{o} { match /b/{id} { } }");
+  expect(subcollectionMatches(src, "users")).toEqual(["a"]);
+  expect(() => subcollectionMatches(wrap("match /users/{u} { match /{x}/{id} { } }"), "users")).toThrow(/subcolección/);
+});
+
 test("todas las colecciones de las reglas están en COLLECTIONS y registradas", () => {
   expect(unregistered(topLevelMatches(rules))).toEqual([]);
 });
@@ -52,9 +108,6 @@ test("una colección nueva en las reglas sin registrar falla nombrándola", () =
   );
   expect(unregistered(topLevelMatches(conNueva))).toEqual(["diarios"]);
 });
-
-const wrap = (body: string) =>
-  "service cloud.firestore {\n  match /databases/{database}/documents {\n" + body + "\n  }\n}";
 
 describe("parser de reglas (endurecido)", () => {
   test("ignora comentarios de línea y de bloque", () => {

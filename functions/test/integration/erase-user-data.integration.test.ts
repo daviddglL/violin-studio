@@ -17,6 +17,7 @@ async function usuarioCompleto() {
   const users = db.collection(COLLECTIONS.users).doc(uid);
   await users.set({ role: "independent", consentStatus: "granted", policyVersion: 1, isMinor: false });
   await users.collection(COLLECTIONS.consents).doc("terms_v1_self_e0").set({ type: "terms" });
+  for (const id of ["s1", "s2", "s3"]) await users.collection(COLLECTIONS.practiceSessions).doc(id).set({ durationSec: 60 });
   await users.collection("otraSub").doc("x").set({ v: 1 });
   await db.collection(COLLECTIONS.guardianRequests).doc(`r-${uid}`).set({ uid });
   await db.collection(COLLECTIONS.mail).doc(`m-${uid}`).set({ uid });
@@ -39,6 +40,7 @@ test("cascada completa: Auth, users + subcolecciones, docs por uid y Storage", a
   const users = db.collection(COLLECTIONS.users).doc(uid);
   expect((await users.get()).exists).toBe(false);
   expect((await users.collection(COLLECTIONS.consents).get()).size).toBe(0);
+  expect((await users.collection(COLLECTIONS.practiceSessions).get()).size).toBe(0);
   expect((await users.collection("otraSub").get()).size).toBe(0);
   expect(await porUid(COLLECTIONS.guardianRequests, uid)).toBe(0);
   expect(await porUid(COLLECTIONS.mail, uid)).toBe(0);
