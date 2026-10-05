@@ -17,6 +17,12 @@ data class DetectorProfile(
     /** Desfase minimo en muestras (periodo de [maxHz]). */
     val minLag: Int = (sampleRate / maxHz).roundToInt()
 
+    init {
+        require(minHz > 0.0 && maxHz > minHz) { "require 0 < minHz < maxHz" }
+        require(frameSize > 0 && frameSize and (frameSize - 1) == 0) { "frameSize must be a power of two" }
+        require(maxLag < frameSize) { "maxLag must be < frameSize" }
+    }
+
     companion object {
         const val SAMPLE_RATE = 44_100
 

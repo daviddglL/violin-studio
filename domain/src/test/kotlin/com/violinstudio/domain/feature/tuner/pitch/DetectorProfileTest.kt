@@ -2,6 +2,7 @@ package com.violinstudio.domain.feature.tuner.pitch
 
 import com.violinstudio.domain.feature.profile.model.Instrument
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -53,5 +54,20 @@ class DetectorProfileTest {
     @Test
     fun `hay un perfil por instrumento`() {
         Instrument.entries.forEach { DetectorProfile.of(it) }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Instrument::class)
+    fun `la ventana de integracion cubre al menos 2 periodos de la frecuencia minima`(instrument: Instrument) {
+        val p = DetectorProfile.of(instrument)
+        assertTrue(p.frameSize - p.maxLag >= 2 * p.sampleRate / p.minHz, "$instrument")
+    }
+
+    @Test
+    fun `rechaza perfiles invalidos`() {
+        assertThrows(IllegalArgumentException::class.java) { DetectorProfile(0.0, 100.0, 2048, 1024) }
+        assertThrows(IllegalArgumentException::class.java) { DetectorProfile(100.0, 100.0, 2048, 1024) }
+        assertThrows(IllegalArgumentException::class.java) { DetectorProfile(100.0, 500.0, 3000, 1024) }
+        assertThrows(IllegalArgumentException::class.java) { DetectorProfile(10.0, 500.0, 2048, 1024) }
     }
 }
