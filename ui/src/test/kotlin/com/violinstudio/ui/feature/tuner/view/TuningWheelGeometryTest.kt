@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.tuner.view
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -14,6 +15,13 @@ class TuningWheelGeometryTest {
         assertEquals(-1f, needleFraction(-87.0, 50))
         assertEquals(0.5f, needleFraction(25.0, 50))
         assertEquals(0f, needleFraction(0.0, 50))
+    }
+
+    @Test
+    fun `la aguja escala con la escala minima y maxima`() {
+        assertEquals(1f, needleFraction(30.0, 25))
+        assertEquals(0.5f, needleFraction(100.0, 200))
+        assertEquals(-1f, needleFraction(-250.0, 200))
     }
 
     @ParameterizedTest
@@ -32,5 +40,21 @@ class TuningWheelGeometryTest {
         assertNull(overflowLabel(50.0, 50))
         assertEquals("+87 ¢", overflowLabel(86.6, 50))
         assertEquals("-87 ¢", overflowLabel(-86.6, 50))
+    }
+
+    @Test
+    fun `el desborde compara con los cents redondeados que se muestran`() {
+        assertFalse(isOffScale(50.4, 50))
+        assertNull(overflowLabel(-50.4, 50))
+        assertTrue(isOffScale(50.6, 50))
+    }
+
+    @Test
+    fun `una entrada no finita no rompe, guion y aguja centrada`() {
+        assertEquals("—", centsLabel(Double.NaN))
+        assertEquals("—", centsLabel(Double.POSITIVE_INFINITY))
+        assertEquals(0f, needleFraction(Double.NaN, 50))
+        assertEquals(0f, needleFraction(Double.NEGATIVE_INFINITY, 50))
+        assertFalse(isOffScale(Double.NaN, 50))
     }
 }
