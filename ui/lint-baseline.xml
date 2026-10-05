@@ -1,0 +1,1929 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.2.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.2.1)" variant="all" version="9.2.1">
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;app_name&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;app_name&quot;>Violin Studio&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="2"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;home_status_idle&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;home_status_idle&quot;>Pulsa el botón para comprobar el servidor&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;home_status_ok&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;home_status_ok&quot;>Servidor OK · v%1$s&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;home_check_health&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;home_check_health&quot;>Comprobar servidor&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="5"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;error_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;error_unknown&quot;>Error desconocido&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="6"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;session_sign_out&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;session_sign_out&quot;>Cerrar sesión&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="7"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;session_loading&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;session_loading&quot;>Cargando sesión&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="8"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;offline_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;offline_title&quot;>Sin conexión&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="9"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;offline_message&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;offline_message&quot;>Estamos reintentando. Puedes cerrar sesión mientras tanto.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="10"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_title&quot;>Verifica tu email&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="11"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_message&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_message&quot;>Te hemos enviado un enlace de verificación a %1$s. Ábrelo y vuelve aquí.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="12"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_message_no_email&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_message_no_email&quot;>Te hemos enviado un enlace de verificación. Ábrelo y vuelve aquí.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="13"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_check&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_check&quot;>Ya lo he verificado&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="14"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_checking&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_checking&quot;>Comprobando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="15"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_resend&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_resend&quot;>Reenviar email&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="16"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_resend_wait&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_resend_wait&quot;>Reenviar en %1$d s&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="17"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_not_verified_yet&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_not_verified_yet&quot;>Aún no consta como verificado. Abre el enlace del email e inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="18"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_resend_sent&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_resend_sent&quot;>Email enviado. Revisa también la carpeta de spam.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="19"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_wait_too_many&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_wait_too_many&quot;>Demasiados intentos. Espera un minuto antes de reenviar.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_network&quot;>Sin conexión. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="21"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_unknown&quot;>No se ha podido completar la acción. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="22"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;verify_email_verified_continuing&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;verify_email_verified_continuing&quot;>Email verificado. Continuando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="23"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_email_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_email_label&quot;>Email&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="24"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_password_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_password_label&quot;>Contraseña&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="25"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_field_email_empty&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_field_email_empty&quot;>Escribe tu email.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="26"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_field_email_invalid&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_field_email_invalid&quot;>Revisa el formato del email.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="27"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_field_password_empty&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_field_password_empty&quot;>Escribe tu contraseña.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="28"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_error_too_many&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_error_too_many&quot;>Demasiados intentos. Espera un momento e inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="29"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_error_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_error_network&quot;>Sin conexión. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_error_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_error_unknown&quot;>No se ha podido completar la acción. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="31"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_google_button&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_google_button&quot;>Continuar con Google&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="32"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_google_unavailable&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_google_unavailable&quot;>No se ha podido acceder con Google. Puedes usar tu email y contraseña.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="33"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_google_other_provider&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_google_other_provider&quot;>Ya existe una cuenta con ese email creada con otro método. Inicia sesión con tu email y contraseña; no hemos vinculado nada.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="34"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auth_back_to_login&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;auth_back_to_login&quot;>Volver a iniciar sesión&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="35"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;login_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;login_title&quot;>Inicia sesión&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="36"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;login_submit&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;login_submit&quot;>Entrar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="37"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;login_loading&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;login_loading&quot;>Entrando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="38"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;login_forgot&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;login_forgot&quot;>¿Has olvidado tu contraseña?&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="39"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;login_to_register&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;login_to_register&quot;>Crear cuenta&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="40"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;login_error_invalid&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;login_error_invalid&quot;>Email o contraseña incorrectos.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="41"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;register_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;register_title&quot;>Crea tu cuenta&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="42"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;register_submit&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;register_submit&quot;>Crear cuenta&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="43"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;register_loading&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;register_loading&quot;>Creando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="44"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;register_password_too_short&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;register_password_too_short&quot;>Mínimo 6 caracteres.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="45"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;register_password_weak&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;register_password_weak&quot;>Contraseña demasiado débil. Prueba con otra más larga.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="46"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;register_error_unavailable&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;register_error_unavailable&quot;>No hemos podido crear la cuenta con esos datos. Si ya tienes cuenta, inicia sesión o recupera tu contraseña.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="47"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;reset_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;reset_title&quot;>Recupera tu contraseña&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="48"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;reset_message&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;reset_message&quot;>Te enviaremos un enlace para restablecerla.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="49"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;reset_submit&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;reset_submit&quot;>Enviar enlace&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="50"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;reset_loading&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;reset_loading&quot;>Enviando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="51"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;reset_sent&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;reset_sent&quot;>Si existe una cuenta con ese email, recibirás un correo con instrucciones.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="52"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_title&quot;>Cuéntanos sobre ti&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="53"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_name_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_name_label&quot;>Nombre&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="54"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_instrument_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_instrument_label&quot;>Instrumento&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="55"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_instrument_violin&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_instrument_violin&quot;>Violín&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="56"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_instrument_viola&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_instrument_viola&quot;>Viola&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="57"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_instrument_cello&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_instrument_cello&quot;>Violonchelo&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="58"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_instrument_double_bass&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_instrument_double_bass&quot;>Contrabajo&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="59"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_instrument_other&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_instrument_other&quot;>Otro&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="60"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_birth_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_birth_label&quot;>Fecha de nacimiento&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="61"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_day_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_day_label&quot;>Día&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="62"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_month_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_month_label&quot;>Mes&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="63"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_year_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_year_label&quot;>Año&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="64"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_age_hint&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_age_hint&quot;>Si eres menor de edad, puede que necesitemos el permiso de tu madre, padre o tutor.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="65"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_submit&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_submit&quot;>Continuar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="66"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_loading&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_loading&quot;>Guardando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="67"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_field_name&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_field_name&quot;>Revisa tu nombre: de 1 a 40 caracteres.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="68"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_field_instrument&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_field_instrument&quot;>Elige un instrumento.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="69"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_field_birth&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_field_birth&quot;>Revisa la fecha de nacimiento.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="70"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_field_birth_future&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_field_birth_future&quot;>La fecha de nacimiento está en el futuro.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="71"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_birth_day_desc&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_birth_day_desc&quot;>Fecha de nacimiento, día&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="72"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_birth_month_desc&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_birth_month_desc&quot;>Fecha de nacimiento, mes&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="73"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_birth_year_desc&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_birth_year_desc&quot;>Fecha de nacimiento, año&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="74"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_field_locale&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_field_locale&quot;>No hemos podido determinar el idioma del dispositivo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="75"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_error_underage&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_error_underage&quot;>No podemos crear una cuenta con esos datos. Puedes eliminar tu cuenta o cerrar sesión.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="76"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_error_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_error_network&quot;>Sin conexión. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="77"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_error_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_error_unknown&quot;>No se ha podido guardar el perfil. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="78"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_delete&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_delete&quot;>Eliminar mi cuenta&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="79"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_deleting&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_deleting&quot;>Eliminando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="80"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_delete_reauth&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_delete_reauth&quot;>Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo. Tu cuenta sigue activa.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="81"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_delete_failed&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_delete_failed&quot;>No se ha podido eliminar la cuenta. Sigue activa; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="82"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;onboarding_delete_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;onboarding_delete_network&quot;>Sin conexión. Tu cuenta sigue activa; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="83"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_title_first&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_title_first&quot;>Política de privacidad&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="84"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_title_updated&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_title_updated&quot;>Política de privacidad actualizada&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="85"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_title_revoked&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_title_revoked&quot;>Vuelve a aceptar la política&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="86"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_intro_first&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_intro_first&quot;>Para usar Violin Studio, lee y acepta nuestra política de privacidad.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="87"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_intro_updated&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_intro_updated&quot;>Hemos actualizado la política de privacidad. Léela y acepta la versión %1$d para seguir usando la app.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="88"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_intro_revoked&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_intro_revoked&quot;>Retiraste tu consentimiento. Para volver a usar la app, acepta de nuevo la política de privacidad (versión %1$d) o elimina tu cuenta.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="89"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_read_policy&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_read_policy&quot;>Leer la política (versión %1$d)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="90"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_checkbox&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_checkbox&quot;>He leído y acepto la política de privacidad (versión %1$d)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="91"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_accept&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_accept&quot;>Aceptar y continuar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="92"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_accepting&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_accepting&quot;>Aceptando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="93"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_error_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_error_network&quot;>No se ha podido confirmar tu aceptación. Revisa tu conexión e inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="94"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_error_policy_changed&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_error_policy_changed&quot;>La política se actualizó mientras la leías. Revisa la versión %1$d y acepta de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="95"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_error_policy_unavailable&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_error_policy_unavailable&quot;>La política ha cambiado y no hemos podido cargarla. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="96"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_error_guardian&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_error_guardian&quot;>Esta cuenta necesita el permiso de su madre, padre o tutor.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="97"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_error_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_error_unknown&quot;>No se ha podido registrar tu aceptación. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="98"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_link_failed&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_link_failed&quot;>No hay ninguna aplicación para abrir la política en este dispositivo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="99"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_title_first&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_title_first&quot;>Necesitamos a tu madre, padre o tutor&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="100"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_title_updated&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_title_updated&quot;>Tu tutor debe confirmar la política actualizada&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="101"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_title_revoked&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_title_revoked&quot;>Tu tutor debe volver a confirmar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="102"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_intro_first&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_intro_first&quot;>Como eres menor de edad, necesitamos el permiso de tu madre, padre o tutor. Escribe su email y le enviaremos un enlace para que lo confirme.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="103"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_intro_updated&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_intro_updated&quot;>Hemos actualizado la política de privacidad. Tu madre, padre o tutor debe confirmarla de nuevo: escribe su email para enviarle el enlace.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="104"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_intro_revoked&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_intro_revoked&quot;>Se retiró el consentimiento. Para seguir usando la app, tu madre, padre o tutor debe confirmarlo de nuevo, o puedes eliminar tu cuenta.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="105"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_email_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_email_label&quot;>Email de tu madre, padre o tutor&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="106"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_email_invalid&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_email_invalid&quot;>Escribe un email válido.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="107"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_email_own&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_email_own&quot;>Usa un email distinto del tuyo: debe ser el de tu madre, padre o tutor.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="108"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_sent&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_sent&quot;>Solicitud enviada. Esperando a tu madre, padre o tutor.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="109"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_already_approved&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_already_approved&quot;>Tu tutor ya lo aprobó. Continuando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="110"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_error_unavailable&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_error_unavailable&quot;>Ahora mismo no podemos pedir el permiso a un tutor para esta cuenta. Cierra sesión o elimina la cuenta.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="111"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_submit&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_submit&quot;>Enviar enlace&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="112"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_sending&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_sending&quot;>Enviando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="113"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_error_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_error_network&quot;>No se ha podido enviar el enlace. Revisa tu conexión e inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="114"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_error_rate_limited&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_error_rate_limited&quot;>Has pedido demasiados envíos. Inténtalo de nuevo más tarde.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="115"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_error_rate_limited_minutes&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_error_rate_limited_minutes&quot;>Has pedido demasiados envíos. Inténtalo de nuevo en %1$d min.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="116"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_error_not_minor&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_error_not_minor&quot;>Tu cuenta no necesita el permiso de un tutor. Cierra sesión y vuelve a entrar.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="117"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_request_error_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_request_error_unknown&quot;>No se ha podido enviar el enlace. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="118"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_delete&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_delete&quot;>Eliminar mi cuenta&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="119"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_deleting&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_deleting&quot;>Eliminando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="120"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_delete_reauth&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_delete_reauth&quot;>Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo. Tu cuenta sigue activa.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="121"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_delete_failed&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_delete_failed&quot;>No se ha podido eliminar la cuenta. Sigue activa; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="122"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;consent_delete_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;consent_delete_network&quot;>Sin conexión. Tu cuenta sigue activa; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="123"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_title&quot;>Esperando a tu madre, padre o tutor&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="124"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_intro&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_intro&quot;>Hemos enviado un enlace a tu madre, padre o tutor. Cuando lo confirme, seguirás automáticamente.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="125"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_intro_masked&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_intro_masked&quot;>Hemos enviado un enlace a %1$s. Cuando lo confirme, seguirás automáticamente.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="126"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_resend&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_resend&quot;>Reenviar enlace&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="127"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_change_email&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_change_email&quot;>Cambiar email&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="128"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_send_new&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_send_new&quot;>Enviar al nuevo email&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="129"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_cancel&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_cancel&quot;>Cancelar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="130"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_resent&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_resent&quot;>Enlace reenviado.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="131"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_email_changed&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_email_changed&quot;>Hemos enviado el enlace al nuevo email.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="132"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;guardian_wait_check_again&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;guardian_wait_check_again&quot;>Comprobar de nuevo&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="133"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_title&quot;>Ajustes&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="134"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_loading&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_loading&quot;>Cargando tu perfil…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="135"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_name_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_name_label&quot;>Nombre&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="136"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_locale_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_locale_label&quot;>Idioma (por ejemplo es o es-ES)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="137"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_field_name&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_field_name&quot;>Revisa tu nombre: de 1 a 40 caracteres.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="138"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_field_locale&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_field_locale&quot;>Escribe un idioma válido, como es o es-ES.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="139"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_save&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_save&quot;>Guardar cambios&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="140"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_saving&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_saving&quot;>Guardando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="141"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_saved&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_saved&quot;>Cambios guardados.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="142"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_error_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_error_network&quot;>Sin conexión. Tus cambios siguen aquí; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="143"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_error_not_allowed&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_error_not_allowed&quot;>No hemos podido guardar los cambios ahora mismo. Inténtalo de nuevo en unos segundos.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="144"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_error_unavailable&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_error_unavailable&quot;>Ahora mismo no se puede editar tu perfil. Verifica tu email o vuelve a entrar.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="145"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_error_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_error_unknown&quot;>No se han podido guardar los cambios. Inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="146"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_privacy_title&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_privacy_title&quot;>Privacidad&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="147"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke&quot;>Retirar mi consentimiento&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="148"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoking&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoking&quot;>Retirando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="149"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_confirm&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_confirm&quot;>¿Retirar tu consentimiento? Dejarás de poder usar la app hasta que lo des de nuevo; también podrás eliminar tu cuenta.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="150"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_confirm_yes&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_confirm_yes&quot;>Sí, retirar consentimiento&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="151"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_cancel&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_cancel&quot;>Cancelar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="152"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoked&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoked&quot;>Consentimiento retirado. Continuando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="153"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_network&quot;>Sin conexión. Tu consentimiento sigue vigente; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="154"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_unavailable&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_unavailable&quot;>Ahora mismo no se puede retirar el consentimiento. Verifica tu email o vuelve a entrar.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="155"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_unknown&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_unknown&quot;>No se ha podido retirar el consentimiento. Sigue vigente; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="156"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_stalled&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_stalled&quot;>Has retirado tu consentimiento, pero no hemos podido actualizar tu estado. Puedes reintentarlo o volver más tarde.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="157"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_revoke_retry&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_revoke_retry&quot;>Reintentar actualización&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="158"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_button&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_button&quot;>Eliminar mi cuenta&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="159"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_confirm_message&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_confirm_message&quot;>¿Eliminar tu cuenta? Se borrarán tu cuenta y todos tus datos de forma permanente. No se puede deshacer.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="160"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_confirm_yes&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_confirm_yes&quot;>Sí, eliminar mi cuenta&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="161"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_deleting&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_deleting&quot;>Eliminando…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="162"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_cancel&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_cancel&quot;>Cancelar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="163"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_reauth_message&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_reauth_message&quot;>Por seguridad, confirma que eres tú para eliminar la cuenta.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="164"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_password_label&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_password_label&quot;>Tu contraseña&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="165"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_reauth_submit&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_reauth_submit&quot;>Confirmar y eliminar&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="166"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_google&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_google&quot;>Confirmar con Google&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="167"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_done&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_done&quot;>Cuenta eliminada. Cerrando sesión…&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="168"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_error_wrong_password&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_error_wrong_password&quot;>La contraseña no es correcta. Tu cuenta sigue activa.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="169"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_error_too_many&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_error_too_many&quot;>Demasiados intentos. Tu cuenta sigue activa; inténtalo de nuevo más tarde.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="170"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_error_network&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_error_network&quot;>Sin conexión. Tu cuenta sigue activa; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="171"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_error_provider&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_error_provider&quot;>No se ha podido confirmar tu identidad con Google. Tu cuenta sigue activa; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="172"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_error_reauth_unavailable&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_error_reauth_unavailable&quot;>Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo. Tu cuenta sigue activa.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="173"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;delete_account_error_failed&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;delete_account_error_failed&quot;>No se ha podido eliminar la cuenta. Sigue activa; inténtalo de nuevo.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="174"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;settings_back&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;settings_back&quot;>Volver&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="175"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;home_open_settings&quot; is not translated in &quot;en&quot; (English)"
+        errorLine1="    &lt;string name=&quot;home_open_settings&quot;>Ajustes&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="176"
+            column="13"/>
+    </issue>
+
+</issues>

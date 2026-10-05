@@ -9,8 +9,9 @@ plugins {
 
 android {
     namespace = "com.violinstudio.ui"
-    // values (es) es el idioma por defecto; values-en solo lleva las claves de la fase 3 hasta que se traduzca el resto.
-    lint { disable += "MissingTranslation" }
+    // values (es) es el idioma por defecto y values-en solo trae las claves de la fase 3: la línea base recoge las
+    // claves heredadas sin traducir; cualquier clave nueva sin traducción vuelve a fallar.
+    lint { baseline = file("lint-baseline.xml") }
 }
 
 configureCoverage(
