@@ -31,14 +31,18 @@ class AudioTrackMetronomeIntegrationTest {
         executor.shutdownNow()
     }
 
-    private class RecordingTrack(private val lag: Int = 0) : PcmTrack {
+    /**
+     * Pista falsa. Con [realTime] avanza a 44,1 kHz como una pista real; si no, escribe todo lo rapido que puede
+     * (~23x tiempo real) y el muestreo de la posicion cada 20 ms se salta tiempos.
+     */
+    private class RecordingTrack(private val lag: Int = 0, private val realTime: Boolean = false) : PcmTrack {
         val samples: MutableList<Float> = Collections.synchronizedList(mutableListOf())
         val released = CountDownLatch(1)
 
         override fun play() = Unit
 
         override fun write(buffer: FloatArray, offset: Int, size: Int): Int {
-            Thread.sleep(1)
+            Thread.sleep(if (realTime) size * 1_000L / PcmFormat.SAMPLE_RATE else 1)
             samples.addAll(buffer.slice(offset until offset + size))
             return size
         }
@@ -73,8 +77,8 @@ class AudioTrackMetronomeIntegrationTest {
     }
 
     @Test
-    fun `el caso de uso con setTempo en vivo da ticks consecutivos y clics en los indices escritos`() {
-        val track = RecordingTrack(lag = 2 * PcmFormat.BLOCK_SIZE)
+    fun `el caso de uso con setTempo en vivo da ticks crecientes y clics en los indices escritos`() {
+        val track = RecordingTrack(lag = 2 * PcmFormat.BLOCK_SIZE, realTime = true)
         val output = AudioTrackOutput({ track }, executor.asCoroutineDispatcher())
         val session = RunMetronomeUseCase(output)(Tempo(240), TimeSignature.FOUR_FOUR)
         val ticks = Collections.synchronizedList(mutableListOf<BeatTick>())
@@ -89,8 +93,12 @@ class AudioTrackMetronomeIntegrationTest {
             }
         }
         assertTrue(track.released.await(5, TimeUnit.SECONDS))
-        assertEquals(ticks.indices.map { it.toLong() }, ticks.map { it.beat })
-        assertEquals(listOf(true, false, false, false, true), ticks.map { it.accent })
+        // Con hilos reales un muestreo retrasado puede saltarse un tiempo: aqui solo se exige orden y acento
+        // coherente; la secuencia exacta sin huecos la fija RunMetronomeUseCaseTest con tiempo virtual.
+        val beats = ticks.map { it.beat }
+        assertEquals(0L, beats.first())
+        assertTrue(beats.zipWithNext().all { (a, b) -> b > a }, "tiempos estrictamente crecientes: $beats")
+        assertTrue(ticks.all { it.accent == (it.beat % 4 == 0L) }, "acento solo en el 1: $ticks")
         val written = track.samples.toFloatArray()
         // Los dos primeros tiempos a 240 BPM (11 025 muestras) suenan en sus indices.
         for (start in listOf(0, 11_025)) {
