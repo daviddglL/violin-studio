@@ -3,7 +3,8 @@ package com.violinstudio.domain.feature.tuner.pitch
 import kotlin.math.sqrt
 
 /**
- * Detector de tono YIN. Usa un [FftDifference] propio, por lo que NO es seguro entre hilos:
+ * Detector de tono YIN. `normalise` y [FftDifference] reservan memoria por frame, aceptable a
+ * ~21-43 frames/s. Usa un [FftDifference] propio, por lo que NO es seguro entre hilos:
  * una instancia por detector.
  */
 class YinPitchDetector(
@@ -65,9 +66,10 @@ class YinPitchDetector(
     }
 
     /**
-     * Interpolacion parabolica sobre `d` por minimos cuadrados en tau +- h (h ~ tau / 8, simetrica
-     * y por tanto sin sesgo para senos). Con h = 1 equivale a la parabola de tres puntos; el ajuste
-     * ancho reduce el ruido en periodos largos (contrabajo).
+     * Interpolacion parabolica sobre `d` por minimos cuadrados en tau +- h, h = max(1, tau / 32)
+     * acotado por los extremos de `d`. Con h = 1 equivale a la parabola de tres puntos; el ajuste
+     * ancho reduce el ruido en periodos largos (contrabajo). Tiene un sesgo pequeno que crece con
+     * tau (~0.02 cents con tau < 100, ~0.18 cents con tau ~ 1000).
      */
     private fun refine(d: DoubleArray, tau: Int): Double {
         val h = minOf(maxOf(1, tau / FIT_DIVISOR), tau, d.size - 1 - tau)
@@ -90,6 +92,8 @@ class YinPitchDetector(
 
     companion object {
         const val DEFAULT_THRESHOLD = 0.15
+
+        /** RMS minimo del frame centrado (aprox. -50 dBFS). */
         const val SILENCE_RMS = 0.003
         private const val FIT_DIVISOR = 32
     }

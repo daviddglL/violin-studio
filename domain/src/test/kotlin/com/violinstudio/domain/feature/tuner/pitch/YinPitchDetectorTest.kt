@@ -131,4 +131,37 @@ class YinPitchDetectorTest : PitchDetectorContract() {
         }
         assertTrue(worst <= 2.0, "worst $worst")
     }
+
+    @ParameterizedTest
+    @EnumSource(value = Instrument::class, names = ["VIOLIN", "VIOLA", "CELLO", "DOUBLE_BASS"])
+    fun `perfiles armonicos y fundamental ausente no dan error de octava`(instrument: Instrument) {
+        for (amps in listOf(listOf(0.3, 1.0, 0.5), listOf(0.0, 1.0, 0.5))) {
+            val freqs = strings.getValue(instrument).map(::hz)
+            val worst = worstError(instrument, freqs) { f, n -> Signals.harmonics(f, n, amps.map { it * 0.2 }) }
+            assertTrue(worst <= 2.0, "$instrument $amps worst $worst")
+        }
+    }
+
+    @Test
+    fun `desplazamiento continuo no cambia el tono`() {
+        val f = hz(50)
+        val plain = detect(Instrument.CELLO, Signals.sine(f, 4096))!!
+        val dc = detect(Instrument.CELLO, Signals.sine(f, 4096).map { it + 0.5f }.toFloatArray())!!
+        assertEquals(plain.frequency, dc.frequency, 0.01)
+    }
+
+    @Test
+    fun `frame mas largo que N usa las primeras N muestras e ignora NaN posteriores`() {
+        val frame = Signals.sine(130.0, 5000)
+        frame[4500] = Float.NaN
+        val e = detect(Instrument.CELLO, frame)
+        assertNotNull(e)
+        assertEquals(130.0, e!!.frequency, 0.5)
+    }
+
+    @Test
+    fun `senos cerca de minHz y maxHz dentro de 2 cents`() {
+        assertTrue(worstError(Instrument.CELLO, listOf(58.5, 1190.0)) { f, n -> Signals.sine(f, n) } <= 2.0)
+        assertTrue(worstError(Instrument.VIOLIN, listOf(181.0, 1990.0)) { f, n -> Signals.sine(f, n) } <= 2.0)
+    }
 }
