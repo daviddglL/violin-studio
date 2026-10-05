@@ -31,5 +31,7 @@
     <string name="tuner_retry">Try again</string>
     <string name="tuner_reference_play">Reference tone</string>
     <string name="tuner_reference_stop">Stop tone</string>
+    <string name="tuner_reference_hint_pick">Pick a string to hear its tone</string>
+    <string name="tuner_reference_hint_listening">Stop listening to hear the tone</string>
     <string name="tuner_error_output">Could not play the tone.</string>
 </resources>

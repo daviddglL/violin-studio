@@ -14,6 +14,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * La captura vive solo entre `Start`/`Resume` y `Stop`/[onCleared]: no hay servicio. Cada cambio de instrumento o
@@ -132,12 +133,13 @@ class TunerViewModel @Inject constructor(
         val current = state.value
         when {
             current.isPlayingReference -> stopTone()
+            toneJob?.isActive == true -> Unit // ya esta arrancando: un segundo toque no cuenta
             !current.isListening -> startTone()
         }
     }
 
     private suspend fun restartTone() {
-        if (state.value.isPlayingReference) startTone()
+        if (toneJob?.isActive == true) startTone()
     }
 
     /** Una sola salida: cancela y espera la anterior (su rampa de salida) antes de abrir la nueva. */
@@ -154,13 +156,14 @@ class TunerViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                reduce(TunerMutation.Failed(e))
+                reduce(TunerMutation.ReferenceFailed(e))
             }
         }
     }
 
     private suspend fun stopTone() {
-        toneJob?.cancelAndJoin()
+        // Acotado: una salida que no termina de cancelarse no debe bloquear la cola de intenciones.
+        withTimeoutOrNull(STOP_JOIN_TIMEOUT_MS) { toneJob?.cancelAndJoin() }
         toneJob = null
         reduce(TunerMutation.ReferencePlaying(false))
     }
@@ -171,4 +174,8 @@ class TunerViewModel @Inject constructor(
     }
 
     private fun reduce(mutation: TunerMutation) = setState { TunerReducer.reduce(this, mutation) }
+
+    private companion object {
+        const val STOP_JOIN_TIMEOUT_MS = 500L
+    }
 }

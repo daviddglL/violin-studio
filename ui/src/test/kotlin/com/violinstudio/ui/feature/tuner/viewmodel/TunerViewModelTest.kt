@@ -20,15 +20,20 @@ import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -58,6 +63,8 @@ class TunerViewModelTest {
     private var toneActive = 0
     private var toneMax = 0
     private var toneFailure: Throwable? = null
+    private var toneGate: CompletableDeferred<Unit>? = null
+    private var toneStuck = false
     private val toneCalls = mutableListOf<Note>()
     private val playTone = mockk<PlayReferenceToneUseCase> {
         every { this@mockk(any(), ReferencePitch.DEFAULT) } answers {
@@ -71,10 +78,12 @@ class TunerViewModelTest {
         toneMax = maxOf(toneMax, ++toneActive)
         try {
             toneFailure?.let { throw it }
+            toneGate?.await()
             emit(Unit)
             awaitCancellation()
         } finally {
             toneActive--
+            if (toneStuck) withContext(NonCancellable) { delay(10_000) }
         }
     }
 
@@ -491,9 +500,46 @@ class TunerViewModelTest {
 
     @Test
     fun `un fallo de la salida muestra el error y deja de sonar`() = runTest {
-        toneFailure = TunerFailure.AudioOutputUnavailable
+        toneFailure = IllegalStateException("audio")
         val vm = playingA3()
         assertEquals(TunerError.AUDIO_OUTPUT_UNAVAILABLE, vm.state.value.error)
         assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `un fallo de la salida no toca el micro ni muestra su mensaje`() = runTest {
+        toneFailure = IllegalStateException("audio")
+        val vm = playingA3()
+        assertEquals(MicState.UNKNOWN, vm.state.value.mic)
+        assertFalse(vm.state.value.isListening)
+    }
+
+    @Test
+    fun `suena solo cuando la salida ya arranco y un segundo toque mientras arranca se ignora`() = runTest {
+        toneGate = CompletableDeferred()
+        val vm = vm()
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.SelectString(3))
+        vm.onIntent(TunerIntent.ToggleReference)
+        vm.onIntent(TunerIntent.ToggleReference)
+        advanceUntilIdle()
+        assertEquals(1, toneCalls.size)
+        assertFalse(vm.state.value.isPlayingReference)
+        toneGate!!.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.isPlayingReference)
+        assertEquals(1, toneActive)
+    }
+
+    @Test
+    fun `una salida que no termina de cancelarse no bloquea las intenciones`() = runTest {
+        toneStuck = true
+        val vm = playingA3()
+        vm.onIntent(TunerIntent.Stop)
+        advanceTimeBy(600)
+        assertFalse(vm.state.value.isPlayingReference)
+        vm.onIntent(TunerIntent.SelectString(2))
+        advanceTimeBy(600)
+        assertEquals(2, vm.state.value.selectedString)
     }
 }

@@ -208,6 +208,12 @@ private fun ReferenceButton(state: TunerState, onIntent: (TunerIntent) -> Unit) 
         enabled = !state.isListening && (playing || state.selectedString != null),
         modifier = Modifier.fillMaxWidth().testTag(TUNER_REFERENCE_TAG)
     ) { Text(stringResource(if (playing) R.string.tuner_reference_stop else R.string.tuner_reference_play)) }
+    val hint = when {
+        state.isListening -> R.string.tuner_reference_hint_listening
+        !playing && state.selectedString == null -> R.string.tuner_reference_hint_pick
+        else -> null
+    }
+    hint?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall) }
 }
 
 private fun Modifier.polite() = semantics { liveRegion = LiveRegionMode.Polite }

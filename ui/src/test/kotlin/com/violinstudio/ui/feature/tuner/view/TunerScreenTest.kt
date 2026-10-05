@@ -140,15 +140,17 @@ class TunerScreenTest {
     }
 
     @Test
-    fun referenceButtonNeedsAStringAndNoCapture() {
+    fun referenceButtonExplainsWhyItIsDisabled() {
         show(TunerState(instrument = Instrument.VIOLIN))
         compose.onNodeWithTag(TUNER_REFERENCE_TAG).assertIsNotEnabled()
+        compose.onNodeWithText("Elige una cuerda para oír su tono").assertExists()
     }
 
     @Test
-    fun referenceButtonIsDisabledInChromaticModeAndWhileListening() {
-        show(TunerState(instrument = Instrument.OTHER))
+    fun referenceButtonIsDisabledWhileListeningAndSaysSo() {
+        show(TunerState(instrument = Instrument.VIOLIN, selectedString = 2, isListening = true))
         compose.onNodeWithTag(TUNER_REFERENCE_TAG).assertIsNotEnabled()
+        compose.onNodeWithText("Detén la escucha para oír el tono").assertExists()
     }
 
     @Test

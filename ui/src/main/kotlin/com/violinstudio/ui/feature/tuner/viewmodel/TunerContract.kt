@@ -101,6 +101,9 @@ sealed interface TunerMutation {
     data class Failed(val failure: Throwable) : TunerMutation
 
     data class ReferencePlaying(val playing: Boolean) : TunerMutation
+
+    /** Fallo de la salida de audio: nunca toca el micro ni la escucha. */
+    data class ReferenceFailed(val failure: Throwable) : TunerMutation
 }
 
 enum class StartDecision { CAPTURE, RATIONALE, REQUEST, BLOCKED }
