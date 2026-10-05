@@ -2,6 +2,7 @@ package com.violinstudio.data.feature.account.repository
 
 import app.cash.turbine.test
 import com.google.firebase.auth.FirebaseAuthException
+import com.violinstudio.data.commons.erasure.LocalUserDataEraser
 import com.violinstudio.data.commons.firebase.FunctionsCallException
 import com.violinstudio.data.feature.auth.datasource.FakeAuthRemoteDataSource
 import com.violinstudio.data.feature.auth.dto.AuthUserDto
@@ -23,7 +24,16 @@ import org.junit.jupiter.api.assertThrows
 class AccountRepositoryImplTest {
     private val functions = FakeIdentityFunctionsDataSource()
     private val auth = FakeAuthRemoteDataSource()
-    private val repo = AccountRepositoryImpl(functions, auth)
+    private val order = mutableListOf<String>()
+    private val erasers = mutableListOf<LocalUserDataEraser>()
+    private val repo by lazy { AccountRepositoryImpl(functions, auth, erasers.toSet()) }
+
+    private fun eraser(name: String, failure: Exception? = null) = object : LocalUserDataEraser {
+        override suspend fun erase(uid: String) {
+            order += "$name:$uid"
+            failure?.let { throw it }
+        }
+    }
 
     private fun failure(code: String, reason: String? = null) =
         FunctionsCallException(code, reason?.let { mapOf("reason" to it) })
@@ -139,5 +149,42 @@ class AccountRepositoryImplTest {
         functions.failure = CancellationException("cancelada")
         assertThrows<CancellationException> { repo.deleteAccount() }
         assertFalse(auth.calls.contains("signOut"))
+    }
+
+    @Test
+    fun `los erasers se ejecutan antes del cierre de sesion local`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        erasers += eraser("a")
+        erasers += eraser("b")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("a:u1", "b:u1"), order)
+        assertEquals(listOf("signOut"), auth.calls)
+    }
+
+    @Test
+    fun `un eraser que lanza no impide los demas ni el cierre de sesion`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        erasers += eraser("a", IllegalStateException("boom"))
+        erasers += eraser("b")
+        assertTrue(repo.deleteAccount().isSuccess)
+        assertEquals(listOf("a:u1", "b:u1"), order)
+        assertEquals(listOf("signOut"), auth.calls)
+    }
+
+    @Test
+    fun `un fallo de borrado en el servidor no ejecuta los erasers`() = runTest {
+        auth.emit(AuthUserDto("u1", "a@b.co", true, listOf("password")))
+        erasers += eraser("a")
+        functions.failure = IOException("sin red")
+        assertTrue(repo.deleteAccount().isFailure)
+        assertEquals(emptyList<String>(), order)
+    }
+
+    @Test
+    fun `cerrar sesion sin borrar la cuenta no ejecuta los erasers`() = runTest {
+        erasers += eraser("a")
+        repo // fuerza la construccion con el eraser registrado
+        auth.signOut()
+        assertEquals(emptyList<String>(), order)
     }
 }
