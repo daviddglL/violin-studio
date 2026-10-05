@@ -10,6 +10,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow
@@ -50,7 +51,9 @@ class AudioRecordSource @Inject constructor(
             val stopOnce = { if (stopped.compareAndSet(false, true)) runCatching { recorder.stop() } }
             try {
                 coroutineScope {
-                    val watcher = launch(Dispatchers.Default) {
+                    // ATOMIC: si se cancela antes de que arranque, el cuerpo debe ejecutarse igualmente (su finally hace stop);
+                    // con el arranque por defecto no corre y un read bloqueado no se desbloquea nunca.
+                    val watcher = launch(Dispatchers.Default, start = CoroutineStart.ATOMIC) {
                         try {
                             awaitCancellation()
                         } finally {
