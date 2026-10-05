@@ -51,7 +51,7 @@ class ObservePitchUseCase(
                 .flowOn(dispatcher)
                 .map { smoother.update(it) }
                 .map { reading(it, instrument, config, selected) }
-                .catch { throw if (it is Exception && it !is CancellationException && it !is TunerFailure) TunerFailure.MicUnavailable else it }
+                .catch { throw if (it.isUnexpectedSourceFailure()) TunerFailure.MicUnavailable else it }
                 .collect { emit(it) }
         }.conflate()
     }
@@ -61,6 +61,9 @@ class ObservePitchUseCase(
             ?.let { TuningResolver.resolve(it.frequency, instrument, config.referencePitch, selected) }
             ?.let { TunerReading.Pitch(estimate.frequency, it.target, it.cents, estimate.confidence) }
             ?: TunerReading.NoPitch
+
+    private fun Throwable.isUnexpectedSourceFailure() =
+        this is Exception && this !is CancellationException && this !is TunerFailure
 
     /** Los frames son el buffer reutilizado del ensamblador: se consumen antes del siguiente. */
     private fun Flow<FloatArray>.assemble(assembler: FrameAssembler): Flow<FloatArray> = flow {
