@@ -1,0 +1,98 @@
+package com.violinstudio.ui.feature.tuner.viewmodel
+
+import com.violinstudio.domain.feature.profile.model.Instrument
+import com.violinstudio.domain.feature.tuner.model.Note
+import com.violinstudio.domain.feature.tuner.model.StringSet
+import com.violinstudio.domain.feature.tuner.model.TunerConfig
+import com.violinstudio.domain.feature.tuner.model.TunerReading
+import com.violinstudio.ui.commons.mvi.UiEffect
+import com.violinstudio.ui.commons.mvi.UiIntent
+import com.violinstudio.ui.commons.mvi.UiState
+import kotlin.math.abs
+
+enum class MicState { UNKNOWN, GRANTED, DENIED, PERMANENTLY_DENIED }
+
+/** Fallos del micro que la pantalla muestra con su acción de reintento. */
+enum class TunerError { MIC_BUSY, MIC_UNAVAILABLE }
+
+data class TunerState(
+    /** Arranca en el instrumento del perfil y se cambia solo aquí (D3): nunca se escribe en el perfil. */
+    val instrument: Instrument = Instrument.OTHER,
+    /** `true` cuando el usuario eligió instrumento; un perfil que llega después ya no lo pisa. */
+    val instrumentChosen: Boolean = false,
+    /** Cents sin acotar: el tope visual (`config.maxCents`) lo aplica la pantalla. */
+    val reading: TunerReading = TunerReading.Idle,
+    /** Índice de cuerda fijado a mano; `null` = auto-detección. */
+    val selectedString: Int? = null,
+    val config: TunerConfig = TunerConfig(),
+    val mic: MicState = MicState.UNKNOWN,
+    val showRationale: Boolean = false,
+    val isListening: Boolean = false,
+    val isPlayingReference: Boolean = false,
+    val error: TunerError? = null
+) : UiState {
+    /** Cuerdas al aire del instrumento activo; `null` = modo cromático. */
+    val strings: List<Note>? get() = StringSet.of(instrument)
+    val isInTune: Boolean
+        get() = (reading as? TunerReading.Pitch)?.let { abs(it.cents) <= IN_TUNE_CENTS } ?: false
+
+    companion object {
+        const val IN_TUNE_CENTS = 2.5
+    }
+}
+
+sealed interface TunerIntent : UiIntent {
+    /** El usuario pulsa "Escuchar"; [granted] y [rationale] los lee la pantalla con `MicPermissionChecker`. */
+    data class Start(val granted: Boolean, val rationale: Boolean) : TunerIntent
+
+    /** Parada manual o `ON_STOP`: libera el micro y recuerda si había que reanudar. */
+    data object Stop : TunerIntent
+
+    /** `ON_START`: reanuda solo si se paró por `ON_STOP` y el permiso sigue concedido. */
+    data class Resume(val granted: Boolean, val rationale: Boolean) : TunerIntent
+
+    data class PermissionResult(val granted: Boolean, val rationale: Boolean) : TunerIntent
+
+    data object ConfirmRationale : TunerIntent
+
+    data object DismissRationale : TunerIntent
+
+    data object OpenAppSettings : TunerIntent
+
+    data class SelectInstrument(val instrument: Instrument) : TunerIntent
+
+    /** `null` = auto-detección. */
+    data class SelectString(val index: Int?) : TunerIntent
+}
+
+sealed interface TunerEffect : UiEffect {
+    data object RequestMicPermission : TunerEffect
+
+    data object OpenAppSettings : TunerEffect
+}
+
+sealed interface TunerMutation {
+    data class ProfileInstrument(val instrument: Instrument) : TunerMutation
+
+    data class InstrumentSelected(val instrument: Instrument) : TunerMutation
+
+    data class StringSelected(val index: Int?) : TunerMutation
+
+    data class PermissionResolved(val granted: Boolean, val rationale: Boolean) : TunerMutation
+
+    data object RationaleShown : TunerMutation
+
+    data object RationaleDismissed : TunerMutation
+
+    data object ListeningStarted : TunerMutation
+
+    data object ListeningStopped : TunerMutation
+
+    data class Reading(val reading: TunerReading) : TunerMutation
+
+    data class Failed(val failure: Throwable) : TunerMutation
+
+    data class ReferencePlaying(val playing: Boolean) : TunerMutation
+}
+
+enum class StartDecision { CAPTURE, RATIONALE, REQUEST, BLOCKED }
