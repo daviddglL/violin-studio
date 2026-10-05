@@ -85,6 +85,8 @@ class FirebaseAuthRemoteDataSource @Inject constructor(private val auth: Firebas
         currentUser().reload().await()
     }
 
+    override fun currentUid(): String? = auth.currentUser?.uid
+
     override fun signOut() = auth.signOut()
 
     override fun clearLocalSession() {

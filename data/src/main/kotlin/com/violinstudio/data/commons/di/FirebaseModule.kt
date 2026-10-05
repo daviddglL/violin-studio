@@ -7,6 +7,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.functions
+import com.violinstudio.data.commons.erasure.CachePurgeFlag
+import com.violinstudio.data.commons.erasure.FirestoreCachePurge
 import com.violinstudio.data.commons.firebase.EmulatorConfig
 import com.violinstudio.data.commons.firebase.EmulatorOnce
 import dagger.Module
@@ -15,6 +17,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import java.time.Clock
 import javax.inject.Singleton
+import kotlinx.coroutines.tasks.await
 
 const val FUNCTIONS_REGION = "europe-west1"
 
@@ -34,11 +37,17 @@ object FirebaseModule {
         config.auth()?.let { e -> EmulatorOnce.process.apply("auth") { useEmulator(e.host, e.port) } }
     }
 
+    /**
+     * Si un borrado de cuenta dejo la marca, la cache offline se purga aqui, antes de cualquier uso. El bloqueo es breve
+     * (borrado de ficheros locales, acotado a 3 s) y solo ocurre en el primer arranque tras un borrado.
+     */
     @Provides
     @Singleton
-    fun provideFirestore(config: EmulatorConfig): FirebaseFirestore = Firebase.firestore.apply {
-        config.firestore()?.let { e -> EmulatorOnce.process.apply("firestore") { useEmulator(e.host, e.port) } }
-    }
+    fun provideFirestore(config: EmulatorConfig, purgeFlag: CachePurgeFlag): FirebaseFirestore =
+        Firebase.firestore.apply {
+            FirestoreCachePurge.runIfRequested(purgeFlag) { clearPersistence().await() }
+            config.firestore()?.let { e -> EmulatorOnce.process.apply("firestore") { useEmulator(e.host, e.port) } }
+        }
 
     /** Para `AgeGate`; los tests usan relojes fijos. */
     @Provides

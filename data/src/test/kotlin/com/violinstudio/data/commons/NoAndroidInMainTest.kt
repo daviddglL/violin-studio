@@ -15,6 +15,7 @@ class NoAndroidInMainTest {
     private val allowList = setOf(
         "com/violinstudio/data/commons/di/DataStoreModule.kt" to "android.content.Context",
         "com/violinstudio/data/commons/di/AudioModule.kt" to "android.content.Context",
+        "com/violinstudio/data/commons/erasure/SharedPrefsCachePurgeFlag.kt" to "android.content.Context",
         "com/violinstudio/data/commons/di/AudioModule.kt" to "android.media.AudioManager",
         "com/violinstudio/data/feature/tuner/datasource/audio/ContextMicPermission.kt" to "android.Manifest",
         "com/violinstudio/data/feature/tuner/datasource/audio/ContextMicPermission.kt" to "android.content.Context",

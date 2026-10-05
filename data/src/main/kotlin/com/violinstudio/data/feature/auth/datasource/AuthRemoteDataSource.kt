@@ -34,6 +34,9 @@ interface AuthRemoteDataSource {
     /** `currentUser.reload()`; lanza `IllegalStateException` si no hay sesión y el error crudo del SDK si falla. */
     suspend fun reloadCurrentUser()
 
+    /** Uid del usuario del SDK ahora mismo (sin mascara de sesion limpiada); `null` sin sesion. */
+    fun currentUid(): String?
+
     fun signOut()
 
     /**
