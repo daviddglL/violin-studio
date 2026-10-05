@@ -179,4 +179,27 @@ class PracticeSessionUseCasesTest {
         assertTrue(repo.created.isEmpty())
         assertNull(store.observe("u1").first())
     }
+
+    @Test
+    fun `un fallo de E-S del almacen al iniciar o parar es Unknown y no lanza`() = runTest {
+        store.failure = java.io.IOException("disk")
+        assertEquals(PracticeFailure.Unknown, start().exceptionOrNull())
+        assertEquals(PracticeFailure.Unknown, stop().exceptionOrNull())
+    }
+
+    @Test
+    fun `un fallo al guardar o limpiar el almacen es Unknown`() = runTest {
+        store.failure = null
+        start().getOrThrow()
+        store.failure = java.io.IOException("disk")
+        store.failOnlyWrites = true
+        now = t0.plusSeconds(90)
+        assertEquals(PracticeFailure.Unknown, stop().exceptionOrNull())
+    }
+
+    @Test
+    fun `la cancelacion no se convierte en fallo`() = runTest {
+        store.failure = kotlinx.coroutines.CancellationException("c")
+        org.junit.jupiter.api.assertThrows<kotlinx.coroutines.CancellationException> { start() }
+    }
 }
