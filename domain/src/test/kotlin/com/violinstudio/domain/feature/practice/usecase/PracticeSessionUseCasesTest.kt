@@ -3,6 +3,7 @@ package com.violinstudio.domain.feature.practice.usecase
 import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.FakeProfileRepository
 import com.violinstudio.domain.feature.practice.failure.PracticeFailure
+import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.domain.feature.practice.model.RunningSession
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.userProfile
@@ -13,8 +14,11 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -31,15 +35,16 @@ class PracticeSessionUseCasesTest {
     }
     private val auth = FakeAuthRepository().apply { user = verifiedUser }
     private val profiles = FakeProfileRepository().apply { profile.value = userProfile() }
+    private val lock = PracticeSessionLock()
     private val store = FakeRunningSessionStore()
     private val repo = FakePracticeLogRepository()
-    private val start = StartPracticeSessionUseCase(auth, profiles, store, clock)
-    private val stop = StopPracticeSessionUseCase(auth, store, repo, clock) { "uuid-1" }
+    private val start = StartPracticeSessionUseCase(auth, profiles, store, clock, lock) { "uuid-1" }
+    private val stop = StopPracticeSessionUseCase(auth, store, repo, clock, lock)
 
     @Test
     fun `iniciar usa el instrumento del perfil y guarda el inicio`() = runTest {
         val running = start().getOrThrow()
-        assertEquals(RunningSession(t0, Instrument.VIOLIN), running)
+        assertEquals(RunningSession("uuid-1", t0, Instrument.VIOLIN), running)
         assertEquals(running, store.observe("u1").first())
     }
 
@@ -55,7 +60,7 @@ class PracticeSessionUseCasesTest {
         start().getOrThrow()
         now = t0.plusSeconds(30)
         assertEquals(PracticeFailure.AlreadyRunning, start(Instrument.VIOLA).exceptionOrNull())
-        assertEquals(RunningSession(t0, Instrument.VIOLIN), store.observe("u1").first())
+        assertEquals(RunningSession("uuid-1", t0, Instrument.VIOLIN), store.observe("u1").first())
     }
 
     @Test
@@ -112,7 +117,7 @@ class PracticeSessionUseCasesTest {
         assertEquals(PracticeFailure.NotesTooLong, stop("a".repeat(501)).exceptionOrNull())
         repo.createFailure = PracticeFailure.PermissionDenied
         assertEquals(PracticeFailure.PermissionDenied, stop().exceptionOrNull())
-        assertEquals(RunningSession(t0, Instrument.VIOLIN), store.observe("u1").first())
+        assertEquals(RunningSession("uuid-1", t0, Instrument.VIOLIN), store.observe("u1").first())
     }
 
     @Test
@@ -133,5 +138,45 @@ class PracticeSessionUseCasesTest {
         DiscardRunningSessionUseCase(auth, store)().getOrThrow()
         assertEquals(listOf("u1"), store.cleared)
         assertTrue(repo.calls.isEmpty())
+    }
+
+    @Test
+    fun `si el proceso murio tras escribir, parar no duplica y solo limpia la sesion en curso`() = runTest {
+        start().getOrThrow()
+        now = t0.plusSeconds(90)
+        repo.seed("u1", PracticeSession("uuid-1", t0, 90, Instrument.VIOLIN, null, true))
+        val result = stop().getOrThrow()
+        assertTrue(result.alreadySaved)
+        assertEquals("uuid-1", result.draft.id)
+        assertTrue(repo.created.isEmpty())
+        assertNull(store.observe("u1").first())
+    }
+
+    @Test
+    fun `dos Stop concurrentes escriben una sola vez`() = runTest {
+        start().getOrThrow()
+        now = t0.plusSeconds(90)
+        repo.onCreate = { yield() }
+        val results = listOf(async { stop() }, async { stop() }).awaitAll()
+        assertEquals(1, repo.created.size)
+        assertEquals(1, results.count { it.isSuccess })
+        assertEquals(PracticeFailure.NotRunning, results.first { it.isFailure }.exceptionOrNull())
+    }
+
+    @Test
+    fun `dos Start concurrentes dejan una sesion y un AlreadyRunning`() = runTest {
+        store.onStart = { yield() }
+        val results = listOf(async { start() }, async { start() }).awaitAll()
+        assertEquals(1, results.count { it.isSuccess })
+        assertEquals(PracticeFailure.AlreadyRunning, results.first { it.isFailure }.exceptionOrNull())
+    }
+
+    @Test
+    fun `un reloj anterior al inicio es TooShort y descarta la sesion`() = runTest {
+        start().getOrThrow()
+        now = t0.minusSeconds(5)
+        assertEquals(PracticeFailure.TooShort, stop().exceptionOrNull())
+        assertTrue(repo.created.isEmpty())
+        assertNull(store.observe("u1").first())
     }
 }

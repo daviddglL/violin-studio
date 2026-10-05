@@ -16,8 +16,8 @@ data class PracticeSession(
     override fun toString(): String = "PracticeSession(durationSec=$durationSec, instrument=$instrument)"
 }
 
-/** Sesión en curso, persistida en local por uid para sobrevivir a la muerte del proceso. */
-data class RunningSession(val startedAt: Instant, val instrument: Instrument)
+/** Sesión en curso con su [id] (UUID, también el del doc final), persistida en local por uid. */
+data class RunningSession(val id: String, val startedAt: Instant, val instrument: Instrument)
 
 /** Sesión validada lista para escribir. Solo se crea con [create]; las notas ya van recortadas. */
 @ConsistentCopyVisibility

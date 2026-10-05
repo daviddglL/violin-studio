@@ -23,8 +23,12 @@ class PracticeLogUseCasesTest {
     private fun session(id: String, at: String, seconds: Int) =
         PracticeSession(id, Instant.parse(at), seconds, Instrument.VIOLIN, null, false)
 
-    private fun weekly(now: String, zone: ZoneId = ZoneOffset.UTC) =
-        WeeklyPracticeTotalUseCase(auth, repo, Clock.fixed(Instant.parse(now), zone))
+    private fun weekly(now: String, zone: ZoneId = ZoneOffset.UTC) = WeeklyPracticeTotalUseCase(
+        ObservePracticeHistoryUseCase(auth, repo),
+        Clock.fixed(Instant.parse(now), ZoneOffset.UTC)
+    ) {
+        zone
+    }
 
     @Test
     fun `el historial se ordena por startedAt desc, pide 200 y usa el uid de la sesion`() = runTest {

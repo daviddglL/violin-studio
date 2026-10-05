@@ -18,6 +18,9 @@ class FakePracticeLogRepository : PracticeLogRepository {
     var createFailure: PracticeFailure? = null
     var lastLimit: Int? = null
 
+    /** Se ejecuta dentro de `create`, antes de escribir: permite forzar intercalado de corrutinas. */
+    var onCreate: suspend () -> Unit = {}
+
     fun seed(uid: String, vararg sessions: PracticeSession) {
         store.value = store.value + (uid to sessions.toList())
     }
@@ -30,9 +33,17 @@ class FakePracticeLogRepository : PracticeLogRepository {
 
     override suspend fun create(uid: String, draft: PracticeDraft): Result<Unit> {
         calls += "create:$uid"
+        onCreate()
         createFailure?.let { return Result.failure(it) }
         created += uid to draft
+        val saved = PracticeSession(draft.id, draft.startedAt, draft.durationSec, draft.instrument, draft.notes, true)
+        store.value = store.value + (uid to (store.value[uid].orEmpty() + saved))
         return Result.success(Unit)
+    }
+
+    override suspend fun exists(uid: String, id: String): Boolean {
+        calls += "exists:$uid:$id"
+        return store.value[uid].orEmpty().any { it.id == id }
     }
 
     override suspend fun updateNotes(uid: String, id: String, notes: String?): Result<Unit> {
@@ -50,10 +61,12 @@ class FakePracticeLogRepository : PracticeLogRepository {
 class FakeRunningSessionStore : RunningSessionStore {
     private val store = MutableStateFlow<Map<String, RunningSession>>(emptyMap())
     val cleared = mutableListOf<String>()
+    var onStart: suspend () -> Unit = {}
 
     override fun observe(uid: String): Flow<RunningSession?> = store.map { it[uid] }
 
     override suspend fun start(uid: String, session: RunningSession) {
+        onStart()
         store.value = store.value + (uid to session)
     }
 
