@@ -10,22 +10,30 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.feature.tuner.model.Note
+import com.violinstudio.domain.feature.tuner.model.ReferencePitch
 import com.violinstudio.domain.feature.tuner.model.TunerReading
 import com.violinstudio.domain.feature.tuner.model.TuningTarget
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
+import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -52,6 +60,33 @@ class TunerViewModelTest {
         }
     }
 
+    private var toneActive = 0
+    private var toneMax = 0
+    private var toneFailure: Throwable? = null
+    private var toneGate: CompletableDeferred<Unit>? = null
+    private var toneStuck = false
+    private val toneCalls = mutableListOf<Note>()
+    private val playTone = mockk<PlayReferenceToneUseCase> {
+        every { this@mockk(any(), ReferencePitch.DEFAULT) } answers {
+            // La funcion con value classes se compila con parametros crudos (Int).
+            toneCalls += Note(firstArg<Int>())
+            tone()
+        }
+    }
+
+    private fun tone(): Flow<Unit> = flow {
+        toneMax = maxOf(toneMax, ++toneActive)
+        try {
+            toneFailure?.let { throw it }
+            toneGate?.await()
+            emit(Unit)
+            awaitCancellation()
+        } finally {
+            toneActive--
+            if (toneStuck) withContext(NonCancellable) { delay(10_000) }
+        }
+    }
+
     private fun capture(): Flow<TunerReading> = flow {
         active++
         maxActive = maxOf(maxActive, active)
@@ -64,7 +99,7 @@ class TunerViewModelTest {
         }
     }
 
-    private fun vm() = TunerViewModel(observeProfile, observePitch)
+    private fun vm() = TunerViewModel(observeProfile, observePitch, playTone)
 
     private fun profileOf(instrument: Instrument) =
         UserProfile("u1", "Ana", instrument, "es", Role.INDEPENDENT, false, ConsentStatus.GRANTED, 1, null, false)
@@ -391,5 +426,120 @@ class TunerViewModelTest {
         assertEquals(listOf<Int?>(null, 2, null), calls.map { it.second })
         assertEquals(1, active)
         assertEquals(1, maxActive)
+    }
+
+    private fun TestScope.playingA3(): TunerViewModel {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.SelectString(3))
+        vm.onIntent(TunerIntent.ToggleReference)
+        advanceUntilIdle()
+        return vm
+    }
+
+    @Test
+    fun `ToggleReference reproduce la cuerda elegida y otra vez la detiene`() = runTest {
+        val vm = playingA3()
+        assertEquals(listOf(Note(57)), toneCalls)
+        assertTrue(vm.state.value.isPlayingReference)
+        vm.onIntent(TunerIntent.ToggleReference)
+        advanceUntilIdle()
+        assertEquals(0, toneActive)
+        assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `ToggleReference sin cuerda elegida no suena`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.ToggleReference)
+        advanceUntilIdle()
+        assertEquals(0, toneCalls.size)
+        assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `cambiar de cuerda con el tono sonando lo reinicia con una sola salida`() = runTest {
+        val vm = playingA3()
+        vm.onIntent(TunerIntent.SelectString(2))
+        advanceUntilIdle()
+        assertEquals(listOf(Note(57), Note(50)), toneCalls)
+        assertEquals(1, toneMax)
+        assertEquals(1, toneActive)
+    }
+
+    @Test
+    fun `cambiar de instrumento detiene el tono`() = runTest {
+        val vm = playingA3()
+        vm.onIntent(TunerIntent.SelectInstrument(Instrument.VIOLIN))
+        advanceUntilIdle()
+        assertEquals(0, toneActive)
+        assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `Stop detiene el tono`() = runTest {
+        val vm = playingA3()
+        vm.onIntent(TunerIntent.Stop)
+        advanceUntilIdle()
+        assertEquals(0, toneActive)
+        assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `tono y micro son excluyentes`() = runTest {
+        val vm = playingA3()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertEquals(0, toneActive)
+        assertTrue(vm.state.value.isListening)
+        vm.onIntent(TunerIntent.ToggleReference)
+        advanceUntilIdle()
+        assertEquals(1, toneCalls.size)
+        assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `un fallo de la salida muestra el error y deja de sonar`() = runTest {
+        toneFailure = IllegalStateException("audio")
+        val vm = playingA3()
+        assertEquals(TunerError.AUDIO_OUTPUT_UNAVAILABLE, vm.state.value.error)
+        assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `un fallo de la salida no toca el micro ni muestra su mensaje`() = runTest {
+        toneFailure = IllegalStateException("audio")
+        val vm = playingA3()
+        assertEquals(MicState.UNKNOWN, vm.state.value.mic)
+        assertFalse(vm.state.value.isListening)
+    }
+
+    @Test
+    fun `suena solo cuando la salida ya arranco y un segundo toque mientras arranca se ignora`() = runTest {
+        toneGate = CompletableDeferred()
+        val vm = vm()
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.SelectString(3))
+        vm.onIntent(TunerIntent.ToggleReference)
+        vm.onIntent(TunerIntent.ToggleReference)
+        advanceUntilIdle()
+        assertEquals(1, toneCalls.size)
+        assertFalse(vm.state.value.isPlayingReference)
+        toneGate!!.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.isPlayingReference)
+        assertEquals(1, toneActive)
+    }
+
+    @Test
+    fun `una salida que no termina de cancelarse no bloquea las intenciones`() = runTest {
+        toneStuck = true
+        val vm = playingA3()
+        vm.onIntent(TunerIntent.Stop)
+        advanceTimeBy(600)
+        assertFalse(vm.state.value.isPlayingReference)
+        vm.onIntent(TunerIntent.SelectString(2))
+        advanceTimeBy(600)
+        assertEquals(2, vm.state.value.selectedString)
     }
 }

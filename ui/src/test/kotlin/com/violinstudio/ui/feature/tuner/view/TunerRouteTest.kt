@@ -18,9 +18,12 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
+import com.violinstudio.domain.feature.tuner.model.ReferencePitch
 import com.violinstudio.domain.feature.tuner.model.TunerReading
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
+import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.tuner.viewmodel.TunerIntent
 import com.violinstudio.ui.feature.tuner.viewmodel.TunerViewModel
@@ -60,8 +63,22 @@ class TunerRouteTest {
     private val observePitch = mockk<ObservePitchUseCase> {
         every { this@mockk(any(), any(), any()) } answers { capture() }
     }
+    private val toneActive = AtomicInteger()
+    private val playTone = mockk<PlayReferenceToneUseCase> {
+        every { this@mockk(any(), ReferencePitch.DEFAULT) } answers { tone() }
+    }
     private val observeProfile = mockk<ObserveProfileUseCase> {
         every { this@mockk() } returns MutableStateFlow(null)
+    }
+
+    private fun tone(): Flow<Unit> = flow {
+        toneActive.incrementAndGet()
+        try {
+            emit(Unit)
+            awaitCancellation()
+        } finally {
+            toneActive.decrementAndGet()
+        }
     }
 
     private fun capture(): Flow<TunerReading> = flow {
@@ -92,7 +109,7 @@ class TunerRouteTest {
     private fun awaitActive(expected: Int) = compose.waitUntil(5_000) { active.get() == expected }
 
     private fun listening(): TunerViewModel {
-        val viewModel = TunerViewModel(observeProfile, observePitch)
+        val viewModel = TunerViewModel(observeProfile, observePitch, playTone)
         show(viewModel)
         compose.onNodeWithTag(TUNER_LISTEN_TAG).performClick()
         awaitActive(1)
@@ -116,8 +133,22 @@ class TunerRouteTest {
     }
 
     @Test
+    fun theReferenceToneStopsOnStopAndWhenLeavingTheRoute() {
+        val viewModel = TunerViewModel(observeProfile, observePitch, playTone)
+        show(viewModel)
+        compose.runOnUiThread {
+            viewModel.onIntent(TunerIntent.SelectInstrument(Instrument.VIOLIN))
+            viewModel.onIntent(TunerIntent.SelectString(2))
+        }
+        compose.onNodeWithTag(TUNER_REFERENCE_TAG).performClick()
+        compose.waitUntil(5_000) { toneActive.get() == 1 }
+        compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.CREATED }
+        compose.waitUntil(5_000) { toneActive.get() == 0 }
+    }
+
+    @Test
     fun theSettingsEffectOpensTheAppDetailsOfThisPackage() {
-        val viewModel = TunerViewModel(observeProfile, observePitch)
+        val viewModel = TunerViewModel(observeProfile, observePitch, playTone)
         show(viewModel)
         compose.runOnUiThread { viewModel.onIntent(TunerIntent.OpenAppSettings) }
         compose.waitUntil(5_000) { shadowOf(application).peekNextStartedActivity() != null }

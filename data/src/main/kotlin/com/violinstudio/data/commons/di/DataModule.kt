@@ -1,5 +1,8 @@
 package com.violinstudio.data.commons.di
 
+import com.violinstudio.data.commons.audio.AndroidPcmTrackFactory
+import com.violinstudio.data.commons.audio.AudioTrackOutput
+import com.violinstudio.data.commons.audio.PcmTrackFactory
 import com.violinstudio.data.feature.account.repository.AccountRepositoryImpl
 import com.violinstudio.data.feature.auth.datasource.AuthRemoteDataSource
 import com.violinstudio.data.feature.auth.datasource.firebase.FirebaseAuthRemoteDataSource
@@ -24,6 +27,7 @@ import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
 import com.violinstudio.domain.feature.tuner.audio.AudioInputSource
+import com.violinstudio.domain.feature.tuner.audio.AudioOutput
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -67,4 +71,10 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindAudioInputSource(impl: AudioRecordSource): AudioInputSource
+
+    @Binds
+    abstract fun bindPcmTrackFactory(impl: AndroidPcmTrackFactory): PcmTrackFactory
+
+    @Binds
+    abstract fun bindAudioOutput(impl: AudioTrackOutput): AudioOutput
 }

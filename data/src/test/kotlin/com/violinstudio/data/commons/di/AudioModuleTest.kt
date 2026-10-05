@@ -19,6 +19,14 @@ class AudioModuleTest {
     }
 
     @Test
+    fun `el dispatcher de salida es un unico hilo dedicado llamado audio-out`() {
+        val dispatcher = AudioModule.provideAudioOutputDispatcher()
+        val names = runBlocking { List(3) { withContext(dispatcher) { threadName() } } }
+        assertEquals(listOf(AudioModule.AUDIO_OUTPUT_THREAD), names.distinct())
+        (dispatcher as AutoCloseable).close()
+    }
+
+    @Test
     fun `el dispatcher por defecto no es el de audio`() {
         val default: CoroutineDispatcher = AudioModule.provideDefaultDispatcher()
         assertSame(Dispatchers.Default, default)

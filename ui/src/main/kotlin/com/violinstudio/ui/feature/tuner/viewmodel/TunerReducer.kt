@@ -35,8 +35,13 @@ object TunerReducer {
         TunerMutation.ListeningStopped -> state.copy(isListening = false, reading = TunerReading.Idle)
         is TunerMutation.Reading -> state.copy(reading = mutation.reading)
         is TunerMutation.Failed -> failed(state, mutation.failure)
+        is TunerMutation.ReferenceFailed ->
+            state.copy(isPlayingReference = false, error = TunerError.AUDIO_OUTPUT_UNAVAILABLE)
         is TunerMutation.ReferencePlaying ->
-            state.copy(isPlayingReference = mutation.playing && !state.isListening)
+            state.copy(
+                isPlayingReference = mutation.playing && !state.isListening,
+                error = if (mutation.playing) null else state.error
+            )
     }
 
     /** Qué hace "Escuchar" según el permiso que lee la pantalla. */

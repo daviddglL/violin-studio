@@ -204,4 +204,9 @@
     <string name="tuner_error_unavailable">No se pudo acceder al micrófono.</string>
     <string name="tuner_error_unknown">No se pudo iniciar el afinador.</string>
     <string name="tuner_retry">Reintentar</string>
+    <string name="tuner_reference_play">Tono de referencia</string>
+    <string name="tuner_reference_stop">Parar tono</string>
+    <string name="tuner_reference_hint_pick">Elige una cuerda para oír su tono</string>
+    <string name="tuner_reference_hint_listening">Detén la escucha para oír el tono</string>
+    <string name="tuner_error_output">No se pudo reproducir el tono.</string>
 </resources>

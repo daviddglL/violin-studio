@@ -24,7 +24,11 @@ class NoAndroidInMainTest {
         "android.media.AudioManager",
         "android.media.AudioRecord",
         "android.media.MediaRecorder"
-    ).map { "com/violinstudio/data/feature/tuner/datasource/audio/AndroidPcmRecorderFactory.kt" to it }
+    ).map { "com/violinstudio/data/feature/tuner/datasource/audio/AndroidPcmRecorderFactory.kt" to it } + listOf(
+        "android.media.AudioAttributes",
+        "android.media.AudioFormat",
+        "android.media.AudioTrack"
+    ).map { "com/violinstudio/data/commons/audio/AndroidPcmTrackFactory.kt" to it }
 
     @Test
     fun `el codigo principal de data no importa android`() {

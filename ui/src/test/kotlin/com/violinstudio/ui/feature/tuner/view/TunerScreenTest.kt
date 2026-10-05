@@ -5,6 +5,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -129,4 +131,38 @@ class TunerScreenTest {
     }
 
     private fun pitch(cents: Double) = TunerReading.Pitch(440.0, TuningTarget.OpenString(Note(69), 2), cents, 0.9)
+
+    @Test
+    fun referenceButtonPlaysTheSelectedString() {
+        show(TunerState(instrument = Instrument.VIOLIN, selectedString = 2))
+        compose.onNodeWithTag(TUNER_REFERENCE_TAG).assertIsEnabled().performClick()
+        assertEquals(listOf<TunerIntent>(TunerIntent.ToggleReference), sent)
+    }
+
+    @Test
+    fun referenceButtonExplainsWhyItIsDisabled() {
+        show(TunerState(instrument = Instrument.VIOLIN))
+        compose.onNodeWithTag(TUNER_REFERENCE_TAG).assertIsNotEnabled()
+        compose.onNodeWithText("Elige una cuerda para oír su tono").assertExists()
+    }
+
+    @Test
+    fun referenceButtonIsDisabledWhileListeningAndSaysSo() {
+        show(TunerState(instrument = Instrument.VIOLIN, selectedString = 2, isListening = true))
+        compose.onNodeWithTag(TUNER_REFERENCE_TAG).assertIsNotEnabled()
+        compose.onNodeWithText("Detén la escucha para oír el tono").assertExists()
+    }
+
+    @Test
+    fun whilePlayingTheReferenceButtonOffersToStop() {
+        show(TunerState(instrument = Instrument.VIOLIN, selectedString = 2, isPlayingReference = true))
+        compose.onNodeWithTag(TUNER_REFERENCE_TAG).assertTextEquals("Parar tono")
+    }
+
+    @Test
+    fun anOutputFailureIsShownWithoutRetryingTheMic() {
+        show(TunerState(instrument = Instrument.VIOLIN, error = TunerError.AUDIO_OUTPUT_UNAVAILABLE))
+        compose.onNodeWithText("No se pudo reproducir el tono.").assertIsDisplayed()
+        compose.onNodeWithTag(TUNER_RETRY_TAG).assertDoesNotExist()
+    }
 }
