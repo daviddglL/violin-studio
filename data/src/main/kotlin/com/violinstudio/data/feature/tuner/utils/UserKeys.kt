@@ -9,7 +9,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 object UserKeys {
     const val SCHEMA_VERSION = 1
 
-    fun prefix(uid: String) = "u.$uid."
+    fun prefix(uid: String): String {
+        require('.' !in uid) { "uid con punto" }
+        return "u.$uid."
+    }
 
     fun tunerVersion(uid: String) = intPreferencesKey("${prefix(uid)}tuner.v")
 
