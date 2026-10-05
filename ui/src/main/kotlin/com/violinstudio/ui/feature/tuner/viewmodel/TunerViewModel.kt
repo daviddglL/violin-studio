@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.tuner.viewmodel
 
 import androidx.lifecycle.viewModelScope
+import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
 import com.violinstudio.ui.commons.mvi.MviViewModel
@@ -30,7 +31,7 @@ class TunerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val profile = observeProfile().filterNotNull().first()
-                reduce(TunerMutation.ProfileInstrument(profile.instrument))
+                onIntent(TunerIntent.ProfileLoaded(profile.instrument))
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -49,11 +50,12 @@ class TunerViewModel @Inject constructor(
                 if (intent.granted) startCapture()
             }
             TunerIntent.ConfirmRationale -> {
-                reduce(TunerMutation.PermissionResolved(granted = false, rationale = true))
+                reduce(TunerMutation.RationaleHidden)
                 sendEffect(TunerEffect.RequestMicPermission)
             }
             TunerIntent.DismissRationale -> reduce(TunerMutation.RationaleDismissed)
             TunerIntent.OpenAppSettings -> sendEffect(TunerEffect.OpenAppSettings)
+            is TunerIntent.ProfileLoaded -> onProfileLoaded(intent.instrument)
             is TunerIntent.SelectInstrument -> {
                 reduce(TunerMutation.InstrumentSelected(intent.instrument))
                 restartIfListening()
@@ -67,7 +69,7 @@ class TunerViewModel @Inject constructor(
 
     private suspend fun onStart(granted: Boolean, rationale: Boolean) {
         when (TunerReducer.startDecision(state.value, granted, rationale)) {
-            StartDecision.CAPTURE -> startCapture()
+            StartDecision.CAPTURE -> if (!state.value.isListening) startCapture()
             StartDecision.RATIONALE -> reduce(TunerMutation.RationaleShown)
             StartDecision.REQUEST -> sendEffect(TunerEffect.RequestMicPermission)
             StartDecision.BLOCKED -> reduce(TunerMutation.PermissionResolved(granted = false, rationale = false))
@@ -89,6 +91,12 @@ class TunerViewModel @Inject constructor(
         reduce(TunerMutation.ListeningStopped)
     }
 
+    private suspend fun onProfileLoaded(instrument: Instrument) {
+        val before = state.value.instrument
+        reduce(TunerMutation.ProfileInstrument(instrument))
+        if (state.value.instrument != before) restartIfListening()
+    }
+
     private suspend fun restartIfListening() {
         if (state.value.isListening) startCapture()
     }
@@ -102,6 +110,7 @@ class TunerViewModel @Inject constructor(
                 observePitch(current.instrument, current.config, current.selectedString).collect {
                     reduce(TunerMutation.Reading(it))
                 }
+                reduce(TunerMutation.ListeningStopped)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -114,12 +123,6 @@ class TunerViewModel @Inject constructor(
     private suspend fun stopCapture() {
         captureJob?.cancelAndJoin()
         captureJob = null
-    }
-
-    override fun onCleared() {
-        captureJob?.cancel()
-        captureJob = null
-        super.onCleared()
     }
 
     private fun reduce(mutation: TunerMutation) = setState { TunerReducer.reduce(this, mutation) }

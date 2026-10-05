@@ -16,6 +16,7 @@ interface MicPermissionChecker {
 }
 
 fun MicPermissionChecker.snapshot() = MicPermissionSnapshot(isGranted(), shouldShowRationale())
+
 class ActivityMicPermissionChecker(private val activity: Activity) : MicPermissionChecker {
     override fun isGranted(): Boolean {
         val result = ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO)

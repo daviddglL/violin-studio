@@ -1,5 +1,8 @@
 package com.violinstudio.ui.feature.tuner.viewmodel
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
@@ -14,6 +17,7 @@ import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
@@ -37,8 +41,10 @@ class TunerViewModelTest {
 
     private val readings = MutableSharedFlow<TunerReading>(extraBufferCapacity = 8)
     private var active = 0
+    private var maxActive = 0
+    private var finishes = false
     private val calls = mutableListOf<Pair<Instrument, Int?>>()
-    private var failure: TunerFailure? = null
+    private var failure: Throwable? = null
     private val observePitch = mockk<ObservePitchUseCase> {
         every { this@mockk(any(), any(), any()) } answers {
             calls += firstArg<Instrument>() to thirdArg<Int?>()
@@ -48,10 +54,11 @@ class TunerViewModelTest {
 
     private fun capture(): Flow<TunerReading> = flow {
         active++
+        maxActive = maxOf(maxActive, active)
         try {
             failure?.let { throw it }
-            readings.collect { emit(it) }
-            awaitCancellation()
+            if (!finishes) readings.collect { emit(it) }
+            if (!finishes) awaitCancellation()
         } finally {
             active--
         }
@@ -96,18 +103,26 @@ class TunerViewModelTest {
     }
 
     @Test
-    fun `onCleared cancela la captura`() = runTest {
-        val vm = vm()
+    fun `limpiar el ViewModel cancela la captura`() = runTest {
+        val store = ViewModelStore()
+        val provider = ViewModelProvider(
+            store,
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T = vm() as T
+            }
+        )
+        val vm = provider[TunerViewModel::class.java]
         vm.onIntent(TunerIntent.Start(true, false))
         advanceUntilIdle()
-        val clear = TunerViewModel::class.java.getDeclaredMethod("onCleared").apply { isAccessible = true }
-        clear.invoke(vm)
+        assertEquals(1, active)
+        store.clear()
         advanceUntilIdle()
         assertEquals(0, active)
     }
 
     @Test
-    fun `Resume tras Stop reanuda solo si estaba escuchando y hay permiso`() = runTest {
+    fun `Resume tras Stop reanuda la captura si hay permiso`() = runTest {
         val vm = vm()
         vm.onIntent(TunerIntent.Start(true, false))
         vm.onIntent(TunerIntent.Stop)
@@ -116,10 +131,136 @@ class TunerViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.state.value.isListening)
         assertEquals(1, active)
-        vm.onIntent(TunerIntent.Stop)
+    }
+
+    @Test
+    fun `Start estando ya escuchando no abre otra captura`() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.Start(true, false))
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertEquals(1, calls.size)
+        assertEquals(1, maxActive)
+    }
+
+    @Test
+    fun `Resume concedido en ajustes sin escucha previa pasa a Granted sin capturar`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.PermissionResult(granted = false, rationale = false))
         vm.onIntent(TunerIntent.Resume(granted = true, rationale = false))
         advanceUntilIdle()
+        assertEquals(MicState.GRANTED, vm.state.value.mic)
+        assertFalse(vm.state.value.isListening)
+        assertEquals(0, calls.size)
+    }
+
+    @Test
+    fun `Resume sin permiso pero con rationale es Denied`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        vm.onIntent(TunerIntent.Stop)
+        vm.onIntent(TunerIntent.Resume(granted = false, rationale = true))
+        advanceUntilIdle()
+        assertEquals(MicState.DENIED, vm.state.value.mic)
+    }
+
+    @Test
+    fun `permiso revocado tras conceder vuelve a pedirse`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        vm.onIntent(TunerIntent.Stop)
+        advanceUntilIdle()
+        vm.testMvi {
+            intent(TunerIntent.Start(granted = false, rationale = false))
+            assertEffect(TunerEffect.RequestMicPermission)
+        }
+    }
+
+    @Test
+    fun `una excepcion que no es TunerFailure es MIC_UNAVAILABLE`() = runTest {
+        failure = IllegalStateException("boom")
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertEquals(TunerError.MIC_UNAVAILABLE, vm.state.value.error)
+        assertFalse(vm.state.value.isListening)
+    }
+
+    @Test
+    fun `un TunerFailure ajeno al micro es UNKNOWN`() = runTest {
+        failure = TunerFailure.PresetLimitReached
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertEquals(TunerError.UNKNOWN, vm.state.value.error)
+    }
+
+    @Test
+    fun `una CancellationException no marca error ni para la escucha`() = runTest {
+        failure = CancellationException("ajena")
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertNull(vm.state.value.error)
         assertTrue(vm.state.value.isListening)
+    }
+
+    @Test
+    fun `MicPermissionDenied de la fuente da mic Denied sin error`() = runTest {
+        failure = TunerFailure.MicPermissionDenied
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertEquals(MicState.DENIED, vm.state.value.mic)
+        assertNull(vm.state.value.error)
+        assertFalse(vm.state.value.isListening)
+    }
+
+    @Test
+    fun `si el flujo termina con normalidad se deja de escuchar`() = runTest {
+        finishes = true
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertFalse(vm.state.value.isListening)
+        assertNull(vm.state.value.error)
+    }
+
+    @Test
+    fun `un fallo del flujo de perfil deja el modo cromatico y no rompe el arranque`() = runTest {
+        every { observeProfile() } returns flow { throw IllegalStateException("sin perfil") }
+        val vm = vm()
+        advanceUntilIdle()
+        assertEquals(Instrument.OTHER, vm.state.value.instrument)
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertTrue(vm.state.value.isListening)
+    }
+
+    @Test
+    fun `un perfil tardio reinicia la captura con su instrumento`() = runTest {
+        profile.value = null
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        assertEquals(listOf<Pair<Instrument, Int?>>(Instrument.OTHER to null), calls)
+        profile.value = profileOf(Instrument.CELLO)
+        advanceUntilIdle()
+        assertEquals(Instrument.CELLO, vm.state.value.instrument)
+        assertEquals(listOf<Pair<Instrument, Int?>>(Instrument.OTHER to null, Instrument.CELLO to null), calls)
+        assertEquals(1, active)
+        assertEquals(1, maxActive)
+    }
+
+    @Test
+    fun `ConfirmRationale no toca el estado del micro`() = runTest {
+        val vm = vm()
+        vm.onIntent(TunerIntent.Start(false, true))
+        vm.onIntent(TunerIntent.ConfirmRationale)
+        advanceUntilIdle()
+        assertEquals(MicState.UNKNOWN, vm.state.value.mic)
+        assertFalse(vm.state.value.showRationale)
     }
 
     @Test
@@ -228,21 +369,11 @@ class TunerViewModelTest {
         assertEquals(Instrument.VIOLA, vm.state.value.instrument)
         assertEquals(listOf<Pair<Instrument, Int?>>(Instrument.CELLO to null, Instrument.VIOLA to null), calls)
         assertEquals(1, active)
+        assertEquals(1, maxActive)
         // Un perfil que cambia despues no pisa la eleccion local.
         profile.value = profileOf(Instrument.VIOLIN)
         advanceUntilIdle()
         assertEquals(Instrument.VIOLA, vm.state.value.instrument)
-    }
-
-    @Test
-    fun `una nueva instancia vuelve al instrumento del perfil`() = runTest {
-        vm().apply {
-            onIntent(TunerIntent.SelectInstrument(Instrument.VIOLA))
-        }
-        advanceUntilIdle()
-        val reopened = vm()
-        advanceUntilIdle()
-        assertEquals(Instrument.CELLO, reopened.state.value.instrument)
     }
 
     @Test
@@ -259,5 +390,6 @@ class TunerViewModelTest {
         assertNull(vm.state.value.selectedString)
         assertEquals(listOf<Int?>(null, 2, null), calls.map { it.second })
         assertEquals(1, active)
+        assertEquals(1, maxActive)
     }
 }

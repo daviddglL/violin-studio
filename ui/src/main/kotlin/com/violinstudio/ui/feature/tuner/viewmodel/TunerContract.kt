@@ -13,7 +13,7 @@ import kotlin.math.abs
 enum class MicState { UNKNOWN, GRANTED, DENIED, PERMANENTLY_DENIED }
 
 /** Fallos del micro que la pantalla muestra con su acción de reintento. */
-enum class TunerError { MIC_BUSY, MIC_UNAVAILABLE }
+enum class TunerError { MIC_BUSY, MIC_UNAVAILABLE, UNKNOWN }
 
 data class TunerState(
     /** Arranca en el instrumento del perfil y se cambia solo aquí (D3): nunca se escribe en el perfil. */
@@ -59,6 +59,9 @@ sealed interface TunerIntent : UiIntent {
 
     data object OpenAppSettings : TunerIntent
 
+    /** Interno: el perfil llegó; se procesa en orden con el resto de intents. */
+    data class ProfileLoaded(val instrument: Instrument) : TunerIntent
+
     data class SelectInstrument(val instrument: Instrument) : TunerIntent
 
     /** `null` = auto-detección. */
@@ -83,6 +86,8 @@ sealed interface TunerMutation {
     data object RationaleShown : TunerMutation
 
     data object RationaleDismissed : TunerMutation
+
+    data object RationaleHidden : TunerMutation
 
     data object ListeningStarted : TunerMutation
 

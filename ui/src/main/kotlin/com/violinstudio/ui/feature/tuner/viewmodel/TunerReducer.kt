@@ -23,6 +23,7 @@ object TunerReducer {
             state.copy(mic = micOf(mutation.granted, mutation.rationale), showRationale = false)
         TunerMutation.RationaleShown -> state.copy(showRationale = true)
         TunerMutation.RationaleDismissed -> state.copy(showRationale = false, mic = MicState.DENIED)
+        TunerMutation.RationaleHidden -> state.copy(showRationale = false)
         TunerMutation.ListeningStarted ->
             state.copy(
                 isListening = true,
@@ -42,7 +43,7 @@ object TunerReducer {
     fun startDecision(state: TunerState, granted: Boolean, rationale: Boolean): StartDecision = when {
         granted -> StartDecision.CAPTURE
         rationale -> StartDecision.RATIONALE
-        state.mic == MicState.UNKNOWN -> StartDecision.REQUEST
+        state.mic == MicState.UNKNOWN || state.mic == MicState.GRANTED -> StartDecision.REQUEST
         else -> StartDecision.BLOCKED
     }
 
@@ -58,6 +59,8 @@ object TunerReducer {
         return when (failure) {
             TunerFailure.MicPermissionDenied -> stopped.copy(mic = MicState.DENIED, error = null)
             TunerFailure.MicBusy -> stopped.copy(error = TunerError.MIC_BUSY)
+            TunerFailure.MicUnavailable -> stopped.copy(error = TunerError.MIC_UNAVAILABLE)
+            is TunerFailure -> stopped.copy(error = TunerError.UNKNOWN)
             else -> stopped.copy(error = TunerError.MIC_UNAVAILABLE)
         }
     }

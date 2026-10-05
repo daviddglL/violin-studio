@@ -164,4 +164,24 @@ class TunerReducerTest {
         assertNull(reduce(violin, TunerMutation.StringSelected(-1)).selectedString)
         assertNull(reduce(initial.copy(instrument = Instrument.OTHER), TunerMutation.StringSelected(0)).selectedString)
     }
+
+    @Test
+    fun `un TunerFailure ajeno al micro es UNKNOWN`() {
+        assertEquals(TunerError.UNKNOWN, reduce(initial, TunerMutation.Failed(TunerFailure.PresetLimitReached)).error)
+    }
+
+    @Test
+    fun `ocultar el rationale no cambia el micro`() {
+        val s = reduce(initial.copy(showRationale = true), TunerMutation.RationaleHidden)
+        assertFalse(s.showRationale)
+        assertEquals(MicState.UNKNOWN, s.mic)
+    }
+
+    @Test
+    fun `con permiso concedido antes y ahora retirado se vuelve a pedir`() {
+        assertEquals(
+            StartDecision.REQUEST,
+            TunerReducer.startDecision(initial.copy(mic = MicState.GRANTED), false, false)
+        )
+    }
 }
