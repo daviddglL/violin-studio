@@ -1,10 +1,15 @@
 package com.violinstudio.domain.feature.tuner.pitch
 
 import com.violinstudio.domain.testing.Signals
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class FftTest {
     @Test
@@ -59,5 +64,18 @@ class FftTest {
     @Test
     fun `exige arrays del tamano de la transformada`() {
         assertThrows(IllegalArgumentException::class.java) { Fft(8).forward(DoubleArray(4), DoubleArray(8)) }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [1, 2, 8, 64])
+    fun `delta en n=1 coincide con la DFT ingenua (signo del giro)`(size: Int) {
+        val n = if (size > 1) 1 else 0
+        val re = DoubleArray(size).also { it[n] = 1.0 }
+        val im = DoubleArray(size)
+        Fft(size).forward(re, im)
+        for (k in 0 until size) {
+            assertEquals(cos(2 * PI * k * n / size), re[k], 1e-12)
+            assertEquals(-sin(2 * PI * k * n / size), im[k], 1e-12)
+        }
     }
 }
