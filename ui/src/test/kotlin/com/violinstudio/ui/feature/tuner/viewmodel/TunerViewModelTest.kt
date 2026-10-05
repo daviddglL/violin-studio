@@ -8,10 +8,10 @@ import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
-import com.violinstudio.domain.feature.tuner.failure.TunerField
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
-import com.violinstudio.domain.feature.tuner.model.Note
+import com.violinstudio.domain.feature.tuner.failure.TunerField
 import com.violinstudio.domain.feature.tuner.model.MaxCents
+import com.violinstudio.domain.feature.tuner.model.Note
 import com.violinstudio.domain.feature.tuner.model.ReferencePitch
 import com.violinstudio.domain.feature.tuner.model.TunerConfig
 import com.violinstudio.domain.feature.tuner.model.TunerReading
@@ -19,10 +19,10 @@ import com.violinstudio.domain.feature.tuner.model.TuningTarget
 import com.violinstudio.domain.feature.tuner.usecase.DeleteTuningPresetUseCase
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
 import com.violinstudio.domain.feature.tuner.usecase.ObserveTunerConfigUseCase
+import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
 import com.violinstudio.domain.feature.tuner.usecase.SaveTuningPresetUseCase
 import com.violinstudio.domain.feature.tuner.usecase.SelectTuningPresetUseCase
 import com.violinstudio.domain.feature.tuner.usecase.UpdateTunerConfigUseCase
-import com.violinstudio.domain.feature.tuner.usecase.PlayReferenceToneUseCase
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.coEvery
