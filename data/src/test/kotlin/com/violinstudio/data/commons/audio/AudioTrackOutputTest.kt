@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -25,7 +26,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AudioTrackOutputTest {
-    private val executor = Executors.newSingleThreadExecutor { Thread(it, "audio-out-test") }
+    private val executor = Executors.newSingleThreadExecutor { Thread(it, "audio-out-test").apply { isDaemon = true } }
     private val dispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
 
     @AfterEach
@@ -62,7 +63,8 @@ class AudioTrackOutputTest {
             if (writes.get() + 1 == errorAt) return ERROR_DEAD_OBJECT
             if (writes.incrementAndGet() > stallAfter) {
                 stalled.countDown()
-                unblock.await()
+                // Acotado: si nadie lo abre, el test falla rapido en vez de colgar la CI.
+                unblock.await(10, TimeUnit.SECONDS)
                 return ERROR_DEAD_OBJECT
             }
             // Un write real bloquea hasta tener hueco: sin pausa el bucle giraria a toda velocidad.
@@ -91,7 +93,7 @@ class AudioTrackOutputTest {
             released.countDown()
         }
 
-        fun count(call: String) = calls.count { it == call }
+        fun count(call: String) = synchronized(calls) { calls.count { it == call } }
     }
 
     private fun output(vararg tracks: FakeTrack): AudioTrackOutput {
@@ -103,6 +105,13 @@ class AudioTrackOutputTest {
             },
             dispatcher
         )
+    }
+
+    /** Espera acotada FUERA de `withTimeout`: un hijo no cancelable atascado no puede ignorarla. */
+    private suspend fun assertJoined(job: Job) {
+        val done = CountDownLatch(1)
+        job.invokeOnCompletion { done.countDown() }
+        assertTrue(withContext(Dispatchers.IO) { done.await(5, TimeUnit.SECONDS) }, "el job no termino a tiempo")
     }
 
     private val silence = PcmGenerator { _, _ -> }
@@ -164,7 +173,7 @@ class AudioTrackOutputTest {
         val job = launch { out.play(silence).collect { } }
         assertTrue(withContext(Dispatchers.IO) { stuck.stalled.await(5, TimeUnit.SECONDS) })
         job.cancel()
-        withTimeout(5_000) { job.join() }
+        assertJoined(job)
         assertEquals(1, stuck.count("release"))
         // El Mutex se libero: otra reproduccion arranca.
         withTimeout(5_000) { out.play(silence).first() }
@@ -209,15 +218,19 @@ class AudioTrackOutputTest {
         val created = AtomicInteger()
         val out = AudioTrackOutput({ created.incrementAndGet().let { first } }, dispatcher)
         val holder = launch { out.play(silence).collect { } }
-        while (first.count("play") == 0) kotlinx.coroutines.yield()
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (first.count("play") == 0) {
+            assertTrue(System.nanoTime() < deadline, "la pista nunca llego a play")
+            kotlinx.coroutines.yield()
+        }
         val waiting = launch { out.play(silence).collect { } }
         kotlinx.coroutines.delay(50)
         waiting.cancel()
-        waiting.join()
+        assertJoined(waiting)
         assertEquals(1, created.get())
         assertTrue(holder.isActive)
         holder.cancel()
-        withTimeout(5_000) { holder.join() }
+        assertJoined(holder)
         assertEquals(1, first.count("release"))
     }
 
