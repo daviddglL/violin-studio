@@ -201,6 +201,24 @@ class TunerViewModelTest {
     }
 
     @Test
+    fun `ON_STOP y el Stop de salir de la composicion seguidos no pierden la reanudacion`() = runTest {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.Start(true, false))
+        advanceUntilIdle()
+        vm.onIntent(TunerIntent.Stop)
+        vm.onIntent(TunerIntent.Stop) // rotacion: ON_STOP y onDispose
+        advanceUntilIdle()
+        assertEquals(0, active)
+        vm.onIntent(TunerIntent.Resume(granted = true, rationale = false))
+        vm.onIntent(TunerIntent.Resume(granted = true, rationale = false))
+        advanceUntilIdle()
+        assertEquals(1, active)
+        assertEquals(2, calls.size)
+        assertEquals(1, maxActive)
+    }
+
+    @Test
     fun `Start estando ya escuchando no abre otra captura`() = runTest {
         val vm = vm()
         advanceUntilIdle()
@@ -343,8 +361,8 @@ class TunerViewModelTest {
     fun `Stop manual impide que Resume reanude`() = runTest {
         val vm = vm()
         vm.onIntent(TunerIntent.Start(true, false))
-        vm.onIntent(TunerIntent.Stop)
-        vm.onIntent(TunerIntent.Stop)
+        vm.onIntent(TunerIntent.StopListening)
+        vm.onIntent(TunerIntent.Stop) // el Stop de salir de la composicion tampoco lo reactiva
         vm.onIntent(TunerIntent.Resume(true, false))
         advanceUntilIdle()
         assertFalse(vm.state.value.isListening)

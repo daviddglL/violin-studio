@@ -173,7 +173,7 @@ private fun Actions(state: TunerState, onIntent: (TunerIntent) -> Unit, onStart:
             modifier = Modifier.fillMaxWidth().testTag(TUNER_RETRY_TAG)
         ) { Text(stringResource(R.string.tuner_retry)) }
         state.isListening -> OutlinedButton(
-            onClick = { onIntent(TunerIntent.Stop) },
+            onClick = { onIntent(TunerIntent.StopListening) },
             modifier = Modifier.fillMaxWidth().testTag(TUNER_STOP_TAG)
         ) { Text(stringResource(R.string.tuner_stop)) }
         else -> Button(

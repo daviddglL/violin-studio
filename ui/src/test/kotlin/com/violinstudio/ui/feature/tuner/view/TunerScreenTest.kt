@@ -56,7 +56,7 @@ class TunerScreenTest {
     fun whileListeningTheButtonStops() {
         show(TunerState(instrument = Instrument.VIOLIN, isListening = true))
         compose.onNodeWithTag(TUNER_STOP_TAG).performClick()
-        assertEquals(listOf<TunerIntent>(TunerIntent.Stop), sent)
+        assertEquals(listOf<TunerIntent>(TunerIntent.StopListening), sent)
     }
 
     @Test

@@ -64,6 +64,9 @@ sealed interface TunerIntent : UiIntent {
     data object Stop : TunerIntent
 
     /** `ON_START`: reanuda solo si se paró por `ON_STOP` y el permiso sigue concedido. */
+    /** El usuario pulsa "Parar": como [Stop] pero sin reanudar despues (a diferencia de `ON_STOP`). */
+    data object StopListening : TunerIntent
+
     data class Resume(val granted: Boolean, val rationale: Boolean) : TunerIntent
 
     data class PermissionResult(val granted: Boolean, val rationale: Boolean) : TunerIntent
