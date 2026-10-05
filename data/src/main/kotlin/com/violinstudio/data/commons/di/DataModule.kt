@@ -21,6 +21,7 @@ import com.violinstudio.data.feature.tuner.datasource.audio.AudioRecordSource
 import com.violinstudio.data.feature.tuner.datasource.audio.ContextMicPermission
 import com.violinstudio.data.feature.tuner.datasource.audio.MicPermission
 import com.violinstudio.data.feature.tuner.datasource.audio.PcmRecorderFactory
+import com.violinstudio.data.feature.tuner.repository.DataStoreTunerConfigRepository
 import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
@@ -28,6 +29,7 @@ import com.violinstudio.domain.feature.health.repository.HealthRepository
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
 import com.violinstudio.domain.feature.tuner.audio.AudioInputSource
 import com.violinstudio.domain.feature.tuner.audio.AudioOutput
+import com.violinstudio.domain.feature.tuner.repository.TunerConfigRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -77,4 +79,7 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindAudioOutput(impl: AudioTrackOutput): AudioOutput
+
+    @Binds
+    abstract fun bindTunerConfigRepository(impl: DataStoreTunerConfigRepository): TunerConfigRepository
 }
