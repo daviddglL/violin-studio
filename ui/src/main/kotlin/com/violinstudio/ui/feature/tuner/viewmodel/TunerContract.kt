@@ -16,7 +16,17 @@ enum class MicState { UNKNOWN, GRANTED, DENIED, PERMANENTLY_DENIED }
 enum class TunerError { MIC_BUSY, MIC_UNAVAILABLE, AUDIO_OUTPUT_UNAVAILABLE, UNKNOWN }
 
 /** Fallo de la hoja de configuración: uno por campo inválido, más límite, no encontrado y almacenamiento. */
-enum class ConfigError { REFERENCE_PITCH, MAX_CENTS, LABEL, DUPLICATE_LABEL, PRESET_LIMIT, PRESET_NOT_FOUND, STORAGE, NO_SESSION, UNKNOWN }
+enum class ConfigError {
+    REFERENCE_PITCH,
+    MAX_CENTS,
+    LABEL,
+    DUPLICATE_LABEL,
+    PRESET_LIMIT,
+    PRESET_NOT_FOUND,
+    STORAGE,
+    NO_SESSION,
+    UNKNOWN
+}
 
 data class TunerState(
     /** Arranca en el instrumento del perfil y se cambia solo aquí (D3): nunca se escribe en el perfil. */

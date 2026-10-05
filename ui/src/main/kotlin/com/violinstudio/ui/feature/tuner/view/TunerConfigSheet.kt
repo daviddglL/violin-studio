@@ -136,7 +136,8 @@ fun TunerConfigContent(config: TunerConfig, error: ConfigError?, onIntent: (Tune
         Text(stringResource(R.string.tuner_config_presets), style = MaterialTheme.typography.titleMedium)
         if (config.presets.isEmpty()) Text(stringResource(R.string.tuner_config_presets_empty))
         config.presets.forEach { preset ->
-            PresetRow(preset, preset.id == config.selectedPresetId, onIntent, onDelete = { pendingDeleteId = preset.id }) {
+            val active = preset.id == config.selectedPresetId
+            PresetRow(preset, active, onIntent, onDelete = { pendingDeleteId = preset.id }) {
                 editingId = preset.id
                 label = preset.label
                 hz = formatHz(preset.referencePitch.hz)
