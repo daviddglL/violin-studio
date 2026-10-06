@@ -27,4 +27,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
+
+    // Tests que escriben en un DataStore real: Robolectric (SDK >= 26) + JUnit4 sobre la plataforma JUnit5 vía vintage.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.junit4)
+    testRuntimeOnly(libs.junit.vintage.engine)
 }

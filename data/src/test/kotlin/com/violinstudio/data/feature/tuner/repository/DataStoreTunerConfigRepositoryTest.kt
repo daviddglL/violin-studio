@@ -1,5 +1,6 @@
 package com.violinstudio.data.feature.tuner.repository
 
+import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -23,19 +24,30 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+/**
+ * Corre bajo Robolectric con SDK 34 (como producción, minSdk 26): DataStore renombra el `.tmp` con `Files.move`
+ * (REPLACE_EXISTING) solo si `SDK_INT >= 26`; con SDK_INT = 0 (JVM puro) usa `File.renameTo`, que en Windows no
+ * sobrescribe y hacía el resultado depender del JDK.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class, sdk = [34])
 class DataStoreTunerConfigRepositoryTest {
-    @TempDir
-    lateinit var dir: File
+    @get:Rule
+    val tmp = TemporaryFolder()
     private val jobs = mutableListOf<Job>()
 
     /** Cada test usa su propio fichero: en Windows el rename del `.tmp` falla si otro store sigue abierto. */
-    private val file by lazy { File(dir, "${UUID.randomUUID()}.preferences_pb") }
+    private val file by lazy { File(tmp.root, "${UUID.randomUUID()}.preferences_pb") }
 
     private fun open(): DataStore<Preferences> {
         val job = Job()
@@ -47,14 +59,14 @@ class DataStoreTunerConfigRepositoryTest {
 
     private fun closeStores() = runBlocking { jobs.forEach { it.cancelAndJoin() } }
 
-    @AfterEach
+    @After
     fun tearDown() = closeStores()
 
     private val preset = TuningConfiguration("p1", "Barroco", ReferencePitch(415.0), MaxCents(75))
     private val configA = TunerConfig(ReferencePitch(442.0), MaxCents(100), listOf(preset), "p1")
 
     @Test
-    fun `sin datos observa defectos y lo escrito sobrevive a un proceso nuevo`() = runBlocking {
+    fun `sin datos observa defectos y lo escrito sobrevive a un proceso nuevo`() = runBlocking<Unit> {
         val first = repo()
         assertEquals(TunerConfig(), first.observe("A").first())
         first.update("A") { configA }
@@ -63,7 +75,7 @@ class DataStoreTunerConfigRepositoryTest {
     }
 
     @Test
-    fun `un uid no ve los datos de otro y clear de A deja intacto B`() = runBlocking {
+    fun `un uid no ve los datos de otro y clear de A deja intacto B`() = runBlocking<Unit> {
         val repo = repo()
         repo.update("A") { configA }
         repo.update("B") { it.copy(maxCents = MaxCents(25)) }
@@ -74,7 +86,7 @@ class DataStoreTunerConfigRepositoryTest {
     }
 
     @Test
-    fun `clear sin datos es idempotente`() = runBlocking {
+    fun `clear sin datos es idempotente`() = runBlocking<Unit> {
         val repo = repo()
         repo.clear("A")
         repo.clear("A")
@@ -82,7 +94,7 @@ class DataStoreTunerConfigRepositoryTest {
     }
 
     @Test
-    fun `una transformacion que lanza no escribe nada`() = runBlocking {
+    fun `una transformacion que lanza no escribe nada`() = runBlocking<Unit> {
         val repo = repo()
         repo.update("A") { configA }
         assertThrows(IllegalStateException::class.java) { runBlocking { repo.update("A") { error("boom") } } }
@@ -90,13 +102,13 @@ class DataStoreTunerConfigRepositoryTest {
     }
 
     @Test
-    fun `un fichero corrupto se reemplaza por defectos`() = runBlocking {
+    fun `un fichero corrupto se reemplaza por defectos`() = runBlocking<Unit> {
         file.writeBytes(byteArrayOf(1, 2, 3, 4, 5, 6, 7))
         assertEquals(TunerConfig(), repo().observe("A").first())
     }
 
     @Test
-    fun `actualizaciones concurrentes del mismo uid no pierden ninguna`() = runBlocking {
+    fun `actualizaciones concurrentes del mismo uid no pierden ninguna`() = runBlocking<Unit> {
         val repo = repo()
         List(10) { i ->
             async(Dispatchers.IO) {
@@ -109,7 +121,7 @@ class DataStoreTunerConfigRepositoryTest {
     }
 
     @Test
-    fun `un esquema posterior no se degrada, se lee como defectos y escribir falla`() = runBlocking {
+    fun `un esquema posterior no se degrada, se lee como defectos y escribir falla`() = runBlocking<Unit> {
         val store = open()
         store.edit { it[UserKeys.tunerVersion("A")] = UserKeys.SCHEMA_VERSION + 1 }
         val repo = DataStoreTunerConfigRepository(store)
@@ -119,12 +131,13 @@ class DataStoreTunerConfigRepositoryTest {
     }
 
     @Test
-    fun `los fallos de disco se leen como defectos y al escribir o borrar son StorageUnavailable`() = runBlocking {
-        val repo = DataStoreTunerConfigRepository(BrokenStore)
-        assertEquals(TunerConfig(), repo.observe("A").first())
-        assertThrows(TunerFailure.StorageUnavailable::class.java) { runBlocking { repo.update("A") { configA } } }
-        assertThrows(TunerFailure.StorageUnavailable::class.java) { runBlocking { repo.clear("A") } }
-    }
+    fun `los fallos de disco se leen como defectos y al escribir o borrar son StorageUnavailable`() =
+        runBlocking<Unit> {
+            val repo = DataStoreTunerConfigRepository(BrokenStore)
+            assertEquals(TunerConfig(), repo.observe("A").first())
+            assertThrows(TunerFailure.StorageUnavailable::class.java) { runBlocking { repo.update("A") { configA } } }
+            assertThrows(TunerFailure.StorageUnavailable::class.java) { runBlocking { repo.clear("A") } }
+        }
 
     private object BrokenStore : DataStore<Preferences> {
         override val data: Flow<Preferences> = flow { throw IOException("disco lleno") }
