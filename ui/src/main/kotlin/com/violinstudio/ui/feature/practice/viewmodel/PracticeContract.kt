@@ -29,7 +29,9 @@ data class PracticeState(
     val confirmDeleteId: String? = null,
     /** Inicio, parada, edición o borrado en curso: se ignoran más toques. */
     val busy: Boolean = false,
-    val message: PracticeMessage? = null
+    val message: PracticeMessage? = null,
+    /** `true` solo si el aviso viene de un fallo de flujo: `Retry` únicamente vuelve a escuchar, no rehace acciones. */
+    val retryable: Boolean = false
 ) : UiState {
     /** Longitud tras recortar, igual que valida el dominio. */
     val notesCount: Int get() = draftNotes.trim().length

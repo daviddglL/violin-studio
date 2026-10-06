@@ -96,4 +96,21 @@ class PracticeReducerTest {
         assertEquals(Instrument.CELLO, chosen.instrument)
         assertEquals(PracticeState(), reduce(chosen, PracticeMutation.SessionClosed))
     }
+
+    @Test
+    fun `solo un fallo de flujo es reintentable y un fallo de accion o descartar el aviso no`() {
+        val stream = reduce(open, PracticeMutation.StreamFailed(PracticeFailure.PermissionDenied, true))
+        assertTrue(stream.retryable)
+        assertFalse(reduce(stream, PracticeMutation.Failed(RuntimeException("x"))).retryable)
+        assertFalse(reduce(stream, PracticeMutation.MessageDismissed).retryable)
+        assertFalse(reduce(open, PracticeMutation.Failed(RuntimeException("x"))).retryable)
+    }
+
+    @Test
+    fun `un aviso informativo conserva su estado de reintento ante un fallo de flujo`() {
+        val clamped = reduce(open, PracticeMutation.Stopped(clamped = true))
+        val after = reduce(clamped, PracticeMutation.StreamFailed(RuntimeException("x"), false))
+        assertEquals(PracticeMessage.CLAMPED, after.message)
+        assertFalse(after.retryable)
+    }
 }

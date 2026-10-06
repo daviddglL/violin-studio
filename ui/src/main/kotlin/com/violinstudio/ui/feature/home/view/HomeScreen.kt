@@ -111,6 +111,9 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
             OutlinedButton(onClick = it.onOpenMetronome, modifier = Modifier.testTag("home_metronome")) {
                 Text(stringResource(R.string.metronome_home_card))
             }
+            OutlinedButton(onClick = it.onOpenPractice, modifier = Modifier.testTag("home_practice")) {
+                Text(stringResource(R.string.practice_home_card))
+            }
         }
     }
 }
@@ -119,5 +122,6 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
 data class HomeNavigation(
     val onOpenSettings: () -> Unit,
     val onOpenTuner: () -> Unit,
-    val onOpenMetronome: () -> Unit
+    val onOpenMetronome: () -> Unit,
+    val onOpenPractice: () -> Unit
 )

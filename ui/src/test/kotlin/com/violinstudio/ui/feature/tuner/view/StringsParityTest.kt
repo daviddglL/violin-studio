@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class StringsParityTest {
-    private val entry = Regex("""<string name="((?:tuner_|metronome_)[^"]+)">(.*)</string>""")
+    private val entry = Regex("""<string name="((?:tuner_|metronome_|practice_)[^"]+)">(.*)</string>""")
 
     private fun load(dir: String) = File("src/main/res/$dir/strings.xml").readLines()
         .mapNotNull { entry.find(it) }.associate { it.groupValues[1] to it.groupValues[2] }
@@ -16,6 +16,7 @@ class StringsParityTest {
         val es = load("values")
         val en = load("values-en")
         assertTrue(es.isNotEmpty())
+        assertTrue(es.keys.any { it.startsWith("practice_") }, "faltan las cadenas de practica")
         assertEquals(es.keys, en.keys)
         val placeholders = Regex("""%\d\$[sd]""")
         for (key in es.keys) {

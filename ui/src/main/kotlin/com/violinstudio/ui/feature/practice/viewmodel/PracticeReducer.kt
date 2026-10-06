@@ -25,12 +25,15 @@ object PracticeReducer {
         is PracticeMutation.Tick -> state.copy(elapsedSec = elapsed(state.running, mutation.now))
         is PracticeMutation.HistoryLoaded -> state.copy(history = mutation.history)
         is PracticeMutation.WeeklyLoaded -> state.copy(weeklyTotalSec = mutation.seconds)
-        is PracticeMutation.StreamFailed ->
+        is PracticeMutation.StreamFailed -> {
+            val keep = state.message in INFORMATIVE
             state.copy(
                 history = if (mutation.clearData) emptyList() else state.history,
                 weeklyTotalSec = if (mutation.clearData) 0 else state.weeklyTotalSec,
-                message = state.message.takeIf { it in INFORMATIVE } ?: messageOf(mutation.failure)
+                message = if (keep) state.message else messageOf(mutation.failure),
+                retryable = if (keep) state.retryable else true
             )
+        }
         is PracticeMutation.InstrumentSelected ->
             state.copy(instrument = mutation.instrument, instrumentChosen = true)
         is PracticeMutation.ProfileInstrumentChanged ->
@@ -46,10 +49,11 @@ object PracticeReducer {
                 elapsedSec = 0,
                 showSave = false,
                 draftNotes = "",
-                message = if (mutation.clamped) PracticeMessage.CLAMPED else state.message
+                message = if (mutation.clamped) PracticeMessage.CLAMPED else state.message,
+                retryable = state.retryable && !mutation.clamped
             )
         is PracticeMutation.DeleteRequested -> state.copy(confirmDeleteId = mutation.id)
-        PracticeMutation.MessageDismissed -> state.copy(message = null)
+        PracticeMutation.MessageDismissed -> state.copy(message = null, retryable = false)
     }
 
     private fun elapsed(running: RunningSession?, now: Instant): Long =
@@ -58,9 +62,9 @@ object PracticeReducer {
     /** `TooShort` descarta la sesión en curso; `NotRunning` ya no hay nada que guardar. */
     private fun failed(state: PracticeState, failure: Throwable) = when (failure) {
         PracticeFailure.TooShort ->
-            state.copy(showSave = false, draftNotes = "", message = PracticeMessage.TOO_SHORT)
+            state.copy(showSave = false, draftNotes = "", message = PracticeMessage.TOO_SHORT, retryable = false)
         PracticeFailure.NotRunning -> state.copy(showSave = false, draftNotes = "")
-        else -> state.copy(message = messageOf(failure))
+        else -> state.copy(message = messageOf(failure), retryable = false)
     }
 
     private fun messageOf(failure: Throwable) = when (failure) {

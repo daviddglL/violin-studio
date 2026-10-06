@@ -446,4 +446,12 @@ class PracticeViewModelTest {
         assertEquals("", vm.state.value.draftNotes)
         assertNull(vm.state.value.running)
     }
+
+    @Test
+    fun `un fallo del flujo de perfil queda como aviso reintentable`() = test {
+        every { observeProfile() } returns flow { throw PracticeFailure.PermissionDenied }
+        val vm = ready()
+        assertEquals(PracticeMessage.PERMISSION_DENIED, vm.state.value.message)
+        assertTrue(vm.state.value.retryable)
+    }
 }
