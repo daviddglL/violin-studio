@@ -45,10 +45,13 @@ class MetronomeRouteTest {
 
     private val active = AtomicInteger()
     private val maxActive = AtomicInteger()
+    private val plays = AtomicInteger()
+    private var changing = false
     private val owner = TestOwner()
     private var shown by mutableStateOf(true)
     private val output = object : AudioOutput {
         override fun play(generator: PcmGenerator): Flow<Long> = flow {
+            plays.incrementAndGet()
             maxActive.accumulateAndGet(active.incrementAndGet(), ::maxOf)
             try {
                 awaitCancellation()
@@ -68,7 +71,13 @@ class MetronomeRouteTest {
         compose.setContent {
             ViolinStudioTheme {
                 CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-                    if (shown) MetronomeRoute(onBack = {}, viewModel = viewModel)
+                    if (shown) {
+                        MetronomeRoute(
+                            onBack = {},
+                            viewModel = viewModel,
+                            isChangingConfigurations = { changing }
+                        )
+                    }
                 }
             }
         }
@@ -80,34 +89,34 @@ class MetronomeRouteTest {
     private fun awaitActive(expected: Int) = compose.waitUntil(5_000) { active.get() == expected }
 
     @Test
-    fun onStopSilencesTheMetronomeAndOnStartResumesItOnce() {
+    fun `al pasar a segundo plano se para y al volver sigue parado`() {
         playing()
         compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.CREATED }
         awaitActive(0)
         compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.STARTED }
-        awaitActive(1)
-        compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.CREATED }
-        compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.STARTED }
-        awaitActive(1)
-        assertEquals(1, maxActive.get())
+        compose.waitForIdle()
+        assertEquals(0, active.get())
+        assertEquals(1, plays.get())
     }
 
     @Test
-    fun leavingTheRouteSilencesItEvenWithoutOnStop() {
+    fun `salir de la ruta con atras para el metronomo aunque no llegue ON_STOP`() {
         playing()
         compose.runOnUiThread { shown = false }
         awaitActive(0)
     }
 
     @Test
-    fun rotationResumesExactlyOnce() {
+    fun `rotar sigue sonando con una unica salida`() {
         playing()
+        changing = true
         compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.CREATED }
         compose.runOnUiThread { shown = false }
-        awaitActive(0)
         compose.runOnUiThread { shown = true }
         compose.runOnUiThread { owner.registry.currentState = Lifecycle.State.STARTED }
-        awaitActive(1)
+        compose.waitForIdle()
+        assertEquals(1, active.get())
+        assertEquals(1, plays.get())
         assertEquals(1, maxActive.get())
     }
 }
