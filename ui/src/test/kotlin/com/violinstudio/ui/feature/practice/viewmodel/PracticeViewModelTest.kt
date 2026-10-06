@@ -70,9 +70,13 @@ class PracticeViewModelTest {
     private val weekly = mockk<WeeklyPracticeTotalUseCase> {
         every { this@mockk() } answers {
             val n = ++weeklyCalls
-            if (weeklyFailing) flow { throw PracticeFailure.PermissionDenied } else flow {
-                emit(600 * n)
-                awaitCancellation()
+            if (weeklyFailing) {
+                flow { throw PracticeFailure.PermissionDenied }
+            } else {
+                flow {
+                    emit(600 * n)
+                    awaitCancellation()
+                }
             }
         }
     }
