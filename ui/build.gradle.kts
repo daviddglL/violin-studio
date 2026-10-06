@@ -9,9 +9,6 @@ plugins {
 
 android {
     namespace = "com.violinstudio.ui"
-    // values (es) es el idioma por defecto y values-en solo trae las claves de la fase 3: la línea base recoge las
-    // claves heredadas sin traducir; cualquier clave nueva sin traducción vuelve a fallar.
-    lint { baseline = file("lint-baseline.xml") }
 }
 
 configureCoverage(
@@ -28,6 +25,7 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

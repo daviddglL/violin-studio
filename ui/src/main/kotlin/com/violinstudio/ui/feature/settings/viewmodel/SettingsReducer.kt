@@ -33,6 +33,7 @@ object SettingsReducer {
         is SettingsMutation.RevokeFailed -> state.copy(isRevoking = false, revokeError = mutation.error)
         SettingsMutation.RevokeStalled ->
             if (state.revoked) state.copy(revoked = false, revokeStalled = true) else state
+        is SettingsMutation.LanguageSelected -> state.copy(language = mutation.value)
         SettingsMutation.RefreshRetried ->
             if (state.revokeStalled) state.copy(revokeStalled = false, revoked = true) else state
     }

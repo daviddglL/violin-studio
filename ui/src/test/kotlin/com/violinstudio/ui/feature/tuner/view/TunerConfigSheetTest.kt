@@ -100,9 +100,9 @@ class TunerConfigSheetTest {
             ConfigError.REFERENCE_PITCH to "Introduce un valor entre 415 y 466 Hz",
             ConfigError.MAX_CENTS to "Introduce un valor entre 25 y 200 cents",
             ConfigError.LABEL to "El nombre debe tener entre 1 y 30 caracteres",
-            ConfigError.DUPLICATE_LABEL to "Ya tienes un preset con ese nombre",
-            ConfigError.PRESET_LIMIT to "Has alcanzado el máximo de 20 presets",
-            ConfigError.PRESET_NOT_FOUND to "Ese preset ya no existe",
+            ConfigError.DUPLICATE_LABEL to "Ya tienes una afinación con ese nombre",
+            ConfigError.PRESET_LIMIT to "Has alcanzado el máximo de 20 afinaciones guardadas",
+            ConfigError.PRESET_NOT_FOUND to "Esa afinación ya no existe",
             ConfigError.STORAGE to "No se pudo guardar en el dispositivo",
             ConfigError.NO_SESSION to "Tu sesión ha caducado. Vuelve a iniciar sesión",
             ConfigError.UNKNOWN to "No se pudo guardar la configuración"

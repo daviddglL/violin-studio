@@ -4,6 +4,7 @@ import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.EditableProfile
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.UserProfile
+import com.violinstudio.ui.commons.locale.AppLanguage
 import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
@@ -46,7 +47,10 @@ data class SettingsState(
     val revokeStalled: Boolean = false,
 
     /** Solo la pantalla lo fija: el flujo compartido de borrar la cuenta esta abierto o terminado. */
-    val deleteActive: Boolean = false
+    val deleteActive: Boolean = false,
+
+    /** Idioma de la app elegido (local al dispositivo; no forma parte del perfil). */
+    val language: AppLanguage = AppLanguage.SYSTEM
 ) : UiState {
     val loaded: Boolean get() = baseline != null
     val busy: Boolean get() = isSaving || isRevoking || revoked || confirmingRevoke || deleteActive
@@ -67,6 +71,10 @@ sealed interface SettingsIntent : UiIntent {
     data object RevokeConsent : SettingsIntent
     data object ConfirmRevoke : SettingsIntent
     data object CancelRevoke : SettingsIntent
+    data class LanguageSelected(val value: AppLanguage) : SettingsIntent
+
+    /** Al volver a la pantalla: el idioma pudo cambiarse desde los ajustes del sistema (Android 13+). */
+    data object RefreshLanguage : SettingsIntent
 
     /** Tras una revocacion que la sesion no refleja: vuelve a pedir el refresco. */
     data object RetryRefresh : SettingsIntent
@@ -90,4 +98,5 @@ sealed interface SettingsMutation {
     data class RevokeFailed(val error: RevokeError) : SettingsMutation
     data object RevokeStalled : SettingsMutation
     data object RefreshRetried : SettingsMutation
+    data class LanguageSelected(val value: AppLanguage) : SettingsMutation
 }

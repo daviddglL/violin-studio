@@ -17,7 +17,7 @@ import org.robolectric.annotation.GraphicsMode
 /** Root states drawn through the real host: they must have the theme background, not the window default. */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(application = Application::class, qualifiers = "w411dp-h891dp-xxhdpi")
+@Config(application = Application::class, qualifiers = "es-rES-w411dp-h891dp-xxhdpi")
 class SessionRootScreenshotTest {
     @get:Rule
     val compose = createComposeRule()

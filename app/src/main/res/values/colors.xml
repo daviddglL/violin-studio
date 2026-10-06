@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mismo fondo que DarkBg de ViolinStudioTheme: evita el destello blanco al arrancar y al recrear la actividad. -->
+    <color name="violin_window_background">#FF1C1B1F</color>
+</resources>

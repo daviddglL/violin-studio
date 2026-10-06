@@ -32,10 +32,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.R
+import com.violinstudio.ui.commons.locale.AppLanguage
 import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.auth.view.AuthMessage
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
@@ -58,9 +61,12 @@ const val SETTINGS_BACK_TAG = "settings_back"
 
 fun settingsInstrumentTag(wire: String) = "settings_instrument_$wire"
 
+fun settingsLanguageTag(language: AppLanguage) = "settings_language_${language.name.lowercase()}"
+
 @Composable
 fun SettingsRoute(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onIntent(SettingsIntent.RefreshLanguage) }
     SettingsScreen(state, viewModel::onIntent, onBack)
 }
 
@@ -72,8 +78,10 @@ fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, onB
     AuthScaffold(SETTINGS_TAG, stringResource(R.string.settings_title)) {
         if (!shown.loaded) {
             Text(stringResource(R.string.settings_loading), Modifier.polite())
+            LanguageSection(shown, onIntent)
         } else {
             ProfileForm(shown, onIntent)
+            LanguageSection(shown, onIntent)
             PrivacySection(shown, onIntent)
             delete.entry(!shown.busy)
         }
@@ -83,6 +91,38 @@ fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, onB
             modifier = Modifier.testTag(SETTINGS_BACK_TAG)
         ) { Text(stringResource(R.string.settings_back)) }
     }
+}
+
+/** Idioma de la app: local al dispositivo, así que no espera al perfil ni se bloquea mientras se guarda. */
+@Composable
+private fun LanguageSection(state: SettingsState, onIntent: (SettingsIntent) -> Unit) {
+    Text(
+        stringResource(R.string.settings_language_title),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp).semantics { heading() }
+    )
+    Column(Modifier.fillMaxWidth().selectableGroup()) {
+        for (language in AppLanguage.entries) {
+            val selected = state.language == language
+            Row(
+                Modifier.fillMaxWidth().selectable(
+                    selected = selected,
+                    onClick = { onIntent(SettingsIntent.LanguageSelected(language)) },
+                    role = Role.RadioButton
+                ).testTag(settingsLanguageTag(language)),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(selected = selected, onClick = null)
+                Text(stringResource(language.labelRes()), Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
+            }
+        }
+    }
+}
+
+private fun AppLanguage.labelRes() = when (this) {
+    AppLanguage.SYSTEM -> R.string.settings_language_system
+    AppLanguage.SPANISH -> R.string.settings_language_es
+    AppLanguage.ENGLISH -> R.string.settings_language_en
 }
 
 @Composable

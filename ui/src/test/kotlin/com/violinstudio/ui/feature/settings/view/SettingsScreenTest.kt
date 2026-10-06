@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,6 +27,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.R
+import com.violinstudio.ui.commons.locale.AppLanguage
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.account.view.FAKE_DELETE_TAG
 import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
@@ -239,5 +241,39 @@ class SettingsScreenTest {
         compose.onNodeWithTag(SETTINGS_REVOKE_TAG).assertDoesNotExist()
         compose.onNodeWithTag(SETTINGS_BACK_TAG).performScrollTo().assertIsEnabled()
         compose.onNodeWithTag(SETTINGS_NAME_TAG).assertIsEnabled()
+    }
+
+    @Test
+    fun `ofrece las tres opciones de idioma y marca la actual`() {
+        show(loaded.copy(language = AppLanguage.ENGLISH))
+        compose.onNodeWithText(text(R.string.settings_language_title)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(settingsLanguageTag(AppLanguage.SYSTEM)).performScrollTo().assertIsNotSelected()
+        compose.onNodeWithTag(settingsLanguageTag(AppLanguage.SPANISH)).performScrollTo().assertIsNotSelected()
+        compose.onNodeWithTag(settingsLanguageTag(AppLanguage.ENGLISH)).performScrollTo().assertIsSelected()
+        compose.onNodeWithText(text(R.string.settings_language_system)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.settings_language_es)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.settings_language_en)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `elegir cada opcion de idioma envia su intent`() {
+        show(loaded)
+        for (language in listOf(AppLanguage.ENGLISH, AppLanguage.SPANISH, AppLanguage.SYSTEM)) {
+            compose.onNodeWithTag(settingsLanguageTag(language)).performScrollTo().performClick()
+        }
+        assertEquals(
+            listOf<SettingsIntent>(
+                SettingsIntent.LanguageSelected(AppLanguage.ENGLISH),
+                SettingsIntent.LanguageSelected(AppLanguage.SPANISH),
+                SettingsIntent.LanguageSelected(AppLanguage.SYSTEM)
+            ),
+            intents
+        )
+    }
+
+    @Test
+    fun `el selector de idioma no depende de que el perfil haya cargado`() {
+        show(SettingsState(language = AppLanguage.SPANISH))
+        compose.onNodeWithTag(settingsLanguageTag(AppLanguage.SPANISH)).assertIsSelected()
     }
 }

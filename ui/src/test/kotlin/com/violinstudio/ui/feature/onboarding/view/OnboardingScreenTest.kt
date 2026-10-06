@@ -44,7 +44,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(application = Application::class)
+@Config(application = Application::class, qualifiers = "es")
 class OnboardingScreenTest {
     @get:Rule
     val compose = createComposeRule()

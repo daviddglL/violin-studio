@@ -12,6 +12,8 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.domain.feature.profile.usecase.UpdateProfileUseCase
 import com.violinstudio.domain.feature.session.SessionRefreshTrigger
+import com.violinstudio.ui.commons.locale.AppLanguage
+import com.violinstudio.ui.commons.locale.FakeAppLocales
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -47,8 +49,10 @@ class SettingsViewModelTest {
     private val update = mockk<UpdateProfileUseCase>()
     private val revoke = mockk<RevokeConsentUseCase>()
     private val trigger = SessionRefreshTrigger()
+    private val locales = FakeAppLocales()
 
-    private fun viewModel() = SettingsViewModel(observe, update, revoke, trigger)
+    private fun viewModel(appLocales: FakeAppLocales = locales) =
+        SettingsViewModel(observe, update, revoke, trigger, appLocales)
 
     private fun TestScope.refreshCount(): () -> Int {
         var count = 0
@@ -276,5 +280,81 @@ class SettingsViewModelTest {
         vm.onIntent(SettingsIntent.RetryRefresh)
         advanceUntilIdle()
         assertEquals(0, refreshes())
+    }
+
+    @Test
+    fun `sin idioma aplicado la seleccion inicial es el idioma del sistema`() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+        assertEquals(AppLanguage.SYSTEM, vm.state.value.language)
+    }
+
+    @Test
+    fun `el idioma ya aplicado se muestra como seleccionado al abrir ajustes`() = runTest {
+        val vm = viewModel(FakeAppLocales(listOf("en-GB")))
+        advanceUntilIdle()
+        assertEquals(AppLanguage.ENGLISH, vm.state.value.language)
+    }
+
+    @Test
+    fun `elegir espanol aplica la lista es y lo marca como seleccionado`() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.LanguageSelected(AppLanguage.SPANISH))
+        advanceUntilIdle()
+        assertEquals(listOf(listOf("es")), locales.applied)
+        assertEquals(AppLanguage.SPANISH, vm.state.value.language)
+    }
+
+    @Test
+    fun `elegir ingles aplica la lista en`() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.LanguageSelected(AppLanguage.ENGLISH))
+        advanceUntilIdle()
+        assertEquals(listOf(listOf("en")), locales.applied)
+        assertEquals(AppLanguage.ENGLISH, vm.state.value.language)
+    }
+
+    @Test
+    fun `elegir idioma del sistema aplica la lista vacia`() = runTest {
+        val vm = viewModel(FakeAppLocales(listOf("en")))
+        advanceUntilIdle()
+        assertEquals(AppLanguage.ENGLISH, vm.state.value.language)
+        vm.onIntent(SettingsIntent.LanguageSelected(AppLanguage.SYSTEM))
+        advanceUntilIdle()
+        assertEquals(AppLanguage.SYSTEM, vm.state.value.language)
+    }
+
+    @Test
+    fun `volver al idioma del sistema envia exactamente la lista vacia`() = runTest {
+        val spy = FakeAppLocales(listOf("en"))
+        val vm = viewModel(spy)
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.LanguageSelected(AppLanguage.SYSTEM))
+        advanceUntilIdle()
+        assertEquals(listOf(emptyList<String>()), spy.applied)
+    }
+
+    @Test
+    fun `al volver a la pantalla se relee el idioma cambiado desde los ajustes del sistema`() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+        assertEquals(AppLanguage.SYSTEM, vm.state.value.language)
+        locales.changeExternally(listOf("en"))
+        vm.onIntent(SettingsIntent.RefreshLanguage)
+        advanceUntilIdle()
+        assertEquals(AppLanguage.ENGLISH, vm.state.value.language)
+        assertEquals(emptyList<List<String>>(), locales.applied)
+    }
+
+    @Test
+    fun `cambiar de idioma no toca el formulario ni guarda el perfil`() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.LanguageSelected(AppLanguage.ENGLISH))
+        advanceUntilIdle()
+        assertFalse(vm.state.value.dirty)
+        coVerify(exactly = 0) { update(any()) }
     }
 }

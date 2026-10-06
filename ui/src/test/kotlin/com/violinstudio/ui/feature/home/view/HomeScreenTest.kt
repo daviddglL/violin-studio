@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(application = Application::class) // evita arrancar Hilt/Firebase en tests de UI
+@Config(application = Application::class, qualifiers = "es") // evita arrancar Hilt/Firebase en tests de UI
 class HomeScreenTest {
     @get:Rule
     val compose = createComposeRule()

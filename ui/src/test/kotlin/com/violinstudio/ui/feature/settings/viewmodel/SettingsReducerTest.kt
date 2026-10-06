@@ -2,6 +2,7 @@ package com.violinstudio.ui.feature.settings.viewmodel
 
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
+import com.violinstudio.ui.commons.locale.AppLanguage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -167,5 +168,18 @@ class SettingsReducerTest {
         assertTrue(retried.revoked)
         assertFalse(retried.revokeStalled)
         assertTrue(retried.busy)
+    }
+
+    @Test
+    fun `el idioma por defecto es el del sistema y la seleccion solo cambia el idioma`() {
+        assertEquals(AppLanguage.SYSTEM, SettingsState().language)
+        val english = reduce(loaded, SettingsMutation.LanguageSelected(AppLanguage.ENGLISH))
+        assertEquals(loaded.copy(language = AppLanguage.ENGLISH), english)
+    }
+
+    @Test
+    fun `el idioma se puede cambiar aunque el formulario este ocupado`() {
+        val busy = loaded.copy(isSaving = true)
+        assertEquals(AppLanguage.SPANISH, reduce(busy, SettingsMutation.LanguageSelected(AppLanguage.SPANISH)).language)
     }
 }

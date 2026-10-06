@@ -1,9 +1,9 @@
 package com.violinstudio.ui
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import com.violinstudio.ui.commons.auth.GoogleIdTokenRequester
 import com.violinstudio.ui.commons.auth.LocalGoogleIdTokenRequester
@@ -13,7 +13,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var googleIdTokenRequester: GoogleIdTokenRequester
 
