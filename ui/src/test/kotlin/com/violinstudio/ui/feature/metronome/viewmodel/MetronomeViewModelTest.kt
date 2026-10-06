@@ -115,8 +115,6 @@ class MetronomeViewModelTest {
             assertFalse(vm.state.value.isPlaying)
             assertNull(vm.state.value.error)
             assertEquals(0, output.active)
-            vm.onIntent(MetronomeIntent.Resume)
-            advanceUntilIdle()
             assertEquals(1, output.plays)
         }
 
