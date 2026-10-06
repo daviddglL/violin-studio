@@ -84,6 +84,7 @@ class TunerViewModelTest {
     private var toneFailure: Throwable? = null
     private var toneGate: CompletableDeferred<Unit>? = null
     private var toneStuck = false
+    private var toneEnds = false
     private val toneCalls = mutableListOf<Note>()
     private val playTone = mockk<PlayReferenceToneUseCase> {
         // any() no vale para value classes (mockk construiria ReferencePitch(0.0)): un stub por referencia.
@@ -103,7 +104,7 @@ class TunerViewModelTest {
             toneFailure?.let { throw it }
             toneGate?.await()
             emit(Unit)
-            awaitCancellation()
+            if (!toneEnds) awaitCancellation()
         } finally {
             toneActive--
             if (toneStuck) withContext(NonCancellable) { delay(10_000) }
@@ -496,6 +497,15 @@ class TunerViewModelTest {
         advanceUntilIdle()
         assertEquals(0, toneActive)
         assertFalse(vm.state.value.isPlayingReference)
+    }
+
+    @Test
+    fun `si la salida termina sola (perdida de foco de audio) el tono queda parado y sin error`() = runTest {
+        toneEnds = true
+        val vm = playingA3()
+        assertFalse(vm.state.value.isPlayingReference)
+        assertNull(vm.state.value.error)
+        assertEquals(0, toneActive)
     }
 
     @Test

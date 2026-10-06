@@ -59,7 +59,7 @@ class AudioTrackMetronomeIntegrationTest {
     @Test
     fun `los clics caen en los indices de muestra de cada tiempo`() {
         val track = RecordingTrack()
-        val output = AudioTrackOutput({ track }, executor.asCoroutineDispatcher())
+        val output = AudioTrackOutput({ track }, grantedFocus, executor.asCoroutineDispatcher())
         val scheduler = BeatScheduler(Tempo(120), TimeSignature.FOUR_FOUR)
         val perBeat = PcmFormat.SAMPLE_RATE / 2
         val target = perBeat * 2L + 2_000
@@ -79,7 +79,7 @@ class AudioTrackMetronomeIntegrationTest {
     @Test
     fun `el caso de uso con setTempo en vivo da ticks crecientes y clics en los indices escritos`() {
         val track = RecordingTrack(lag = 2 * PcmFormat.BLOCK_SIZE, realTime = true)
-        val output = AudioTrackOutput({ track }, executor.asCoroutineDispatcher())
+        val output = AudioTrackOutput({ track }, grantedFocus, executor.asCoroutineDispatcher())
         val session = RunMetronomeUseCase(output)(Tempo(240), TimeSignature.FOUR_FOUR)
         val ticks = Collections.synchronizedList(mutableListOf<BeatTick>())
         val changed = AtomicBoolean()

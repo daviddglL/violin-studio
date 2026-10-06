@@ -30,7 +30,11 @@ class NoAndroidInMainTest {
         "android.media.AudioAttributes",
         "android.media.AudioFormat",
         "android.media.AudioTrack"
-    ).map { "com/violinstudio/data/commons/audio/AndroidPcmTrackFactory.kt" to it }
+    ).map { "com/violinstudio/data/commons/audio/AndroidPcmTrackFactory.kt" to it } + listOf(
+        "android.media.AudioAttributes",
+        "android.media.AudioFocusRequest",
+        "android.media.AudioManager"
+    ).map { "com/violinstudio/data/commons/audio/AndroidAudioFocus.kt" to it }
 
     @Test
     fun `el codigo principal de data no importa android`() {
