@@ -35,11 +35,8 @@ sealed interface MetronomeIntent : UiIntent {
     /** Inicia o para; tras un fallo de la salida reintenta. */
     data object Toggle : MetronomeIntent
 
-    /** Parada manual o `ON_STOP`/salir de la ruta: idempotente; recuerda si habia que reanudar. */
+    /** Parada manual, `ON_STOP` o salir de la ruta: idempotente; no se reanuda sola al volver. */
     data object Stop : MetronomeIntent
-
-    /** `ON_START`: reanuda solo si se paro por `Stop` estando en marcha. */
-    data object Resume : MetronomeIntent
 }
 
 /** Sin efectos de un solo uso: todo pasa por el estado. */

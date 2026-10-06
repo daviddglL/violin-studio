@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Suena solo entre `Toggle`/`Resume` y `Stop`/destruccion del ViewModel (cancelar el `viewModelScope` para la
+ * Suena solo entre `Toggle` y `Stop`/destruccion del ViewModel (cancelar el `viewModelScope` para la
  * salida): no hay servicio. Cambiar el tempo es en vivo; cambiar el compas abre una sesion nueva tras cancelar y
  * esperar la anterior. Los intents se serializan en el hilo principal, el unico que toca el [TapTempoCalculator]
  * (no es thread-safe).
@@ -34,7 +34,6 @@ class MetronomeViewModel @Inject constructor(
     private val tapTempo = TapTempoCalculator(clock)
     private var session: MetronomeSession? = null
     private var playJob: Job? = null
-    private var resumeOnStart = false
 
     override suspend fun handleIntent(intent: MetronomeIntent) {
         when (intent) {
@@ -47,19 +46,9 @@ class MetronomeViewModel @Inject constructor(
             }
             MetronomeIntent.Tap -> tapTempo.tap()?.let { setBpm(it.bpm) }
             MetronomeIntent.Toggle -> {
-                resumeOnStart = false
                 if (state.value.isPlaying) stop() else start()
             }
-            MetronomeIntent.Stop -> {
-                // ON_STOP y salir de la composicion llegan seguidos al rotar: el segundo no borra la reanudacion.
-                resumeOnStart = resumeOnStart || state.value.isPlaying
-                stop()
-            }
-            MetronomeIntent.Resume -> {
-                val resume = resumeOnStart
-                resumeOnStart = false
-                if (resume) start()
-            }
+            MetronomeIntent.Stop -> stop()
         }
     }
 
@@ -84,7 +73,6 @@ class MetronomeViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                resumeOnStart = false
                 reduce(MetronomeMutation.Failed(e))
             }
         }

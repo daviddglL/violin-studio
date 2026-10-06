@@ -178,28 +178,14 @@ class MetronomeViewModelTest {
     }
 
     @Test
-    fun `Stop detiene y Resume reanuda solo si sonaba`() = runTest {
+    fun `Stop detiene, es idempotente y no se reanuda solo`() = runTest {
         val vm = playing()
         vm.onIntent(MetronomeIntent.Stop)
-        vm.onIntent(MetronomeIntent.Stop) // ON_STOP y onDispose seguidos (rotacion)
+        vm.onIntent(MetronomeIntent.Stop) // ON_STOP y onDispose seguidos
         advanceUntilIdle()
         assertEquals(0, output.active)
-        vm.onIntent(MetronomeIntent.Resume)
-        advanceUntilIdle()
-        assertEquals(1, output.active)
-        vm.onIntent(MetronomeIntent.Resume) // un segundo ON_START (p. ej. al rotar) no abre otra salida
-        advanceUntilIdle()
-        assertEquals(1, output.maxActive)
-        assertEquals(2, output.plays)
-    }
-
-    @Test
-    fun `Resume sin haber sonado no arranca`() = runTest {
-        val vm = vm()
-        vm.onIntent(MetronomeIntent.Stop)
-        vm.onIntent(MetronomeIntent.Resume)
-        advanceUntilIdle()
-        assertEquals(0, output.plays)
+        assertFalse(vm.state.value.isPlaying)
+        assertEquals(1, output.plays)
     }
 
     @Test
