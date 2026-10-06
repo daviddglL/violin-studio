@@ -16,6 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
@@ -72,31 +73,44 @@ class AudioTrackOutput @Inject constructor(
         playLock.withLock {
             // Un callback de foco corre en otro hilo: solo completa esto (nunca toca la pista ni bloquea).
             val lost = CompletableDeferred<Unit>()
-            val lease = withContext(Dispatchers.IO) { focus.request { lost.complete(Unit) } }
-                ?: throw TunerFailure.AudioOutputUnavailable
+            var lease: AudioFocusLease? = null
+            var opened: Session? = null
             try {
-                val session = Session(withContext(Dispatchers.IO) { open() })
-                try {
-                    coroutineScope {
-                        val writer = launch(dispatcher) { writeLoop(session, generator) }
-                        val position = PlaybackPosition()
-                        try {
-                            // Perder el foco termina el flujo con normalidad (no es un error) y no se reanuda.
-                            while (withTimeoutOrNull(POSITION_INTERVAL_MS) { lost.await() } == null) {
-                                send(position.update(session.track.playbackHeadPosition()))
-                            }
-                        } finally {
-                            withContext(NonCancellable + Dispatchers.IO) { close(session, writer, position) }
+                // Peticion y creacion NO cancelables: si se cancela mientras corren, el resultado (foco o pista)
+                // ya existe y lo recoge el `finally`; con `withContext` cancelable se perderia y se filtraria.
+                withContext(NonCancellable + Dispatchers.IO) { lease = requestFocus { lost.complete(Unit) } }
+                ensureActive()
+                withContext(NonCancellable + Dispatchers.IO) { opened = Session(open()) }
+                val session = opened!!
+                coroutineScope {
+                    val writer = launch(dispatcher) { writeLoop(session, generator) }
+                    val position = PlaybackPosition()
+                    try {
+                        // Perder el foco termina el flujo con normalidad (no es un error) y no se reanuda.
+                        while (withTimeoutOrNull(POSITION_INTERVAL_MS) { lost.await() } == null) {
+                            send(position.update(session.track.playbackHeadPosition()))
                         }
+                    } finally {
+                        withContext(NonCancellable + Dispatchers.IO) { close(session, writer, position) }
                     }
-                } finally {
-                    withContext(NonCancellable + Dispatchers.IO) { session.releaseOnce() }
                 }
             } finally {
-                withContext(NonCancellable + Dispatchers.IO) { lease.abandon() }
+                withContext(NonCancellable + Dispatchers.IO) {
+                    opened?.releaseOnce()
+                    lease?.abandon()
+                }
             }
         }
     }
+
+    /** Denegado o con fallo del sistema: salida no disponible (sin foco concedido no hay nada que abandonar). */
+    private fun requestFocus(onLoss: () -> Unit): AudioFocusLease = try {
+        focus.request(onLoss)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    } ?: throw TunerFailure.AudioOutputUnavailable
 
     private fun open(): PcmTrack = try {
         factory.create(PcmFormat.BLOCK_SIZE)

@@ -38,8 +38,13 @@ class AudioTrackOutputFocusTest {
     }
 
     /** Foco fake: concede o deniega, registra en [events] y guarda el aviso de perdida para dispararlo a mano. */
-    private inner class FakeFocus(private val grant: Boolean = true) : AudioFocus {
+    private inner class FakeFocus(
+        private val grant: Boolean = true,
+        private val gate: CountDownLatch? = null,
+        private val failure: RuntimeException? = null
+    ) : AudioFocus {
         val requests = AtomicInteger()
+        val requested = CountDownLatch(1)
         val abandons = AtomicInteger()
 
         @Volatile var onLoss: (() -> Unit)? = null
@@ -47,6 +52,9 @@ class AudioTrackOutputFocusTest {
         override fun request(onLoss: () -> Unit): AudioFocusLease? {
             requests.incrementAndGet()
             events += "request"
+            requested.countDown()
+            gate?.await(10, TimeUnit.SECONDS)
+            failure?.let { throw it }
             if (!grant) return null
             this.onLoss = onLoss
             return AudioFocusLease {
@@ -148,7 +156,9 @@ class AudioTrackOutputFocusTest {
         val focus = FakeFocus()
         val track = Track()
         val job = launch { output(focus) { track }.play(silence).collect { } }
-        withContext(Dispatchers.IO) { while (events.count { it == "write" } < 3) Thread.sleep(1) }
+        withContext(Dispatchers.IO) {
+            while (synchronized(events) { events.count { it == "write" } } < 3) Thread.sleep(1)
+        }
         focus.onLoss!!.invoke()
         assertJoined(job)
         assertFalse(job.isCancelled, "perder el foco no es un error")
@@ -166,6 +176,66 @@ class AudioTrackOutputFocusTest {
         withContext(Dispatchers.IO) { caller.join(5_000) }
         assertFalse(caller.isAlive)
         assertJoined(job)
+        assertEquals(1, track.releases.get())
+        assertEquals(1, focus.abandons.get())
+    }
+
+    @Test
+    fun `cancelar mientras se pide el foco no filtra un foco concedido`() = runBlocking {
+        val gate = CountDownLatch(1)
+        val focus = FakeFocus(gate = gate)
+        val job = launch { output(focus) { Track() }.play(silence).collect { } }
+        assertTrue(withContext(Dispatchers.IO) { focus.requested.await(5, TimeUnit.SECONDS) })
+        job.cancel()
+        gate.countDown()
+        assertJoined(job)
+        assertEquals(1, focus.abandons.get())
+    }
+
+    @Test
+    fun `cancelar mientras se crea la pista no la filtra y abandona el foco una vez`() = runBlocking {
+        val gate = CountDownLatch(1)
+        val creating = CountDownLatch(1)
+        val focus = FakeFocus()
+        val track = Track()
+        val out = AudioTrackOutput(
+            {
+                creating.countDown()
+                gate.await(10, TimeUnit.SECONDS)
+                track
+            },
+            focus,
+            dispatcher
+        )
+        val job = launch { out.play(silence).collect { } }
+        assertTrue(withContext(Dispatchers.IO) { creating.await(5, TimeUnit.SECONDS) })
+        job.cancel()
+        gate.countDown()
+        assertJoined(job)
+        assertEquals(1, track.releases.get())
+        assertEquals(1, focus.abandons.get())
+    }
+
+    @Test
+    fun `si pedir el foco lanza llega como salida no disponible`() = runBlocking {
+        val focus = FakeFocus(failure = IllegalStateException("audio"))
+        val result = runCatching { withTimeout(5_000) { output(focus) { Track() }.play(silence).collect { } } }
+        assertSame(TunerFailure.AudioOutputUnavailable, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `perder el foco mientras se crea la pista termina limpio con una liberacion y un abandono`() = runBlocking {
+        val focus = FakeFocus()
+        val track = Track()
+        val out = AudioTrackOutput(
+            {
+                focus.onLoss!!.invoke()
+                track
+            },
+            focus,
+            dispatcher
+        )
+        withTimeout(5_000) { out.play(silence).collect { } }
         assertEquals(1, track.releases.get())
         assertEquals(1, focus.abandons.get())
     }
