@@ -23,6 +23,8 @@ import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
 import com.violinstudio.ui.feature.auth.view.LOGIN_TAG
 import com.violinstudio.ui.feature.auth.view.REGISTER_TAG
 import com.violinstudio.ui.feature.auth.view.VERIFY_EMAIL_TAG
+import com.violinstudio.ui.feature.consent.view.CONSENT_CHECKBOX_TAG
+import com.violinstudio.ui.feature.consent.view.CONSENT_TAG
 import com.violinstudio.ui.feature.onboarding.view.ONBOARDING_DAY_TAG
 import com.violinstudio.ui.feature.onboarding.view.ONBOARDING_MONTH_TAG
 import com.violinstudio.ui.feature.onboarding.view.ONBOARDING_NAME_TAG
@@ -31,6 +33,7 @@ import com.violinstudio.ui.feature.onboarding.view.ONBOARDING_YEAR_TAG
 import com.violinstudio.ui.feature.onboarding.view.onboardingInstrumentTag
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.LocalDate
 import java.util.UUID
 import org.json.JSONObject
 
@@ -99,6 +102,12 @@ object Emulators {
     fun consentCount(uid: String): Int = docs("users/$uid/consents").size
 
     fun docExists(path: String): Boolean = request("GET", docsUrl(path)).code == 200
+
+    /** Documentos de `users/{uid}/practiceSessions` (vacia -> lista vacia). */
+    fun practiceSessions(uid: String): List<JSONObject> = docs("users/$uid/practiceSessions")
+
+    /** Id (ultimo segmento de la ruta) de un documento devuelto por [docs]. */
+    fun docId(doc: JSONObject): String = doc.getString("name").substringAfterLast('/')
 
     /** Ids de documentos de una coleccion (vacia -> lista vacia). */
     fun docs(collectionPath: String, pageSize: Int = 300): List<JSONObject> {
@@ -226,6 +235,22 @@ class Journey(private val compose: ComposeTestRule) {
         type(ONBOARDING_MONTH_TAG, "01")
         type(ONBOARDING_YEAR_TAG, year.toString())
         click(AUTH_SUBMIT_TAG)
+    }
+
+    /** Acepta la politica en la pantalla de consentimiento (adulto con sesion hasta consentimiento). */
+    fun acceptPolicy() {
+        waitForTag(CONSENT_TAG)
+        click(CONSENT_CHECKBOX_TAG)
+        click(AUTH_SUBMIT_TAG)
+    }
+
+    /** Alta, verificacion, onboarding de un adulto y consentimiento: termina en Home (usuario `Ready`). */
+    fun registerUpToHome(email: String, adultBirthYear: Int = LocalDate.now().year - 30) {
+        register(email)
+        verifyEmail(email)
+        onboard(adultBirthYear)
+        acceptPolicy()
+        waitForTag("home_settings")
     }
 
     /** Abre el flujo compartido de borrado de la pantalla actual y lo confirma (la cuenta es recien creada: sin reautenticar). */

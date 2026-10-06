@@ -78,5 +78,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
+    androidTestImplementation(libs.firebase.firestore)
     kspAndroidTest(libs.hilt.compiler)
 }

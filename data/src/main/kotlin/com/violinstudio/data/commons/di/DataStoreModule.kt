@@ -19,12 +19,20 @@ import kotlinx.coroutines.SupervisorJob
 @Module
 @InstallIn(SingletonComponent::class)
 object DataStoreModule {
-    /** DataStore exige una sola instancia por fichero en el proceso. */
+    @Volatile
+    private var userLocal: DataStore<Preferences>? = null
+
+    /**
+     * DataStore exige una sola instancia por fichero en el proceso. `@Singleton` solo garantiza una por componente
+     * de Hilt (los tests instrumentados crean uno por test), así que la instancia vive a nivel de proceso.
+     */
     @Provides
     @Singleton
     fun provideUserLocalDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
-        createUserLocalDataStore(
-            context.preferencesDataStoreFile(USER_LOCAL_STORE_NAME),
-            CoroutineScope(Dispatchers.IO + SupervisorJob())
-        )
+        userLocal ?: synchronized(this) {
+            userLocal ?: createUserLocalDataStore(
+                context.preferencesDataStoreFile(USER_LOCAL_STORE_NAME),
+                CoroutineScope(Dispatchers.IO + SupervisorJob())
+            ).also { userLocal = it }
+        }
 }
