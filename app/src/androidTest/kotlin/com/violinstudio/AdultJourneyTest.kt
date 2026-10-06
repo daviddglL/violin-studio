@@ -7,13 +7,10 @@ import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_PASSWORD_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
 import com.violinstudio.ui.feature.auth.view.LOGIN_TAG
-import com.violinstudio.ui.feature.consent.view.CONSENT_CHECKBOX_TAG
-import com.violinstudio.ui.feature.consent.view.CONSENT_TAG
 import com.violinstudio.ui.feature.settings.view.SETTINGS_REVOKE_CONFIRM_TAG
 import com.violinstudio.ui.feature.settings.view.SETTINGS_REVOKE_TAG
 import com.violinstudio.ui.feature.settings.view.SETTINGS_TAG
 import dagger.hilt.android.testing.HiltAndroidTest
-import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -25,22 +22,6 @@ import org.junit.runner.RunWith
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class AdultJourneyTest : E2eTest() {
-    private val adultBirthYear = LocalDate.now().year - 30
-
-    private fun acceptPolicy() {
-        journey.waitForTag(CONSENT_TAG)
-        journey.click(CONSENT_CHECKBOX_TAG)
-        journey.click(AUTH_SUBMIT_TAG)
-    }
-
-    private fun registerUpToHome(email: String) {
-        journey.register(email)
-        journey.verifyEmail(email)
-        journey.onboard(adultBirthYear)
-        acceptPolicy()
-        journey.waitForTag("home_settings")
-    }
-
     private fun awaitConsent(uid: String, status: String, atLeast: Int) =
         awaitBackend("users/$uid con consentStatus=$status y >= $atLeast consentimientos") {
             Emulators.stringField("users/$uid", "consentStatus") == status && Emulators.consentCount(uid) >= atLeast
@@ -54,7 +35,7 @@ class AdultJourneyTest : E2eTest() {
     @Test
     fun adultRegistersConsentsRevokesReconsentsAndDeletesTheAccount() {
         val email = uniqueEmail("adult")
-        registerUpToHome(email)
+        journey.registerUpToHome(email)
         val uid = checkNotNull(Emulators.authUser(email)).getString("localId")
         awaitConsent(uid, "granted", atLeast = 1)
 
@@ -69,7 +50,7 @@ class AdultJourneyTest : E2eTest() {
         journey.waitForText("Vuelve a aceptar la política")
         awaitConsent(uid, "revoked", atLeast = 1)
         val before = Emulators.consentCount(uid)
-        acceptPolicy()
+        journey.acceptPolicy()
         journey.waitForTag("home_settings")
         awaitConsent(uid, "granted", atLeast = before + 1)
 
@@ -91,7 +72,7 @@ class AdultJourneyTest : E2eTest() {
     @Test
     fun deletingTheAccountLeavesNothingInTheBackend() {
         val email = uniqueEmail("erase")
-        registerUpToHome(email)
+        journey.registerUpToHome(email)
         val uid = checkNotNull(Emulators.authUser(email)).getString("localId")
         // Precondiciones: hay datos que borrar (perfil y al menos un consentimiento).
         assertTrue(Emulators.docExists("users/$uid"))
