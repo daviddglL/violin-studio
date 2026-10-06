@@ -11,12 +11,14 @@ import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -40,6 +42,7 @@ private class FakeOutput : AudioOutput {
     var plays = 0
     var failure: Throwable? = null
     var stuck = false
+    val end = CompletableDeferred<Unit>()
     lateinit var generator: MetronomeGenerator
 
     override fun play(generator: PcmGenerator): Flow<Long> = flow {
@@ -48,7 +51,7 @@ private class FakeOutput : AudioOutput {
         this@FakeOutput.generator = generator as MetronomeGenerator
         try {
             failure?.let { throw it }
-            played.collect { emit(it) }
+            played.takeWhile { !end.isCompleted }.collect { emit(it) }
         } finally {
             active--
             if (stuck) withContext(NonCancellable) { delay(10_000) }
@@ -101,6 +104,19 @@ class MetronomeViewModelTest {
         assertFalse(vm.state.value.isPlaying)
         assertNull(vm.state.value.tick)
     }
+
+    @Test
+    fun `si la salida termina sola (perdida de foco de audio) el metronomo queda parado sin error ni reanudar`() =
+        runTest {
+            val vm = playing()
+            output.end.complete(Unit)
+            output.played.emit(1)
+            advanceUntilIdle()
+            assertFalse(vm.state.value.isPlaying)
+            assertNull(vm.state.value.error)
+            assertEquals(0, output.active)
+            assertEquals(1, output.plays)
+        }
 
     @Test
     fun `cambiar el bpm sonando se aplica en vivo sin reiniciar`() = runTest {

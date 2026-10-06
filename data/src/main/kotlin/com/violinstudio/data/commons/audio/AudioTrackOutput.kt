@@ -9,12 +9,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
@@ -33,12 +35,16 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - Cancelar: el escritor entrega el bloque de [PcmGenerator.finish], se espera (max [CLOSE_TIMEOUT_MS]) a que la
  *   cabeza de reproduccion lo alcance y se libera. Si el `write` esta atascado, vence el limite y `release` lo
  *   desbloquea: la liberacion ocurre ANTES de esperar al escritor, asi que cancelar nunca se queda colgado.
+ * - Foco de audio: se pide (transitorio) antes de crear la pista; si se deniega no suena y llega como fallo. Al
+ *   perderlo ([AudioFocus]) se cierra como al cancelar y el flujo termina sin error, sin reanudar al recuperarlo.
+ *   El foco se abandona siempre una vez, despues de liberar la pista.
  * - Los fallos (crear, `play`, `fill`, `write`) llegan como [TunerFailure.AudioOutputUnavailable]; los errores
  *   posteriores a la cancelacion se ignoran.
  */
 @Singleton
 class AudioTrackOutput @Inject constructor(
     private val factory: PcmTrackFactory,
+    private val focus: AudioFocus,
     @param:AudioOutputDispatcher private val dispatcher: CoroutineDispatcher
 ) : AudioOutput {
     private val playLock = Mutex()
@@ -65,14 +71,23 @@ class AudioTrackOutput @Inject constructor(
 
     override fun play(generator: PcmGenerator): Flow<Long> = channelFlow {
         playLock.withLock {
-            val session = Session(withContext(Dispatchers.IO) { open() })
+            // Un callback de foco corre en otro hilo: solo completa esto (nunca toca la pista ni bloquea).
+            val lost = CompletableDeferred<Unit>()
+            var lease: AudioFocusLease? = null
+            var opened: Session? = null
             try {
+                // Peticion y creacion NO cancelables: si se cancela mientras corren, el resultado (foco o pista)
+                // ya existe y lo recoge el `finally`; con `withContext` cancelable se perderia y se filtraria.
+                withContext(NonCancellable + Dispatchers.IO) { lease = requestFocus { lost.complete(Unit) } }
+                ensureActive()
+                withContext(NonCancellable + Dispatchers.IO) { opened = Session(open()) }
+                val session = opened!!
                 coroutineScope {
                     val writer = launch(dispatcher) { writeLoop(session, generator) }
                     val position = PlaybackPosition()
                     try {
-                        while (true) {
-                            delay(POSITION_INTERVAL_MS)
+                        // Perder el foco termina el flujo con normalidad (no es un error) y no se reanuda.
+                        while (withTimeoutOrNull(POSITION_INTERVAL_MS) { lost.await() } == null) {
                             send(position.update(session.track.playbackHeadPosition()))
                         }
                     } finally {
@@ -80,10 +95,22 @@ class AudioTrackOutput @Inject constructor(
                     }
                 }
             } finally {
-                withContext(NonCancellable + Dispatchers.IO) { session.releaseOnce() }
+                withContext(NonCancellable + Dispatchers.IO) {
+                    opened?.releaseOnce()
+                    lease?.abandon()
+                }
             }
         }
     }
+
+    /** Denegado o con fallo del sistema: salida no disponible (sin foco concedido no hay nada que abandonar). */
+    private fun requestFocus(onLoss: () -> Unit): AudioFocusLease = try {
+        focus.request(onLoss)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    } ?: throw TunerFailure.AudioOutputUnavailable
 
     private fun open(): PcmTrack = try {
         factory.create(PcmFormat.BLOCK_SIZE)

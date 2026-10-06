@@ -1,6 +1,8 @@
 package com.violinstudio.data.commons.di
 
+import com.violinstudio.data.commons.audio.AndroidAudioFocus
 import com.violinstudio.data.commons.audio.AndroidPcmTrackFactory
+import com.violinstudio.data.commons.audio.AudioFocus
 import com.violinstudio.data.commons.audio.AudioTrackOutput
 import com.violinstudio.data.commons.audio.PcmTrackFactory
 import com.violinstudio.data.feature.account.repository.AccountRepositoryImpl
@@ -82,6 +84,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindPcmTrackFactory(impl: AndroidPcmTrackFactory): PcmTrackFactory
+
+    @Binds
+    abstract fun bindAudioFocus(impl: AndroidAudioFocus): AudioFocus
 
     @Binds
     abstract fun bindAudioOutput(impl: AudioTrackOutput): AudioOutput
