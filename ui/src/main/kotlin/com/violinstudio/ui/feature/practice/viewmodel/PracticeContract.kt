@@ -13,7 +13,7 @@ import java.time.Instant
 enum class PracticeMessage { TOO_SHORT, CLAMPED, NOTES_TOO_LONG, PERMISSION_DENIED, UNKNOWN }
 
 data class PracticeState(
-    /** `true` solo con `SessionState.Ready`; sin él el estado está vacío (nada de otro usuario). */
+    /** `true` solo con perfil no nulo; sin él el estado está vacío (nada de otro usuario). */
     val ready: Boolean = false,
     /** Arranca en el instrumento del perfil; el selector es local y nunca escribe el perfil. */
     val instrument: Instrument = Instrument.OTHER,

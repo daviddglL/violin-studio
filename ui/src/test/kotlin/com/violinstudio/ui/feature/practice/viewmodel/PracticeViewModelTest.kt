@@ -17,8 +17,7 @@ import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
-import com.violinstudio.domain.feature.session.SessionState
-import com.violinstudio.domain.feature.session.usecase.ObserveSessionStateUseCase
+import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -60,12 +59,12 @@ class PracticeViewModelTest {
     private val profile = UserProfile(
         "u1", "Ana", Instrument.VIOLA, "es", Role.INDEPENDENT, false, ConsentStatus.GRANTED, 1, null, false
     )
-    private val session = MutableStateFlow<SessionState>(SessionState.Ready(profile))
+    private val session = MutableStateFlow<UserProfile?>(profile)
     private val running = MutableStateFlow<RunningSession?>(null)
     private val history = MutableStateFlow(emptyList<PracticeSession>())
     private var weeklyCalls = 0
     private var weeklyFailing = false
-    private val observeSession = mockk<ObserveSessionStateUseCase> { every { this@mockk() } returns session }
+    private val observeProfile = mockk<ObserveProfileUseCase> { every { this@mockk() } returns session }
     private val observeRunning = mockk<ObserveRunningSessionUseCase> { every { this@mockk() } returns running }
     private val observeHistory = mockk<ObservePracticeHistoryUseCase> { every { this@mockk() } returns history }
     private val weekly = mockk<WeeklyPracticeTotalUseCase> {
@@ -85,7 +84,7 @@ class PracticeViewModelTest {
     private val started = RunningSession("r1", t0, Instrument.VIOLA)
 
     private fun vm() = PracticeViewModel(
-        observeSession, observeRunning, observeHistory, weekly, start, stop, discard, updateNotes, delete, clock
+        observeProfile, observeRunning, observeHistory, weekly, start, stop, discard, updateNotes, delete, clock
     ) { ZoneOffset.UTC }
 
     /** Cierra la sesion al final: cancela ticker y temporizador semanal, que si no impiden terminar `runTest`. */
@@ -94,7 +93,7 @@ class PracticeViewModelTest {
             body()
         } finally {
             // Aunque falle una asercion: sin ticker vivo `runTest` no gira en bucle sobre tiempo virtual.
-            session.value = SessionState.LoggedOut
+            session.value = null
             runCurrent()
         }
     }
@@ -257,7 +256,7 @@ class PracticeViewModelTest {
         history.value = listOf(saved())
         running.value = started
         val vm = ready()
-        session.value = SessionState.LoggedOut
+        session.value = null
         runCurrent()
         assertEquals(PracticeState(), vm.state.value)
         assertEquals(0, history.subscriptionCount.value)
@@ -300,7 +299,7 @@ class PracticeViewModelTest {
         var calls = 0
         every { observeHistory() } answers { if (calls++ == 0) history else flow { awaitCancellation() } }
         val vm = ready()
-        session.value = SessionState.Ready(profile.copy(uid = "u2"))
+        session.value = profile.copy(uid = "u2")
         history.value = listOf(saved())
         runCurrent()
         assertEquals(2, calls)
@@ -309,7 +308,7 @@ class PracticeViewModelTest {
 
     @Test
     fun `si falla la sesion avisa y Retry vuelve a escucharla`() = test {
-        every { observeSession() } returns flow<SessionState> { throw IllegalStateException() } andThen session
+        every { observeProfile() } returns flow<UserProfile?> { throw IllegalStateException() } andThen session
         val vm = ready()
         assertFalse(vm.state.value.ready)
         assertEquals(PracticeMessage.UNKNOWN, vm.state.value.message)
@@ -323,13 +322,13 @@ class PracticeViewModelTest {
     @Test
     fun `un cambio de instrumento en el perfil se refleja salvo que el usuario ya haya elegido`() = test {
         val vm = ready()
-        session.value = SessionState.Ready(profile.copy(instrument = Instrument.CELLO))
+        session.value = profile.copy(instrument = Instrument.CELLO)
         runCurrent()
         assertEquals(Instrument.CELLO, vm.state.value.instrument)
         assertEquals(1, weeklyCalls)
         vm.onIntent(PracticeIntent.SelectInstrument(Instrument.VIOLIN))
         runCurrent()
-        session.value = SessionState.Ready(profile.copy(instrument = Instrument.OTHER))
+        session.value = profile.copy(instrument = Instrument.OTHER)
         runCurrent()
         assertEquals(Instrument.VIOLIN, vm.state.value.instrument)
     }

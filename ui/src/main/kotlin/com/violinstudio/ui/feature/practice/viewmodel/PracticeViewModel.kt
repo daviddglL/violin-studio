@@ -13,8 +13,7 @@ import com.violinstudio.domain.feature.practice.usecase.StopPracticeSessionUseCa
 import com.violinstudio.domain.feature.practice.usecase.UpdatePracticeNotesUseCase
 import com.violinstudio.domain.feature.practice.usecase.WeeklyPracticeTotalUseCase
 import com.violinstudio.domain.feature.profile.model.Instrument
-import com.violinstudio.domain.feature.session.SessionState
-import com.violinstudio.domain.feature.session.usecase.ObserveSessionStateUseCase
+import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
@@ -29,18 +28,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Vive solo con `SessionState.Ready`: sin él cancela los flujos y vacía el estado. Un fallo de historial o total
+ * Vive solo con perfil no nulo (`ObserveProfileUseCase`): sin él cancela los flujos y vacía el estado. Un fallo de historial o total
  * (p. ej. `PermissionDenied` al cerrar sesión) se convierte en mensaje y estado vacío, nunca en crash; `Retry`
  * vuelve a escuchar. El cronómetro se deriva de `startedAt` y el reloj en cada tick de 1 s.
  */
 @HiltViewModel
 class PracticeViewModel(
-    private val observeSession: ObserveSessionStateUseCase,
+    private val observeProfile: ObserveProfileUseCase,
     private val observeRunning: ObserveRunningSessionUseCase,
     private val observeHistory: ObservePracticeHistoryUseCase,
     private val weeklyTotal: WeeklyPracticeTotalUseCase,
@@ -54,7 +52,7 @@ class PracticeViewModel(
 ) : MviViewModel<PracticeState, PracticeIntent, PracticeEffect>(PracticeState()) {
     @Inject
     constructor(
-        observeSession: ObserveSessionStateUseCase,
+        observeProfile: ObserveProfileUseCase,
         observeRunning: ObserveRunningSessionUseCase,
         observeHistory: ObservePracticeHistoryUseCase,
         weeklyTotal: WeeklyPracticeTotalUseCase,
@@ -65,7 +63,7 @@ class PracticeViewModel(
         deleteSession: DeletePracticeSessionUseCase,
         clock: Clock
     ) : this(
-        observeSession, observeRunning, observeHistory, weeklyTotal, startSession, stopSession, discardSession,
+        observeProfile, observeRunning, observeHistory, weeklyTotal, startSession, stopSession, discardSession,
         updateNotes, deleteSession, clock, { ZoneId.systemDefault() }
     )
 
@@ -78,13 +76,12 @@ class PracticeViewModel(
     private var tickJob: Job? = null
 
     init {
-        observeSessionState()
+        observeProfileState()
     }
 
-    private fun observeSessionState() {
+    private fun observeProfileState() {
         sessionJob = viewModelScope.launch {
-            observeSession()
-                .map { (it as? SessionState.Ready)?.profile }
+            observeProfile()
                 .distinctUntilChanged { a, b -> a?.uid == b?.uid && a?.instrument == b?.instrument }
                 .catch { onIntent(PracticeIntent.SessionFailed(it)) }
                 .collect { onIntent(PracticeIntent.SessionChanged(it?.uid, it?.instrument ?: Instrument.OTHER)) }
@@ -100,7 +97,7 @@ class PracticeViewModel(
             }
             intent is PracticeIntent.Retry && sessionJob?.isActive != true -> {
                 reduce(PracticeMutation.MessageDismissed)
-                observeSessionState()
+                observeProfileState()
             }
             intent.generationOrNull()?.let { it != generation } == true -> Unit
             state.value.ready -> handleReady(intent)
