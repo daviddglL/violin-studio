@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import com.violinstudio.domain.feature.profile.model.Instrument
+import com.violinstudio.ui.commons.locale.AppLanguage
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.account.view.idleDeleteScope
@@ -23,7 +24,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(application = Application::class, qualifiers = "w411dp-h1200dp-xxhdpi")
+@Config(application = Application::class, qualifiers = "es-rES-w411dp-h1200dp-xxhdpi")
 class SettingsScreenScreenshotTest {
     @get:Rule
     val compose = createComposeRule()
@@ -76,6 +77,8 @@ class SettingsScreenScreenshotTest {
     @Test fun revoked() = capture(loaded.copy(revoked = true), "settings_revoked")
 
     @Test fun revokeError() = capture(loaded.copy(revokeError = RevokeError.NETWORK), "settings_revoke_error")
+
+    @Test fun languageEnglish() = capture(loaded.copy(language = AppLanguage.ENGLISH), "settings_language_english")
 
     @Test fun revokeStalled() = capture(loaded.copy(revokeStalled = true), "settings_revoke_stalled")
 }

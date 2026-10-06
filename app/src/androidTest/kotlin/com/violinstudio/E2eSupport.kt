@@ -14,6 +14,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
+import androidx.test.platform.app.InstrumentationRegistry
+import com.violinstudio.ui.R
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_BUTTON_TAG
 import com.violinstudio.ui.feature.account.view.DELETE_ACCOUNT_CONFIRM_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
@@ -157,9 +159,12 @@ fun awaitBackend(what: String, timeoutMs: Long = E2E_TIMEOUT_MS, condition: () -
 
 fun uniqueEmail(prefix: String) = "$prefix-${UUID.randomUUID().toString().take(12)}@example.test"
 
-/** Pasos de interfaz compartidos por los recorridos E2E. Los textos son los de `strings.xml` (solo hay locale base). */
+/** Pasos de interfaz compartidos por los recorridos E2E. Los textos se resuelven con `getString` del idioma del dispositivo (hay es y en). */
 @OptIn(ExperimentalTestApi::class)
 class Journey(private val compose: ComposeTestRule) {
+    /** Texto de la app en el idioma actual del dispositivo. */
+    fun string(id: Int): String = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+
     /** Si vence el plazo, el error lleva el arbol semantico visible para saber en que pantalla se quedo. */
     private fun waitOrDump(what: String, timeoutMs: Long, matcher: SemanticsMatcher) {
         try {
@@ -199,7 +204,7 @@ class Journey(private val compose: ComposeTestRule) {
 
     fun register(email: String) {
         waitForTag(LOGIN_TAG, FIRST_SCREEN_TIMEOUT_MS)
-        clickText("Crear cuenta")
+        clickText(string(R.string.login_to_register))
         waitForTag(REGISTER_TAG)
         type(AUTH_EMAIL_TAG, email)
         type(AUTH_PASSWORD_TAG, E2E_PASSWORD)
@@ -224,7 +229,7 @@ class Journey(private val compose: ComposeTestRule) {
     /** Verifica en el emulador (Admin REST) y pulsa "Ya lo he verificado": la sesion pasa a onboarding. */
     fun verifyEmail(email: String) {
         Emulators.markEmailVerified(email)
-        clickText("Ya lo he verificado")
+        clickText(string(R.string.verify_email_check))
         waitForTag(ONBOARDING_TAG)
     }
 

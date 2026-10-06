@@ -15,6 +15,10 @@ val keystoreFile = file(
 android {
     namespace = "com.violinstudio"
 
+    // Genera res/xml/_generated_res_locale_config con los idiomas de las cadenas (es y en): el selector de idioma por
+    // app del sistema (Android 13+) y la lista de AppCompat salen de ahi. El castellano es el idioma sin calificar.
+    androidResources { generateLocaleConfig = true }
+
     defaultConfig {
         applicationId = "com.violinstudio"
         testInstrumentationRunner = "com.violinstudio.HiltTestRunner"
@@ -65,6 +69,7 @@ dependencies {
     implementation(project(":domain"))
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)

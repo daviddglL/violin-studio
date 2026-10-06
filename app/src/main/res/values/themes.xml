@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AppCompatActivity exige un tema AppCompat. La interfaz es Compose y siempre oscura (ViolinStudioTheme), así
+         que el tema de ventana también es oscuro y sin barra de acción. -->
+    <style name="Theme.ViolinStudio" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/violin_window_background</item>
+        <item name="android:colorBackground">@color/violin_window_background</item>
+    </style>
+</resources>

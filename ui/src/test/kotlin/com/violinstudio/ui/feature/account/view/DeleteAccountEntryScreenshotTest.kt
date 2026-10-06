@@ -23,7 +23,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(application = Application::class, qualifiers = "w411dp-h800dp-xxhdpi")
+@Config(application = Application::class, qualifiers = "es-rES-w411dp-h800dp-xxhdpi")
 class DeleteAccountEntryScreenshotTest {
     @get:Rule
     val compose = createComposeRule()

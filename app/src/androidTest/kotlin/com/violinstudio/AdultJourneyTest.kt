@@ -3,6 +3,7 @@ package com.violinstudio
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.violinstudio.ui.R
 import com.violinstudio.ui.feature.auth.view.AUTH_EMAIL_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_PASSWORD_TAG
 import com.violinstudio.ui.feature.auth.view.AUTH_SUBMIT_TAG
@@ -40,14 +41,14 @@ class AdultJourneyTest : E2eTest() {
         awaitConsent(uid, "granted", atLeast = 1)
 
         // Home real tras la sesion (sustituye al antiguo test de salud, que ya no llegaba a Home sin sesion).
-        journey.clickText("Comprobar servidor")
+        journey.clickText(journey.string(R.string.home_check_health))
         compose.waitUntilExactlyOneExists(hasTestTag("health_ok"), E2E_TIMEOUT_MS)
 
         openSettings()
         journey.click(SETTINGS_REVOKE_TAG)
         journey.click(SETTINGS_REVOKE_CONFIRM_TAG)
         // Revocar devuelve a la pantalla de consentimiento con el motivo REVOKED.
-        journey.waitForText("Vuelve a aceptar la política")
+        journey.waitForText(journey.string(R.string.consent_title_revoked))
         awaitConsent(uid, "revoked", atLeast = 1)
         val before = Emulators.consentCount(uid)
         journey.acceptPolicy()
@@ -64,7 +65,7 @@ class AdultJourneyTest : E2eTest() {
         journey.type(AUTH_EMAIL_TAG, email)
         journey.type(AUTH_PASSWORD_TAG, E2E_PASSWORD)
         journey.click(AUTH_SUBMIT_TAG)
-        journey.waitForText("Email o contraseña incorrectos.")
+        journey.waitForText(journey.string(R.string.login_error_invalid))
         journey.waitForTag(LOGIN_TAG)
         assertNull(Emulators.authUser(email))
     }

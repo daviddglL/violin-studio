@@ -8,6 +8,8 @@ import com.violinstudio.domain.feature.profile.model.EditableProfile
 import com.violinstudio.domain.feature.profile.usecase.ObserveProfileUseCase
 import com.violinstudio.domain.feature.profile.usecase.UpdateProfileUseCase
 import com.violinstudio.domain.feature.session.SessionRefreshTrigger
+import com.violinstudio.ui.commons.locale.AppLanguage
+import com.violinstudio.ui.commons.locale.AppLocales
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -25,13 +27,15 @@ class SettingsViewModel @Inject constructor(
     observeProfile: ObserveProfileUseCase,
     private val updateProfile: UpdateProfileUseCase,
     private val revokeConsent: RevokeConsentUseCase,
-    private val refreshTrigger: SessionRefreshTrigger
+    private val refreshTrigger: SessionRefreshTrigger,
+    private val appLocales: AppLocales
 ) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState()) {
     private var savePending = false
     private var revokePending = false
     private var staleJob: Job? = null
 
     init {
+        reduce(SettingsMutation.LanguageSelected(AppLanguage.fromTags(appLocales.current())))
         viewModelScope.launch {
             try {
                 observeProfile().collect { profile ->
@@ -69,6 +73,15 @@ class SettingsViewModel @Inject constructor(
         SettingsIntent.CancelRevoke -> reduce(SettingsMutation.RevokeCancelled)
         SettingsIntent.ConfirmRevoke -> onRevoke()
         SettingsIntent.RetryRefresh -> onRetryRefresh()
+        is SettingsIntent.LanguageSelected -> onLanguage(intent.value)
+        SettingsIntent.RefreshLanguage ->
+            reduce(SettingsMutation.LanguageSelected(AppLanguage.fromTags(appLocales.current())))
+    }
+
+    /** Se refleja en el estado antes de aplicar: aplicar recrea la actividad, y el ViewModel sobrevive a eso. */
+    private fun onLanguage(language: AppLanguage) {
+        reduce(SettingsMutation.LanguageSelected(language))
+        appLocales.set(language.localeTags)
     }
 
     private suspend fun onSave() {
