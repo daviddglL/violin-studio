@@ -27,8 +27,8 @@ import com.violinstudio.ui.feature.guardian.view.GuardianWaitSlot
 import com.violinstudio.ui.feature.home.view.HomeNavigation
 import com.violinstudio.ui.feature.home.view.HomeRoute
 import com.violinstudio.ui.feature.metronome.view.MetronomeRoute
-import com.violinstudio.ui.feature.practice.view.PracticeRoute
 import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
+import com.violinstudio.ui.feature.practice.view.PracticeRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
 import com.violinstudio.ui.feature.session.view.SplashScreen
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent

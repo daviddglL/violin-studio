@@ -63,7 +63,12 @@ class HomeScreenTest {
         var opened = 0
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ }, onOpenMetronome = {}, onOpenPractice = {})
+                val navigation = HomeNavigation(
+                    onOpenSettings = {},
+                    onOpenTuner = { opened++ },
+                    onOpenMetronome = {},
+                    onOpenPractice = {}
+                )
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
@@ -76,7 +81,12 @@ class HomeScreenTest {
         var opened = 0
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = { opened++ }, onOpenPractice = {})
+                val navigation = HomeNavigation(
+                    onOpenSettings = {},
+                    onOpenTuner = {},
+                    onOpenMetronome = { opened++ },
+                    onOpenPractice = {}
+                )
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
@@ -89,7 +99,12 @@ class HomeScreenTest {
     fun enUnaPantallaBajaLaTarjetaDelMetronomoSePuedeAlcanzar() {
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = {}, onOpenPractice = {})
+                val navigation = HomeNavigation(
+                    onOpenSettings = {},
+                    onOpenTuner = {},
+                    onOpenMetronome = {},
+                    onOpenPractice = {}
+                )
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
@@ -102,7 +117,10 @@ class HomeScreenTest {
         compose.setContent {
             ViolinStudioTheme {
                 val navigation = HomeNavigation(
-                    onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = {}, onOpenPractice = { opened++ }
+                    onOpenSettings = {},
+                    onOpenTuner = {},
+                    onOpenMetronome = {},
+                    onOpenPractice = { opened++ }
                 )
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }

@@ -27,9 +27,9 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.navigation.BUSINESS_ROUTES
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
-import com.violinstudio.ui.navigation.BUSINESS_ROUTES
 import com.violinstudio.ui.navigation.MetronomeDestination
 import com.violinstudio.ui.navigation.PracticeLogDestination
 import com.violinstudio.ui.navigation.SessionNavHost

@@ -7,6 +7,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.violinstudio.domain.feature.practice.model.PracticeSession
@@ -14,7 +15,6 @@ import com.violinstudio.domain.feature.practice.model.RunningSession
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.practice.viewmodel.PracticeState
-import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.ZoneOffset
 import org.junit.Rule
@@ -73,6 +73,9 @@ class PracticeScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/practice_save_dialog.png")
     }
 
-    @Test fun deleteConfirmation() =
-        capture(PracticeState(ready = true, history = history, confirmDeleteId = "s1"), "practice_delete_confirm", frozen = true)
+    @Test fun deleteConfirmation() = capture(
+        PracticeState(ready = true, history = history, confirmDeleteId = "s1"),
+        "practice_delete_confirm",
+        frozen = true
+    )
 }

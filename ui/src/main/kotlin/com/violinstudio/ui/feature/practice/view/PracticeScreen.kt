@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -244,7 +243,10 @@ private fun SessionControls(state: PracticeState, onIntent: (PracticeIntent) -> 
 private fun SessionRow(session: PracticeSession, zone: ZoneId, onEdit: () -> Unit, onDelete: () -> Unit) {
     val resources = LocalContext.current.resources
     val date = formatPracticeDate(session.startedAt, LocalConfiguration.current.locales[0], zone)
-    Column(Modifier.fillMaxWidth().testTag(practiceItemTag(session.id)), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        Modifier.fillMaxWidth().testTag(practiceItemTag(session.id)),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         Text(date, style = MaterialTheme.typography.titleMedium)
         Text("${resources.practiceDuration(session.durationSec)} · ${stringResource(session.instrument.labelRes())}")
         session.notes?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
@@ -297,7 +299,6 @@ private fun SaveDialog(state: PracticeState, onIntent: (PracticeIntent) -> Unit)
     )
 }
 
-
 /** Cuerpo del diálogo de guardar; aparte para poder capturarlo sin ventana (Roborazzi no cierra con un campo en un Dialog). */
 @Composable
 internal fun SaveDialogContent(state: PracticeState, onIntent: (PracticeIntent) -> Unit) {
@@ -317,6 +318,7 @@ internal fun SaveDialogContent(state: PracticeState, onIntent: (PracticeIntent) 
         ) { Text(stringResource(R.string.practice_continue)) }
     }
 }
+
 @Composable
 private fun NotesField(
     value: String,
