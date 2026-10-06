@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,12 +34,16 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - Cancelar: el escritor entrega el bloque de [PcmGenerator.finish], se espera (max [CLOSE_TIMEOUT_MS]) a que la
  *   cabeza de reproduccion lo alcance y se libera. Si el `write` esta atascado, vence el limite y `release` lo
  *   desbloquea: la liberacion ocurre ANTES de esperar al escritor, asi que cancelar nunca se queda colgado.
+ * - Foco de audio: se pide (transitorio) antes de crear la pista; si se deniega no suena y llega como fallo. Al
+ *   perderlo ([AudioFocus]) se cierra como al cancelar y el flujo termina sin error, sin reanudar al recuperarlo.
+ *   El foco se abandona siempre una vez, despues de liberar la pista.
  * - Los fallos (crear, `play`, `fill`, `write`) llegan como [TunerFailure.AudioOutputUnavailable]; los errores
  *   posteriores a la cancelacion se ignoran.
  */
 @Singleton
 class AudioTrackOutput @Inject constructor(
     private val factory: PcmTrackFactory,
+    private val focus: AudioFocus,
     @param:AudioOutputDispatcher private val dispatcher: CoroutineDispatcher
 ) : AudioOutput {
     private val playLock = Mutex()
@@ -65,22 +70,30 @@ class AudioTrackOutput @Inject constructor(
 
     override fun play(generator: PcmGenerator): Flow<Long> = channelFlow {
         playLock.withLock {
-            val session = Session(withContext(Dispatchers.IO) { open() })
+            // Un callback de foco corre en otro hilo: solo completa esto (nunca toca la pista ni bloquea).
+            val lost = CompletableDeferred<Unit>()
+            val lease = withContext(Dispatchers.IO) { focus.request { lost.complete(Unit) } }
+                ?: throw TunerFailure.AudioOutputUnavailable
             try {
-                coroutineScope {
-                    val writer = launch(dispatcher) { writeLoop(session, generator) }
-                    val position = PlaybackPosition()
-                    try {
-                        while (true) {
-                            delay(POSITION_INTERVAL_MS)
-                            send(position.update(session.track.playbackHeadPosition()))
+                val session = Session(withContext(Dispatchers.IO) { open() })
+                try {
+                    coroutineScope {
+                        val writer = launch(dispatcher) { writeLoop(session, generator) }
+                        val position = PlaybackPosition()
+                        try {
+                            // Perder el foco termina el flujo con normalidad (no es un error) y no se reanuda.
+                            while (withTimeoutOrNull(POSITION_INTERVAL_MS) { lost.await() } == null) {
+                                send(position.update(session.track.playbackHeadPosition()))
+                            }
+                        } finally {
+                            withContext(NonCancellable + Dispatchers.IO) { close(session, writer, position) }
                         }
-                    } finally {
-                        withContext(NonCancellable + Dispatchers.IO) { close(session, writer, position) }
                     }
+                } finally {
+                    withContext(NonCancellable + Dispatchers.IO) { session.releaseOnce() }
                 }
             } finally {
-                withContext(NonCancellable + Dispatchers.IO) { session.releaseOnce() }
+                withContext(NonCancellable + Dispatchers.IO) { lease.abandon() }
             }
         }
     }

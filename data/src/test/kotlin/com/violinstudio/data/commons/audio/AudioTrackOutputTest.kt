@@ -103,6 +103,7 @@ class AudioTrackOutputTest {
                 assertEquals(PcmFormat.BLOCK_SIZE, size)
                 queue.removeAt(0)
             },
+            grantedFocus,
             dispatcher
         )
     }
@@ -207,7 +208,7 @@ class AudioTrackOutputTest {
 
     @Test
     fun `si la pista no se puede crear llega como salida no disponible`() = runBlocking {
-        val out = AudioTrackOutput({ error("no track") }, dispatcher)
+        val out = AudioTrackOutput({ error("no track") }, grantedFocus, dispatcher)
         val result = runCatching { withTimeout(5_000) { out.play(silence).collect { } } }
         assertSame(TunerFailure.AudioOutputUnavailable, result.exceptionOrNull())
     }
@@ -216,7 +217,7 @@ class AudioTrackOutputTest {
     fun `cancelar mientras se espera el Mutex no abre pista ni afecta a la primera`() = runBlocking {
         val first = FakeTrack()
         val created = AtomicInteger()
-        val out = AudioTrackOutput({ created.incrementAndGet().let { first } }, dispatcher)
+        val out = AudioTrackOutput({ created.incrementAndGet().let { first } }, grantedFocus, dispatcher)
         val holder = launch { out.play(silence).collect { } }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
         while (first.count("play") == 0) {
