@@ -29,7 +29,9 @@ import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
+import com.violinstudio.ui.navigation.BUSINESS_ROUTES
 import com.violinstudio.ui.navigation.MetronomeDestination
+import com.violinstudio.ui.navigation.PracticeLogDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
 import com.violinstudio.ui.navigation.TunerDestination
@@ -73,6 +75,7 @@ class AppNavHostSessionTest {
     private var settingsComposed = false
     private var tunerComposed = false
     private var metronomeComposed = false
+    private var practiceComposed = false
     private var tunerOnScreen = false
     private var tunerOnScreenWhenMetronomeOpened: Boolean? = null
     private val guardianWaitSeen = mutableListOf<SessionState.ParentalPending>()
@@ -113,6 +116,9 @@ class AppNavHostSessionTest {
                                 onClick = navigation.onOpenMetronome,
                                 modifier = Modifier.testTag("open_metronome")
                             ) { Text("m") }
+                            Button(onClick = navigation.onOpenPractice, modifier = Modifier.testTag("open_practice")) {
+                                Text("p")
+                            }
                         }
                     },
                     tuner = { onBack ->
@@ -127,6 +133,11 @@ class AppNavHostSessionTest {
                         tunerOnScreenWhenMetronomeOpened = tunerOnScreen
                         PlaceholderScreen("metronome")
                         Button(onClick = onBack, modifier = Modifier.testTag("metronome_back")) { Text("b") }
+                    },
+                    practice = { onBack ->
+                        practiceComposed = true
+                        PlaceholderScreen("practice")
+                        Button(onClick = onBack, modifier = Modifier.testTag("practice_back")) { Text("b") }
                     },
                     settings = { onBack ->
                         settingsComposed = true
@@ -236,6 +247,50 @@ class AppNavHostSessionTest {
         compose.onNodeWithTag("metronome").assertIsDisplayed()
         compose.onNodeWithTag("metronome_back").performClick()
         assertAt(ready)
+    }
+
+    @Test
+    fun practiceIsReachableFromHomeAndBackReturnsToIt() {
+        start(ready)
+        assertAt(ready)
+        compose.onNodeWithTag("open_practice").performClick()
+        compose.waitForIdle()
+        assertTrue(nav.currentDestination?.hasRoute(PracticeLogDestination::class) == true)
+        compose.onNodeWithTag("practice").assertIsDisplayed()
+        compose.onNodeWithTag("practice_back").performClick()
+        assertAt(ready)
+    }
+
+    @Test
+    fun practiceWithoutReadyRedirectsAndIsNeverComposed() {
+        start(SessionState.LoggedOut)
+        compose.runOnUiThread { nav.navigate(PracticeLogDestination) }
+        assertAt(SessionState.LoggedOut)
+        assertFalse(practiceComposed)
+    }
+
+    @Test
+    fun leavingReadyWhileOnPracticeRedirectsToTheNewRoot() {
+        start(ready)
+        assertAt(ready)
+        compose.onNodeWithTag("open_practice").performClick()
+        compose.waitForIdle()
+        assertTrue(nav.currentDestination?.hasRoute(PracticeLogDestination::class) == true)
+        session.value = SessionState.LoggedOut
+        assertAt(SessionState.LoggedOut)
+    }
+
+    @Test
+    fun everyBusinessRouteIsRegisteredAsBusiness() {
+        assertEquals(
+            setOf(
+                SettingsDestination::class,
+                TunerDestination::class,
+                MetronomeDestination::class,
+                PracticeLogDestination::class
+            ),
+            BUSINESS_ROUTES.toSet()
+        )
     }
 
     @Test
@@ -401,6 +456,11 @@ class AppNavHostSessionTest {
                         tunerComposed = true
                         PlaceholderScreen("tuner")
                         Button(onClick = onBack, modifier = Modifier.testTag("tuner_back")) { Text("b") }
+                    },
+                    practice = { onBack ->
+                        practiceComposed = true
+                        PlaceholderScreen("practice")
+                        Button(onClick = onBack, modifier = Modifier.testTag("practice_back")) { Text("b") }
                     },
                     settings = { onBack ->
                         settingsComposed = true

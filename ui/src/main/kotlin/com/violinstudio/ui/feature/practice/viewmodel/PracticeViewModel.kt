@@ -93,7 +93,7 @@ class PracticeViewModel(
             intent is PracticeIntent.SessionChanged -> onSessionChanged(intent.uid, intent.instrument)
             intent is PracticeIntent.SessionFailed -> {
                 onSessionChanged(null, Instrument.OTHER)
-                reduce(PracticeMutation.Failed(intent.failure))
+                reduce(PracticeMutation.StreamFailed(intent.failure, clearData = true))
             }
             intent is PracticeIntent.Retry && sessionJob?.isActive != true -> {
                 reduce(PracticeMutation.MessageDismissed)

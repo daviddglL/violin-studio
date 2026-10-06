@@ -63,7 +63,7 @@ class HomeScreenTest {
         var opened = 0
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ }, onOpenMetronome = {})
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = { opened++ }, onOpenMetronome = {}, onOpenPractice = {})
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
@@ -76,7 +76,7 @@ class HomeScreenTest {
         var opened = 0
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = { opened++ })
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = { opened++ }, onOpenPractice = {})
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
@@ -89,10 +89,25 @@ class HomeScreenTest {
     fun enUnaPantallaBajaLaTarjetaDelMetronomoSePuedeAlcanzar() {
         compose.setContent {
             ViolinStudioTheme {
-                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = {})
+                val navigation = HomeNavigation(onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = {}, onOpenPractice = {})
                 HomeScreen(HomeState(), {}, navigation = navigation)
             }
         }
         compose.onNodeWithTag("home_metronome").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun laTarjetaDePracticaNavegaAlRegistroDePractica() {
+        var opened = 0
+        compose.setContent {
+            ViolinStudioTheme {
+                val navigation = HomeNavigation(
+                    onOpenSettings = {}, onOpenTuner = {}, onOpenMetronome = {}, onOpenPractice = { opened++ }
+                )
+                HomeScreen(HomeState(), {}, navigation = navigation)
+            }
+        }
+        compose.onNodeWithTag("home_practice").performScrollTo().performClick()
+        assertEquals(1, opened)
     }
 }
