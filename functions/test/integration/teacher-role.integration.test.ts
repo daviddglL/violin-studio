@@ -102,6 +102,21 @@ describe("grantTeacher", () => {
     expect(await perfil(uid)).toEqual(antes);
   });
 
+  test("W5: un profesor con borrado en curso no se reconfirma", async () => {
+    const { uid } = await nuevoUsuario();
+    await grantTeacher(deps(), uid);
+    await db.collection("users").doc(uid).update({ deletion: { state: "in_progress" } });
+    expect((await rechazo(grantTeacher(deps(), uid)))?.reason).toBe("DELETION_IN_PROGRESS");
+  });
+
+  test("W4: un teacherLinks con studentUid=uid bloquea el alta aunque el contador sea 0", async () => {
+    const { uid } = await nuevoUsuario();
+    await db.collection("teacherLinks").doc(`profeX_${uid}`).set({ teacherUid: "profeX", studentUid: uid });
+    const antes = await perfil(uid);
+    expect((await rechazo(grantTeacher(deps(), uid)))?.reason).toBe("HAS_TEACHER_LINKS");
+    expect(await perfil(uid)).toEqual(antes);
+  });
+
   test("usuario sin perfil: rechaza sin crear documentos", async () => {
     const { uid } = await nuevoUsuario({ perfil: null });
     const e = await rechazo(grantTeacher(deps(), uid));
@@ -130,9 +145,12 @@ describe("grantTeacher", () => {
 });
 
 describe("revokeTeacher", () => {
-  test("profesor -> independent, claims sincronizados y limpieza ejecutada antes del cambio de rol", async () => {
+  const poner = (uid: string, parche: Record<string, unknown>) => db.collection("users").doc(uid).update(parche);
+
+  test("W1: el cambio de rol ocurre ANTES de la limpieza y studentCount no se sobrescribe", async () => {
     const { uid } = await nuevoUsuario();
     await grantTeacher(deps(), uid);
+    await poner(uid, { studentCount: 3 });
     const orden: string[] = [];
     await revokeTeacher(
       deps({
@@ -141,34 +159,46 @@ describe("revokeTeacher", () => {
           return 2;
         },
         unlinkAllStudents: async () => {
-          orden.push(`students:${(await perfil(uid))?.role}`);
+          const d = await perfil(uid);
+          orden.push(`students:${d?.role}:${d?.studentCount}`);
+          await poner(uid, { studentCount: 0 });
           return 3;
         },
       }),
       uid,
     );
-    expect(orden).toEqual(["codes:teacher", "students:teacher"]);
+    expect(orden).toEqual(["codes:independent", "students:independent:3"]);
     expect((await perfil(uid))?.role).toBe("independent");
     expect(await claims(uid)).toEqual({ role: "independent", consentOk: true });
   });
 
-  test("sin colecciones aun: la limpieza por defecto es tolerante", async () => {
+  test("W2: con studentCount>0 y limpieza por defecto falla cerrado (HAS_LINKS) y el rol no cambia", async () => {
+    const { uid } = await nuevoUsuario();
+    await grantTeacher(deps(), uid);
+    await poner(uid, { studentCount: 2 });
+    const e = await rechazo(revokeTeacher(deps(), uid));
+    expect(e?.reason).toBe("HAS_LINKS");
+    expect(await perfil(uid)).toMatchObject({ role: "teacher", studentCount: 2 });
+  });
+
+  test("sin alumnos la limpieza por defecto es tolerante", async () => {
     const { uid } = await nuevoUsuario();
     await grantTeacher(deps(), uid);
     await revokeTeacher(deps(), uid);
     expect((await perfil(uid))?.role).toBe("independent");
   });
 
-  test("usuario que no es profesor: no-op sin error", async () => {
+  test("usuario que no es profesor y sin restos: no-op sin error", async () => {
     const { uid } = await nuevoUsuario();
     const antes = await perfil(uid);
     await revokeTeacher(deps(), uid);
     expect(await perfil(uid)).toEqual(antes);
   });
 
-  test("reanudable: si falla la limpieza el rol no cambia y el reintento termina", async () => {
+  test("W1: reanudable: si falla la limpieza el rol ya es independent y el reintento la repite", async () => {
     const { uid } = await nuevoUsuario();
     await grantTeacher(deps(), uid);
+    await poner(uid, { studentCount: 2 });
     await expect(
       revokeTeacher(
         deps({
@@ -179,10 +209,26 @@ describe("revokeTeacher", () => {
         uid,
       ),
     ).rejects.toThrow("parcial");
-    expect((await perfil(uid))?.role).toBe("teacher");
-    await revokeTeacher(deps(), uid);
-    expect((await perfil(uid))?.role).toBe("independent");
+    expect(await perfil(uid)).toMatchObject({ role: "independent", studentCount: 2 });
+    // Con la limpieza por defecto sigue fallando cerrado.
+    expect((await rechazo(revokeTeacher(deps(), uid)))?.reason).toBe("HAS_LINKS");
+    const unlink = jest.fn(async () => {
+      await poner(uid, { studentCount: 0 });
+      return 2;
+    });
+    await revokeTeacher(deps({ unlinkAllStudents: unlink }), uid);
+    expect(unlink).toHaveBeenCalledTimes(1);
+    expect(await perfil(uid)).toMatchObject({ role: "independent", studentCount: 0 });
     expect(await claims(uid)).toEqual({ role: "independent", consentOk: true });
+  });
+
+  test("W1: reanudable: independent sin restos tras revocar no vuelve a limpiar alumnos", async () => {
+    const { uid } = await nuevoUsuario();
+    await grantTeacher(deps(), uid);
+    await revokeTeacher(deps(), uid);
+    const unlink = jest.fn(async () => 0);
+    await revokeTeacher(deps({ unlinkAllStudents: unlink }), uid);
+    expect(unlink).not.toHaveBeenCalled();
   });
 
   test("reanudable: fallo al sincronizar claims tras cambiar el rol, el reintento los sincroniza", async () => {

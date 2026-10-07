@@ -2,7 +2,7 @@ import { Auth } from "firebase-admin/auth";
 import { FieldValue, Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions/v2";
 import { Clock } from "../common/clock";
-import { COLLECTIONS } from "../common/collections";
+import { COLLECTIONS, TEACHER_LINKS_COLLECTION } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
 import { canGrantTeacher, TeacherDenyReason } from "../teacher/eligibility";
@@ -10,6 +10,7 @@ import { isAllowedRoleTransition, Role } from "../teacher/role-transitions";
 
 export type TeacherRoleErrorReason =
   | TeacherDenyReason
+  | "HAS_LINKS"
   | "INVALID_UID"
   | "USER_NOT_FOUND"
   | "INVALID_TRANSITION";
@@ -58,6 +59,8 @@ export async function grantTeacher(deps: TeacherRoleDeps, uid: string): Promise<
     throw new TeacherRoleError(reason);
   };
 
+  // `emailVerified` se lee fuera de la transaccion (Auth no es transaccional); es aceptable porque la
+  // verificacion no se revierte y esta CLI la ejecuta un administrador de forma manual.
   let emailVerified: boolean;
   try {
     emailVerified = (await deps.auth.getUser(uid)).emailVerified === true;
@@ -70,7 +73,11 @@ export async function grantTeacher(deps: TeacherRoleDeps, uid: string): Promise<
   const changed = await deps.db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const profile = snap.exists ? (snap.data() ?? {}) : undefined;
-    const verdict = canGrantTeacher({ profile, emailVerified, now: deps.clock() });
+    // Fuente de verdad frente al contador `teacherCount`; una coleccion inexistente devuelve vacio.
+    const links = await tx.get(
+      deps.db.collection(TEACHER_LINKS_COLLECTION).where("studentUid", "==", uid).limit(1),
+    );
+    const verdict = canGrantTeacher({ profile, emailVerified, now: deps.clock(), hasStudentLinks: !links.empty });
     if (!verdict.eligible) return reject(verdict.reason);
     if (verdict.alreadyTeacher) return false;
     if (!isAllowedRoleTransition(String(profile?.role ?? "independent") as Role, "teacher")) {
@@ -86,27 +93,39 @@ export async function grantTeacher(deps: TeacherRoleDeps, uid: string): Promise<
 }
 
 /**
- * Baja de profesor (REQ-TRL-04): primero limpia codigos y alumnos y solo despues devuelve el rol,
- * de modo que un fallo intermedio deja al usuario como `teacher` y repetir el comando lo completa.
- * Siempre sincroniza claims (idempotente) para recuperar un fallo posterior al cambio de rol.
+ * Baja de profesor (REQ-TRL-04). Orden decidido (W1/W2): PRIMERO se devuelve el rol `independent` en
+ * una transaccion (un canje concurrente exige `role == teacher`, asi que ya no puede crear vinculos ni
+ * consumir codigos) y DESPUES se limpian codigos y alumnos. Es reanudable: un `independent` con
+ * `studentCount > 0` (o codigos activos) repite la limpieza; solo es no-op cuando no queda nada.
+ * Falla cerrado (`HAS_LINKS`) si hay alumnos y la limpieza no esta cableada (hasta A3b), ANTES de
+ * cambiar nada. Siempre sincroniza claims (idempotente). `studentCount` lo decrementa `removeLink`.
  */
 export async function revokeTeacher(deps: TeacherRoleDeps, uid: string): Promise<void> {
   requireValidUid(uid);
   const log = makeLog(deps, uid);
   const ref = deps.db.collection(COLLECTIONS.users).doc(uid);
-  const snap = await ref.get();
-  let codes = 0;
+
+  const before = (await ref.get()).data();
+  const pendingStudents = typeof before?.studentCount === "number" ? before.studentCount : 0;
+  if (pendingStudents > 0 && !deps.unlinkAllStudents) {
+    log("revokeTeacher.rejected", { reason: "HAS_LINKS" });
+    throw new TeacherRoleError("HAS_LINKS");
+  }
+
+  const { changed, count } = await deps.db.runTransaction(async (tx) => {
+    const fresh = (await tx.get(ref)).data();
+    const n = typeof fresh?.studentCount === "number" ? fresh.studentCount : 0;
+    // Relectura transaccional: un canje concurrente pudo anadir alumnos desde la comprobacion previa.
+    if (n > 0 && !deps.unlinkAllStudents) throw new TeacherRoleError("HAS_LINKS");
+    if (fresh?.role !== "teacher") return { changed: false, count: n };
+    tx.update(ref, { role: "independent", updatedAt: FieldValue.serverTimestamp() });
+    return { changed: true, count: n };
+  });
+
+  const codes = await (deps.revokeActiveCodes ?? noop)(uid);
   let students = 0;
-  let changed = false;
-  if (snap.exists && snap.data()?.role === "teacher") {
-    codes = await (deps.revokeActiveCodes ?? noop)(uid);
-    students = await (deps.unlinkAllStudents ?? noop)(uid);
-    changed = await deps.db.runTransaction(async (tx) => {
-      const fresh = await tx.get(ref);
-      if (fresh.data()?.role !== "teacher") return false;
-      tx.update(ref, { role: "independent", studentCount: 0, updatedAt: FieldValue.serverTimestamp() });
-      return true;
-    });
+  if ((changed || count > 0) && deps.unlinkAllStudents) {
+    students = await deps.unlinkAllStudents(uid);
   }
   await syncClaims({ db: deps.db, auth: deps.auth }, uid);
   log("revokeTeacher", { changed, codes, students });
