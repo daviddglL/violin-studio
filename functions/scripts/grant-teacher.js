@@ -1,0 +1,1 @@
+require("./teacher-role")("grant");
