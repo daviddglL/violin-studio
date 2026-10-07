@@ -80,6 +80,8 @@ service cloud.firestore {
     match /guardianRequests/{id} { allow read, write: if false; }
     match /guardianEmailLimits/{id} { allow read, write: if false; }
     match /mail/{id} { allow read, write: if false; }
+    // Codigos de vinculo: ids HMAC, solo Functions (el profesor los lista via callable).
+    match /teacherCodes/{id} { allow read, write: if false; }
 
     match /{document=**} {
       allow read, write: if false;

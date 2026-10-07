@@ -19,6 +19,9 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   guardianRequests: { kind: "queryByField", field: "uid" },
   mail: { kind: "queryByField", field: "uid" },
   guardianEmailLimits: { kind: "exempt", reason: "clave HMAC del tutor, sin uid; TTL 24 h" },
+  // Provisional (A2): los ids son HMAC y el doc lleva `teacherUid`/`usedBy`; A5 lo sustituye por
+  // `queryByFields [teacherUid, usedBy]`. Mientras, caducan por TTL (`expireAt`) y `revoke-teacher` los revoca.
+  teacherCodes: { kind: "exempt", reason: "provisional hasta A5 (queryByFields teacherUid/usedBy); TTL expireAt" },
 };
 
 export const STORAGE_PREFIXES: ReadonlyArray<(uid: string) => string> = [(uid) => `users/${uid}/`];

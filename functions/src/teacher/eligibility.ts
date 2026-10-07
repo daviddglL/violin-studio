@@ -29,7 +29,7 @@ export interface TeacherEligibilityInput {
 const deny = (reason: TeacherDenyReason): TeacherEligibility => ({ eligible: false, reason });
 
 /** La edad se calcula en UTC (`ageOn`). `birthDate` ilegible, inexistente o futura nunca cuenta como adulto (fail-closed). */
-function adultFromProfile(birthDate: unknown, now: Date, adultAge?: number): boolean {
+export function adultFromProfile(birthDate: unknown, now: Date, adultAge?: number): boolean {
   if (typeof birthDate !== "string") return false;
   try {
     return isAdult(parseBirthDate(birthDate, now), now, adultAge);

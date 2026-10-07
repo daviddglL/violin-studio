@@ -29,7 +29,18 @@ describe("firestore.indexes.json", () => {
     });
   });
 
-  test.each(["mail", "guardianRequests", "guardianEmailLimits"])("%s.expireAt: TTL y indice ascendente habilitado (la purga 7b.4 filtra por rango)", (coleccion) => {
+  test("indice compuesto teacherCodes(teacherUid, expiresAt) para listar y contar codigos activos (A2)", () => {
+    expect(cfg.indexes).toContainEqual({
+      collectionGroup: "teacherCodes",
+      queryScope: "COLLECTION",
+      fields: [
+        { fieldPath: "teacherUid", order: "ASCENDING" },
+        { fieldPath: "expiresAt", order: "ASCENDING" },
+      ],
+    });
+  });
+
+  test.each(["mail", "teacherCodes", "guardianRequests", "guardianEmailLimits"])("%s.expireAt: TTL y indice ascendente habilitado (la purga 7b.4 filtra por rango)", (coleccion) => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === "expireAt");
     expect(o.ttl).toBe(true);
     expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION" });

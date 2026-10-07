@@ -15,6 +15,10 @@ export enum ErrorReason {
   ERASURE_FAILED = "ERASURE_FAILED",
   INVALID_ARGUMENT = "INVALID_ARGUMENT",
   CONSENT_ALREADY_GRANTED = "CONSENT_ALREADY_GRANTED",
+  NOT_TEACHER = "NOT_TEACHER",
+  CODE_LIMIT_REACHED = "CODE_LIMIT_REACHED",
+  CODE_NOT_FOUND = "CODE_NOT_FOUND",
+  SERVER_MISCONFIGURED = "SERVER_MISCONFIGURED",
 }
 
 /** Error de callable con `details.reason` estable para que el cliente lo mapee sin parsear texto. */
