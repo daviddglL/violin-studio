@@ -60,6 +60,7 @@ jobs:
       - run: npm i -g firebase-tools@15.20.0
       # Valor fijo de PRUEBA, no secreto: nunca debe ser un secreto real (el fichero está gitignored y solo vive en el runner).
       - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
+      - run: echo "TEACHER_CODE_PEPPER=ci-fixed-non-secret-code-pepper-0123456789abcdef" >> functions/.secret.local
       - run: firebase emulators:exec --only functions,auth,firestore,storage,hosting --project demo-violin-studio "npm --prefix functions run test:integration"
 
   rules:
@@ -100,6 +101,7 @@ jobs:
       - run: npm i -g firebase-tools@15.20.0
       # requestGuardianConsent (E2E del menor) necesita el pepper del HMAC; valor fijo de PRUEBA, como en el job functions.
       - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
+      - run: echo "TEACHER_CODE_PEPPER=ci-fixed-non-secret-code-pepper-0123456789abcdef" >> functions/.secret.local
       - name: Arrancar el emulador de Functions
         run: |
           nohup firebase emulators:start --only functions,auth,firestore,storage --project violin-app-dev-f0b55 > emulators.log 2>&1 &
