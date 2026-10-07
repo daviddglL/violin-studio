@@ -23,6 +23,12 @@ import { requestGuardianConsentHandler } from "./guardian/request";
 import { purgeIdentityHandler } from "./maintenance/purge";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
+import {
+  createTeacherCodeHandler,
+  listTeacherCodesHandler,
+  revokeTeacherCodeHandler,
+} from "./teacher/code-handlers";
+import { requireCodePepper, TEACHER_CODE_PEPPER } from "./teacher/pepper";
 import { VERSION } from "./version";
 
 export { REGION };
@@ -86,6 +92,22 @@ export const guardianConsent = onRequest({ ...httpOptions, timeoutSeconds: 300 }
   const app = admin();
   return guardianHttpAdapter((r) => guardianConsentHandler({ db: getFirestore(app), auth: getAuth(app), erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, r))(req, res);
 });
+
+/** Codigos de vinculo del profesor (REQ-LNK-01/02): el rol y el consentimiento se leen del doc, no del claim. */
+const codeDeps = () => ({ db: getFirestore(admin()), pepper: requireCodePepper(TEACHER_CODE_PEPPER.value()) });
+const codeOptions = { ...callableOptions(), secrets: [TEACHER_CODE_PEPPER] };
+
+export const createTeacherCode = onCall(codeOptions, (request) =>
+  createTeacherCodeHandler(codeDeps(), requireVerifiedUser(request).uid),
+);
+
+export const revokeTeacherCode = onCall(codeOptions, (request) =>
+  revokeTeacherCodeHandler(codeDeps(), requireVerifiedUser(request).uid, request.data),
+);
+
+export const listTeacherCodes = onCall(codeOptions, (request) =>
+  listTeacherCodesHandler(codeDeps(), requireVerifiedUser(request).uid),
+);
 
 export const deleteAccount = onCall({ ...callableOptions(), timeoutSeconds: 300 }, (request) =>
   deleteAccountHandler({ erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, request),
