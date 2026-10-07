@@ -1,4 +1,4 @@
-import { CODE_ALPHABET, CODE_LENGTH, generateCode, hashCode, normalizeCode } from "../../src/teacher/codes";
+import { CODE_ALPHABET, CODE_LENGTH, generateCode, hashCode, normalizeCode, parseCodeInput } from "../../src/teacher/codes";
 
 const PEPPER = "p".repeat(32);
 
@@ -50,7 +50,22 @@ describe("hashCode", () => {
     expect(hashCode(PEPPER, " abcdefgh ")).toBe(hashCode(PEPPER, "ABCDEFGH"));
     expect(normalizeCode(" ab-cd efgh ")).toBe("ABCDEFGH");
   });
+  test("con guion o minusculas equivale al codigo normalizado", () => {
+    expect(hashCode(PEPPER, "abcd-efgh")).toBe(hashCode(PEPPER, "ABCDEFGH"));
+  });
   test("pepper corto se rechaza", () => {
     expect(() => hashCode("corto", "ABCDEFGH")).toThrow(/pepper/i);
   });
+});
+
+describe("parseCodeInput (validador estricto para el canje)", () => {
+  test.each([["ABCDEFGH", "ABCDEFGH"], [" abcd-efgh ", "ABCDEFGH"], ["abcd efgh", "ABCDEFGH"], ["23456789", "23456789"]])(
+    "%j -> %j",
+    (raw, esperado) => expect(parseCodeInput(raw)).toBe(esperado),
+  );
+  const invalidos: unknown[] = [
+    undefined, null, 12345678, {}, "", "ABCDEFG", "ABCDEFGHJ", "ABCDEFG0", "ABCDEFGI", "ABCDEFGL", "ABCDEFGO", "ABCDEFG1",
+    "ABCDEFG!", "ÁBCDEFGH", "A".repeat(33), " ".repeat(40) + "ABCDEFGH", "ABCD\nEFGH\u0000",
+  ];
+  test.each(invalidos.map((v) => [v]))("rechaza %j", (raw) => expect(parseCodeInput(raw)).toBeNull());
 });

@@ -2,7 +2,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
-import { createTeacherCodeHandler, CodeDeps } from "../../src/teacher/code-handlers";
+import { createTeacherCodeHandler, CodeDeps, revokeActiveCodes } from "../../src/teacher/code-handlers";
 import { CODE_ALPHABET, hashCode } from "../../src/teacher/codes";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
@@ -137,6 +137,12 @@ describe("createTeacherCode", () => {
     expect(await rechazo(createTeacherCodeHandler(deps(), uid))).toMatchObject({ code: "resource-exhausted" });
   });
 
+  test("un codigo con usedAt y usedBy nulo cuenta como usado (no activo)", async () => {
+    const uid = await profesor();
+    await sembrar(uid, 5, { usedAt: Timestamp.fromDate(HOY) }, new Date(HOY.getTime() - 25 * 3600_000));
+    await expect(createTeacherCodeHandler(deps(), uid)).resolves.toBeDefined();
+  });
+
   test("tope de 20 codigos en 24 h aunque no haya activos", async () => {
     const uid = await profesor();
     await sembrar(uid, 20, { revokedAt: Timestamp.fromDate(HOY) }, new Date(HOY.getTime() - 3600_000));
@@ -156,9 +162,22 @@ describe("createTeacherCode", () => {
     expect(await codigos(uid)).toHaveLength(5);
   });
 
+  test("el tope de 24 h no se supera con creaciones en paralelo y revocaciones intercaladas", async () => {
+    const uid = await profesor();
+    let creados = 0;
+    for (let ronda = 0; ronda < 6; ronda++) {
+      const r = await Promise.allSettled(Array.from({ length: 8 }, () => createTeacherCodeHandler(deps(), uid)));
+      creados += r.filter((x) => x.status === "fulfilled").length;
+      await revokeActiveCodes(deps(), uid);
+    }
+    expect(creados).toBeLessThanOrEqual(20);
+    expect(creados).toBe(20);
+    expect(await codigos(uid)).toHaveLength(20);
+  });
+
   test("pepper corto -> error sin crear docs", async () => {
     const uid = await profesor();
-    await expect(createTeacherCodeHandler(deps({ pepper: "corto" }), uid)).rejects.toThrow(/pepper/i);
+    expect(await rechazo(createTeacherCodeHandler(deps({ pepper: "corto" }), uid))).toMatchObject({ code: "internal", details: { reason: "SERVER_MISCONFIGURED" } });
     expect(await codigos(uid)).toHaveLength(0);
   });
 });

@@ -34,7 +34,7 @@ async function profesor() {
   return uid;
 }
 const doc = async (id: string) => (await db.collection("teacherCodes").doc(id).get()).data();
-const rechazo = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => e as { code: string });
+const rechazo = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => e as { code: string; details?: { reason?: string } });
 
 describe("revokeTeacherCode", () => {
   test("el dueno revoca y el doc queda con revokedAt", async () => {
@@ -54,13 +54,22 @@ describe("revokeTeacherCode", () => {
     expect((await doc(c.id))?.revokedAt.toMillis()).toBe(antes);
   });
 
-  test("codigo ajeno o inexistente -> permission-denied sin efectos", async () => {
+  test("un codigo con usedAt y usedBy nulo se trata como usado", async () => {
+    const uid = await profesor();
+    const c = await createTeacherCodeHandler(deps(), uid);
+    await db.collection("teacherCodes").doc(c.id).update({ usedAt: Timestamp.fromDate(ahora) });
+    await expect(revokeTeacherCodeHandler(deps(), uid, { id: c.id })).resolves.toEqual({ revoked: false });
+    expect((await doc(c.id))?.revokedAt).toBeNull();
+    expect((await listTeacherCodesHandler(deps(), uid)).codes).toHaveLength(0);
+  });
+
+  test("codigo ajeno o inexistente -> mismo not-found CODE_NOT_FOUND sin efectos", async () => {
     const a = await profesor();
     const b = await profesor();
     const c = await createTeacherCodeHandler(deps(), a);
-    expect(await rechazo(revokeTeacherCodeHandler(deps(), b, { id: c.id }))).toMatchObject({ code: "permission-denied" });
+    expect(await rechazo(revokeTeacherCodeHandler(deps(), b, { id: c.id }))).toMatchObject({ code: "not-found", details: { reason: "CODE_NOT_FOUND" } });
     expect((await doc(c.id))?.revokedAt).toBeNull();
-    expect(await rechazo(revokeTeacherCodeHandler(deps(), b, { id: "a".repeat(64) }))).toMatchObject({ code: "permission-denied" });
+    expect(await rechazo(revokeTeacherCodeHandler(deps(), b, { id: "a".repeat(64) }))).toMatchObject({ code: "not-found", details: { reason: "CODE_NOT_FOUND" } });
   });
 
   test("un codigo ya canjeado no se modifica", async () => {
@@ -71,7 +80,7 @@ describe("revokeTeacherCode", () => {
     expect((await doc(c.id))?.revokedAt).toBeNull();
   });
 
-  test.each([[{}], [{ id: 5 }], [{ id: "corto" }], [{ id: "G".repeat(64) }], [null]])("payload invalido %j -> invalid-argument", async (data) => {
+  test.each([[{}], [{ id: 5 }], [{ id: "corto" }], [{ id: "G".repeat(64) }], [{ id: "A".repeat(64) }], [{ id: "a".repeat(63) }], [{ id: "a".repeat(65) }], [{ id: null }], [null], [undefined], ["x"], [[]]])("payload invalido %j -> invalid-argument", async (data) => {
     const uid = await profesor();
     expect(await rechazo(revokeTeacherCodeHandler(deps(), uid, data))).toMatchObject({ code: "invalid-argument" });
   });
@@ -115,6 +124,17 @@ describe("listTeacherCodes", () => {
     expect((await listTeacherCodesHandler(deps(), uid)).codes).toHaveLength(1);
     ahora = new Date(ahora.getTime() + 8 * 86400_000);
     expect((await listTeacherCodesHandler(deps(), uid)).codes).toHaveLength(0);
+  });
+
+  test.each([
+    ["consentimiento revocado", { consentStatus: "revoked" }],
+    ["menor", { birthDate: "2015-01-01" }],
+    ["borrado en curso", { deletion: { state: "in_progress" } }],
+  ])("%s -> denegado", async (_n, parche) => {
+    const uid = await profesor();
+    await db.collection("users").doc(uid).update(parche);
+    const e = await rechazo(listTeacherCodesHandler(deps(), uid));
+    expect(e?.code).toMatch(/permission-denied|failed-precondition/);
   });
 
   test("no profesor -> permission-denied", async () => {

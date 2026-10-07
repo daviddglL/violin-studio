@@ -18,6 +18,7 @@ export enum ErrorReason {
   NOT_TEACHER = "NOT_TEACHER",
   CODE_LIMIT_REACHED = "CODE_LIMIT_REACHED",
   CODE_NOT_FOUND = "CODE_NOT_FOUND",
+  SERVER_MISCONFIGURED = "SERVER_MISCONFIGURED",
 }
 
 /** Error de callable con `details.reason` estable para que el cliente lo mapee sin parsear texto. */

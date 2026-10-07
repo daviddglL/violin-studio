@@ -13,20 +13,26 @@ import {
 } from "../config/identity";
 import { adultFromProfile } from "./eligibility";
 import { generateCode, hashCode, RandomInt } from "./codes";
+import { requireCodePepper } from "./pepper";
 
 const DAY_MS = 86_400_000;
 const HEX64 = /^[0-9a-f]{64}$/;
 
-export interface CodeDeps {
+/** Dependencias de revocar/listar: no necesitan el pepper. */
+export interface BaseCodeDeps {
   db: Firestore;
-  /** Valor ya validado del secreto `TEACHER_CODE_PEPPER`. */
-  pepper: string;
   clock?: Clock;
-  random?: RandomInt;
   /** Version vigente de la politica; solo se inyecta en tests. */
   policyVersion?: number;
   /** Sumidero de logs sin PII; por defecto `logger.info`. */
   log?: (message: string, data: Record<string, unknown>) => void;
+}
+
+/** Solo `createTeacherCode` necesita el pepper. */
+export interface CodeDeps extends BaseCodeDeps {
+  /** Valor del secreto `TEACHER_CODE_PEPPER` (se valida al usarlo). */
+  pepper: string;
+  random?: RandomInt;
 }
 
 export interface CreatedCode {
@@ -55,7 +61,7 @@ function makeLog(deps: { log?: CodeDeps["log"] }, uid: string) {
 }
 
 /** Decide contra el doc (no el claim): profesor adulto, consentimiento vigente y sin borrado en curso. */
-function requireActiveTeacher(deps: CodeDeps, profile: DocumentData | undefined, now: Date): void {
+function requireActiveTeacher(deps: BaseCodeDeps, profile: DocumentData | undefined, now: Date): void {
   if (!profile || profile.deletion) throw fail("failed-precondition", ErrorReason.NO_PROFILE);
   if (profile.role !== "teacher") throw fail("permission-denied", ErrorReason.NOT_TEACHER);
   if (!adultFromProfile(profile.birthDate, now)) throw fail("permission-denied", ErrorReason.NOT_TEACHER);
@@ -66,7 +72,7 @@ function requireActiveTeacher(deps: CodeDeps, profile: DocumentData | undefined,
 
 const millis = (v: unknown): number => (v as Timestamp).toMillis();
 const isActive = (d: DocumentData, nowMs: number): boolean =>
-  d.usedBy == null && d.revokedAt == null && millis(d.expiresAt) > nowMs;
+  d.usedBy == null && d.usedAt == null && d.revokedAt == null && millis(d.expiresAt) > nowMs;
 
 /** REQ-LNK-01. Cupos (5 activos, 20 en 24 h) comprobados y escritos en una transaccion. */
 export async function createTeacherCodeHandler(deps: CodeDeps, uid: string): Promise<CreatedCode> {
@@ -74,12 +80,14 @@ export async function createTeacherCodeHandler(deps: CodeDeps, uid: string): Pro
   const nowMs = now.getTime();
   const log = makeLog(deps, uid);
   const code = generateCode(deps.random);
-  const id = hashCode(deps.pepper, code); // falla antes de tocar nada si el pepper no vale
+  const id = hashCode(requireCodePepper(deps.pepper), code); // falla antes de tocar nada si el pepper no vale
   const userRef = deps.db.collection(COLLECTIONS.users).doc(uid);
   const codes = deps.db.collection(COLLECTIONS.teacherCodes);
   const expiresAtMs = nowMs + TEACHER_CODE_TTL_DAYS * DAY_MS;
 
+  let limite: { activos: number; en24h: number } | undefined;
   await deps.db.runTransaction(async (tx) => {
+    limite = undefined; // la transaccion puede reintentarse
     requireActiveTeacher(deps, (await tx.get(userRef)).data(), now);
     // Todo codigo creado en 24 h sigue sin caducar (TTL 7 d): una sola consulta sirve a ambos cupos.
     const vivos = (
@@ -88,7 +96,7 @@ export async function createTeacherCodeHandler(deps: CodeDeps, uid: string): Pro
     const activos = vivos.filter((d) => isActive(d, nowMs)).length;
     const en24h = vivos.filter((d) => millis(d.createdAt) > nowMs - DAY_MS).length;
     if (activos >= MAX_ACTIVE_CODES || en24h >= MAX_CODES_PER_24H) {
-      log("createTeacherCode.limit", { activos, en24h });
+      limite = { activos, en24h };
       throw fail("resource-exhausted", ErrorReason.CODE_LIMIT_REACHED);
     }
     tx.create(codes.doc(id), {
@@ -101,6 +109,10 @@ export async function createTeacherCodeHandler(deps: CodeDeps, uid: string): Pro
       revokedAt: null,
       codeHint: code.slice(-2),
     });
+  }).catch((e: unknown) => {
+    // Se registra fuera de la transaccion: un reintento no duplica la linea.
+    if (limite) log("createTeacherCode.limit", limite);
+    throw e;
   });
 
   log("createTeacherCode");
@@ -109,7 +121,7 @@ export async function createTeacherCodeHandler(deps: CodeDeps, uid: string): Pro
 
 /** REQ-LNK-02. Solo el propietario; idempotente; un codigo ya canjeado no cambia. */
 export async function revokeTeacherCodeHandler(
-  deps: Pick<CodeDeps, "db" | "clock" | "log">,
+  deps: BaseCodeDeps,
   uid: string,
   data: unknown,
 ): Promise<{ revoked: boolean }> {
@@ -124,8 +136,8 @@ export async function revokeTeacherCodeHandler(
   const revoked = await deps.db.runTransaction(async (tx) => {
     const d = (await tx.get(ref)).data();
     // Inexistente y ajeno se responden igual: no revela que ids existen.
-    if (!d || d.teacherUid !== uid) throw fail("permission-denied", ErrorReason.CODE_NOT_FOUND);
-    if (d.revokedAt != null || d.usedBy != null) return false;
+    if (!d || d.teacherUid !== uid) throw fail("not-found", ErrorReason.CODE_NOT_FOUND);
+    if (d.revokedAt != null || d.usedBy != null || d.usedAt != null) return false;
     tx.update(ref, { revokedAt: Timestamp.fromMillis(nowMs) });
     return true;
   });
@@ -134,7 +146,7 @@ export async function revokeTeacherCodeHandler(
 }
 
 /** REQ-LNK-02. Solo codigos activos; sin codigo en claro ni campos internos. */
-export async function listTeacherCodesHandler(deps: CodeDeps, uid: string): Promise<{ codes: CodeSummary[] }> {
+export async function listTeacherCodesHandler(deps: BaseCodeDeps, uid: string): Promise<{ codes: CodeSummary[] }> {
   const now = nowOf(deps);
   const nowMs = now.getTime();
   requireActiveTeacher(deps, (await deps.db.collection(COLLECTIONS.users).doc(uid).get()).data(), now);
@@ -151,7 +163,7 @@ export async function listTeacherCodesHandler(deps: CodeDeps, uid: string): Prom
 }
 
 /** Revoca todos los codigos activos del profesor (hook de `revoke-teacher`); devuelve cuantos. Idempotente. */
-export async function revokeActiveCodes(deps: Pick<CodeDeps, "db" | "clock">, teacherUid: string): Promise<number> {
+export async function revokeActiveCodes(deps: Pick<BaseCodeDeps, "db" | "clock">, teacherUid: string): Promise<number> {
   const nowMs = nowOf(deps).getTime();
   const snap = await deps.db
     .collection(COLLECTIONS.teacherCodes)

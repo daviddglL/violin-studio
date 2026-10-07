@@ -28,7 +28,7 @@ import {
   listTeacherCodesHandler,
   revokeTeacherCodeHandler,
 } from "./teacher/code-handlers";
-import { requireCodePepper, TEACHER_CODE_PEPPER } from "./teacher/pepper";
+import { TEACHER_CODE_PEPPER } from "./teacher/pepper";
 import { VERSION } from "./version";
 
 export { REGION };
@@ -94,19 +94,18 @@ export const guardianConsent = onRequest({ ...httpOptions, timeoutSeconds: 300 }
 });
 
 /** Codigos de vinculo del profesor (REQ-LNK-01/02): el rol y el consentimiento se leen del doc, no del claim. */
-const codeDeps = () => ({ db: getFirestore(admin()), pepper: requireCodePepper(TEACHER_CODE_PEPPER.value()) });
-const codeOptions = { ...callableOptions(), secrets: [TEACHER_CODE_PEPPER] };
+// Solo `createTeacherCode` enlaza el secreto; revocar y listar no lo necesitan ni lo leen.
+export const createTeacherCode = onCall({ ...callableOptions(), secrets: [TEACHER_CODE_PEPPER] }, (request) => {
+  const { uid } = requireVerifiedUser(request);
+  return createTeacherCodeHandler({ db: getFirestore(admin()), pepper: TEACHER_CODE_PEPPER.value() }, uid);
+});
 
-export const createTeacherCode = onCall(codeOptions, (request) =>
-  createTeacherCodeHandler(codeDeps(), requireVerifiedUser(request).uid),
+export const revokeTeacherCode = onCall(callableOptions(), (request) =>
+  revokeTeacherCodeHandler({ db: getFirestore(admin()) }, requireVerifiedUser(request).uid, request.data),
 );
 
-export const revokeTeacherCode = onCall(codeOptions, (request) =>
-  revokeTeacherCodeHandler(codeDeps(), requireVerifiedUser(request).uid, request.data),
-);
-
-export const listTeacherCodes = onCall(codeOptions, (request) =>
-  listTeacherCodesHandler(codeDeps(), requireVerifiedUser(request).uid),
+export const listTeacherCodes = onCall(callableOptions(), (request) =>
+  listTeacherCodesHandler({ db: getFirestore(admin()) }, requireVerifiedUser(request).uid),
 );
 
 export const deleteAccount = onCall({ ...callableOptions(), timeoutSeconds: 300 }, (request) =>

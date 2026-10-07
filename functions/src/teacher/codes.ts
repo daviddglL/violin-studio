@@ -17,6 +17,16 @@ export function generateCode(random: RandomInt = (max) => randomInt(max)): strin
 /** Tolera como lo teclea el alumno: mayusculas, sin espacios ni guiones. */
 export const normalizeCode = (code: string): string => code.toUpperCase().replace(/[\s-]/g, "");
 
+/** Tope de la entrada cruda antes de normalizar: acota el trabajo sobre texto hostil. */
+const MAX_RAW_CODE_LENGTH = 32;
+
+/** Validador estricto para el canje (A3): devuelve el codigo normalizado o `null` si no es un codigo posible. */
+export function parseCodeInput(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length > MAX_RAW_CODE_LENGTH) return null;
+  const code = normalizeCode(raw);
+  return new RegExp(`^[${CODE_ALPHABET}]{${CODE_LENGTH}}$`).test(code) ? code : null;
+}
+
 /** HMAC-SHA256(pepper, codigo normalizado) en hex: id del doc `teacherCodes`. El codigo en claro no se guarda. */
 export function hashCode(pepper: string, code: string): string {
   if (pepper.length < MIN_PEPPER_LENGTH) {
