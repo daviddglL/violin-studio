@@ -9,6 +9,8 @@
     "lint": "eslint src test",
     "test": "jest test/unit",
     "test:integration": "jest test/integration --testTimeout=30000 --runInBand",
+    "preadmin:grant-teacher": "npm run build",
+    "preadmin:revoke-teacher": "npm run build",
     "admin:grant-teacher": "node scripts/grant-teacher.js",
     "admin:revoke-teacher": "node scripts/revoke-teacher.js",
     "test:mail-extension": "firebase emulators:exec --only functions,auth,firestore,extensions --project demo-violin-studio \"node scripts/mail-extension-smoke.js\""
