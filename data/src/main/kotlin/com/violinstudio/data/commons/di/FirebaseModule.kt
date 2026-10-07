@@ -40,12 +40,16 @@ object FirebaseModule {
     /**
      * Si un borrado de cuenta dejo la marca, la cache offline se purga aqui, antes de cualquier uso. El bloqueo es breve
      * (borrado de ficheros locales, acotado a 3 s) y solo ocurre en el primer arranque tras un borrado.
+     * Si hay un usuario autenticado no se purga y la marca se conserva (issue #47): evita perder escrituras offline
+     * pendientes de otra cuenta; se purgara en un arranque posterior sin sesion.
      */
     @Provides
     @Singleton
-    fun provideFirestore(config: EmulatorConfig, purgeFlag: CachePurgeFlag): FirebaseFirestore =
+    fun provideFirestore(config: EmulatorConfig, purgeFlag: CachePurgeFlag, auth: FirebaseAuth): FirebaseFirestore =
         Firebase.firestore.apply {
-            FirestoreCachePurge.runIfRequested(purgeFlag) { clearPersistence().await() }
+            FirestoreCachePurge.runIfRequested(purgeFlag, isSignedIn = { auth.currentUser != null }) {
+                clearPersistence().await()
+            }
             config.firestore()?.let { e -> EmulatorOnce.process.apply("firestore") { useEmulator(e.host, e.port) } }
         }
 
