@@ -108,6 +108,7 @@ test("toda colección registrada tiene un match explícito y teacherCodes es den
   const topLevel = sinMatch.filter((c) => ERASABLE_COLLECTIONS[c].kind !== "subcollectionOf");
   expect(topLevel).toEqual([]);
   expect(rules).toMatch(/match \/teacherCodes\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
+  expect(rules).toMatch(/match \/teacherLinks\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
 });
 
 test("una colección nueva en las reglas sin registrar falla nombrándola", () => {

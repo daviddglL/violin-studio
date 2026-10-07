@@ -11,6 +11,7 @@ describe("COLLECTIONS", () => {
       guardianEmailLimits: "guardianEmailLimits",
       mail: "mail",
       teacherCodes: "teacherCodes",
+      teacherLinks: "teacherLinks",
     });
   });
   test("CollectionName admite los valores registrados", () => {
