@@ -20,15 +20,19 @@ export interface TeacherEligibilityInput {
   now: Date;
   /** Versión vigente de la política; solo se inyecta en tests. */
   policyVersion?: number;
+  /** Umbral de adulto; solo se inyecta en tests (por defecto `ADULT_AGE`). */
+  adultAge?: number;
+  /** El llamador encontro filas `teacherLinks` con `studentUid = uid` (fuente de verdad frente al contador). */
+  hasStudentLinks?: boolean;
 }
 
 const deny = (reason: TeacherDenyReason): TeacherEligibility => ({ eligible: false, reason });
 
-/** `birthDate` ilegible, inexistente o futura nunca cuenta como adulto (fail-closed). */
-function adultFromProfile(birthDate: unknown, now: Date): boolean {
+/** La edad se calcula en UTC (`ageOn`). `birthDate` ilegible, inexistente o futura nunca cuenta como adulto (fail-closed). */
+function adultFromProfile(birthDate: unknown, now: Date, adultAge?: number): boolean {
   if (typeof birthDate !== "string") return false;
   try {
-    return isAdult(parseBirthDate(birthDate, now), now);
+    return isAdult(parseBirthDate(birthDate, now), now, adultAge);
   } catch {
     return false;
   }
@@ -40,16 +44,22 @@ export function canGrantTeacher({
   emailVerified,
   now,
   policyVersion = CURRENT_POLICY_VERSION,
+  adultAge,
+  hasStudentLinks = false,
 }: TeacherEligibilityInput): TeacherEligibility {
   if (!profile) return deny("NO_PROFILE");
+  // Denegaciones duras antes de la rama idempotente: un profesor en borrado no se "reconfirma".
+  if (profile.deletion) return deny("DELETION_IN_PROGRESS");
   if (profile.role === "teacher") return { eligible: true, alreadyTeacher: true };
-  if (!adultFromProfile(profile.birthDate, now)) return deny("NOT_ADULT");
+  if (profile.role === "student" || hasStudentLinks) return deny("HAS_TEACHER_LINKS");
+  if (!adultFromProfile(profile.birthDate, now, adultAge)) return deny("NOT_ADULT");
   if (!emailVerified) return deny("EMAIL_NOT_VERIFIED");
   if (profile.consentStatus !== "granted" || profile.policyVersion !== policyVersion) {
     return deny("CONSENT_NOT_CURRENT");
   }
-  if (profile.deletion) return deny("DELETION_IN_PROGRESS");
-  const count = typeof profile.teacherCount === "number" ? profile.teacherCount : 0;
-  if (count > 0) return deny("HAS_TEACHER_LINKS");
+  const raw = profile.teacherCount;
+  if (raw !== undefined && (typeof raw !== "number" || !Number.isInteger(raw) || raw !== 0)) {
+    return deny("HAS_TEACHER_LINKS");
+  }
   return { eligible: true, alreadyTeacher: false };
 }

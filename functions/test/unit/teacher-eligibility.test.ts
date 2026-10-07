@@ -9,8 +9,12 @@ const ok = {
   policyVersion: CURRENT_POLICY_VERSION,
   teacherCount: 0,
 };
-const check = (profile: Record<string, unknown> | undefined, emailVerified = true, policy?: number) =>
-  canGrantTeacher({ profile, emailVerified, now: NOW, policyVersion: policy });
+const check = (
+  profile: Record<string, unknown> | undefined,
+  emailVerified = true,
+  policy?: number,
+  extra: { adultAge?: number; hasStudentLinks?: boolean } = {},
+) => canGrantTeacher({ profile, emailVerified, now: NOW, policyVersion: policy, ...extra });
 
 describe("canGrantTeacher", () => {
   test("adulto verificado y vigente -> elegible", () => {
@@ -55,5 +59,28 @@ describe("canGrantTeacher", () => {
   });
   test("ya profesor -> idempotente", () => {
     expect(check({ ...ok, role: "teacher" })).toEqual({ eligible: true, alreadyTeacher: true });
+  });
+  test("W5: borrado en curso se deniega tambien a un profesor existente", () => {
+    expect(check({ ...ok, role: "teacher", deletion: { state: "in_progress" } })).toEqual({
+      eligible: false,
+      reason: "DELETION_IN_PROGRESS",
+    });
+  });
+  test("W4: role student se deniega aunque teacherCount sea 0 o falte", () => {
+    expect(check({ ...ok, role: "student", teacherCount: 0 })).toEqual({ eligible: false, reason: "HAS_TEACHER_LINKS" });
+    expect(check({ ...ok, role: "student" })).toEqual({ eligible: false, reason: "HAS_TEACHER_LINKS" });
+  });
+  test.each([["1"], [null], [NaN], [-1], [1.5], [{}]])("W4: teacherCount %p presente pero invalido se deniega", (c) => {
+    expect(check({ ...ok, teacherCount: c })).toEqual({ eligible: false, reason: "HAS_TEACHER_LINKS" });
+  });
+  test("W4: vinculos de alumno hallados en teacherLinks se deniegan", () => {
+    expect(check(ok, true, undefined, { hasStudentLinks: true })).toEqual({
+      eligible: false,
+      reason: "HAS_TEACHER_LINKS",
+    });
+  });
+  test("S1: adultAge inyectable", () => {
+    expect(check(ok, true, undefined, { adultAge: 40 })).toEqual({ eligible: false, reason: "NOT_ADULT" });
+    expect(check(ok, true, undefined, { adultAge: 30 })).toEqual({ eligible: true, alreadyTeacher: false });
   });
 });

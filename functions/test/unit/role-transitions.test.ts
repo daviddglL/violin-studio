@@ -1,4 +1,5 @@
 import { isAllowedRoleTransition, ROLES, Role } from "../../src/teacher/role-transitions";
+import { ALLOWED_ROLES } from "../../src/identity/claims";
 
 // REQ-PRF-T02: unicas transiciones permitidas; toda otra combinacion distinta de la identidad se rechaza.
 const PERMITIDAS: Array<[Role, Role]> = [
@@ -26,4 +27,8 @@ describe("transiciones de rol", () => {
   test("misma->misma no es transicion", () => {
     for (const r of ROLES) expect(isAllowedRoleTransition(r, r)).toBe(false);
   });
+});
+
+test("S6: claims.ts comparte la unica fuente de roles", () => {
+  expect(ALLOWED_ROLES).toBe(ROLES);
 });

@@ -2,9 +2,10 @@ import { Auth } from "firebase-admin/auth";
 import { Firestore } from "firebase-admin/firestore";
 import { COLLECTIONS } from "../common/collections";
 import { CURRENT_POLICY_VERSION } from "../config/identity";
+import { ROLES } from "../teacher/role-transitions";
 
 /** Roles asignables por el servidor; cualquier otro valor cae a `independent` (fail-closed y acota el payload). */
-const ALLOWED_ROLES: readonly string[] = ["independent", "student", "teacher"];
+export const ALLOWED_ROLES: readonly string[] = ROLES;
 
 export interface Claims {
   role: string;
