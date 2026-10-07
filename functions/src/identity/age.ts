@@ -1,4 +1,4 @@
-import { DIGITAL_CONSENT_AGE, MAX_PLAUSIBLE_AGE } from "../config/identity";
+import { ADULT_AGE, DIGITAL_CONSENT_AGE, MAX_PLAUSIBLE_AGE } from "../config/identity";
 import { ErrorReason, fail } from "../common/errors";
 
 export interface BirthDate {
@@ -61,4 +61,9 @@ export function isMinor(birth: unknown, today: Date, threshold: number = DIGITAL
   if (!isBirthDate(birth) || Number.isNaN(today.getTime())) return true;
   if (Date.UTC(birth.year, birth.month - 1, birth.day) > today.getTime()) return true;
   return ageOn(birth, today) < threshold;
+}
+
+/** Adulto = edad >= umbral. Fail-closed: un dato ilegible o futuro nunca concede la condición de adulto. */
+export function isAdult(birth: unknown, today: Date, threshold: number = ADULT_AGE): boolean {
+  return !isMinor(birth, today, threshold);
 }
