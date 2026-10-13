@@ -33,6 +33,7 @@ class TeacherCodesViewModelTest {
     private val create = mockk<CreateTeacherCodeUseCase>()
     private val list = mockk<ListTeacherCodesUseCase>()
     private val revoke = mockk<RevokeTeacherCodeUseCase>()
+    private val now = Instant.parse("2026-10-15T10:00:00Z")
     private val expiry = Instant.parse("2026-10-20T10:00:00Z")
     private val listed = TeacherCode("h1", null, "AB", expiry)
     private val other = TeacherCode("h2", null, "CD", expiry.plusSeconds(60))
@@ -47,7 +48,7 @@ class TeacherCodesViewModelTest {
         codes: Result<List<TeacherCode>> = Result.success(listOf(listed, other))
     ): TeacherCodesViewModel {
         coEvery { list() } returns codes
-        return TeacherCodesViewModel(create, list, revoke).also { created += it }
+        return TeacherCodesViewModel(create, list, revoke) { now }.also { created += it }
     }
 
     private fun createAnswers(result: Result<TeacherCode>) {
@@ -130,6 +131,97 @@ class TeacherCodesViewModelTest {
             createdOk()
             intent(TeacherCodesIntent.DismissCreated)
             assertState { it.created == null && !it.copied }
+        }
+    }
+
+    @Test
+    fun `crear con un codigo sin cerrar no llama y no lo pierde`() = runTest {
+        viewModel().testMvi {
+            loaded()
+            createdOk()
+            intent(TeacherCodesIntent.Create)
+            intent(TeacherCodesIntent.DismissCreated)
+            assertState { it.created == null }
+        }
+        coVerify(exactly = 1) { create() }
+    }
+
+    @Test
+    fun `con el cupo lleno no se llama a crear`() = runTest {
+        val full = (1..5).map { TeacherCode("f$it", null, "F$it", expiry) }
+        viewModel(Result.success(full)).testMvi {
+            assertState { !it.isLoading && it.codes == full && !it.canCreate }
+            intent(TeacherCodesIntent.Create)
+        }
+        coVerify(exactly = 0) { create() }
+    }
+
+    @Test
+    fun `un fallo al crear no destruye un codigo ya mostrado`() = runTest {
+        // El guard impide crear con uno pendiente; el reductor tampoco lo borra si el fallo llegara igualmente.
+        createAnswers(Result.failure(LinkFailure.Offline))
+        val vm = viewModel()
+        vm.testMvi {
+            loaded()
+            intent(TeacherCodesIntent.Create)
+            assertState { it.isCreating }
+            assertState { it.created == null && it.error == CodesError.TryAgain && it.canCreate }
+        }
+    }
+
+    @Test
+    fun `los codigos caducados no se muestran ni cuentan`() = runTest {
+        val expired = TeacherCode("x", null, "XX", now)
+        viewModel(Result.success(listOf(expired, listed))).testMvi {
+            assertState { !it.isLoading && it.codes == listOf(listed) }
+        }
+    }
+
+    @Test
+    fun `refrescar recarga la lista sin pasar por la carga`() = runTest {
+        viewModel().testMvi {
+            loaded()
+            coEvery { list() } returns Result.success(listOf(other))
+            intent(TeacherCodesIntent.Refresh)
+            assertState { !it.isLoading && it.codes == listOf(other) }
+        }
+    }
+
+    @Test
+    fun `el limite del servidor recarga la lista por si estaba desactualizada`() = runTest {
+        createAnswers(Result.failure(LinkFailure.CodeLimitReached))
+        viewModel().testMvi {
+            loaded()
+            coEvery { list() } returns Result.success(listOf(listed))
+            intent(TeacherCodesIntent.Create)
+            assertState { it.isCreating }
+            assertState { it.error == CodesError.LimitReached }
+            assertState { it.codes == listOf(listed) }
+        }
+    }
+
+    @Test
+    fun `cerrar tras copiar pide borrar el portapapeles y sin copiar no`() = runTest {
+        viewModel().testMvi {
+            loaded()
+            createdOk()
+            intent(TeacherCodesIntent.Copy)
+            assertState { it.copied }
+            assertEffect(TeacherCodesEffect.CopyToClipboard("WXYZ2345"))
+            intent(TeacherCodesIntent.DismissCreated)
+            assertState { it.created == null && !it.copied }
+            assertEffect(TeacherCodesEffect.ClearClipboard("WXYZ2345"))
+        }
+    }
+
+    @Test
+    fun `cerrar sin copiar no toca el portapapeles`() = runTest {
+        viewModel().testMvi {
+            loaded()
+            createdOk()
+            intent(TeacherCodesIntent.DismissCreated)
+            assertState { it.created == null }
+            assertNoEffects()
         }
     }
 

@@ -1,19 +1,28 @@
 package com.violinstudio.ui.feature.teacher.view
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.profile.model.Instrument
+import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.teacher.viewmodel.StudentsIntent
 import com.violinstudio.ui.feature.teacher.viewmodel.StudentsState
@@ -32,6 +41,7 @@ class TeacherScreensTest {
     @get:Rule
     val compose = createComposeRule()
 
+    private val context: Context = ApplicationProvider.getApplicationContext()
     private val studentIntents = mutableListOf<StudentsIntent>()
     private val codeIntents = mutableListOf<TeacherCodesIntent>()
     private var openedCodes = false
@@ -88,6 +98,50 @@ class TeacherScreensTest {
         compose.onNodeWithTag(STUDENT_UNLINK_CANCEL_TAG).performClick()
         compose.onNodeWithTag(STUDENT_UNLINK_CONFIRM_TAG).performClick()
         assertEquals(listOf(StudentsIntent.CancelUnlink, StudentsIntent.ConfirmUnlink), studentIntents)
+    }
+
+    @Test
+    fun `crear se bloquea mientras hay un codigo sin cerrar`() {
+        showCodes(TeacherCodesState(isLoading = false, created = fresh))
+        compose.onNodeWithTag(CODES_CREATE_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun `crear se bloquea con el cupo lleno`() {
+        val full = (1..5).map { TeacherCode("f$it", null, "F$it", fresh.expiresAt) }
+        showCodes(TeacherCodesState(isLoading = false, codes = full))
+        compose.onNodeWithTag(CODES_CREATE_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun `cada fila nombra su codigo o alumno en la accion`() {
+        showCodes(TeacherCodesState(isLoading = false, codes = listOf(listed)))
+        compose.onNodeWithContentDescription(context.getString(R.string.teacher_code_revoke_desc, "AB"))
+            .performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `desvincular nombra al alumno en la accion`() {
+        showStudents(StudentsState(isLoading = false, students = listOf(ana)))
+        compose.onNodeWithContentDescription(context.getString(R.string.teacher_student_unlink_desc, "Ana"))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `el codigo creado se deletrea para los lectores de pantalla`() {
+        showCodes(TeacherCodesState(isLoading = false, created = fresh))
+        compose.onNodeWithTag(CODE_CREATED_VALUE_TAG)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("W X Y Z 2 3 4 5")))
+    }
+
+    @Test
+    fun `borrar el portapapeles solo si aun contiene el codigo`() {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(ClipData.newPlainText("", "WXYZ2345"))
+        context.clearClipIfEquals("OTRO")
+        assertEquals("WXYZ2345", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        context.clearClipIfEquals("WXYZ2345")
+        assertEquals(null, clipboard.primaryClip?.getItemAt(0)?.text?.toString())
     }
 
     @Test

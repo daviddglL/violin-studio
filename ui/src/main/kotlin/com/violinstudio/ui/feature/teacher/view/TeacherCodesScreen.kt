@@ -5,9 +5,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.PersistableBundle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +41,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.ui.R
@@ -82,8 +87,12 @@ fun TeacherCodesRoute(onBack: () -> Unit, viewModel: TeacherCodesViewModel = hil
         when (effect) {
             is TeacherCodesEffect.CopyToClipboard -> context.copySensitive(effect.code)
             is TeacherCodesEffect.ShareCode -> context.shareText(effect.code)
+            is TeacherCodesEffect.ClearClipboard -> context.clearClipIfEquals(effect.code)
         }
     }
+    // El código en claro no sobrevive a salir de la pantalla (también al abrir el selector de compartir).
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onIntent(TeacherCodesIntent.DismissCreated) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onIntent(TeacherCodesIntent.Refresh) }
     TeacherCodesScreen(state, viewModel::onIntent, onBack)
 }
 
@@ -125,7 +134,7 @@ private fun Content(state: TeacherCodesState, onIntent: (TeacherCodesIntent) -> 
     Text(stringResource(R.string.teacher_codes_intro), style = MaterialTheme.typography.bodyMedium)
     Button(
         onClick = { onIntent(TeacherCodesIntent.Create) },
-        enabled = !state.isCreating,
+        enabled = state.canCreate,
         modifier = Modifier.fillMaxWidth().testTag(CODES_CREATE_TAG)
     ) {
         Text(stringResource(if (state.isCreating) R.string.teacher_codes_creating else R.string.teacher_codes_create))
@@ -145,6 +154,7 @@ private fun Content(state: TeacherCodesState, onIntent: (TeacherCodesIntent) -> 
     )
     if (state.codes.isEmpty()) Text(stringResource(R.string.teacher_codes_empty), Modifier.testTag(CODES_EMPTY_TAG))
     state.codes.forEach { code ->
+        val revokeDesc = stringResource(R.string.teacher_code_revoke_desc, code.hint)
         HorizontalDivider()
         Row(
             Modifier.fillMaxWidth().testTag(CODE_ROW_TAG),
@@ -160,21 +170,23 @@ private fun Content(state: TeacherCodesState, onIntent: (TeacherCodesIntent) -> 
             TextButton(
                 onClick = { onIntent(TeacherCodesIntent.RequestRevoke(code)) },
                 enabled = !state.isRevoking,
-                modifier = Modifier.testTag(CODE_REVOKE_TAG)
+                modifier = Modifier.testTag(CODE_REVOKE_TAG).semantics { contentDescription = revokeDesc }
             ) { Text(stringResource(R.string.teacher_code_revoke)) }
         }
     }
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun Created(code: TeacherCode, copied: Boolean, onIntent: (TeacherCodesIntent) -> Unit) {
+    val spelled = code.code.orEmpty().toList().joinToString(" ")
     Card(Modifier.fillMaxWidth().testTag(CODE_CREATED_TAG)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.teacher_code_created_title), style = MaterialTheme.typography.titleMedium)
             Text(
                 code.code.orEmpty(),
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.testTag(CODE_CREATED_VALUE_TAG)
+                modifier = Modifier.testTag(CODE_CREATED_VALUE_TAG).semantics { contentDescription = spelled }
             )
             Text(stringResource(R.string.teacher_code_expires, code.expiresAt.formattedDateTime()))
             Text(stringResource(R.string.teacher_code_created_warning), style = MaterialTheme.typography.bodyMedium)
@@ -184,7 +196,7 @@ private fun Created(code: TeacherCode, copied: Boolean, onIntent: (TeacherCodesI
                     modifier = Modifier.testTag(CODE_COPIED_TAG).semantics { liveRegion = LiveRegionMode.Polite }
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = { onIntent(TeacherCodesIntent.Copy) },
                     modifier = Modifier.testTag(CODE_COPY_TAG)
@@ -268,4 +280,12 @@ private fun Context.shareText(code: String) {
     } catch (_: ActivityNotFoundException) {
         // Sin app que reciba el texto: el código sigue visible para copiarlo.
     }
+}
+
+/** Borra el portapapeles solo si aún contiene [code] (no pisa lo que el usuario haya copiado después). Android 9+. */
+internal fun Context.clearClipIfEquals(code: String) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+    val clipboard = getSystemService(ClipboardManager::class.java) ?: return
+    val current = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
+    if (current == code) clipboard.clearPrimaryClip()
 }

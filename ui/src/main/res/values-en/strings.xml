@@ -368,4 +368,6 @@
     <string name="teacher_codes_error_unavailable">The code could not be created. Try again later.</string>
     <string name="teacher_codes_error_try_again">No connection or service unavailable. Try again.</string>
     <string name="teacher_codes_error_revoke">The code could not be revoked. Try again.</string>
+    <string name="teacher_code_revoke_desc">Revoke code ending in %1$s</string>
+    <string name="teacher_student_unlink_desc">Unlink %1$s</string>
 </resources>

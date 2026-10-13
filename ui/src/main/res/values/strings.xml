@@ -368,4 +368,6 @@
     <string name="teacher_codes_error_unavailable">No se ha podido crear el código. Inténtalo de nuevo más tarde.</string>
     <string name="teacher_codes_error_try_again">Sin conexión o servicio no disponible. Inténtalo de nuevo.</string>
     <string name="teacher_codes_error_revoke">No se ha podido revocar el código. Inténtalo de nuevo.</string>
+    <string name="teacher_code_revoke_desc">Revocar código terminado en %1$s</string>
+    <string name="teacher_student_unlink_desc">Desvincular a %1$s</string>
 </resources>

@@ -41,7 +41,7 @@ class StudentsViewModel @Inject constructor(
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: LinkFailure.PermissionDenied) {
+        } catch (_: LinkFailure.PermissionDenied) {
             setState { copy(isLoading = false, students = emptyList()) }
         } catch (_: Throwable) {
             setState { copy(isLoading = false, loadFailed = true) }

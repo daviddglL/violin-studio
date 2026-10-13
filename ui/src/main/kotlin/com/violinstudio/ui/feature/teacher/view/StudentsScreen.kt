@@ -107,6 +107,7 @@ private fun StudentList(state: StudentsState, onIntent: (StudentsIntent) -> Unit
     )
     state.error?.let { ErrorText(it) }
     state.students.forEach { link ->
+        val unlinkDesc = stringResource(R.string.teacher_student_unlink_desc, link.studentDisplayName)
         HorizontalDivider()
         Column(Modifier.fillMaxWidth().testTag(STUDENT_ROW_TAG), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(link.studentDisplayName, style = MaterialTheme.typography.titleMedium)
@@ -118,7 +119,7 @@ private fun StudentList(state: StudentsState, onIntent: (StudentsIntent) -> Unit
             TextButton(
                 onClick = { onIntent(StudentsIntent.RequestUnlink(link)) },
                 enabled = !state.isUnlinking,
-                modifier = Modifier.testTag(STUDENT_UNLINK_TAG)
+                modifier = Modifier.testTag(STUDENT_UNLINK_TAG).semantics { contentDescription = unlinkDesc }
             ) { Text(stringResource(R.string.teacher_student_unlink)) }
         }
     }
