@@ -114,6 +114,16 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
             OutlinedButton(onClick = it.onOpenPractice, modifier = Modifier.testTag("home_practice")) {
                 Text(stringResource(R.string.practice_home_card))
             }
+            it.onOpenRedeem?.let { open ->
+                OutlinedButton(onClick = open, modifier = Modifier.testTag("home_redeem")) {
+                    Text(stringResource(R.string.home_redeem_card))
+                }
+            }
+            it.onOpenMyTeacher?.let { open ->
+                OutlinedButton(onClick = open, modifier = Modifier.testTag("home_my_teacher")) {
+                    Text(stringResource(R.string.home_my_teacher_card))
+                }
+            }
         }
     }
 }
@@ -123,5 +133,9 @@ data class HomeNavigation(
     val onOpenSettings: () -> Unit,
     val onOpenTuner: () -> Unit,
     val onOpenMetronome: () -> Unit,
-    val onOpenPractice: () -> Unit
+    val onOpenPractice: () -> Unit,
+    /** Solo para `independent` (la navegación decide por rol; Home no conoce la sesión). */
+    val onOpenRedeem: (() -> Unit)? = null,
+    /** Solo para `student`. */
+    val onOpenMyTeacher: (() -> Unit)? = null
 )

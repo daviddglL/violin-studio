@@ -15,6 +15,9 @@ import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.feature.home.view.HomeNavigation
+import com.violinstudio.ui.feature.home.view.HomeScreen
+import com.violinstudio.ui.feature.home.viewmodel.HomeState
 import com.violinstudio.ui.feature.link.viewmodel.MyTeacherIntent
 import com.violinstudio.ui.feature.link.viewmodel.MyTeacherState
 import com.violinstudio.ui.feature.link.viewmodel.RedeemCodeIntent
@@ -102,5 +105,22 @@ class LinkScreensTest {
         showTeacher(MyTeacherState())
         compose.onNodeWithTag(MY_TEACHER_LOADING_TAG).assertIsDisplayed()
         compose.onNodeWithTag(MY_TEACHER_NONE_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun `home muestra las entradas de vinculo solo cuando la navegacion las ofrece`() {
+        var opened = 0
+        compose.setContent {
+            ViolinStudioTheme {
+                HomeScreen(
+                    HomeState(),
+                    onIntent = {},
+                    navigation = HomeNavigation({}, {}, {}, {}, onOpenRedeem = { opened++ })
+                )
+            }
+        }
+        compose.onNodeWithTag("home_my_teacher").assertDoesNotExist()
+        compose.onNodeWithTag("home_redeem").performScrollTo().performClick()
+        assertEquals(1, opened)
     }
 }
