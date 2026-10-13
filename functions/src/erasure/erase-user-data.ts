@@ -6,7 +6,7 @@ import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
 import { ERASABLE_COLLECTIONS, STORAGE_PREFIXES } from "./registry";
-import { deleteInBatches } from "./shared";
+import { deleteInBatches, sweepLinks, sweepShared } from "./shared";
 
 /** Esperas entre reintentos de cada paso (hasta 4 intentos en total). */
 export const RETRY_DELAYS_MS = [200, 800, 2000] as const;
@@ -125,6 +125,8 @@ export async function eraseUserData(
   // 2. Colecciones con uid como campo: lotes hasta vaciar. Los contadores acumulan entre reintentos.
   const deleted: Record<string, number> = {};
   const sweepCollections = async () => {
+    // `link` primero: corta el acceso cruzado y recalcula contadores, rol y claims de la otra parte.
+    await sweepLinks({ db, auth, log: deps.log }, uid, deleted);
     for (const [name, policy] of Object.entries(ERASABLE_COLLECTIONS)) {
       if (policy.kind !== "queryByFields") continue;
       deleted[name] ??= 0;
@@ -134,6 +136,10 @@ export async function eraseUserData(
     }
   };
   await step("collections", sweepCollections);
+
+  // 2b. Documentos propios en espacios ajenos (tareas de un profesor en los alumnos): `collectionGroup`.
+  const sweepForeign = () => sweepShared(db, uid, deleted);
+  await step("shared", sweepForeign);
 
   // 3. Storage.
   await step("storage", async () => {
@@ -155,6 +161,7 @@ export async function eraseUserData(
     });
     // 6. Barrido final: un perfil recreado en la ventana entre los pasos 4 y 5 no debe sobrevivir.
     await step("finalCollections", sweepCollections);
+    await step("finalShared", sweepForeign);
     await step("finalUserDoc", sweepUserDoc);
   }
 
