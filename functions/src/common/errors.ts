@@ -19,6 +19,10 @@ export enum ErrorReason {
   CODE_LIMIT_REACHED = "CODE_LIMIT_REACHED",
   CODE_NOT_FOUND = "CODE_NOT_FOUND",
   SERVER_MISCONFIGURED = "SERVER_MISCONFIGURED",
+  NOTICE_OUTDATED = "NOTICE_OUTDATED",
+  TEACHER_FULL = "TEACHER_FULL",
+  ALREADY_LINKED = "ALREADY_LINKED",
+  NOT_ELIGIBLE = "NOT_ELIGIBLE",
 }
 
 /** Error de callable con `details.reason` estable para que el cliente lo mapee sin parsear texto. */
