@@ -40,6 +40,24 @@ describe("firestore.indexes.json", () => {
     });
   });
 
+  test("indice compuesto assignments(teacherUid, createdAt DESC) para la lista del profesor (A6)", () => {
+    expect(cfg.indexes).toContainEqual({
+      collectionGroup: "assignments",
+      queryScope: "COLLECTION",
+      fields: [
+        { fieldPath: "teacherUid", order: "ASCENDING" },
+        { fieldPath: "createdAt", order: "DESCENDING" },
+      ],
+    });
+  });
+
+  test("assignments: la lista del alumno (createdAt) y la limpieza (teacherUid == t && status == open) usan indices de campo unico", () => {
+    // Sin compuesto: orderBy simple y dos igualdades se resuelven con los indices automaticos (fusion de indices).
+    // El override de teacherUid solo declara ASC (COLLECTION y COLLECTION_GROUP): la limpieza y la cascada solo usan ==.
+    const overridden = cfg.fieldOverrides.filter((f: { collectionGroup: string }) => f.collectionGroup === "assignments").map((f: { fieldPath: string }) => f.fieldPath);
+    expect(overridden).toEqual(["teacherUid"]);
+  });
+
   test("assignments.teacherUid: indice COLLECTION_GROUP para la cascada de borrado del profesor (A5)", () => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === "assignments" && f.fieldPath === "teacherUid");
     expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION_GROUP" });

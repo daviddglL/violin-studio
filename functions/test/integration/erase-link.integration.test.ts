@@ -171,7 +171,8 @@ describe("borrar profesor (REQ-DEL-T02, T04)", () => {
 
     const res = await eraseUserData(deps, t, { deleteAuth: true });
 
-    expect(res.deleted).toMatchObject({ teacherCodes: 2, assignments: 451 });
+    // El paso link (removeLink) ya borro las 225 abiertas de s1 (A6); shared barre las 225 done de s1 + "mia" de s2.
+    expect(res.deleted).toMatchObject({ teacherCodes: 2, assignments: 226 });
     expect(await links("teacherUid", t)).toBe(0);
     expect(await userDoc(s1)).toMatchObject({ role: "independent", teacherCount: 0 });
     expect(await userDoc(s2)).toMatchObject({ role: "student", teacherCount: 1 });
