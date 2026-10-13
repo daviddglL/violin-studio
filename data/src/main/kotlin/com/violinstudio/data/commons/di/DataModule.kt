@@ -6,6 +6,9 @@ import com.violinstudio.data.commons.audio.AudioFocus
 import com.violinstudio.data.commons.audio.AudioTrackOutput
 import com.violinstudio.data.commons.audio.PcmTrackFactory
 import com.violinstudio.data.feature.account.repository.AccountRepositoryImpl
+import com.violinstudio.data.feature.assignment.datasource.AssignmentRemoteDataSource
+import com.violinstudio.data.feature.assignment.datasource.firebase.FirebaseAssignmentRemoteDataSource
+import com.violinstudio.data.feature.assignment.repository.AssignmentRepositoryImpl
 import com.violinstudio.data.feature.auth.datasource.AuthRemoteDataSource
 import com.violinstudio.data.feature.auth.datasource.firebase.FirebaseAuthRemoteDataSource
 import com.violinstudio.data.feature.auth.repository.AuthRepositoryImpl
@@ -34,6 +37,7 @@ import com.violinstudio.data.feature.tuner.datasource.audio.MicPermission
 import com.violinstudio.data.feature.tuner.datasource.audio.PcmRecorderFactory
 import com.violinstudio.data.feature.tuner.repository.DataStoreTunerConfigRepository
 import com.violinstudio.domain.feature.account.repository.AccountRepository
+import com.violinstudio.domain.feature.assignment.repository.AssignmentRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
@@ -117,4 +121,10 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindLinkRepository(impl: LinkRepositoryImpl): LinkRepository
+
+    @Binds
+    abstract fun bindAssignmentRemoteDataSource(impl: FirebaseAssignmentRemoteDataSource): AssignmentRemoteDataSource
+
+    @Binds
+    abstract fun bindAssignmentRepository(impl: AssignmentRepositoryImpl): AssignmentRepository
 }
