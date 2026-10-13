@@ -31,13 +31,19 @@ service cloud.firestore {
     function isActiveDoc(u) { return u.consentStatus == 'granted' && !('deletion' in u); }
     function userDocActive(uid) { return isActiveDoc(get(/databases/$(database)/documents/users/$(uid)).data); }
     // Vinculo profesor-alumno: el doc `teacherLinks/{t}_{s}` existe <=> vinculo activo (solo Functions escribe).
-    function linkExists(t, s) { return exists(/databases/$(database)/documents/teacherLinks/$(t + '_' + s)); }
+    // El id `t_s` es ambiguo si un uid contiene '_' (a_b+c vs a+b_c): se comprueban los campos del doc, no solo su
+    // existencia. Si el doc no existe, `get` da error y la regla deniega.
+    function linkOk(t, s) {
+      let l = get(/databases/$(database)/documents/teacherLinks/$(t + '_' + s)).data;
+      return l.teacherUid == t && l.studentUid == s;
+    }
     // Profesor vinculado con ambos docs activos. NUNCA mira el claim `role` (puede ir desfasado): manda el vinculo.
-    // Accesos a documentos por evaluacion: 1 exists + 2 get = 3 (limite de Firestore: 10 por peticion).
+    // Accesos a documentos por evaluacion: 3 get (vinculo + 2 usuarios; limite de Firestore: 10 por peticion).
+    // Coste: cada get/list del profesor factura 3 lecturas extra por peticion (list: una vez por consulta, no por doc).
     // Los `list` se evaluan una vez por consulta (no por doc); esta funcion no depende de `resource`.
     function isLinkedTeacher(s) {
       return isSignedIn() && emailVerified() && hasConsent()
-        && linkExists(request.auth.uid, s) && userDocActive(s) && userDocActive(request.auth.uid);
+        && linkOk(request.auth.uid, s) && userDocActive(s) && userDocActive(request.auth.uid);
     }
     function validNotes(d) { return !('notes' in d) || (d.notes is string && d.notes.size() <= 500); }
     // Sin campos de audio posibles: hasOnly cierra el esquema.
@@ -73,7 +79,7 @@ service cloud.firestore {
 
       // id <= 64: el cliente usa UUIDs (36).
       match /practiceSessions/{id} {
-        // Profesor vinculado: solo lectura. Accesos: dueño 0; profesor 3 (exists + 2 get).
+        // Profesor vinculado: solo lectura. Accesos: dueño 0; profesor 3 (3 get).
         // create/update llaman a userDocActive una vez (1 get); delete 0.
         allow get, list: if isOwner(uid) || isLinkedTeacher(uid);
         allow create: if id.size() <= 64 && isOwner(uid) && emailVerified() && hasConsent() && userDocActive(uid)
@@ -94,7 +100,7 @@ service cloud.firestore {
     // Vinculos profesor-alumno: solo Functions escribe. Lectura por las partes; el `list` exige filtrar por el propio
     // uid (teacherUid o studentUid) para que la consulta quede acotada. Accesos por evaluacion: 0.
     match /teacherLinks/{id} {
-      allow get, list: if isSignedIn()
+      allow get, list: if isSignedIn() && emailVerified()
         && (resource.data.teacherUid == request.auth.uid || resource.data.studentUid == request.auth.uid);
       allow write: if false;
     }

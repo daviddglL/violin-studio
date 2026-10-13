@@ -279,3 +279,31 @@ describe("coste de las reglas del profesor", () => {
     expect(snap.size).toBe(61);
   });
 });
+
+describe("ambiguedad del id del vinculo y alcance del profesor", () => {
+  test("uid con '_' no permite suplantar un vinculo ajeno (a + b_c vs a_b + c)", async () => {
+    await seed(env, "users/b_c", userDoc());
+    await seed(env, "users/b_c/practiceSessions/s1", stored);
+    await seed(env, "users/a", userDoc({ role: "teacher" }));
+    await seed(env, "users/a_b", userDoc({ role: "teacher" }));
+    await seed(env, "users/c", userDoc());
+    await seed(env, "users/c/practiceSessions/s1", stored);
+    await seed(env, "teacherLinks/a_b_c", { teacherUid: "a_b", studentUid: "c" });
+    await assertFails(getDoc(doc(as("a"), "users/b_c/practiceSessions/s1")));
+    await assertFails(getDocs(collection(as("a"), "users/b_c/practiceSessions")));
+    await assertSucceeds(getDoc(doc(as("a_b"), "users/c/practiceSessions/s1")));
+  });
+  test("el profesor vinculado no lee a otro alumno ni otras subcolecciones del suyo", async () => {
+    await seed(env, "users/tea", userDoc({ role: "teacher" }));
+    await seed(env, "teacherLinks/tea_alice", { teacherUid: "tea", studentUid: "alice" });
+    await seed(env, "users/bob", userDoc());
+    await seed(env, "users/bob/practiceSessions/s1", stored);
+    await seed(env, "users/alice/consents/c1", { type: "policy" });
+    await seed(env, "users/alice/otra/x", { a: 1 });
+    await assertFails(getDoc(doc(as("tea"), "users/bob/practiceSessions/s1")));
+    await assertFails(getDoc(doc(as("tea"), "users/alice/consents/c1")));
+    await assertFails(getDocs(collection(as("tea"), "users/alice/consents")));
+    await assertFails(getDoc(doc(as("tea"), "users/alice/otra/x")));
+    await assertFails(getDoc(doc(as("tea"), "users/alice")));
+  });
+});

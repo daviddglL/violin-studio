@@ -71,3 +71,14 @@ describe("teacherCodes (REQ-SEC-T03)", () => {
     await assertFails(deleteDoc(doc(db, "teacherCodes/abc")));
   });
 });
+
+describe("teacherLinks endurecimiento", () => {
+  test("email sin verificar no lee ni lista", async () => {
+    const t = as("tea", { email_verified: false, consentOk: true });
+    await assertFails(getDoc(doc(t, LINK)));
+    await assertFails(getDocs(query(col(t), where("teacherUid", "==", "tea"))));
+  });
+  test("el profesor no lista filtrando por studentUid de su alumno", async () => {
+    await assertFails(getDocs(query(col(as("tea")), where("studentUid", "==", "stu"))));
+  });
+});
