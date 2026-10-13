@@ -236,3 +236,58 @@ describe("removeLink robusto (revision A3b)", () => {
     expect(await claims(ss[1])).toMatchObject({ role: "independent" });
   });
 });
+
+describe("removeLink limpia tareas (A6.4)", () => {
+  const tarea = (s: string, id: string, teacherUid: string, status: "open" | "done") =>
+    db
+      .collection("users")
+      .doc(s)
+      .collection("assignments")
+      .doc(id)
+      .set({ teacherUid, title: id, status, createdAt: Timestamp.now(), updatedAt: Timestamp.now(), ...(status === "done" ? { doneAt: Timestamp.now() } : {}) });
+  const ids = async (s: string) =>
+    (await db.collection("users").doc(s).collection("assignments").get()).docs.map((d) => d.id).sort();
+
+  test("borra las open del profesor, conserva sus done y deja intactas las de otro profesor; repetir es idempotente", async () => {
+    const t = await profesor();
+    const otro = await profesor();
+    const s = await alumno({ teacherCount: 2 });
+    await vincular(t, s);
+    await vincular(otro, s);
+    await tarea(s, "t-open1", t, "open");
+    await tarea(s, "t-open2", t, "open");
+    await tarea(s, "t-done", t, "done");
+    await tarea(s, "o-open", otro, "open");
+    await removeLink(deps(), t, s);
+    expect(await ids(s)).toEqual(["o-open", "t-done"]);
+    await removeLink(deps(), t, s);
+    expect(await ids(s)).toEqual(["o-open", "t-done"]);
+  });
+
+  test("forma parte del flujo reanudable: si un paso posterior falla, reintentar completa la limpieza", async () => {
+    const t = await profesor();
+    const s = await alumno();
+    await vincular(t, s);
+    await tarea(s, "a1", t, "open");
+    const fallo = jest.fn(async () => {
+      throw new Error("parcial");
+    });
+    await expect(removeLink(deps({ cleanupSteps: [fallo] }), t, s)).rejects.toThrow("parcial");
+    await tarea(s, "a2", t, "open"); // aparece una abierta entre medias (p. ej. escritura offline)
+    await removeLink(deps(), t, s);
+    expect(await ids(s)).toEqual([]);
+    expect((await userDoc(s)).pendingUnlinks ?? []).toEqual([]);
+  });
+
+  test("unlinkAllStudents tambien limpia las tareas de cada alumno", async () => {
+    const t = await profesor(2);
+    const [s1, s2] = [await alumno(), await alumno()];
+    for (const s of [s1, s2]) {
+      await vincular(t, s);
+      await tarea(s, "x", t, "open");
+    }
+    await unlinkAllStudents(deps(), t);
+    expect(await ids(s1)).toEqual([]);
+    expect(await ids(s2)).toEqual([]);
+  });
+});

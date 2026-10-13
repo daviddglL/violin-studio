@@ -4,6 +4,7 @@ import { logger } from "firebase-functions/v2";
 import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
+import { deleteOpenAssignments } from "./assignments-cleanup";
 import { linkId } from "./link-id";
 
 /** Paso idempotente posterior a la transaccion; se repite entero en cada llamada. */
@@ -15,9 +16,9 @@ export interface RemoveLinkDeps {
   /** Sumidero de logs sin PII; por defecto `logger.info`. */
   log?: (message: string, data: Record<string, unknown>) => void;
   /**
-   * Limpiezas posteriores a la transaccion, en orden. Vacio hasta que existan los datos a limpiar:
-   * TODO(A6) borrar tareas `open` del profesor en `users/{s}/assignments` (conservar `done`);
-   * TODO(B5b/B10) borrar demostraciones del profesor con `sharedWith == s` (`deleteRecording`).
+   * Limpiezas posteriores a la transaccion, en orden. Si se omite, se usa el paso por defecto: borrar las tareas
+   * `open` del profesor (A6, `deleteOpenAssignments`); pasar un array lo REEMPLAZA (tests).
+   * Pendiente: TODO(B5b/B10) borrar demostraciones del profesor con `sharedWith == s` (`deleteRecording`).
    */
   cleanupSteps?: readonly LinkCleanupStep[];
 }
@@ -70,7 +71,7 @@ export async function removeLink(deps: RemoveLinkDeps, teacherUid: string, stude
     return;
   }
 
-  for (const step of deps.cleanupSteps ?? []) await step(teacherUid, studentUid);
+  for (const step of deps.cleanupSteps ?? [deleteOpenAssignments(db)]) await step(teacherUid, studentUid);
   try {
     await syncClaims(deps, studentUid);
   } catch (e) {
