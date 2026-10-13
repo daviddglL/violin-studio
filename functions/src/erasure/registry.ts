@@ -34,4 +34,21 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   assignments: { kind: "subcollectionOf", parent: "users", foreign: { field: "teacherUid", action: "delete" } },
 };
 
+/**
+ * Raiz de la cadena de `subcollectionOf` de `name` (el `userDoc` al que llega siguiendo los padres), o
+ * `undefined` si la cadena se corta (padre sin politica, politica que no es subcoleccion) o forma un ciclo.
+ * Solo lo que cuelga de `users` cae con `recursiveDelete`; el resto necesita una politica explicita.
+ */
+export function erasureRoot(policies: Record<string, ErasurePolicy>, name: string): string | undefined {
+  const seen = new Set<string>();
+  for (let cur = name; ; ) {
+    const p = policies[cur];
+    if (!p || seen.has(cur)) return undefined;
+    seen.add(cur);
+    if (p.kind === "userDoc") return cur;
+    if (p.kind !== "subcollectionOf") return undefined;
+    cur = p.parent;
+  }
+}
+
 export const STORAGE_PREFIXES: ReadonlyArray<(uid: string) => string> = [(uid) => `users/${uid}/`];

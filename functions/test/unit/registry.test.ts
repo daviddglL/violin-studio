@@ -1,5 +1,5 @@
 import { COLLECTIONS, CollectionName } from "../../src/common/collections";
-import { ERASABLE_COLLECTIONS, ErasurePolicy, STORAGE_PREFIXES } from "../../src/erasure/registry";
+import { ERASABLE_COLLECTIONS, erasureRoot, ErasurePolicy, STORAGE_PREFIXES } from "../../src/erasure/registry";
 
 test("el registro cubre todas las colecciones con la política prevista", () => {
   expect(Object.keys(ERASABLE_COLLECTIONS).sort()).toEqual(Object.values(COLLECTIONS).sort());
@@ -62,4 +62,21 @@ test("toda variante de politica esta cubierta y queryByField ya no existe", () =
   // @ts-expect-error la variante de un solo campo se sustituyo por queryByFields
   const viejo: ErasurePolicy = { kind: "queryByField", field: "uid" };
   expect(viejo).toBeDefined();
+});
+
+describe("erasureRoot (cadena de padres hasta users)", () => {
+  test("toda subcoleccion registrada llega a users, la unica raiz que borra recursiveDelete", () => {
+    for (const [name, p] of Object.entries(ERASABLE_COLLECTIONS)) {
+      if (p.kind === "subcollectionOf") expect({ name, root: erasureRoot(ERASABLE_COLLECTIONS, name) }).toEqual({ name, root: "users" });
+    }
+  });
+
+  test("casos negativos: padre sin politica de raiz, ciclo y raiz que no es userDoc", () => {
+    const sub = (parent: string): ErasurePolicy => ({ kind: "subcollectionOf", parent: parent as never });
+    const raiz: ErasurePolicy = { kind: "userDoc" };
+    expect(erasureRoot({ users: raiz, a: sub("b"), b: sub("users") }, "a")).toBe("users");
+    expect(erasureRoot({ a: sub("b"), b: sub("a") }, "a")).toBeUndefined();
+    expect(erasureRoot({ a: sub("z"), z: { kind: "queryByFields", fields: ["uid"] } }, "a")).toBeUndefined();
+    expect(erasureRoot({ a: sub("ausente") }, "a")).toBeUndefined();
+  });
 });

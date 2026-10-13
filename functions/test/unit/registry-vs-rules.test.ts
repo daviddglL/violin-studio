@@ -52,13 +52,22 @@ function nestedCollections(rules: string): Nested[] {
       if (!m) continue;
       const segs = m[1].split("/").filter(Boolean);
       const ancestors = stack.filter((s): s is string => s !== null);
-      // ancestors[0] es el `match /databases/...`; los de colección de primer nivel no son subcolecciones.
-      const isCollection = segs.length === 2 && /^\w+$/.test(segs[0]) && /^\{\w+\}$/.test(segs[1]);
-      if (ancestors.length >= 2) {
-        if (!isCollection) throw new Error(`subcolección no soportada en match ${m[1]}`);
-        found.push({ name: segs[0], parent: ancestors[ancestors.length - 1] });
+      // ancestors[0] es el `match /databases/...`; el comodín raíz no declara colecciones.
+      if (ancestors.length === 0 || m[1] === "/{document=**}") {
+        stack.push("__otro__");
+        i += m[0].length - 1;
+        continue;
       }
-      stack.push(isCollection ? segs[0] : "__otro__");
+      const wellFormed =
+        segs.length > 0 && segs.length % 2 === 0 && segs.every((x, k) => (k % 2 === 0 ? /^\w+$/.test(x) : /^\{\w+\}$/.test(x)));
+      if (!wellFormed) throw new Error(`subcolección no soportada en match ${m[1]}`);
+      // Un match plano de varios niveles (`/users/{u}/recordings/{id}`) declara una cadena de colecciones.
+      let parent: string | undefined = ancestors.length >= 2 ? ancestors[ancestors.length - 1] : undefined;
+      for (let k = 0; k < segs.length; k += 2) {
+        if (parent !== undefined) found.push({ name: segs[k], parent });
+        parent = segs[k];
+      }
+      stack.push(parent as string);
       i += m[0].length - 1;
     }
   }
@@ -135,6 +144,22 @@ test("profundidad arbitraria: cada nivel exige el padre inmediato", () => {
   // Con padres inmediatos (a, b, c) todo pasa.
   const ok = { b: sub("a"), c: sub("b"), d: sub("c") };
   expect(unregisteredSubs(subs, ok, ["b", "c", "d"])).toEqual([]);
+});
+
+test("un match plano de varios niveles declara su cadena de subcolecciones y se valida como las anidadas", () => {
+  const plano = wrap("match /users/{u}/recordings/{r}/reviews/{x} { }");
+  expect(nestedCollections(plano)).toEqual([
+    { name: "recordings", parent: "users" },
+    { name: "reviews", parent: "recordings" },
+  ]);
+  expect(unregisteredSubs(nestedCollections(plano))).toEqual(["recordings", "reviews"]);
+  const conReglas = rules.replace("match /guardianRequests/{id}", "match /users/{u}/fantasma/{id} { allow read: if false; }\n    match /guardianRequests/{id}");
+  expect(unregisteredSubs(nestedCollections(conReglas))).toEqual(["fantasma"]);
+});
+
+test("un match plano mal formado falla en voz alta", () => {
+  expect(() => nestedCollections(wrap("match /users/{u}/recordings { }"))).toThrow(/subcolección/);
+  expect(() => nestedCollections(wrap("match /users/x/{id} { }"))).toThrow(/subcolección/);
 });
 
 test("solo cuentan los match anidados y las formas raras fallan", () => {

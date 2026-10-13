@@ -124,9 +124,10 @@ export async function eraseUserData(
 
   // 2. Colecciones con uid como campo: lotes hasta vaciar. Los contadores acumulan entre reintentos.
   const deleted: Record<string, number> = {};
+  const countedLinks = new Set<string>();
   const sweepCollections = async () => {
     // `link` primero: corta el acceso cruzado y recalcula contadores, rol y claims de la otra parte.
-    await sweepLinks({ db, auth, log: deps.log }, uid, deleted);
+    await sweepLinks({ db, auth, log: deps.log }, uid, deleted, countedLinks);
     for (const [name, policy] of Object.entries(ERASABLE_COLLECTIONS)) {
       if (policy.kind !== "queryByFields") continue;
       deleted[name] ??= 0;

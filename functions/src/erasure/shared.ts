@@ -40,23 +40,38 @@ export async function sweepShared(db: Firestore, uid: string, deleted: Record<st
  * Politica `link`: desvincula con `removeLink` (contadores, rol, claims de la otra parte). Como profesor,
  * `unlinkAllStudents` cubre tambien a los alumnos con limpieza pendiente (`pendingUnlinks`); como alumno se
  * recorren sus vinculos. El usuario ya lleva `deletion`, asi que `removeLink` no escribe en su documento.
+ * Al final se borra por consulta cualquier vinculo que siga apuntando al uid (campos malformados, id que no
+ * coincide con `linkId`): ningun doc con el uid ni nombres sobrevive. `deleted[name]` cuenta los vinculos
+ * existentes al empezar; `counted` (vive toda la cascada) evita contarlos dos veces si un reintento los vuelve a ver.
  */
 export async function sweepLinks(
   deps: RemoveLinkDeps,
   uid: string,
   deleted: Record<string, number>,
+  counted: Set<string>,
 ): Promise<void> {
   for (const [name, policy] of Object.entries(ERASABLE_COLLECTIONS)) {
     if (policy.kind !== "link") continue;
     deleted[name] ??= 0;
     const [teacherField, studentField] = policy.fields;
-    deleted[name] += await unlinkAllStudents(deps, uid);
+    const existing = new Set<string>();
+    for (const field of policy.fields) {
+      const snap = await deps.db.collection(name).where(field, "==", uid).get();
+      for (const d of snap.docs) existing.add(d.id);
+    }
+    for (const id of existing) {
+      if (counted.has(`${name}/${id}`)) continue;
+      counted.add(`${name}/${id}`);
+      deleted[name] += 1;
+    }
+    await unlinkAllStudents(deps, uid);
     const asStudent = await deps.db.collection(name).where(studentField, "==", uid).get();
     for (const doc of asStudent.docs) {
       const teacherUid = doc.get(teacherField);
-      if (typeof teacherUid !== "string") continue;
-      await removeLink(deps, teacherUid, uid);
-      deleted[name] += 1;
+      if (typeof teacherUid === "string") await removeLink(deps, teacherUid, uid);
+    }
+    for (const field of policy.fields) {
+      await deleteInBatches(deps.db, deps.db.collection(name).where(field, "==", uid), () => undefined);
     }
   }
 }

@@ -40,15 +40,24 @@ const tareas = async (s: string) => (await db.collection("users").doc(s).collect
 const links = async (campo: string, uid: string) => (await db.collection("teacherLinks").where(campo, "==", uid).get()).size;
 const codigo = (id: string, extra: Record<string, unknown>) => db.collection("teacherCodes").doc(id).set({ expiresAt: Timestamp.now(), ...extra });
 
-/** Proxy de Firestore cuyo `collectionGroup` falla `veces` veces con un error transitorio (gRPC UNAVAILABLE). */
-function dbFlaky(veces: number): Firestore {
-  let restantes = veces;
+interface Fallos {
+  /** Veces que `collectionGroup` falla con un error transitorio (gRPC UNAVAILABLE). */
+  collectionGroup?: number;
+  /** Veces que `runTransaction` (removeLink) falla con un error transitorio. */
+  runTransaction?: number;
+  /** Se llama de forma sincrona al empezar el paso `shared` (primer `collectionGroup`). */
+  alCollectionGroup?: () => void;
+}
+/** Proxy de Firestore con fallos transitorios inyectados y un gancho al inicio del paso `shared`. */
+function dbFlaky(f: Fallos): Firestore {
+  const restantes = { collectionGroup: f.collectionGroup ?? 0, runTransaction: f.runTransaction ?? 0 };
   return new Proxy(db, {
     get(target, prop) {
-      if (prop === "collectionGroup") {
-        return (id: string) => {
-          if (restantes-- > 0) throw Object.assign(new Error("transitorio"), { code: 14 });
-          return target.collectionGroup(id);
+      if (prop === "collectionGroup" || prop === "runTransaction") {
+        return (...args: unknown[]) => {
+          if (prop === "collectionGroup") f.alCollectionGroup?.();
+          if (restantes[prop]-- > 0) throw Object.assign(new Error("transitorio"), { code: 14 });
+          return (Reflect.get(target, prop, target) as (...a: unknown[]) => unknown).apply(target, args);
         };
       }
       const v = Reflect.get(target, prop, target);
@@ -70,7 +79,16 @@ describe("borrar alumno (REQ-DEL-T01)", () => {
     await codigo("c-usado", { teacherUid: t, usedBy: s, usedAt: Timestamp.now() });
     await codigo("c-libre", { teacherUid: t });
 
-    const res = await eraseUserData(deps, s, { deleteAuth: true });
+    const alInicioDeShared: Array<{ vinculos: number; studentCount: unknown }> = [];
+    const snapshots: Array<Promise<void>> = [];
+    const gancho = dbFlaky({
+      alCollectionGroup: () =>
+        void snapshots.push(
+          Promise.all([links("studentUid", s), userDoc(t)]).then(([vinculos, p]) => void alInicioDeShared.push({ vinculos, studentCount: p.studentCount })),
+        ),
+    });
+    const res = await eraseUserData({ ...deps, db: gancho }, s, { deleteAuth: true });
+    await Promise.all(snapshots);
 
     expect(res.deleted).toMatchObject({ teacherLinks: 1, teacherCodes: 1 });
     expect(await links("studentUid", s)).toBe(0);
@@ -84,11 +102,44 @@ describe("borrar alumno (REQ-DEL-T01)", () => {
     // El codigo canjeado por el alumno cae; el libre del profesor no.
     expect((await db.collection("teacherCodes").doc("c-usado").get()).exists).toBe(false);
     expect((await db.collection("teacherCodes").doc("c-libre").get()).exists).toBe(true);
-    // removeLink corre dentro del paso `collections`, antes de que se de por terminado.
-    const iLink = logs.findIndex((l) => l.message === "removeLink");
-    const iColecciones = logs.findIndex((l) => l.message === "erasure.step" && l.data.step === "collections");
-    expect(iLink).toBeGreaterThanOrEqual(0);
-    expect(iLink).toBeLessThan(iColecciones);
+    // Al empezar el paso `shared` (despues de `link`) el vinculo ya estaba fuera y el contador del profesor bajado.
+    expect(alInicioDeShared[0]).toEqual({ vinculos: 0, studentCount: 1 });
+  });
+});
+
+describe("vinculos huerfanos y reintentos del paso link", () => {
+  test("vinculos malformados o con id ajeno a linkId no sobreviven (profesor y alumno); el contador no duplica", async () => {
+    const t = await profesor(0);
+    const s = await alumno(0);
+    const otro = await alumno(0);
+    await db.collection("teacherLinks").doc("sin-alumno").set({ teacherUid: t, teacherDisplayName: "NombreSecreto" });
+    await db.collection("teacherLinks").doc("id-raro").set({ teacherUid: t, studentUid: otro, studentDisplayName: "NombreSecreto" });
+    await db.collection("teacherLinks").doc("sin-profe").set({ studentUid: s, studentDisplayName: "NombreSecreto" });
+
+    const rp = await eraseUserData(deps, t, { deleteAuth: true });
+    const ra = await eraseUserData(deps, s, { deleteAuth: true });
+
+    expect(rp.deleted.teacherLinks).toBe(2);
+    expect(ra.deleted.teacherLinks).toBe(1);
+    expect((await db.collection("teacherLinks").get()).docs.map((d) => d.id)).not.toEqual(
+      expect.arrayContaining(["sin-alumno", "id-raro", "sin-profe"]),
+    );
+  });
+
+  test("un fallo transitorio en removeLink reintenta el paso, converge y registra solo hashes y codigo", async () => {
+    const t = await profesor(1);
+    const s = await alumno(1);
+    await vincular(t, s);
+
+    const res = await eraseUserData({ ...deps, db: dbFlaky({ runTransaction: 1 }) }, t, { deleteAuth: false });
+
+    expect(logs.some((l) => l.message === "erasure.stepFailed" && l.data.step === "collections")).toBe(true);
+    const falloAlumno = logs.find((l) => l.message === "unlinkAllStudents.failed");
+    expect(falloAlumno?.data).toMatchObject({ code: 14 });
+    expect(JSON.stringify(logs)).not.toContain(s);
+    expect(await links("teacherUid", t)).toBe(0);
+    expect(await userDoc(s)).toMatchObject({ role: "independent", teacherCount: 0 });
+    expect(res.deleted.teacherLinks).toBe(1);
   });
 });
 
@@ -148,7 +199,7 @@ describe("borrar profesor (REQ-DEL-T02, T04)", () => {
     await tarea(s, "x1", t);
     await tarea(s, "x2", t, "done");
 
-    await eraseUserData({ ...deps, db: dbFlaky(1) }, t, { deleteAuth: false });
+    await eraseUserData({ ...deps, db: dbFlaky({ collectionGroup: 1 }) }, t, { deleteAuth: false });
 
     expect(logs.some((l) => l.message === "erasure.stepFailed" && l.data.step === "shared")).toBe(true);
     expect(await tareas(s)).toEqual([]);
@@ -168,6 +219,7 @@ describe("borrar profesor (REQ-DEL-T02, T04)", () => {
           return async (uid: string) => {
             await tarea(s, "tarde", t);
             await codigo("c-tarde", { teacherUid: t });
+            await vincular(t, s);
             return target.deleteUser(uid);
           };
         },
@@ -178,6 +230,8 @@ describe("borrar profesor (REQ-DEL-T02, T04)", () => {
 
     expect(await tareas(s)).toEqual([]);
     expect((await db.collection("teacherCodes").doc("c-tarde").get()).exists).toBe(false);
+    expect(await links("teacherUid", t)).toBe(0);
+    expect(await userDoc(s)).toMatchObject({ role: "independent", teacherCount: 0 });
   });
 
   test("profesor y alumno en borrado a la vez convergen", async () => {
@@ -187,6 +241,12 @@ describe("borrar profesor (REQ-DEL-T02, T04)", () => {
     await tarea(s, "a", t);
 
     await eraseUserData(deps, t, { deleteAuth: true });
+
+    // El alumno en borrado no se toca (la cascada es la duena de su doc): ni contadores, ni rol, ni marcas.
+    expect(await links("studentUid", s)).toBe(0);
+    expect(await userDoc(s)).toMatchObject({ role: "student", teacherCount: 1, deletion: { state: "in_progress" } });
+    expect((await userDoc(s)).pendingUnlinks).toBeUndefined();
+
     await eraseUserData(deps, s, { deleteAuth: true });
 
     expect(await links("studentUid", s)).toBe(0);

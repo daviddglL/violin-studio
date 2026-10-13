@@ -96,7 +96,7 @@ Para probar en un móvil físico contra los emuladores del PC:
 1. Confirma que el proyecto (`violin-app-dev-f0b55`) está en el plan Blaze, que Functions requiere.
 2. Crea `functions/.env.violin-app-dev-f0b55` con `ENFORCE_APP_CHECK=false`. No se versiona.
 3. `npm --prefix functions run build`
-4. `firebase deploy --only functions --project violin-app-dev-f0b55`
+4. `firebase deploy --only firestore:indexes --project violin-app-dev-f0b55` y espera a que los indices esten READY (el borrado de cuenta consulta `collectionGroup(assignments)`), luego `firebase deploy --only functions --project violin-app-dev-f0b55`
 5. Verifica el despliegue con "Comprobar servidor" en la app.
 
 ### App Check en prod
