@@ -182,8 +182,9 @@ test("toda colección registrada tiene un match explícito y teacherCodes es den
   // Las subcolecciones viven bajo su padre; aquí solo se exigen las de primer nivel.
   const topLevel = sinMatch.filter((c) => ERASABLE_COLLECTIONS[c].kind !== "subcollectionOf");
   expect(topLevel).toEqual([]);
-  // assignments: deny provisional hasta A6 (que lo sustituye por las reglas reales).
-  expect(rules).toMatch(/match \/assignments\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
+  // assignments (A6): reglas reales, no el deny provisional de A5; la escritura no es un deny total.
+  expect(rules).toMatch(/match \/assignments\/\{id\}\s*\{\s*(?:\/\/[^\n]*\s*)*allow get, list: if isOwner\(uid\)/);
+  expect(rules).not.toMatch(/match \/assignments\/\{id\}\s*\{\s*allow read, write: if false;/);
   expect(rules).toMatch(/match \/teacherCodes\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
   // teacherLinks: lectura solo por las partes (A4), escritura siempre denegada.
   expect(rules).toMatch(
