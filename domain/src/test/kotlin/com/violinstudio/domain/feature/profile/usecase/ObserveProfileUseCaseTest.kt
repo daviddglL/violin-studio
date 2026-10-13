@@ -3,6 +3,7 @@ package com.violinstudio.domain.feature.profile.usecase
 import app.cash.turbine.test
 import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.FakeProfileRepository
+import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.userProfile
 import com.violinstudio.domain.feature.verifiedUser
 import kotlinx.coroutines.test.runTest
@@ -33,5 +34,19 @@ class ObserveProfileUseCaseTest {
             assertEquals(null, awaitItem())
         }
         assertEquals(listOf("observe:u1"), repo.calls)
+    }
+
+    @Test
+    fun `expone el rol del perfil y reemite cuando cambia por una vinculacion`() = runTest {
+        auth.user = verifiedUser
+        ObserveProfileUseCase(auth, repo)().test {
+            assertEquals(null, awaitItem())
+            repo.profile.value = userProfile().copy(role = Role.INDEPENDENT)
+            assertEquals(Role.INDEPENDENT, awaitItem()?.role)
+            repo.profile.value = userProfile().copy(role = Role.STUDENT)
+            assertEquals(Role.STUDENT, awaitItem()?.role)
+            repo.profile.value = userProfile().copy(role = Role.TEACHER)
+            assertEquals(Role.TEACHER, awaitItem()?.role)
+        }
     }
 }
