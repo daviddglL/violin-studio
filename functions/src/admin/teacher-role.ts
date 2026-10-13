@@ -5,12 +5,13 @@ import { Clock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
+import { revokeActiveCodes } from "../teacher/code-handlers";
+import { unlinkAllStudents } from "../teacher/remove-link";
 import { canGrantTeacher, TeacherDenyReason } from "../teacher/eligibility";
 import { isAllowedRoleTransition, Role } from "../teacher/role-transitions";
 
 export type TeacherRoleErrorReason =
   | TeacherDenyReason
-  | "HAS_LINKS"
   | "INVALID_UID"
   | "USER_NOT_FOUND"
   | "INVALID_TRANSITION";
@@ -29,13 +30,11 @@ export interface TeacherRoleDeps {
   clock: Clock;
   /** Sumidero de logs sin PII; por defecto `logger.info` de Functions. */
   log?: (message: string, data: Record<string, unknown>) => void;
-  /** Revoca los codigos de vinculo activos del profesor; devuelve cuantos. Sin coleccion aun (A2): no-op. */
+  /** Revoca los codigos de vinculo activos del profesor; devuelve cuantos. Por defecto, `revokeActiveCodes`. */
   revokeActiveCodes?: (teacherUid: string) => Promise<number>;
-  /** Desvincula a todos los alumnos del profesor (`removeLink`, A3); devuelve cuantos. Sin vinculos aun: no-op. */
+  /** Desvincula a todos los alumnos del profesor ; devuelve cuantos. Por defecto, `unlinkAllStudents` (`removeLink`). */
   unlinkAllStudents?: (teacherUid: string) => Promise<number>;
 }
-
-const noop = async (): Promise<number> => 0;
 
 /** Los ids de vinculo son `{t}_{s}`: un uid con `_` romperia el separador (design §3.1). */
 function requireValidUid(uid: string): void {
@@ -95,38 +94,25 @@ export async function grantTeacher(deps: TeacherRoleDeps, uid: string): Promise<
 /**
  * Baja de profesor (REQ-TRL-04). Orden decidido (W1/W2): PRIMERO se devuelve el rol `independent` en
  * una transaccion (un canje concurrente exige `role == teacher`, asi que ya no puede crear vinculos ni
- * consumir codigos) y DESPUES se limpian codigos y alumnos. Es reanudable: un `independent` con
- * `studentCount > 0` (o codigos activos) repite la limpieza; solo es no-op cuando no queda nada.
- * Falla cerrado (`HAS_LINKS`) si hay alumnos y la limpieza no esta cableada (hasta A3b), ANTES de
- * cambiar nada. Siempre sincroniza claims (idempotente). `studentCount` lo decrementa `removeLink`.
+ * consumir codigos) y DESPUES se revocan codigos y se desvincula a los alumnos (`removeLink`, que baja
+ * `studentCount`). Es reanudable: un `independent` repite siempre la limpieza (no-op cuando no queda nada). Siempre sincroniza claims (idempotente).
  */
 export async function revokeTeacher(deps: TeacherRoleDeps, uid: string): Promise<void> {
   requireValidUid(uid);
   const log = makeLog(deps, uid);
   const ref = deps.db.collection(COLLECTIONS.users).doc(uid);
 
-  const before = (await ref.get()).data();
-  const pendingStudents = typeof before?.studentCount === "number" ? before.studentCount : 0;
-  if (pendingStudents > 0 && !deps.unlinkAllStudents) {
-    log("revokeTeacher.rejected", { reason: "HAS_LINKS" });
-    throw new TeacherRoleError("HAS_LINKS");
-  }
-
-  const { changed, count } = await deps.db.runTransaction(async (tx) => {
+  const { changed } = await deps.db.runTransaction(async (tx) => {
     const fresh = (await tx.get(ref)).data();
-    const n = typeof fresh?.studentCount === "number" ? fresh.studentCount : 0;
-    // Relectura transaccional: un canje concurrente pudo anadir alumnos desde la comprobacion previa.
-    if (n > 0 && !deps.unlinkAllStudents) throw new TeacherRoleError("HAS_LINKS");
-    if (fresh?.role !== "teacher") return { changed: false, count: n };
+    if (fresh?.role !== "teacher") return { changed: false };
     tx.update(ref, { role: "independent", updatedAt: FieldValue.serverTimestamp() });
-    return { changed: true, count: n };
+    return { changed: true };
   });
 
-  const codes = await (deps.revokeActiveCodes ?? noop)(uid);
-  let students = 0;
-  if ((changed || count > 0) && deps.unlinkAllStudents) {
-    students = await deps.unlinkAllStudents(uid);
-  }
+  const linkDeps = { db: deps.db, auth: deps.auth, log: deps.log };
+  const codes = await (deps.revokeActiveCodes ?? ((t) => revokeActiveCodes({ db: deps.db }, t)))(uid);
+  // Siempre: la fuente de verdad son los vinculos (consulta indexada, no-op si no hay), no el contador, que puede estar desfasado.
+  const students = await (deps.unlinkAllStudents ?? ((t) => unlinkAllStudents(linkDeps, t)))(uid);
   await syncClaims({ db: deps.db, auth: deps.auth }, uid);
   log("revokeTeacher", { changed, codes, students });
 }
