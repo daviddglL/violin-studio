@@ -13,6 +13,11 @@ import com.violinstudio.data.feature.consent.repository.ConsentRepositoryImpl
 import com.violinstudio.data.feature.health.datasource.HealthRemoteDataSource
 import com.violinstudio.data.feature.health.datasource.firebase.FirebaseHealthRemoteDataSource
 import com.violinstudio.data.feature.health.repository.HealthRepositoryImpl
+import com.violinstudio.data.feature.link.datasource.LinkRemoteDataSource
+import com.violinstudio.data.feature.link.datasource.TeacherFunctionsDataSource
+import com.violinstudio.data.feature.link.datasource.firebase.FirebaseLinkRemoteDataSource
+import com.violinstudio.data.feature.link.datasource.firebase.FirebaseTeacherFunctionsDataSource
+import com.violinstudio.data.feature.link.repository.LinkRepositoryImpl
 import com.violinstudio.data.feature.practice.datasource.PracticeRemoteDataSource
 import com.violinstudio.data.feature.practice.datasource.firebase.FirebasePracticeRemoteDataSource
 import com.violinstudio.data.feature.practice.repository.DataStoreRunningSessionStore
@@ -32,6 +37,7 @@ import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
+import com.violinstudio.domain.feature.link.repository.LinkRepository
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
 import com.violinstudio.domain.feature.practice.repository.RunningSessionStore
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
@@ -102,4 +108,13 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindRunningSessionStore(impl: DataStoreRunningSessionStore): RunningSessionStore
+
+    @Binds
+    abstract fun bindLinkRemoteDataSource(impl: FirebaseLinkRemoteDataSource): LinkRemoteDataSource
+
+    @Binds
+    abstract fun bindTeacherFunctionsDataSource(impl: FirebaseTeacherFunctionsDataSource): TeacherFunctionsDataSource
+
+    @Binds
+    abstract fun bindLinkRepository(impl: LinkRepositoryImpl): LinkRepository
 }
