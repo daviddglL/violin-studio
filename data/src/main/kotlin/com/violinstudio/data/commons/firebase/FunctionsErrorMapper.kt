@@ -18,6 +18,7 @@ class FunctionsCallException(val code: String, val details: Any?, cause: Throwab
 /** Traduce `details.reason` (el `ErrorReason` del backend) a los fallos de dominio; nunca expone el mensaje. */
 object FunctionsErrorMapper {
     private val OFFLINE_CODES = setOf("UNAVAILABLE", "DEADLINE_EXCEEDED")
+    private const val MAX_CAUSE_DEPTH = 8
 
     fun toProfileFailure(error: Throwable): ProfileFailure {
         if (isOffline(error)) return ProfileFailure.Network
@@ -79,8 +80,10 @@ object FunctionsErrorMapper {
         }
     }
 
-    private fun isOffline(error: Throwable) =
-        error is IOException || (error is FunctionsCallException && error.code in OFFLINE_CODES)
+    // El SDK de Functions envuelve el fallo de red en INTERNAL/DEADLINE_EXCEEDED con la IOException como causa.
+    private fun isOffline(error: Throwable): Boolean =
+        (error is FunctionsCallException && error.code in OFFLINE_CODES) ||
+            generateSequence(error) { it.cause }.take(MAX_CAUSE_DEPTH).any { it is IOException }
 
     private class Details(private val map: Map<*, *>) {
         val reason: String? get() = map["reason"] as? String

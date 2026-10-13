@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
 /** Doc crudo de Firestore; [hasPendingWrites] viene de los metadatos del snapshot. */
-data class RemoteDoc(val id: String, val data: Map<String, Any?>, val hasPendingWrites: Boolean)
+data class RemoteDoc(val id: String, val data: Map<String, Any?>, val hasPendingWrites: Boolean) {
+    override fun toString(): String = "RemoteDoc(hasPendingWrites=$hasPendingWrites)"
+}
 
 /** Listener con `MetadataChanges.INCLUDE` (para ver cuando se confirma una escritura); el flujo falla si el listener falla. */
 fun Query.observeDocs(): Flow<List<RemoteDoc>> = callbackFlow {

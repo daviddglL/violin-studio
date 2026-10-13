@@ -152,4 +152,20 @@ class FunctionsErrorMapperTest {
         assertSame(LinkFailure.Unknown, link(IllegalStateException("x")))
         assertSame(LinkFailure.Unknown, link(FunctionsCallException("INTERNAL", "texto")))
     }
+
+    @Test
+    fun `INTERNAL con IOException en la cadena de causas es sin red, tambien en identidad`() {
+        val wrapped = FunctionsCallException("INTERNAL", null, RuntimeException("sdk", IOException("sin red")))
+        assertSame(LinkFailure.Offline, link(wrapped))
+        assertSame(ConsentFailure.Network, consent(wrapped))
+        assertSame(AccountFailure.Network, account(wrapped))
+        assertSame(ProfileFailure.Network, profile(wrapped))
+        assertSame(LinkFailure.Unknown, link(FunctionsCallException("INTERNAL", null, RuntimeException("x"))))
+    }
+
+    @Test
+    fun `el reason del servidor gana a una causa IOException`() {
+        val limited = FunctionsCallException("UNAVAILABLE", mapOf("reason" to "TEMPORARILY_UNAVAILABLE"), IOException())
+        assertSame(LinkFailure.TemporarilyUnavailable, link(limited))
+    }
 }
