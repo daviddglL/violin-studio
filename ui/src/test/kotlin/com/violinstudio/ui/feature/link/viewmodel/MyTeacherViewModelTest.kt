@@ -13,6 +13,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import java.time.Instant
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 private typealias TeacherScenario = MviScenario<MyTeacherState, MyTeacherIntent, MyTeacherEffect>
 
 @ExtendWith(MainDispatcherExtension::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class MyTeacherViewModelTest {
     private val observe = mockk<ObserveMyTeacherUseCase>()
     private val unlink = mockk<UnlinkUseCase>()
