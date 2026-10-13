@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -89,6 +90,7 @@ fun RedeemCodeScreen(state: RedeemCodeState, onIntent: (RedeemCodeIntent) -> Uni
                 label = { Text(stringResource(R.string.link_redeem_code_label)) },
                 singleLine = true,
                 isError = state.error != null,
+                keyboardActions = KeyboardActions(onDone = { if (state.canSubmit) onIntent(RedeemCodeIntent.Submit) }),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Characters,
                     autoCorrectEnabled = false,

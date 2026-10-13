@@ -162,14 +162,14 @@ private fun SessionGraph(
         }
         composable<RedeemCodeDestination> {
             if (session.allowsRoute(RedeemCodeDestination::class)) {
-                redeemCode { navController.popBackStack() }
+                redeemCode { navController.popIfPossible() }
             } else {
                 SplashScreen()
             }
         }
         composable<MyTeacherDestination> {
             if (session.allowsRoute(MyTeacherDestination::class)) {
-                myTeacher { navController.popBackStack() }
+                myTeacher { navController.popIfPossible() }
             } else {
                 SplashScreen()
             }
@@ -185,6 +185,11 @@ private fun SessionGraph(
             }
         }
     }
+}
+
+/** Atrás sin pila previa (p. ej. tras restaurar) no vacía el grafo: la redirección de sesión decide el destino. */
+private fun NavHostController.popIfPossible() {
+    if (previousBackStackEntry != null) popBackStack()
 }
 
 private fun SessionState.allowsRoute(route: kotlin.reflect.KClass<*>): Boolean =

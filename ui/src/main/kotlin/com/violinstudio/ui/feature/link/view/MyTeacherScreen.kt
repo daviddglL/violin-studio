@@ -42,6 +42,8 @@ import java.time.format.FormatStyle
 const val MY_TEACHER_TAG = "my_teacher"
 const val MY_TEACHER_LOADING_TAG = "my_teacher_loading"
 const val MY_TEACHER_NAME_TAG = "my_teacher_name"
+const val MY_TEACHER_LOAD_FAILED_TAG = "my_teacher_load_failed"
+const val MY_TEACHER_RETRY_TAG = "my_teacher_retry"
 const val MY_TEACHER_NONE_TAG = "my_teacher_none"
 const val MY_TEACHER_UNLINK_TAG = "my_teacher_unlink"
 const val MY_TEACHER_ERROR_TAG = "my_teacher_error"
@@ -75,7 +77,16 @@ fun MyTeacherScreen(state: MyTeacherState, onIntent: (MyTeacherIntent) -> Unit, 
             )
             val teacher = state.teacher
             when {
-                state.isLoading -> CircularProgressIndicator(Modifier.testTag(MY_TEACHER_LOADING_TAG))
+                state.isLoading -> {
+                    val loading = stringResource(R.string.link_loading)
+                    CircularProgressIndicator(
+                        Modifier.testTag(MY_TEACHER_LOADING_TAG).semantics {
+                            contentDescription = loading
+                            liveRegion = LiveRegionMode.Polite
+                        }
+                    )
+                }
+                state.loadFailed -> LoadFailed(onIntent)
                 teacher == null -> Text(
                     stringResource(R.string.link_my_teacher_none),
                     modifier = Modifier.testTag(MY_TEACHER_NONE_TAG)
@@ -89,11 +100,10 @@ fun MyTeacherScreen(state: MyTeacherState, onIntent: (MyTeacherIntent) -> Unit, 
 
 @Composable
 private fun TeacherContent(teacher: TeacherLink, state: MyTeacherState, onIntent: (MyTeacherIntent) -> Unit) {
-    val name = stringResource(R.string.link_my_teacher_name, teacher.teacherDisplayName)
     Text(
-        name,
+        stringResource(R.string.link_my_teacher_name, teacher.teacherDisplayName),
         style = MaterialTheme.typography.titleLarge,
-        modifier = Modifier.testTag(MY_TEACHER_NAME_TAG).semantics { contentDescription = name }
+        modifier = Modifier.testTag(MY_TEACHER_NAME_TAG)
     )
     Text(stringResource(R.string.link_my_teacher_since, teacher.createdAt.formatted()))
     Text(stringResource(R.string.link_my_teacher_sees), style = MaterialTheme.typography.bodyMedium)
@@ -113,6 +123,18 @@ private fun TeacherContent(teacher: TeacherLink, state: MyTeacherState, onIntent
         ),
         modifier = Modifier.fillMaxWidth().testTag(MY_TEACHER_UNLINK_TAG)
     ) { Text(stringResource(R.string.link_my_teacher_unlink)) }
+}
+
+@Composable
+private fun LoadFailed(onIntent: (MyTeacherIntent) -> Unit) {
+    Text(
+        stringResource(R.string.link_my_teacher_load_failed),
+        color = MaterialTheme.colorScheme.error,
+        modifier = Modifier.testTag(MY_TEACHER_LOAD_FAILED_TAG).semantics { liveRegion = LiveRegionMode.Assertive }
+    )
+    Button(onClick = { onIntent(MyTeacherIntent.Retry) }, modifier = Modifier.testTag(MY_TEACHER_RETRY_TAG)) {
+        Text(stringResource(R.string.link_retry))
+    }
 }
 
 @Composable

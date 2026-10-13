@@ -28,20 +28,29 @@ data class RedeemCodeState(
     val error: RedeemError? = null,
     val succeeded: Boolean = false
 ) : UiState {
-    /** El aviso aceptado y un código escrito; la validez del código la decide el caso de uso sin tocar la red. */
-    val canSubmit: Boolean get() = accepted && code.isNotBlank() && !isLoading && !succeeded
+    /**
+     * Tras `RateLimited` o `NoticeOutdated` reenviar no sirve de nada: se rehabilita al editar el código o la casilla.
+     * El aviso aceptado y un código escrito; la validez del código la decide el caso de uso sin tocar la red. */
+    val canSubmit: Boolean
+        get() = accepted && code.isNotBlank() && !isLoading && !succeeded && !error.blocksResubmit()
 
     // El código es un secreto de un solo uso: no aparece en trazas.
     override fun toString(): String = "RedeemCodeState(accepted=$accepted, isLoading=$isLoading, error=$error)"
 
     companion object {
+        private fun RedeemError?.blocksResubmit() =
+            this is RedeemError.RateLimited || this == RedeemError.NoticeOutdated
+
         /** El servidor rechaza más de 32 caracteres en bruto (espacios y guiones incluidos). */
         const val MAX_INPUT = 32
     }
 }
 
 sealed interface RedeemCodeIntent : UiIntent {
-    data class CodeChanged(val code: String) : RedeemCodeIntent
+    data class CodeChanged(val code: String) : RedeemCodeIntent {
+        // El código es un secreto de un solo uso: no aparece en trazas.
+        override fun toString(): String = "CodeChanged"
+    }
     data class AcceptedChanged(val accepted: Boolean) : RedeemCodeIntent
     data object Submit : RedeemCodeIntent
 }

@@ -32,7 +32,7 @@ class RedeemCodeViewModel @Inject constructor(
             }
         }
         is RedeemCodeIntent.AcceptedChanged -> setState {
-            if (isLoading || succeeded) this else copy(accepted = intent.accepted)
+            if (isLoading || succeeded) this else copy(accepted = intent.accepted, error = null)
         }
         RedeemCodeIntent.Submit -> submit()
     }

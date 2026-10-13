@@ -66,6 +66,9 @@ class LinkScreensScreenshotTest {
 
     @Test fun myTeacherNone() = teacher(MyTeacherState(isLoading = false), "link_my_teacher_none")
 
+    @Test fun myTeacherLoadFailed() =
+        teacher(MyTeacherState(isLoading = false, loadFailed = true), "link_my_teacher_load_failed")
+
     @Test fun myTeacherLoading() = teacher(MyTeacherState(), "link_my_teacher_loading")
 
     @Test fun myTeacherUnlinkError() = teacher(

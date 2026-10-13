@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.link.viewmodel
 
+import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.link.usecase.ObserveMyTeacherUseCase
@@ -14,12 +15,14 @@ import io.mockk.every
 import io.mockk.mockk
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -36,10 +39,18 @@ class MyTeacherViewModelTest {
     private val link =
         TeacherLink("t1", "s1", "Marta", "Ana", Instrument.VIOLIN, 1, Instant.parse("2026-10-01T10:00:00Z"))
 
+    private val created = mutableListOf<MyTeacherViewModel>()
+
+    // Leccion 2: ninguna corrutina viva entre tests (el observador es de larga vida).
+    @AfterEach
+    fun cancelScopes() = created.forEach { it.viewModelScope.cancel() }
+
     private fun viewModel(): MyTeacherViewModel {
         every { observe() } returns links
-        return MyTeacherViewModel(observe, unlink)
+        return create()
     }
+
+    private fun create() = MyTeacherViewModel(observe, unlink).also { created += it }
 
     private fun unlinkAnswers(result: Result<Unit>) {
         coEvery { unlink(any(), any()) } coAnswers {
@@ -100,8 +111,21 @@ class MyTeacherViewModelTest {
     @Test
     fun `un fallo del flujo deja de cargar sin romper`() = runTest {
         every { observe() } returns flow { throw LinkFailure.Offline }
-        MyTeacherViewModel(observe, unlink).testMvi {
-            assertState { !it.isLoading && it.teacher == null }
+        create().testMvi {
+            assertState { !it.isLoading && it.teacher == null && it.loadFailed }
+        }
+    }
+
+    @Test
+    fun `reintentar vuelve a observar y recupera al profesor`() = runTest {
+        var attempt = 0
+        every { observe() } answers { if (attempt++ == 0) flow { throw LinkFailure.Unknown } else links }
+        create().testMvi {
+            assertState { it.loadFailed && !it.isLoading }
+            intent(MyTeacherIntent.Retry)
+            assertState { it.isLoading && !it.loadFailed }
+            links.emit(link)
+            assertState { !it.isLoading && !it.loadFailed && it.teacher == link }
         }
     }
 

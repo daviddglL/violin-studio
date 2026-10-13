@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.link.viewmodel
 
+import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.link.model.LinkNotice
 import com.violinstudio.domain.feature.link.usecase.RedeemTeacherCodeUseCase
@@ -9,8 +10,13 @@ import com.violinstudio.ui.commons.testing.testMvi
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -19,6 +25,13 @@ private typealias Scenario = MviScenario<RedeemCodeState, RedeemCodeIntent, Rede
 @ExtendWith(MainDispatcherExtension::class)
 class RedeemCodeViewModelTest {
     private val redeem = mockk<RedeemTeacherCodeUseCase>()
+    private val created = mutableListOf<RedeemCodeViewModel>()
+
+    // Leccion 2: no dejar corrutinas vivas entre tests.
+    @AfterEach
+    fun cancelScopes() = created.forEach { it.viewModelScope.cancel() }
+
+    private fun newViewModel() = RedeemCodeViewModel(redeem).also { created += it }
 
     private fun answer(result: Result<String>) {
         coEvery { redeem(any(), any()) } coAnswers {
@@ -38,7 +51,7 @@ class RedeemCodeViewModelTest {
 
     private fun failWith(failure: LinkFailure, expected: RedeemError) = runTest {
         answer(Result.failure(failure))
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             fill()
             intent(RedeemCodeIntent.Submit)
             assertState { it.isLoading }
@@ -48,7 +61,7 @@ class RedeemCodeViewModelTest {
 
     @Test
     fun `sin aceptar el aviso o sin codigo no se puede enviar y no se llama`() = runTest {
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             fill(accept = false)
             intent(RedeemCodeIntent.Submit)
             intent(RedeemCodeIntent.AcceptedChanged(true))
@@ -63,7 +76,7 @@ class RedeemCodeViewModelTest {
     @Test
     fun `envia el codigo con la version vigente del aviso y avisa al terminar`() = runTest {
         answer(Result.success("t1"))
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             fill()
             intent(RedeemCodeIntent.Submit)
             assertState { it.isLoading }
@@ -76,7 +89,7 @@ class RedeemCodeViewModelTest {
     @Test
     fun `un envio doble solo llama una vez`() = runTest {
         answer(Result.success("t1"))
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             fill()
             intent(RedeemCodeIntent.Submit)
             intent(RedeemCodeIntent.Submit)
@@ -129,7 +142,7 @@ class RedeemCodeViewModelTest {
             delay(100)
             if (attempt++ == 0) Result.failure(LinkFailure.Offline) else Result.success("t1")
         }
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             fill()
             intent(RedeemCodeIntent.Submit)
             assertState { it.isLoading }
@@ -144,7 +157,7 @@ class RedeemCodeViewModelTest {
     @Test
     fun `cambiar el codigo tras un error lo limpia`() = runTest {
         answer(Result.failure(LinkFailure.InvalidCode))
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             fill()
             intent(RedeemCodeIntent.Submit)
             assertState { it.isLoading }
@@ -161,7 +174,7 @@ class RedeemCodeViewModelTest {
             delay(100)
             if (attempt++ == 0) error("boom") else Result.success("t1")
         }
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             fill()
             intent(RedeemCodeIntent.Submit)
             assertState { it.isLoading }
@@ -175,9 +188,59 @@ class RedeemCodeViewModelTest {
 
     @Test
     fun `el campo limita la longitud`() = runTest {
-        RedeemCodeViewModel(redeem).testMvi {
+        newViewModel().testMvi {
             intent(RedeemCodeIntent.CodeChanged("A".repeat(100)))
             assertState { it.code.length == RedeemCodeState.MAX_INPUT }
         }
+    }
+
+    @Test
+    fun `tras rate limited o aviso desactualizado no se puede reenviar hasta editar o cambiar la casilla`() {
+        for (failure in listOf<LinkFailure>(LinkFailure.RateLimited(60), LinkFailure.NoticeOutdated)) {
+            runTest {
+                answer(Result.failure(failure))
+                newViewModel().testMvi {
+                    fill()
+                    intent(RedeemCodeIntent.Submit)
+                    assertState { it.isLoading }
+                    assertState { it.error != null && !it.canSubmit }
+                    intent(RedeemCodeIntent.AcceptedChanged(false))
+                    assertState { it.error == null && !it.accepted }
+                    intent(RedeemCodeIntent.AcceptedChanged(true))
+                    assertState { it.canSubmit }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `editar el codigo tras rate limited rehabilita el envio`() = runTest {
+        answer(Result.failure(LinkFailure.RateLimited(60)))
+        newViewModel().testMvi {
+            fill()
+            intent(RedeemCodeIntent.Submit)
+            assertState { it.isLoading }
+            assertState { !it.canSubmit }
+            intent(RedeemCodeIntent.CodeChanged("ABCD2346"))
+            assertState { it.canSubmit }
+        }
+    }
+
+    @Test
+    fun `un fallo reintentable no bloquea el envio`() = runTest {
+        answer(Result.failure(LinkFailure.Offline))
+        newViewModel().testMvi {
+            fill()
+            intent(RedeemCodeIntent.Submit)
+            assertState { it.isLoading }
+            assertState { it.error == RedeemError.Offline && it.canSubmit }
+        }
+    }
+
+    @Test
+    fun `el codigo no aparece en toString`() {
+        assertFalse(RedeemCodeIntent.CodeChanged("ABCD2345").toString().contains("ABCD2345"))
+        assertTrue(RedeemCodeState(code = "ABCD2345").toString().isNotEmpty())
+        assertEquals(RedeemCodeIntent.CodeChanged("A"), RedeemCodeIntent.CodeChanged("A"))
     }
 }

@@ -330,4 +330,7 @@
     <string name="link_unlink_error_offline">Sin conexión: no se ha desvinculado. Inténtalo de nuevo.</string>
     <string name="link_unlink_error_temporarily_unavailable">El servicio no está disponible un momento. Inténtalo de nuevo.</string>
     <string name="link_unlink_error_unknown">No se ha podido desvincular. Inténtalo de nuevo.</string>
+    <string name="link_loading">Cargando</string>
+    <string name="link_my_teacher_load_failed">No se ha podido cargar tu profesor. Inténtalo de nuevo.</string>
+    <string name="link_retry">Reintentar</string>
 </resources>

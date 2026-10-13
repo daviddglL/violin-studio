@@ -330,4 +330,7 @@
     <string name="link_unlink_error_offline">No connection: not unlinked. Please try again.</string>
     <string name="link_unlink_error_temporarily_unavailable">The service is briefly unavailable. Please try again.</string>
     <string name="link_unlink_error_unknown">Could not unlink. Please try again.</string>
+    <string name="link_loading">Loading</string>
+    <string name="link_my_teacher_load_failed">Could not load your teacher. Please try again.</string>
+    <string name="link_retry">Retry</string>
 </resources>

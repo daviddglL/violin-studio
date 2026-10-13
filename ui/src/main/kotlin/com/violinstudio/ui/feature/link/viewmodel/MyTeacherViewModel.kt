@@ -8,6 +8,7 @@ import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -22,9 +23,15 @@ class MyTeacherViewModel @Inject constructor(
     private val unlink: UnlinkUseCase
 ) : MviViewModel<MyTeacherState, MyTeacherIntent, MyTeacherEffect>(MyTeacherState()) {
     private var unlinking = false
+    private var observer: Job? = null
 
     init {
-        viewModelScope.launch { observe() }
+        startObserving()
+    }
+
+    private fun startObserving() {
+        observer?.cancel()
+        observer = viewModelScope.launch { observe() }
     }
 
     private suspend fun observe() {
@@ -40,8 +47,8 @@ class MyTeacherViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (_: Throwable) {
-            // Sin registrar la causa. Se deja de cargar para no quedar en un spinner eterno.
-            setState { copy(isLoading = false) }
+            // Sin registrar la causa. Se deja de cargar y se ofrece reintentar; nunca se afirma "sin profesor".
+            setState { copy(isLoading = false, loadFailed = true) }
         }
     }
 
@@ -59,6 +66,13 @@ class MyTeacherViewModel @Inject constructor(
         }
         MyTeacherIntent.CancelUnlink -> setState { if (isUnlinking) this else copy(confirmingUnlink = false) }
         MyTeacherIntent.ConfirmUnlink -> confirmUnlink()
+        MyTeacherIntent.Retry -> retry()
+    }
+
+    private fun retry() {
+        if (!state.value.loadFailed) return
+        setState { copy(isLoading = true, loadFailed = false) }
+        startObserving()
     }
 
     private suspend fun confirmUnlink() {

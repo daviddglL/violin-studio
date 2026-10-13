@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.link.view
 
 import android.app.Application
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -98,6 +99,28 @@ class LinkScreensTest {
         showTeacher(MyTeacherState(isLoading = false, teacher = link))
         compose.onNodeWithTag(MY_TEACHER_UNLINK_TAG).performClick()
         assertEquals(listOf<MyTeacherIntent>(MyTeacherIntent.RequestUnlink), teacherIntents)
+    }
+
+    @Test
+    fun `si el observador murio ofrece reintentar y nunca dice sin profesor`() {
+        showTeacher(MyTeacherState(isLoading = false, loadFailed = true))
+        compose.onNodeWithTag(MY_TEACHER_LOAD_FAILED_TAG).assertIsDisplayed()
+        compose.onNodeWithTag(MY_TEACHER_NONE_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(MY_TEACHER_RETRY_TAG).performClick()
+        assertEquals(listOf<MyTeacherIntent>(MyTeacherIntent.Retry), teacherIntents)
+    }
+
+    @Test
+    fun `el indicador de carga tiene descripcion`() {
+        showTeacher(MyTeacherState())
+        compose.onNodeWithTag(MY_TEACHER_LOADING_TAG)
+            .assert(androidx.compose.ui.test.hasContentDescription(context.getString(R.string.link_loading)))
+    }
+
+    @Test
+    fun `tras rate limited el boton queda bloqueado`() {
+        showRedeem(RedeemCodeState(code = "ABCD2345", accepted = true, error = RedeemError.RateLimited(7)))
+        compose.onNodeWithTag(REDEEM_SUBMIT_TAG).performScrollTo().assertIsNotEnabled()
     }
 
     @Test
