@@ -207,3 +207,103 @@ describe("colecciones cerradas (REQ-SEC-P05)", () => {
     await assertFails(setDoc(doc(alice(), `${PATH}/audio/a1`), { v: 1 }));
   });
 });
+
+// Rama profesor (REQ-SEC-T01, T04, TVW-02, TVW-03): lectura cruzada por vínculo, nunca por claim.
+describe("profesor vinculado", () => {
+  const COL = "users/alice/practiceSessions";
+  const tea = (claims: Claims = OK) => as("tea", claims);
+  beforeEach(async () => {
+    await seed(env, "users/tea", userDoc({ displayName: "Profe", role: "teacher" }));
+    await seed(env, "teacherLinks/tea_alice", { teacherUid: "tea", studentUid: "alice" });
+  });
+
+  test("lee y lista; no escribe", async () => {
+    await assertSucceeds(getDoc(doc(tea(), PATH)));
+    await assertSucceeds(getDocs(collection(tea(), COL)));
+    await assertFails(setDoc(doc(tea(), NEW), valid()));
+    await assertFails(updateDoc(doc(tea(), PATH), { notes: "x" }));
+    await assertFails(deleteDoc(doc(tea(), PATH)));
+  });
+  test("profesor no vinculado, otro alumno, anónimo y collection group: denegado", async () => {
+    await seed(env, "users/carl", userDoc({ role: "teacher" }));
+    for (const db of [as("carl"), bob(), anon()]) {
+      await assertFails(getDoc(doc(db, PATH)));
+      await assertFails(getDocs(collection(db, COL)));
+    }
+    await assertFails(getDocs(collectionGroup(tea(), "practiceSessions")));
+  });
+  test("el vínculo es direccional: el alumno no lee al profesor", async () => {
+    await seed(env, "users/tea/practiceSessions/t1", stored);
+    await assertFails(getDoc(doc(alice(), "users/tea/practiceSessions/t1")));
+  });
+  test("email sin verificar o consentOk:false: denegado", async () => {
+    for (const c of [{ email_verified: false, consentOk: true }, { email_verified: true, consentOk: false }, {}]) {
+      await assertFails(getDoc(doc(tea(c), PATH)));
+      await assertFails(getDocs(collection(tea(c), COL)));
+    }
+  });
+  test.each([
+    ["alumno", "users/alice", { consentStatus: "revoked" }],
+    ["alumno", "users/alice", { deletion: { startedAt: new Date() } }],
+    ["profesor", "users/tea", { consentStatus: "pending" }],
+    ["profesor", "users/tea", { deletion: { startedAt: new Date() } }],
+  ])("doc de %s sin consentimiento o con deletion (%j): denegado", async (_, path, over) => {
+    await seed(env, path, userDoc({ role: path === "users/tea" ? "teacher" : "student", ...over }));
+    await assertFails(getDoc(doc(tea(), PATH)));
+    await assertFails(getDocs(collection(tea(), COL)));
+  });
+  test("vínculo borrado a mitad: el acceso cae", async () => {
+    await assertSucceeds(getDoc(doc(tea(), PATH)));
+    await env.withSecurityRulesDisabled(async (ctx) => deleteDoc(doc(ctx.firestore(), "teacherLinks/tea_alice")));
+    await assertFails(getDoc(doc(tea(), PATH)));
+    await assertFails(getDocs(collection(tea(), COL)));
+  });
+  test("las reglas no dependen del claim role (REQ-SEC-T01)", async () => {
+    // Claim desfasado (sin role o 'student') pero vínculo válido: permitido.
+    await assertSucceeds(getDoc(doc(as("tea", { ...OK, role: "student" } as Claims), PATH)));
+    await assertSucceeds(getDoc(doc(as("tea", { ...OK, role: "independent" } as Claims), PATH)));
+    // Claim 'teacher' sin vínculo: denegado.
+    await seed(env, "users/carl", userDoc({ role: "teacher" }));
+    await assertFails(getDoc(doc(as("carl", { ...OK, role: "teacher" } as Claims), PATH)));
+    await assertFails(getDocs(collection(as("carl", { ...OK, role: "teacher" } as Claims), COL)));
+  });
+});
+
+// Coste (REQ-SEC-T01): isLinkedTeacher = 1 exists + 2 get (<= 10 por peticion); el list se evalua una vez, no por doc.
+describe("coste de las reglas del profesor", () => {
+  test("listar 60 sesiones y leer una de ellas funciona dentro del limite de accesos", async () => {
+    await seed(env, "users/tea", userDoc({ role: "teacher" }));
+    await seed(env, "teacherLinks/tea_alice", { teacherUid: "tea", studentUid: "alice" });
+    for (let i = 0; i < 60; i++) await seed(env, `users/alice/practiceSessions/b${i}`, stored);
+    const snap = await assertSucceeds(getDocs(collection(as("tea"), "users/alice/practiceSessions")));
+    expect(snap.size).toBe(61);
+  });
+});
+
+describe("ambiguedad del id del vinculo y alcance del profesor", () => {
+  test("uid con '_' no permite suplantar un vinculo ajeno (a + b_c vs a_b + c)", async () => {
+    await seed(env, "users/b_c", userDoc());
+    await seed(env, "users/b_c/practiceSessions/s1", stored);
+    await seed(env, "users/a", userDoc({ role: "teacher" }));
+    await seed(env, "users/a_b", userDoc({ role: "teacher" }));
+    await seed(env, "users/c", userDoc());
+    await seed(env, "users/c/practiceSessions/s1", stored);
+    await seed(env, "teacherLinks/a_b_c", { teacherUid: "a_b", studentUid: "c" });
+    await assertFails(getDoc(doc(as("a"), "users/b_c/practiceSessions/s1")));
+    await assertFails(getDocs(collection(as("a"), "users/b_c/practiceSessions")));
+    await assertSucceeds(getDoc(doc(as("a_b"), "users/c/practiceSessions/s1")));
+  });
+  test("el profesor vinculado no lee a otro alumno ni otras subcolecciones del suyo", async () => {
+    await seed(env, "users/tea", userDoc({ role: "teacher" }));
+    await seed(env, "teacherLinks/tea_alice", { teacherUid: "tea", studentUid: "alice" });
+    await seed(env, "users/bob", userDoc());
+    await seed(env, "users/bob/practiceSessions/s1", stored);
+    await seed(env, "users/alice/consents/c1", { type: "policy" });
+    await seed(env, "users/alice/otra/x", { a: 1 });
+    await assertFails(getDoc(doc(as("tea"), "users/bob/practiceSessions/s1")));
+    await assertFails(getDoc(doc(as("tea"), "users/alice/consents/c1")));
+    await assertFails(getDocs(collection(as("tea"), "users/alice/consents")));
+    await assertFails(getDoc(doc(as("tea"), "users/alice/otra/x")));
+    await assertFails(getDoc(doc(as("tea"), "users/alice")));
+  });
+});

@@ -11,6 +11,7 @@ import { hashCode, parseCodeInput } from "./codes";
 import { BaseCodeDeps, makeLog, nowOf } from "./code-handlers";
 import { canRedeem, RedeemDenyReason, studentDenial } from "./eligibility";
 import { requireCodePepper } from "./pepper";
+import { linkId } from "./link-id";
 
 const HOUR_MS = 3_600_000;
 
@@ -108,7 +109,7 @@ export async function redeemTeacherCodeHandler(deps: RedeemDeps, uid: string, da
   const codeRef = deps.db.collection(COLLECTIONS.teacherCodes).doc(hashCode(requireCodePepper(deps.pepper), code));
   const studentRef = deps.db.collection(COLLECTIONS.users).doc(uid);
 
-  const linkOf = (t: string) => deps.db.collection(COLLECTIONS.teacherLinks).doc(`${t}_${uid}`);
+  const linkOf = (t: string) => deps.db.collection(COLLECTIONS.teacherLinks).doc(linkId(t, uid));
   const done = async (t: string): Promise<RedeemResult> => {
     // Si esto falla el error sube: el reintento entra por la rama idempotente y vuelve a sincronizar.
     await syncClaims(deps, uid);
