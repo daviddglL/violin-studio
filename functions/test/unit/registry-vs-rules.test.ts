@@ -27,40 +27,56 @@ function topLevelMatches(rules: string): string[] {
   return names;
 }
 
+interface Nested {
+  name: string;
+  /** Colección del `match` que lo contiene inmediatamente. */
+  parent: string;
+}
+
 /**
- * Nombres de las subcolecciones declaradas bajo `match /<parent>/{id}` (profundidad de llaves 3).
- * Solo se admiten `match` de la forma `/nombre/{id}`; cualquier otra falla en voz alta.
+ * Todas las subcolecciones declaradas bajo los `match` de colección, a profundidad arbitraria, con su
+ * padre inmediato. Solo se admiten `match` de la forma `/nombre/{id}`; cualquier otra falla en voz alta.
  */
 // Limitación: cuenta llaves sobre el texto sin comentarios; una llave dentro de un literal de cadena la desajustaría.
-function subcollectionMatches(rules: string, parent: string): string[] {
+function nestedCollections(rules: string): Nested[] {
   const src = rules.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-  const names: string[] = [];
-  let depth = 0;
-  let inParent = false;
+  const found: Nested[] = [];
+  /** Un elemento por llave abierta: el nombre de colección si es un `match`, null en otro caso. */
+  const stack: Array<string | null> = [];
   for (let i = 0; i < src.length; i++) {
     const c = src[i];
-    if (c === "{") depth++;
-    else if (c === "}") depth--;
+    if (c === "{") stack.push(null);
+    else if (c === "}") stack.pop();
     else if (src.startsWith("match", i) && /\W/.test(src[i - 1] ?? " ")) {
       const m = /^match\s+(\S+)\s*\{/.exec(src.slice(i));
       if (!m) continue;
-      if (depth === 2) inParent = m[1].split("/")[1] === parent;
-      else if (depth === 3 && inParent) {
-        const segs = m[1].split("/").filter(Boolean);
-        if (segs.length !== 2 || !/^\w+$/.test(segs[0])) throw new Error(`subcolección no soportada en match ${m[1]}`);
-        names.push(segs[0]);
+      const segs = m[1].split("/").filter(Boolean);
+      const ancestors = stack.filter((s): s is string => s !== null);
+      // ancestors[0] es el `match /databases/...`; los de colección de primer nivel no son subcolecciones.
+      const isCollection = segs.length === 2 && /^\w+$/.test(segs[0]) && /^\{\w+\}$/.test(segs[1]);
+      if (ancestors.length >= 2) {
+        if (!isCollection) throw new Error(`subcolección no soportada en match ${m[1]}`);
+        found.push({ name: segs[0], parent: ancestors[ancestors.length - 1] });
       }
+      stack.push(isCollection ? segs[0] : "__otro__");
+      i += m[0].length - 1;
     }
   }
-  return names;
+  return found;
 }
 
-function unregisteredSubs(names: string[], parent: string): string[] {
-  const policies: Record<string, ErasurePolicy> = ERASABLE_COLLECTIONS;
-  return names.filter((n) => {
-    const p = policies[n];
-    return !Object.values(COLLECTIONS).includes(n as never) || p?.kind !== "subcollectionOf" || p.parent !== parent;
-  });
+/** Subcolecciones sin registro como `subcollectionOf` de su padre inmediato. */
+function unregisteredSubs(
+  subs: Nested[],
+  policies: Record<string, ErasurePolicy> = ERASABLE_COLLECTIONS,
+  known: readonly string[] = Object.values(COLLECTIONS),
+): string[] {
+  return subs
+    .filter(({ name, parent }) => {
+      const p = policies[name];
+      return !known.includes(name) || p?.kind !== "subcollectionOf" || p.parent !== parent;
+    })
+    .map((s) => s.name);
 }
 
 function unregistered(names: string[]): string[] {
@@ -80,21 +96,55 @@ test("el parser ve las colecciones de primer nivel y no las subcolecciones", () 
 const wrap = (body: string) =>
   "service cloud.firestore {\n  match /databases/{database}/documents {\n" + body + "\n  }\n}";
 
-test("el parser ve las subcolecciones de users y exige su registro como subcollectionOf users", () => {
-  const subs = subcollectionMatches(rules, "users");
-  expect(subs).toEqual(expect.arrayContaining(["consents", "practiceSessions"]));
-  expect(unregisteredSubs(subs, "users")).toEqual([]);
+test("el parser ve las subcolecciones y exige su registro como subcollectionOf de su padre inmediato", () => {
+  const subs = nestedCollections(rules);
+  expect(subs).toEqual(
+    expect.arrayContaining([
+      { name: "consents", parent: "users" },
+      { name: "practiceSessions", parent: "users" },
+      { name: "assignments", parent: "users" },
+    ]),
+  );
+  expect(unregisteredSubs(subs)).toEqual([]);
 });
 
 test("una subcolección inventada bajo users falla nombrándola", () => {
   const conNueva = rules.replace("match /consents/{id} {", "match /inventada/{id} { allow read: if false; }\n      match /consents/{id} {");
-  expect(unregisteredSubs(subcollectionMatches(conNueva, "users"), "users")).toEqual(["inventada"]);
+  expect(unregisteredSubs(nestedCollections(conNueva))).toEqual(["inventada"]);
 });
 
-test("las subcolecciones solo se leen del padre pedido y las formas raras fallan", () => {
+test("una sub-subcolección inventada falla nombrándola", () => {
+  const conNueva = rules.replace("match /consents/{id} {", "match /consents/{id} {\n        match /profunda/{x} { allow read: if false; }");
+  expect(nestedCollections(conNueva)).toContainEqual({ name: "profunda", parent: "consents" });
+  expect(unregisteredSubs(nestedCollections(conNueva))).toEqual(["profunda"]);
+});
+
+test("una subcolección registrada pero bajo otro padre falla", () => {
+  const src = wrap("match /users/{u} { match /consents/{id} { match /assignments/{x} { } } }");
+  expect(unregisteredSubs(nestedCollections(src))).toEqual(["assignments"]);
+});
+
+test("profundidad arbitraria: cada nivel exige el padre inmediato", () => {
+  const src = wrap("match /a/{x} { match /b/{y} { match /c/{z} { match /d/{w} { } } } }");
+  const subs = nestedCollections(src);
+  expect(subs.map((s) => `${s.parent}>${s.name}`)).toEqual(["a>b", "b>c", "c>d"]);
+  const sub = (parent: string): ErasurePolicy => ({ kind: "subcollectionOf", parent: parent as never });
+  // Con padres que no son el inmediato (todos users) fallan los tres niveles.
+  const lejanos = { b: sub("users"), c: sub("users"), d: sub("users") };
+  expect(unregisteredSubs(subs, lejanos, ["b", "c", "d"])).toEqual(["b", "c", "d"]);
+  // Con padres inmediatos (a, b, c) todo pasa.
+  const ok = { b: sub("a"), c: sub("b"), d: sub("c") };
+  expect(unregisteredSubs(subs, ok, ["b", "c", "d"])).toEqual([]);
+});
+
+test("solo cuentan los match anidados y las formas raras fallan", () => {
   const src = wrap("match /users/{u} { match /a/{id} { } }\nmatch /otros/{o} { match /b/{id} { } }");
-  expect(subcollectionMatches(src, "users")).toEqual(["a"]);
-  expect(() => subcollectionMatches(wrap("match /users/{u} { match /{x}/{id} { } }"), "users")).toThrow(/subcolección/);
+  expect(nestedCollections(src)).toEqual([
+    { name: "a", parent: "users" },
+    { name: "b", parent: "otros" },
+  ]);
+  expect(() => nestedCollections(wrap("match /users/{u} { match /{x}/{id} { } }"))).toThrow(/subcolección/);
+  expect(() => nestedCollections(wrap("match /users/{u} { match /a/b/{id} { } }"))).toThrow(/subcolección/);
 });
 
 test("todas las colecciones de las reglas están en COLLECTIONS y registradas", () => {
@@ -107,6 +157,8 @@ test("toda colección registrada tiene un match explícito y teacherCodes es den
   // Las subcolecciones viven bajo su padre; aquí solo se exigen las de primer nivel.
   const topLevel = sinMatch.filter((c) => ERASABLE_COLLECTIONS[c].kind !== "subcollectionOf");
   expect(topLevel).toEqual([]);
+  // assignments: deny provisional hasta A6 (que lo sustituye por las reglas reales).
+  expect(rules).toMatch(/match \/assignments\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
   expect(rules).toMatch(/match \/teacherCodes\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
   // teacherLinks: lectura solo por las partes (A4), escritura siempre denegada.
   expect(rules).toMatch(

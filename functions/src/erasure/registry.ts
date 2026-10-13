@@ -1,9 +1,16 @@
 import { CollectionName } from "../common/collections";
 
+/** Documentos de una subcolección que llevan el uid de un tercero (no su dueño): se barren con `collectionGroup`. */
+export type ForeignRef = { field: string; action: "delete" };
+
 export type ErasurePolicy =
   | { kind: "userDoc" }
-  | { kind: "subcollectionOf"; parent: CollectionName }
-  | { kind: "queryByField"; field: string }
+  /** `parent` = colección que la contiene INMEDIATAMENTE; `foreign` añade el barrido por `collectionGroup` (paso `shared`). */
+  | { kind: "subcollectionOf"; parent: CollectionName; foreign?: ForeignRef }
+  /** Borra los docs cuyo cualquiera de estos campos sea el uid (una consulta por campo). */
+  | { kind: "queryByFields"; fields: readonly string[] }
+  /** Vinculo profesor-alumno: se desvincula con `removeLink` (contadores, rol, claims), no se borra a pelo. */
+  | { kind: "link"; fields: readonly ["teacherUid", "studentUid"] }
   | { kind: "exempt"; reason: string };
 
 /**
@@ -16,15 +23,15 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   users: { kind: "userDoc" },
   consents: { kind: "subcollectionOf", parent: "users" },
   practiceSessions: { kind: "subcollectionOf", parent: "users" },
-  guardianRequests: { kind: "queryByField", field: "uid" },
-  mail: { kind: "queryByField", field: "uid" },
+  guardianRequests: { kind: "queryByFields", fields: ["uid"] },
+  mail: { kind: "queryByFields", fields: ["uid"] },
   guardianEmailLimits: { kind: "exempt", reason: "clave HMAC del tutor, sin uid; TTL 24 h" },
-  // Provisional (A2): los ids son HMAC y el doc lleva `teacherUid`/`usedBy`; A5 lo sustituye por
-  // `queryByFields [teacherUid, usedBy]`. Mientras, caducan por TTL (`expireAt`) y `revoke-teacher` los revoca.
-  teacherCodes: { kind: "exempt", reason: "provisional hasta A5 (queryByFields teacherUid/usedBy); TTL expireAt" },
-  // Provisional (A3a): el id es `{t}_{s}` y el doc lleva `teacherUid`/`studentUid`; A5 lo sustituye por
-  // `queryByFields [teacherUid, studentUid]` (y `removeLink` en A3b). Mientras, no se borra con la cuenta.
-  teacherLinks: { kind: "exempt", reason: "provisional hasta A5 (queryByFields teacherUid/studentUid via removeLink)" },
+  // Los ids son HMAC; el doc lleva `teacherUid` (creador) y `usedBy` (canjeador).
+  teacherCodes: { kind: "queryByFields", fields: ["teacherUid", "usedBy"] },
+  // Primero en la cascada: corta el acceso cruzado y recalcula contadores/rol/claims de la otra parte.
+  teacherLinks: { kind: "link", fields: ["teacherUid", "studentUid"] },
+  // Tareas: viven en el espacio del alumno (caen con su `recursiveDelete`) y las del profesor, tambien las hechas, se barren aparte.
+  assignments: { kind: "subcollectionOf", parent: "users", foreign: { field: "teacherUid", action: "delete" } },
 };
 
 export const STORAGE_PREFIXES: ReadonlyArray<(uid: string) => string> = [(uid) => `users/${uid}/`];
