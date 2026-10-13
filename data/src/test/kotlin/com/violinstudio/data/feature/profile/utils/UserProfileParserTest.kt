@@ -110,4 +110,9 @@ class UserProfileParserTest {
     fun `deletion en cualquier forma no nula marca borrado en curso`() {
         assertTrue(domain(mapOf("deletion" to mapOf("state" to "in_progress"))).deletionInProgress)
     }
+
+    @Test
+    fun `rol teacher llega como TEACHER`() {
+        assertEquals(Role.TEACHER, domain(full + ("role" to "teacher")).role)
+    }
 }

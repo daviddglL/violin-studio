@@ -115,6 +115,23 @@ class ObserveSessionStateUseCaseTest {
     }
 
     @Test
+    fun `un cambio de rol con sesion Ready solo actualiza Ready sin otros estados ni claims`() = runTest {
+        profile.profile.value = userProfile().copy(role = Role.INDEPENDENT)
+        auth.user = verifiedUser
+        useCase().test {
+            assertEquals(SessionState.Loading, awaitItem())
+            assertEquals(SessionState.Ready(userProfile().copy(role = Role.INDEPENDENT)), awaitItem())
+            Role.entries.filter { it != Role.INDEPENDENT }.forEach { role ->
+                val updated = userProfile().copy(role = role)
+                profile.profile.value = updated
+                assertEquals(SessionState.Ready(updated), awaitItem())
+            }
+            expectNoEvents()
+        }
+        assertTrue("claims:true" !in auth.calls)
+    }
+
+    @Test
     fun `bump de version en caliente pasa de Ready a ConsentPending`() = runTest {
         profile.profile.value = userProfile()
         auth.user = verifiedUser
