@@ -95,6 +95,28 @@ export function teacherUsable(p: Record<string, unknown> | undefined, now: Date,
   );
 }
 
+export interface StudentCheckInput {
+  student: Record<string, unknown> | undefined;
+  ackVersion: unknown;
+  /** Solo se inyecta en tests. */
+  policyVersion?: number;
+}
+
+/** Parte del canje que depende solo del alumno y del aviso (no del codigo): se evalua ANTES de mirar el codigo. */
+export function studentDenial({
+  student,
+  ackVersion,
+  policyVersion = CURRENT_POLICY_VERSION,
+}: StudentCheckInput): RedeemDenyReason | null {
+  if (ackVersion !== LINK_NOTICE_VERSION) return "NOTICE_OUTDATED";
+  if (!student || student.deletion) return "STUDENT_INACTIVE";
+  if (!consentCurrent(student, policyVersion)) return "NO_CONSENT";
+  if (student.role === "teacher") return "STUDENT_IS_TEACHER";
+  const tc = student.teacherCount ?? 0;
+  if (student.role === "student" || typeof tc !== "number" || tc >= 1) return "ALREADY_LINKED";
+  return null;
+}
+
 /** Funcion pura (REQ-LNK-03/05/06/07). Los contadores ausentes valen 0; uno corrupto falla cerrado. */
 export function canRedeem({
   student,
@@ -104,12 +126,8 @@ export function canRedeem({
   policyVersion = CURRENT_POLICY_VERSION,
 }: RedeemInput): RedeemEligibility {
   const no = (reason: RedeemDenyReason): RedeemEligibility => ({ ok: false, reason });
-  if (ackVersion !== LINK_NOTICE_VERSION) return no("NOTICE_OUTDATED");
-  if (!student || student.deletion) return no("STUDENT_INACTIVE");
-  if (!consentCurrent(student, policyVersion)) return no("NO_CONSENT");
-  if (student.role === "teacher") return no("STUDENT_IS_TEACHER");
-  const tc = student.teacherCount ?? 0;
-  if (student.role === "student" || typeof tc !== "number" || tc >= 1) return no("ALREADY_LINKED");
+  const denied = studentDenial({ student, ackVersion, policyVersion });
+  if (denied) return no(denied);
   if (!teacherUsable(teacher, now, policyVersion)) return no("TEACHER_UNAVAILABLE");
   const sc = teacher?.studentCount ?? 0;
   if (typeof sc !== "number" || sc >= MAX_STUDENTS_PER_TEACHER) return no("TEACHER_FULL");

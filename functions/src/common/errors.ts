@@ -23,6 +23,7 @@ export enum ErrorReason {
   TEACHER_FULL = "TEACHER_FULL",
   ALREADY_LINKED = "ALREADY_LINKED",
   NOT_ELIGIBLE = "NOT_ELIGIBLE",
+  TEMPORARILY_UNAVAILABLE = "TEMPORARILY_UNAVAILABLE",
 }
 
 /** Error de callable con `details.reason` estable para que el cliente lo mapee sin parsear texto. */

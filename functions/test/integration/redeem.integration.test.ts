@@ -2,6 +2,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { CURRENT_POLICY_VERSION, LINK_NOTICE_VERSION } from "../../src/config/identity";
+import { hashCode } from "../../src/teacher/codes";
 import { createTeacherCodeHandler, revokeTeacherCodeHandler } from "../../src/teacher/code-handlers";
 import { redeemTeacherCodeHandler, RedeemDeps } from "../../src/teacher/redeem";
 
@@ -123,10 +124,11 @@ describe("redeemTeacherCode - errores genericos (A3a.3)", () => {
     await expect(canjear(s, code)).resolves.toMatchObject({ linked: true });
   });
 
-  test("profesor lleno: TEACHER_FULL y el codigo sigue libre", async () => {
+  test("profesor lleno: TEACHER_FULL (resource-exhausted, cuenta como fallo) y el codigo sigue libre", async () => {
     const t = await profesor({ studentCount: 30 });
     const s = await alumno();
-    expect(await rechazo(canjear(s, await nuevoCodigo(t)))).toMatchObject({ code: "failed-precondition", details: { reason: "TEACHER_FULL" } });
+    expect(await rechazo(canjear(s, await nuevoCodigo(t)))).toMatchObject({ code: "resource-exhausted", details: { reason: "TEACHER_FULL" } });
+    expect(await fallos(s)).toBe(1);
     expect((await codeDoc(await idDe(t)))?.usedBy).toBeNull();
     expect((await userDoc(s)).role).toBe("independent");
   });
@@ -242,5 +244,96 @@ describe("redeemTeacherCode - limite de fallos (A3a.5)", () => {
       expect(volcado).not.toContain(prohibido);
     }
     expect(logs.every((l) => typeof l.data.uidHash === "string")).toBe(true);
+  });
+});
+
+describe("redeemTeacherCode - revision fresca A3a", () => {
+  test("usuario sin perfil: respuesta identica con codigo valido e invalido, 8 veces, sin oraculo", async () => {
+    const t = await profesor();
+    const valido = await nuevoCodigo(t);
+    const { uid } = await auth.createUser({ email: `np-${Date.now()}@example.com`, emailVerified: true });
+    const respuestas = [];
+    for (let i = 0; i < 8; i++) respuestas.push(await rechazo(canjear(uid, i % 2 ? valido : CODIGO_AJENO)));
+    for (const r of respuestas) expect(r).toMatchObject({ code: "permission-denied", details: { reason: "NOT_ELIGIBLE" }, message: respuestas[0]?.message });
+    expect((await codeDoc(await idDe(t)))?.usedBy).toBeNull();
+  });
+
+  test("alumno ya vinculado con OTRO codigo: ALREADY_LINKED igual para valido e inexistente, sin fallos", async () => {
+    const [t, t2] = [await profesor(), await profesor()];
+    const s = await alumno();
+    await canjear(s, await nuevoCodigo(t));
+    const valido = await nuevoCodigo(t2);
+    for (const c of [valido, CODIGO_AJENO]) {
+      expect(await rechazo(canjear(s, c))).toMatchObject({ details: { reason: "ALREADY_LINKED" } });
+    }
+    expect(await fallos(s)).toBe(0);
+  });
+
+  test("rafaga paralela de 12 intentos invalidos: como mucho 5 NOT_FOUND y el resto resource-exhausted", async () => {
+    const s = await alumno();
+    const res = await Promise.all(Array.from({ length: 12 }, () => rechazo(canjear(s, CODIGO_AJENO))));
+    const reasons = res.map((r) => r?.code);
+    expect(reasons.filter((c) => c === "not-found").length).toBeLessThanOrEqual(5);
+    expect(reasons.filter((c) => c === "not-found").length + reasons.filter((c) => c === "resource-exhausted").length).toBe(12);
+    expect(await fallos(s)).toBeLessThanOrEqual(5);
+  });
+
+  test("codigo con expiresAt corrupto: NOT_FOUND contado, no internal", async () => {
+    const s = await alumno();
+    await db.collection("teacherCodes").doc(hashCode(PEPPER, "ZZZZ2222")).set({ teacherUid: "x", expiresAt: "ayer", usedBy: null, usedAt: null, revokedAt: null });
+    expect(await rechazo(canjear(s, "ZZZZ2222"))).toMatchObject({ code: "not-found", details: { reason: "CODE_NOT_FOUND" } });
+    expect(await fallos(s)).toBe(1);
+  });
+
+  test("si syncClaims falla tras el commit, el error sube y el reintento recupera claims sin duplicar contadores", async () => {
+    const t = await profesor();
+    const s = await alumno();
+    const code = await nuevoCodigo(t);
+    let fallar = true;
+    const authRoto = Object.create(auth) as typeof auth;
+    authRoto.setCustomUserClaims = async (u, c) => {
+      if (fallar) { fallar = false; throw new Error("boom"); }
+      return auth.setCustomUserClaims(u, c);
+    };
+    await expect(redeemTeacherCodeHandler({ ...deps(), auth: authRoto }, s, { code, ackVersion: LINK_NOTICE_VERSION })).rejects.toThrow("boom");
+    expect((await auth.getUser(s)).customClaims).toMatchObject({ role: "independent" });
+    await expect(canjear(s, code)).resolves.toEqual({ linked: true, teacherUid: t });
+    expect((await auth.getUser(s)).customClaims).toMatchObject({ role: "student" });
+    expect((await userDoc(t)).studentCount).toBe(1);
+    expect((await userDoc(s)).teacherCount).toBe(1);
+  });
+
+  test("el reintento idempotente no pasa por el limite de fallos", async () => {
+    const t = await profesor();
+    const s = await alumno();
+    const code = await nuevoCodigo(t);
+    await canjear(s, code);
+    await db.collection("users").doc(s).update({ "linkRedeem.failures": Array.from({ length: 5 }, () => Timestamp.fromMillis(ahora.getTime())) });
+    await expect(canjear(s, code)).resolves.toMatchObject({ linked: true });
+  });
+
+  test("repetir el codigo tras desvincular (vinculo borrado, contadores a 0): NOT_FOUND", async () => {
+    const t = await profesor();
+    const s = await alumno();
+    const code = await nuevoCodigo(t);
+    await canjear(s, code);
+    await db.collection("teacherLinks").doc(`${t}_${s}`).delete();
+    await db.collection("users").doc(t).update({ studentCount: 0 });
+    await db.collection("users").doc(s).update({ teacherCount: 0, role: "independent" });
+    expect(await rechazo(canjear(s, code))).toMatchObject({ code: "not-found" });
+  });
+
+  test("repetir el codigo tras perder el profesor su rol (vinculo vigente): sigue siendo exito", async () => {
+    const t = await profesor();
+    const s = await alumno();
+    const code = await nuevoCodigo(t);
+    await canjear(s, code);
+    await db.collection("users").doc(t).update({ role: "independent" });
+    await expect(canjear(s, code)).resolves.toEqual({ linked: true, teacherUid: t });
+  });
+
+  test("un profesor no puede canjear su propio codigo", async () => {
+    const t = await profesor();
+    expect(await rechazo(canjear(t, await nuevoCodigo(t)))).toMatchObject({ details: { reason: "NOT_ELIGIBLE" } });
   });
 });
