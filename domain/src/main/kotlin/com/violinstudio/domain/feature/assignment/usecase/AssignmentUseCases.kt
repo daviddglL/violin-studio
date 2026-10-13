@@ -64,6 +64,7 @@ class CompleteAssignmentUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(id: String): Result<Unit> {
         val uid = auth.uidOrNull() ?: return Result.failure(AssignmentFailure.NoSession)
+        if (!AssignmentRules.validId(id)) return Result.failure(AssignmentFailure.InvalidId)
         return repo.setDone(uid, id, done = true)
     }
 }
@@ -75,6 +76,7 @@ class ReopenAssignmentUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(id: String): Result<Unit> {
         val uid = auth.uidOrNull() ?: return Result.failure(AssignmentFailure.NoSession)
+        if (!AssignmentRules.validId(id)) return Result.failure(AssignmentFailure.InvalidId)
         return repo.setDone(uid, id, done = false)
     }
 }
@@ -86,6 +88,7 @@ class DeleteAssignmentUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(studentUid: String, id: String): Result<Unit> {
         auth.uidOrNull() ?: return Result.failure(AssignmentFailure.NoSession)
+        if (!AssignmentRules.validId(id)) return Result.failure(AssignmentFailure.InvalidId)
         return repo.delete(studentUid, id)
     }
 }
@@ -105,7 +108,10 @@ class ObserveMyAssignmentsUseCase @Inject constructor(
     }
 }
 
-/** Tareas que el profesor con sesión creó para [studentUid]; `PermissionDenied` (vínculo caído) vacía la lista. */
+/**
+ * Tareas que el profesor con sesión creó para [studentUid]. `PermissionDenied` (vínculo caído) emite una lista vacía
+ * y el flujo termina: el colector debe volver a recoger (o esperar a que `authUser` emita de nuevo); sin reintentos.
+ */
 class ObserveStudentAssignmentsUseCase @Inject constructor(
     private val auth: AuthRepository,
     private val repo: AssignmentRepository

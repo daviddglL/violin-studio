@@ -13,7 +13,11 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
-/** Vínculos del usuario con sesión; vacío sin sesión o si las reglas deniegan la lectura (vínculo caído). */
+/**
+ * Vínculos del usuario con sesión; vacío sin sesión. Si las reglas deniegan la lectura (vínculo caído) emite una lista
+ * vacía y ese flujo termina: se vuelve a suscribir cuando `authUser` emite de nuevo o el colector recoge otra vez
+ * (sin bucles de reintento aquí).
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 private fun Flow<AuthUser?>.links(observe: (String) -> Flow<List<TeacherLink>>): Flow<List<TeacherLink>> =
     flatMapLatest { user ->
@@ -29,8 +33,10 @@ class ObserveMyTeacherUseCase @Inject constructor(
     private val auth: AuthRepository,
     private val repo: LinkRepository
 ) {
+    private val oldestFirst = compareBy<TeacherLink> { it.createdAt }.thenBy { it.teacherUid }
+
     operator fun invoke(): Flow<TeacherLink?> =
-        auth.authUser.links(repo::observeAsStudent).map { list -> list.minByOrNull { it.createdAt } }
+        auth.authUser.links(repo::observeAsStudent).map { list -> list.minWithOrNull(oldestFirst) }
 }
 
 /** Alumnos del profesor por nombre, sin distinguir mayúsculas. */

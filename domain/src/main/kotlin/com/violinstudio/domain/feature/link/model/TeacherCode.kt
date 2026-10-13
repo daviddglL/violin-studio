@@ -15,12 +15,14 @@ object TeacherCodeInput {
     const val ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
     const val LENGTH = 8
     private const val MAX_RAW_LENGTH = 32
-    private val separators = Regex("[\\s-]")
+
+    /** Como `\s` de JS (el servidor): espacios Unicode y BOM, más el guion. */
+    private fun isSeparator(c: Char) = c == '-' || c == '﻿' || Character.isWhitespace(c) || Character.isSpaceChar(c)
 
     /** Mayúsculas sin espacios ni guiones; `null` si no es un código posible (longitud 8, solo [ALPHABET]). */
     fun normalize(raw: String): String? {
         if (raw.length > MAX_RAW_LENGTH) return null
-        val code = raw.uppercase().replace(separators, "")
+        val code = raw.uppercase().filterNot(::isSeparator)
         return code.takeIf { it.length == LENGTH && it.all { c -> c in ALPHABET } }
     }
 }

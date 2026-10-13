@@ -87,4 +87,36 @@ class AssignmentRulesTest {
         val sorted = AssignmentRules.sortForStudent(list)
         assertEquals(listOf("old", "pending"), sorted.map { it.id })
     }
+
+    @Test
+    fun `las hechas pendientes de confirmar (sin doneAt) van las primeras`() {
+        val sorted = AssignmentRules.sortForStudent(
+            listOf(
+                task("done-old", AssignmentStatus.DONE, doneAt = at(10)),
+                task("done-pending", AssignmentStatus.DONE, doneAt = null),
+                task("done-new", AssignmentStatus.DONE, doneAt = at(20))
+            )
+        )
+        assertEquals(listOf("done-pending", "done-new", "done-old"), sorted.map { it.id })
+    }
+
+    @Test
+    fun `con el mismo dueAt las abiertas se ordenan por createdAt ascendente`() {
+        val sorted = AssignmentRules.sortForStudent(
+            listOf(
+                task("b", dueAt = at(100), createdAt = at(5)),
+                task("a", dueAt = at(100), createdAt = at(2))
+            )
+        )
+        assertEquals(listOf("a", "b"), sorted.map { it.id })
+    }
+
+    @Test
+    fun `validId acepta 1 a 64 caracteres seguros y rechaza el resto`() {
+        assertEquals(true, AssignmentRules.validId("abc-DEF_123"))
+        assertEquals(true, AssignmentRules.validId("a".repeat(64)))
+        for (bad in listOf("", "a".repeat(65), "a/b", "a b", "a.b", "ñ")) {
+            assertEquals(false, AssignmentRules.validId(bad), bad)
+        }
+    }
 }

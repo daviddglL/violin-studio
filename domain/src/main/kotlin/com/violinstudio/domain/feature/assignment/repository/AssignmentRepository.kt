@@ -18,7 +18,10 @@ interface AssignmentRepository {
 
     suspend fun create(studentUid: String, teacherUid: String, draft: AssignmentDraft): Result<Unit>
 
-    /** Solo título, descripción y `dueAt`; el estado no se toca. */
+    /**
+     * Solo título, descripción y `dueAt`; el estado no se toca. `description`/`dueAt` `null` significa BORRAR el campo:
+     * la capa de datos debe enviar `FieldValue.delete()`, nunca `null` (las reglas no admiten `null`).
+     */
     suspend fun update(studentUid: String, draft: AssignmentDraft): Result<Unit>
 
     /** Completar fija `doneAt` en el servidor; reabrir lo elimina. */

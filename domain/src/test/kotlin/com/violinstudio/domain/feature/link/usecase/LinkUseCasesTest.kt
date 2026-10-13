@@ -5,6 +5,7 @@ import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.domain.feature.link.model.TeacherLink
+import com.violinstudio.domain.feature.practice.failure.PracticeFailure
 import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.verifiedUser
@@ -124,5 +125,30 @@ class LinkUseCasesTest {
         job.join()
         runCurrent()
         assertEquals(0, repo.links.subscriptionCount.value)
+    }
+
+    @Test
+    fun `ObserveMyTeacher desempata por teacherUid con el mismo createdAt`() = runTest {
+        repo.links.value = listOf(link("tb", me, at = 10), link("ta", me, at = 10))
+        assertEquals("ta", ObserveMyTeacherUseCase(auth, repo)().first()?.teacherUid)
+    }
+
+    @Test
+    fun `ObserveStudentPractice limita a 200 de 201 y PermissionDenied vacia`() = runTest {
+        val practice = FakePracticeLogRepository()
+        practice.seed(
+            "s1",
+            *Array(201) { i ->
+                PracticeSession("p$i", Instant.ofEpochSecond(1000L + i), 60, Instrument.VIOLIN, null, false)
+            }
+        )
+        val observe = ObserveStudentPracticeUseCase(practice)
+        val list = observe("s1").first()
+        assertEquals(200, list.size)
+        assertEquals("p200", list.first().id)
+        practice.observeFailure = PracticeFailure.PermissionDenied
+        assertEquals(emptyList<PracticeSession>(), observe("s1").first())
+        practice.observeFailure = PracticeFailure.Unknown
+        assertEquals(PracticeFailure.Unknown, runCatching { observe("s1").toList() }.exceptionOrNull())
     }
 }

@@ -95,4 +95,15 @@ class AssignmentUseCasesTest {
         auth.user = null
         assertEquals(emptyList<Assignment>(), observe("s1").first())
     }
+
+    @Test
+    fun `ids con caracteres no seguros se rechazan en editar, completar, reabrir y borrar`() = runTest {
+        val bad = "a/b"
+        val update = UpdateAssignmentUseCase(auth, repo)("s1", bad, "x", null, null)
+        assertEquals(AssignmentFailure.InvalidId, update.exceptionOrNull())
+        assertEquals(AssignmentFailure.InvalidId, CompleteAssignmentUseCase(auth, repo)(bad).exceptionOrNull())
+        assertEquals(AssignmentFailure.InvalidId, ReopenAssignmentUseCase(auth, repo)(bad).exceptionOrNull())
+        assertEquals(AssignmentFailure.InvalidId, DeleteAssignmentUseCase(auth, repo)("s1", bad).exceptionOrNull())
+        assertTrue(repo.calls.isEmpty())
+    }
 }

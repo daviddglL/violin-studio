@@ -30,4 +30,11 @@ class TeacherCodeInputTest {
         assertNull(TeacherCodeInput.normalize("ABCD2345" + " ".repeat(25)))
         assertEquals("ABCD2345", TeacherCodeInput.normalize("ABCD2345" + " ".repeat(24)))
     }
+
+    @Test
+    fun `quita espacios Unicode como el JS del servidor`() {
+        for (sep in listOf(" ", " ", " ", "　", "﻿", " ", " ")) {
+            assertEquals("ABCD2345", TeacherCodeInput.normalize("ABCD${sep}2345"), sep)
+        }
+    }
 }

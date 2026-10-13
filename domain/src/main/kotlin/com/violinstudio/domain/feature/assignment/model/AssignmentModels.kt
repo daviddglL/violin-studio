@@ -34,9 +34,9 @@ data class AssignmentDraft private constructor(
     override fun toString(): String = "AssignmentDraft(hasDescription=${description != null}, dueAt=$dueAt)"
 
     companion object {
-        /** [id] es un UUID generado en cliente (1..64). */
+        /** [id] es un UUID generado en cliente (ver [AssignmentRules.validId]). */
         fun create(id: String, title: String, description: String?, dueAt: Instant?): Result<AssignmentDraft> {
-            if (id.isEmpty() || id.length > AssignmentRules.ID_MAX) return Result.failure(AssignmentFailure.InvalidId)
+            if (!AssignmentRules.validId(id)) return Result.failure(AssignmentFailure.InvalidId)
             val cleanTitle = AssignmentRules.title(title).getOrElse { return Result.failure(it) }
             val cleanDescription = AssignmentRules.description(description).getOrElse { return Result.failure(it) }
             return Result.success(AssignmentDraft(id, cleanTitle, cleanDescription, dueAt))
@@ -51,6 +51,11 @@ object AssignmentRules {
     const val ID_MAX = 64
 
     /** Misma lista blanca que las reglas: letras, marcas, números, puntuación, símbolos y espacio (sin control, formato ni saltos). */
+    private val idPattern = Regex("^[A-Za-z0-9_-]{1,64}$")
+
+    /** Id de tarea seguro para un path de Firestore: 1..64 de `[A-Za-z0-9_-]`. */
+    fun validId(id: String): Boolean = idPattern.matches(id)
+
     private val titleChars = Regex("^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S} ]+$")
 
     /** Recorta (las reglas exigen `title == trim`); vacío, demasiado largo o con caracteres no permitidos falla. */
@@ -76,7 +81,8 @@ object AssignmentRules {
 
     /**
      * Orden del alumno (REQ-ASG-06): abiertas primero por `dueAt` ascendente (sin `dueAt` al final, por `createdAt`;
-     * sin `createdAt`, es decir pendientes, las últimas); luego las hechas, la más reciente primero.
+     * sin `createdAt`, es decir pendientes, las últimas); con el mismo `dueAt` desempata `createdAt` ascendente y
+     * luego el id. Después las hechas, la más reciente primero (las pendientes de confirmar, sin `doneAt`, primero).
      */
     fun sortForStudent(list: List<Assignment>): List<Assignment> {
         val open = list.filter { it.status == AssignmentStatus.OPEN }.sortedWith(
@@ -85,7 +91,7 @@ object AssignmentRules {
                 .thenBy { it.id }
         )
         val done = list.filter { it.status == AssignmentStatus.DONE }.sortedWith(
-            compareByDescending<Assignment, Instant?>(nullsFirst()) { it.doneAt }.thenBy { it.id }
+            compareByDescending<Assignment, Instant?>(nullsLast()) { it.doneAt }.thenBy { it.id }
         )
         return open + done
     }

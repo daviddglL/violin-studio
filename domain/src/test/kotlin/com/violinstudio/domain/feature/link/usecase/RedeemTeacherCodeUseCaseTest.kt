@@ -42,4 +42,12 @@ class RedeemTeacherCodeUseCaseTest {
         auth.claimsResults = mutableListOf(Result.failure(AuthFailure.Network))
         assertEquals(Result.success("teacher"), useCase("ABCD2345", ackVersion = 2))
     }
+
+    @Test
+    fun `propaga TemporarilyUnavailable y NoActiveConsent tal cual`() = runTest {
+        for (failure in listOf(LinkFailure.TemporarilyUnavailable, LinkFailure.NoActiveConsent)) {
+            repo.redeemResult = Result.failure(failure)
+            assertEquals(failure, useCase("ABCD2345", ackVersion = 2).exceptionOrNull())
+        }
+    }
 }
