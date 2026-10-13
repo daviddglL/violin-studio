@@ -12,6 +12,7 @@ describe("COLLECTIONS", () => {
       mail: "mail",
       teacherCodes: "teacherCodes",
       teacherLinks: "teacherLinks",
+      assignments: "assignments",
     });
   });
   test("CollectionName admite los valores registrados", () => {

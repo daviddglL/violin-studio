@@ -40,6 +40,11 @@ describe("firestore.indexes.json", () => {
     });
   });
 
+  test("assignments.teacherUid: indice COLLECTION_GROUP para la cascada de borrado del profesor (A5)", () => {
+    const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === "assignments" && f.fieldPath === "teacherUid");
+    expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION_GROUP" });
+  });
+
   test.each(["mail", "teacherCodes", "guardianRequests", "guardianEmailLimits"])("%s.expireAt: TTL y indice ascendente habilitado (la purga 7b.4 filtra por rango)", (coleccion) => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === "expireAt");
     expect(o.ttl).toBe(true);

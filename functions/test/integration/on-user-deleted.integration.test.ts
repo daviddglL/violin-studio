@@ -55,5 +55,5 @@ test("el disparo tras deleteAccount (eraseUserData con deleteAuth:true) es un no
   await eraseUserData({ db, auth, bucket }, uid, { deleteAuth: true }); // dispara además el trigger real
   await new Promise((r) => setTimeout(r, 2_000));
   expect(await restos(uid)).toEqual(limpio);
-  await expect(onUserDeletedHandler({ db, auth, bucket }, uid)).resolves.toEqual({ deleted: { guardianRequests: 0, mail: 0 } });
+  await expect(onUserDeletedHandler({ db, auth, bucket }, uid)).resolves.toEqual({ deleted: { guardianRequests: 0, mail: 0, teacherCodes: 0, teacherLinks: 0, assignments: 0 } });
 });

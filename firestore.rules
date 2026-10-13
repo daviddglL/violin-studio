@@ -89,6 +89,10 @@ service cloud.firestore {
           && validNotes(request.resource.data);
         allow delete: if isOwner(uid); // supresión siempre disponible, sin consentimiento
       }
+
+      // Provisional (A5): deny total hasta que A6 defina las reglas de tareas. Existe para que el
+      // registro de borrado (`assignments`, subcolección de users) tenga su `match` explícito.
+      match /assignments/{id} { allow read, write: if false; }
     }
 
     // Colecciones del servidor (solo Admin SDK): deny explícito para que el test de registro las detecte.

@@ -29,25 +29,41 @@ function harness() {
     },
     collection: (n: string) => collection(`${path}/${n}`),
   });
+  /** Consulta falsa: `match` decide que documentos (ruta, datos) cumplen el filtro. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const collection = (name: string): any => ({
-    doc: (id: string) => ref(`${name}/${id}`),
-    where: (field: string, _op: string, value: unknown) => ({
+  const query = (match: (p: string, d: Doc) => boolean): any => {
+    const run = (n: number) => {
+      const hits = [...docs.entries()]
+        .filter(([p, d]) => match(p, d))
+        .slice(0, n)
+        .map(([p, d]) => ({ ref: ref(p), id: p.split("/").pop(), get: (f: string) => d[f], data: () => d }));
+      return { empty: hits.length === 0, docs: hits };
+    };
+    return {
       limit: (n: number) => ({
         get: async () => {
           limits.push(n);
-          const hits = [...docs.entries()]
-            .filter(([p, d]) => p.startsWith(`${name}/`) && d[field] === value)
-            .slice(0, n)
-            .map(([p]) => ({ ref: ref(p) }));
-          return { empty: hits.length === 0, docs: hits };
+          return run(n);
         },
       }),
-    }),
+      get: async () => run(Infinity),
+    };
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const collection = (name: string): any => ({
+    doc: (id: string) => ref(`${name}/${id}`),
+    where: (field: string, op: string, value: unknown) =>
+      query((p, d) => p.startsWith(`${name}/`) && (op === "array-contains" ? Array.isArray(d[field]) && (d[field] as unknown[]).includes(value) : d[field] === value)),
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const collectionGroup = (name: string): any => ({
+    where: (field: string, _op: string, value: unknown) =>
+      query((p, d) => p.split("/").slice(0, -1).pop() === name && d[field] === value),
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db: any = {
     collection,
+    collectionGroup,
     bulkWriter: () => {
       closed = false;
       return {
@@ -133,6 +149,19 @@ describe("eraseUserData", () => {
     const sin = harness();
     await expect(eraseUserData(sin.deps, "nadie", { deleteAuth: false })).resolves.toBeDefined();
     expect(sin.ops).not.toContain("update");
+  });
+
+  test("A5: orden de pasos con shared entre collections y storage, y finalShared en el barrido final", async () => {
+    const h = harness();
+    seed(h);
+    h.docs.set("users/alumno/assignments/a1", { teacherUid: "u1" });
+    h.docs.set("users/alumno/assignments/a2", { teacherUid: "otro" });
+    const res = await eraseUserData(h.deps, "u1", { deleteAuth: true });
+    const pasos = h.logs.filter((l) => l.message === "erasure.step").map((l) => l.data.step);
+    expect(pasos).toEqual(["mark", "collections", "shared", "storage", "userDoc", "auth", "finalCollections", "finalShared", "finalUserDoc"]);
+    expect(h.docs.has("users/alumno/assignments/a1")).toBe(false);
+    expect(h.docs.has("users/alumno/assignments/a2")).toBe(true);
+    expect(res.deleted).toMatchObject({ assignments: 1, teacherCodes: 0, teacherLinks: 0 });
   });
 
   test("paso 2: borra guardianRequests y mail por uid en lotes de 400 hasta vaciar", async () => {
