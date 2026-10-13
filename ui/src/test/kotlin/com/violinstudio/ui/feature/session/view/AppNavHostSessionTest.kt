@@ -31,7 +31,9 @@ import com.violinstudio.ui.navigation.BUSINESS_ROUTES
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
 import com.violinstudio.ui.navigation.MetronomeDestination
+import com.violinstudio.ui.navigation.MyTeacherDestination
 import com.violinstudio.ui.navigation.PracticeLogDestination
+import com.violinstudio.ui.navigation.RedeemCodeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
 import com.violinstudio.ui.navigation.TunerDestination
@@ -287,7 +289,9 @@ class AppNavHostSessionTest {
                 SettingsDestination::class,
                 TunerDestination::class,
                 MetronomeDestination::class,
-                PracticeLogDestination::class
+                PracticeLogDestination::class,
+                RedeemCodeDestination::class,
+                MyTeacherDestination::class
             ),
             BUSINESS_ROUTES.toSet()
         )
