@@ -36,6 +36,8 @@ import com.violinstudio.ui.feature.session.view.SplashScreen
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent
 import com.violinstudio.ui.feature.session.viewmodel.SessionViewModel
 import com.violinstudio.ui.feature.settings.view.SettingsRoute
+import com.violinstudio.ui.feature.teacher.view.StudentsRoute
+import com.violinstudio.ui.feature.teacher.view.TeacherCodesRoute
 import com.violinstudio.ui.feature.tuner.view.TunerRoute
 
 @Composable
@@ -69,6 +71,10 @@ fun SessionNavHost(
     practice: @Composable (onBack: () -> Unit) -> Unit = { PracticeRoute(onBack = it) },
     redeemCode: @Composable (onBack: () -> Unit) -> Unit = { RedeemCodeRoute(onBack = it) },
     myTeacher: @Composable (onBack: () -> Unit) -> Unit = { MyTeacherRoute(onBack = it) },
+    students: @Composable (onOpenCodes: () -> Unit, onBack: () -> Unit) -> Unit = { codes, back ->
+        StudentsRoute(onOpenCodes = codes, onBack = back)
+    },
+    teacherCodes: @Composable (onBack: () -> Unit) -> Unit = { TeacherCodesRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
 ) {
@@ -89,7 +95,7 @@ fun SessionNavHost(
         Box {
             SessionGraph(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
-                tuner, metronome, practice, redeemCode, myTeacher, deleteViewModel
+                tuner, metronome, practice, redeemCode, myTeacher, students, teacherCodes, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -115,6 +121,8 @@ private fun SessionGraph(
     practice: @Composable (onBack: () -> Unit) -> Unit,
     redeemCode: @Composable (onBack: () -> Unit) -> Unit,
     myTeacher: @Composable (onBack: () -> Unit) -> Unit,
+    students: @Composable (onOpenCodes: () -> Unit, onBack: () -> Unit) -> Unit,
+    teacherCodes: @Composable (onBack: () -> Unit) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
@@ -147,7 +155,11 @@ private fun SessionGraph(
                         onOpenRedeem = { navController.navigate(RedeemCodeDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(RedeemCodeDestination::class) },
                         onOpenMyTeacher = { navController.navigate(MyTeacherDestination) { launchSingleTop = true } }
-                            .takeIf { session.profile.role.allows(MyTeacherDestination::class) }
+                            .takeIf { session.profile.role.allows(MyTeacherDestination::class) },
+                        onOpenStudents = { navController.navigate(StudentsDestination) { launchSingleTop = true } }
+                            .takeIf { session.profile.role.allows(StudentsDestination::class) },
+                        onOpenCodes = { navController.navigate(TeacherCodesDestination) { launchSingleTop = true } }
+                            .takeIf { session.profile.role.allows(TeacherCodesDestination::class) }
                     )
                 )
             } else {
@@ -170,6 +182,23 @@ private fun SessionGraph(
         composable<MyTeacherDestination> {
             if (session.allowsRoute(MyTeacherDestination::class)) {
                 myTeacher { navController.popIfPossible() }
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<StudentsDestination> {
+            if (session.allowsRoute(StudentsDestination::class)) {
+                students(
+                    { navController.navigate(TeacherCodesDestination) { launchSingleTop = true } },
+                    { navController.popIfPossible() }
+                )
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<TeacherCodesDestination> {
+            if (session.allowsRoute(TeacherCodesDestination::class)) {
+                teacherCodes { navController.popIfPossible() }
             } else {
                 SplashScreen()
             }

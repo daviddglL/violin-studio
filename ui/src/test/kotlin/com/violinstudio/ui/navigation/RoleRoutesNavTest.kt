@@ -42,12 +42,16 @@ class RoleRoutesNavTest {
     private val session = mutableStateOf<SessionState>(SessionState.Loading)
     private var redeemComposed = false
     private var myTeacherComposed = false
+    private var studentsComposed = false
+    private var codesComposed = false
     private lateinit var nav: NavHostController
 
     private fun start(initial: SessionState) {
         session.value = initial
         redeemComposed = false
         myTeacherComposed = false
+        studentsComposed = false
+        codesComposed = false
         compose.setContent {
             ViolinStudioTheme {
                 nav = rememberNavController()
@@ -61,6 +65,12 @@ class RoleRoutesNavTest {
                             navigation.onOpenRedeem?.let {
                                 Button(onClick = it, modifier = Modifier.testTag("open_redeem")) { Text("r") }
                             }
+                            navigation.onOpenStudents?.let {
+                                Button(onClick = it, modifier = Modifier.testTag("open_students")) { Text("s") }
+                            }
+                            navigation.onOpenCodes?.let {
+                                Button(onClick = it, modifier = Modifier.testTag("open_codes")) { Text("c") }
+                            }
                             navigation.onOpenMyTeacher?.let {
                                 Button(onClick = it, modifier = Modifier.testTag("open_my_teacher")) { Text("t") }
                             }
@@ -69,6 +79,19 @@ class RoleRoutesNavTest {
                     redeemCode = { onBack ->
                         redeemComposed = true
                         Button(onClick = onBack, modifier = Modifier.testTag("redeem_screen")) { Text("b") }
+                    },
+                    students = { onOpenCodes, onBack ->
+                        studentsComposed = true
+                        Column(Modifier.testTag("students_screen")) {
+                            Button(onClick = onOpenCodes, modifier = Modifier.testTag("students_to_codes")) {
+                                Text("c")
+                            }
+                            Button(onClick = onBack, modifier = Modifier.testTag("students_back")) { Text("b") }
+                        }
+                    },
+                    teacherCodes = { onBack ->
+                        codesComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("codes_screen")) { Text("b") }
                     },
                     myTeacher = { onBack ->
                         myTeacherComposed = true
@@ -90,6 +113,8 @@ class RoleRoutesNavTest {
     fun routesAreBusinessRoutesAndOutsideTheSessionAwareFeatures() {
         assertTrue(RedeemCodeDestination::class in BUSINESS_ROUTES)
         assertTrue(MyTeacherDestination::class in BUSINESS_ROUTES)
+        assertTrue(StudentsDestination::class in BUSINESS_ROUTES)
+        assertTrue(TeacherCodesDestination::class in BUSINESS_ROUTES)
         assertFalse("link" in GatingIsolationTest.SESSION_AWARE_FEATURES)
     }
 
@@ -102,6 +127,11 @@ class RoleRoutesNavTest {
         assertFalse(Role.INDEPENDENT.allows(MyTeacherDestination::class))
         assertFalse(Role.TEACHER.allows(MyTeacherDestination::class))
         assertTrue(Role.TEACHER.allows(HomeDestination::class))
+        for (route in listOf(StudentsDestination::class, TeacherCodesDestination::class)) {
+            assertTrue(Role.TEACHER.allows(route))
+            assertFalse(Role.STUDENT.allows(route))
+            assertFalse(Role.INDEPENDENT.allows(route))
+        }
     }
 
     @Test
@@ -119,10 +149,70 @@ class RoleRoutesNavTest {
     }
 
     @Test
-    fun homeOffersNeitherToTeacher() {
+    fun homeOffersStudentsAndCodesToTeacherOnly() {
         start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_students").assertIsDisplayed()
+        compose.onNodeWithTag("open_codes").assertIsDisplayed()
         compose.onNodeWithTag("open_redeem").assertDoesNotExist()
         compose.onNodeWithTag("open_my_teacher").assertDoesNotExist()
+    }
+
+    @Test
+    fun homeHidesStudentsAndCodesFromStudent() {
+        start(ready(Role.STUDENT))
+        compose.onNodeWithTag("open_students").assertDoesNotExist()
+        compose.onNodeWithTag("open_codes").assertDoesNotExist()
+    }
+
+    @Test
+    fun homeHidesStudentsAndCodesFromIndependent() {
+        start(ready(Role.INDEPENDENT))
+        compose.onNodeWithTag("open_students").assertDoesNotExist()
+        compose.onNodeWithTag("open_codes").assertDoesNotExist()
+    }
+
+    @Test
+    fun teacherReachesStudentsThenCodesAndBackReturnsToTheirOrigin() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_students").performClick()
+        assertAt(StudentsDestination)
+        compose.onNodeWithTag("students_to_codes").performClick()
+        assertAt(TeacherCodesDestination)
+        compose.onNodeWithTag("codes_screen").performClick()
+        assertAt(StudentsDestination)
+        compose.onNodeWithTag("students_back").performClick()
+        assertAt(HomeDestination)
+        compose.onNodeWithTag("open_codes").performClick()
+        assertAt(TeacherCodesDestination)
+    }
+
+    @Test
+    fun studentDeepLinksToTeacherRoutesRedirectHomeWithoutComposing() {
+        start(ready(Role.STUDENT))
+        compose.runOnUiThread { nav.navigate(StudentsDestination) }
+        assertAt(HomeDestination)
+        compose.runOnUiThread { nav.navigate(TeacherCodesDestination) }
+        assertAt(HomeDestination)
+        assertFalse(studentsComposed || codesComposed)
+    }
+
+    @Test
+    fun independentDeepLinksToTeacherRoutesRedirectHomeWithoutComposing() {
+        start(ready(Role.INDEPENDENT))
+        compose.runOnUiThread { nav.navigate(StudentsDestination) }
+        assertAt(HomeDestination)
+        compose.runOnUiThread { nav.navigate(TeacherCodesDestination) }
+        assertAt(HomeDestination)
+        assertFalse(studentsComposed || codesComposed)
+    }
+
+    @Test
+    fun losingTheTeacherRoleWhileOnTheRouteRedirectsHome() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_codes").performClick()
+        assertAt(TeacherCodesDestination)
+        session.value = ready(Role.INDEPENDENT)
+        assertAt(HomeDestination)
     }
 
     @Test

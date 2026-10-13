@@ -36,6 +36,8 @@ import com.violinstudio.ui.navigation.PracticeLogDestination
 import com.violinstudio.ui.navigation.RedeemCodeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
+import com.violinstudio.ui.navigation.StudentsDestination
+import com.violinstudio.ui.navigation.TeacherCodesDestination
 import com.violinstudio.ui.navigation.TunerDestination
 import com.violinstudio.ui.navigation.rootRoute
 import org.junit.Assert.assertEquals
@@ -291,7 +293,9 @@ class AppNavHostSessionTest {
                 MetronomeDestination::class,
                 PracticeLogDestination::class,
                 RedeemCodeDestination::class,
-                MyTeacherDestination::class
+                MyTeacherDestination::class,
+                StudentsDestination::class,
+                TeacherCodesDestination::class
             ),
             BUSINESS_ROUTES.toSet()
         )
