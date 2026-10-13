@@ -22,6 +22,9 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   // Provisional (A2): los ids son HMAC y el doc lleva `teacherUid`/`usedBy`; A5 lo sustituye por
   // `queryByFields [teacherUid, usedBy]`. Mientras, caducan por TTL (`expireAt`) y `revoke-teacher` los revoca.
   teacherCodes: { kind: "exempt", reason: "provisional hasta A5 (queryByFields teacherUid/usedBy); TTL expireAt" },
+  // Provisional (A3a): el id es `{t}_{s}` y el doc lleva `teacherUid`/`studentUid`; A5 lo sustituye por
+  // `queryByFields [teacherUid, studentUid]` (y `removeLink` en A3b). Mientras, no se borra con la cuenta.
+  teacherLinks: { kind: "exempt", reason: "provisional hasta A5 (queryByFields teacherUid/studentUid via removeLink)" },
 };
 
 export const STORAGE_PREFIXES: ReadonlyArray<(uid: string) => string> = [(uid) => `users/${uid}/`];

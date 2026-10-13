@@ -29,6 +29,7 @@ import {
   revokeTeacherCodeHandler,
 } from "./teacher/code-handlers";
 import { TEACHER_CODE_PEPPER } from "./teacher/pepper";
+import { redeemTeacherCodeHandler } from "./teacher/redeem";
 import { VERSION } from "./version";
 
 export { REGION };
@@ -107,6 +108,17 @@ export const revokeTeacherCode = onCall(callableOptions(), (request) =>
 export const listTeacherCodes = onCall(callableOptions(), (request) =>
   listTeacherCodesHandler({ db: getFirestore(admin()) }, requireVerifiedUser(request).uid),
 );
+
+/** Canje del alumno (REQ-LNK-03): enlaza el secreto porque hashea el codigo; alumno y profesor se releen del doc. */
+export const redeemTeacherCode = onCall({ ...callableOptions(), secrets: [TEACHER_CODE_PEPPER] }, (request) => {
+  const { uid } = requireVerifiedUser(request);
+  const app = admin();
+  return redeemTeacherCodeHandler(
+    { db: getFirestore(app), auth: getAuth(app), pepper: TEACHER_CODE_PEPPER.value() },
+    uid,
+    request.data,
+  );
+});
 
 export const deleteAccount = onCall({ ...callableOptions(), timeoutSeconds: 300 }, (request) =>
   deleteAccountHandler({ erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, request),
