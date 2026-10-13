@@ -22,3 +22,8 @@ export function deleteOpenAssignments(db: Firestore): LinkCleanupStep {
     }
   };
 }
+
+/** Pasos por defecto de `removeLink` en produccion. Los pasos nuevos se COMPONEN con este array, no lo sustituyen. */
+export function defaultLinkCleanupSteps(db: Firestore): readonly LinkCleanupStep[] {
+  return [deleteOpenAssignments(db)];
+}

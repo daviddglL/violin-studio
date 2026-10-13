@@ -67,6 +67,11 @@ describe("create (REQ-SEC-T05, REQ-ASG-01, REQ-ASG-02)", () => {
     ["updatedAt del cliente", { updatedAt: Timestamp.fromDate(T0) }],
     ["teacherUid ajeno", { teacherUid: "otro" }],
     ["dueAt no timestamp", { dueAt: "manana" }],
+    ["description null (se omite, no se escribe null)", { description: null }],
+    ["dueAt null (se omite, no se escribe null)", { dueAt: null }],
+    ["titulo con espacio inicial", { title: " Escalas" }],
+    ["titulo con espacio final", { title: "Escalas " }],
+    ["titulo con salto de linea", { title: "Esca\nlas" }],
   ])("denegado: %s", async (_, over) => {
     await assertFails(setDoc(doc(tea(), NEW), valid(over)));
   });
@@ -223,5 +228,21 @@ describe("coste (REQ-SEC-T05)", () => {
     for (let i = 0; i < 60; i++) await seed(env, `${COL}/b${i}`, stored());
     const snap = await assertSucceeds(getDocs(query(collection(tea(), COL), where("teacherUid", "==", "tea"))));
     expect(snap.size).toBe(62);
+  });
+});
+
+describe("profesor inactivo en update y delete (S10)", () => {
+  test.each([
+    ["alumno revocado", "users/alice", { role: "student", consentStatus: "revoked" }],
+    ["alumno con deletion", "users/alice", { role: "student", deletion: { startedAt: new Date() } }],
+    ["profesor revocado", "users/tea", { role: "teacher", consentStatus: "revoked" }],
+    ["profesor con deletion", "users/tea", { role: "teacher", deletion: { startedAt: new Date() } }],
+  ])("%s: el profesor no edita ni borra", async (_, path, over) => {
+    await seed(env, path, userDoc(over));
+    await assertFails(updateDoc(doc(tea(), OPEN), { title: "x", updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(tea(), OPEN)));
+  });
+  test("edicion con titulo con espacios o salto de linea denegada", async () => {
+    for (const title of [" x", "x ", "x\ny"]) await assertFails(updateDoc(doc(tea(), OPEN), { title, updatedAt: serverTimestamp() }));
   });
 });
