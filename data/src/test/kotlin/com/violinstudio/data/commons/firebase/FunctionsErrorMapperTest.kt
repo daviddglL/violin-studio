@@ -2,6 +2,7 @@ package com.violinstudio.data.commons.firebase
 
 import com.violinstudio.domain.feature.account.failure.AccountFailure
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
+import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import java.io.IOException
@@ -107,5 +108,48 @@ class FunctionsErrorMapperTest {
     @Test
     fun `details que no es un mapa no revienta`() {
         assertTrue(profile(FunctionsCallException("INTERNAL", "texto")) is ProfileFailure.Unknown)
+    }
+
+    private fun link(e: Throwable) = FunctionsErrorMapper.toLinkFailure(e)
+
+    @Test
+    fun `vinculo mapea cada reason del servidor segun la tabla de LinkFailure`() {
+        val table = mapOf(
+            "INVALID_ARGUMENT" to ("INVALID_ARGUMENT" to LinkFailure.InvalidCode),
+            "CODE_NOT_FOUND" to ("NOT_FOUND" to LinkFailure.InvalidCode),
+            "TEACHER_FULL" to ("RESOURCE_EXHAUSTED" to LinkFailure.TeacherFull),
+            "CODE_LIMIT_REACHED" to ("RESOURCE_EXHAUSTED" to LinkFailure.CodeLimitReached),
+            "ALREADY_LINKED" to ("FAILED_PRECONDITION" to LinkFailure.AlreadyLinked),
+            "NOTICE_OUTDATED" to ("FAILED_PRECONDITION" to LinkFailure.NoticeOutdated),
+            "NO_ACTIVE_CONSENT" to ("FAILED_PRECONDITION" to LinkFailure.NoActiveConsent),
+            "NO_PROFILE" to ("FAILED_PRECONDITION" to LinkFailure.NoActiveConsent),
+            "NOT_ELIGIBLE" to ("PERMISSION_DENIED" to LinkFailure.NotEligible),
+            "NOT_TEACHER" to ("PERMISSION_DENIED" to LinkFailure.NotTeacher),
+            "NOT_LINK_PARTY" to ("PERMISSION_DENIED" to LinkFailure.PermissionDenied),
+            "TEMPORARILY_UNAVAILABLE" to ("UNAVAILABLE" to LinkFailure.TemporarilyUnavailable)
+        )
+        table.forEach { (reason, expected) -> assertSame(expected.second, link(error(expected.first, reason)), reason) }
+    }
+
+    @Test
+    fun `vinculo RATE_LIMITED lleva retryAfterSeconds y tolera que falte`() {
+        val limited = error("RESOURCE_EXHAUSTED", "RATE_LIMITED", "retryAfterSeconds" to 90.0)
+        assertEquals(LinkFailure.RateLimited(90L), link(limited))
+        assertEquals(LinkFailure.RateLimited(null), link(error("RESOURCE_EXHAUSTED", "RATE_LIMITED")))
+    }
+
+    @Test
+    fun `vinculo sin red es Offline`() {
+        assertSame(LinkFailure.Offline, link(IOException("sin red")))
+        assertSame(LinkFailure.Offline, link(error("UNAVAILABLE")))
+        assertSame(LinkFailure.Offline, link(error("DEADLINE_EXCEEDED")))
+    }
+
+    @Test
+    fun `vinculo con reason nuevo, sin reason o malformado es Unknown`() {
+        assertSame(LinkFailure.Unknown, link(error("INTERNAL", "FUTURO")))
+        assertSame(LinkFailure.Unknown, link(error("UNAUTHENTICATED")))
+        assertSame(LinkFailure.Unknown, link(IllegalStateException("x")))
+        assertSame(LinkFailure.Unknown, link(FunctionsCallException("INTERNAL", "texto")))
     }
 }

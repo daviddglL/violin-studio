@@ -2,6 +2,7 @@ package com.violinstudio.data.commons.firebase
 
 import com.violinstudio.domain.feature.account.failure.AccountFailure
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
+import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.failure.ProfileField
 import java.io.IOException
@@ -56,6 +57,25 @@ object FunctionsErrorMapper {
             "REAUTH_REQUIRED" -> AccountFailure.RequiresRecentLogin
             "ERASURE_FAILED" -> AccountFailure.ErasureFailed
             else -> AccountFailure.Unknown(error)
+        }
+    }
+
+    fun toLinkFailure(error: Throwable): LinkFailure {
+        val details = Details.of(error)
+        return when (details?.reason) {
+            "INVALID_ARGUMENT", "CODE_NOT_FOUND" -> LinkFailure.InvalidCode
+            "RATE_LIMITED" -> LinkFailure.RateLimited(details.retryAfterSeconds)
+            "TEACHER_FULL" -> LinkFailure.TeacherFull
+            "CODE_LIMIT_REACHED" -> LinkFailure.CodeLimitReached
+            "ALREADY_LINKED" -> LinkFailure.AlreadyLinked
+            "NOTICE_OUTDATED" -> LinkFailure.NoticeOutdated
+            "NO_ACTIVE_CONSENT", "NO_PROFILE" -> LinkFailure.NoActiveConsent
+            "NOT_ELIGIBLE" -> LinkFailure.NotEligible
+            "NOT_TEACHER" -> LinkFailure.NotTeacher
+            "NOT_LINK_PARTY" -> LinkFailure.PermissionDenied
+            // Antes que la rama sin red: comparte código `unavailable` con la caída de red, pero es del servidor.
+            "TEMPORARILY_UNAVAILABLE" -> LinkFailure.TemporarilyUnavailable
+            else -> if (isOffline(error)) LinkFailure.Offline else LinkFailure.Unknown
         }
     }
 
