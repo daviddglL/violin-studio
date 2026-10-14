@@ -121,6 +121,7 @@ function harness() {
     db,
     auth,
     bucket,
+    store: { stat: async () => null, readRange: async () => Buffer.alloc(0), remove: async () => undefined },
     clock: () => new Date("2026-01-01T00:00:00Z"),
     sleep: async (ms) => void sleeps.push(ms),
     log: (message, data) => void logs.push({ message, data }),

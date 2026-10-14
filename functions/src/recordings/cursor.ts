@@ -7,7 +7,7 @@ import { COLLECTIONS } from "../common/collections";
  * empieza ahi (repite como mucho los uids que comparten prefijo, todo idempotente) y una vuelta completa lo deja en ""
  * (vuelve a la cabeza). Asi la cola de un listado mayor que el presupuesto no se queda sin procesar.
  */
-export type CursorJob = "sweepRecordingOrphans" | "recordingReconcile";
+export type CursorJob = "sweepRecordingOrphans" | "recordingReconcile" | "recordingPurgePending";
 
 /** 8 caracteres de un uid aleatorio de 28: no identifica por si solo y avanza siempre (no hay miles de uids por prefijo). */
 export const CURSOR_KEY_LEN = 8;

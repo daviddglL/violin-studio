@@ -1,9 +1,12 @@
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { bucketStore } from "../../src/recordings/finalize";
 import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { grantTeacher, revokeTeacher, TeacherRoleDeps, TeacherRoleError } from "../../src/admin/teacher-role";
 import { createTeacherCodeHandler } from "../../src/teacher/code-handlers";
+import { bucket, exists, seedRecording, upload } from "./helpers/finalize-fixtures";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project });
@@ -16,6 +19,7 @@ const deps = (parche: Partial<TeacherRoleDeps> = {}): TeacherRoleDeps => ({
   db,
   auth,
   clock: () => HOY,
+  store: bucketStore(getStorage(app).bucket(`${project}.appspot.com`)),
   log: (message, data) => logs.push({ message, data }),
   ...parche,
 });
@@ -186,6 +190,22 @@ describe("revokeTeacher", () => {
     }
     return { uid, alumnos };
   }
+
+  test("B5b.4: al revocar el rol se borran las demostraciones para cada alumno (objeto en demos/ + doc) y no las grabaciones del profesor", async () => {
+    const { uid, alumnos } = await conAlumnos(2);
+    const demos: string[] = [];
+    for (const a of alumnos) {
+      const ev = await upload(uid, { dir: "demos", meta: { sharedWith: a, assignmentId: "a1" } });
+      await seedRecording(uid, ev, { sharedWith: a, assignmentId: "a1" });
+      demos.push(ev.name);
+    }
+    const own = await upload(uid);
+    await seedRecording(uid, own);
+    await revokeTeacher(deps({ store: bucketStore(bucket) }), uid);
+    for (const d of demos) expect(await exists(d)).toBe(false);
+    expect(await exists(own.name)).toBe(true);
+    expect((await db.collection("users").doc(uid).collection("recordings").get()).size).toBe(1);
+  });
 
   test("A3b.4: desvincula a todos los alumnos (por defecto), revoca codigos y deja claims sincronizados", async () => {
     const { uid, alumnos } = await conAlumnos(2);

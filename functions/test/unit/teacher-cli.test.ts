@@ -1,7 +1,7 @@
 import { runTeacherCli } from "../../src/admin/teacher-cli";
 import { TeacherRoleError } from "../../src/admin/teacher-role";
 
-const EMU = { GCLOUD_PROJECT: "demo-x", FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080", FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099" };
+const EMU = { GCLOUD_PROJECT: "demo-x", FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080", FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099", STORAGE_BUCKET: "demo-x.appspot.com" };
 const REAL = { GCLOUD_PROJECT: "violin-prod" };
 
 const mk = () => {
@@ -103,4 +103,39 @@ test("error inesperado -> 1 sin volcar el mensaje", async () => {
   t.revoke.mockRejectedValue(new Error("detalle con a@b.com"));
   expect(await t.run("revoke", ["u"])).toBe(1);
   expect(t.out.join(" ")).not.toContain("a@b.com");
+});
+
+describe("W3 (revision fresca B5b): revoke-teacher exige el bucket de Storage", () => {
+  const NO_BUCKET = { GCLOUD_PROJECT: "demo-x", FIRESTORE_EMULATOR_HOST: "h:1", FIREBASE_AUTH_EMULATOR_HOST: "h:2" };
+
+  test("revoke sin STORAGE_BUCKET ni FIREBASE_CONFIG.storageBucket -> 2 sin inicializar nada", async () => {
+    const t = mk();
+    expect(await t.run("revoke", ["u"], NO_BUCKET)).toBe(2);
+    expect(t.out.join(" ")).toContain("STORAGE_BUCKET");
+    expect(t.make).not.toHaveBeenCalled();
+  });
+
+  test("FIREBASE_CONFIG ilegible o sin storageBucket cuenta como ausente", async () => {
+    for (const FIREBASE_CONFIG of ["{no json", JSON.stringify({ projectId: "demo-x" }), JSON.stringify({ storageBucket: "" })]) {
+      const t = mk();
+      expect(await t.run("revoke", ["u"], { ...NO_BUCKET, FIREBASE_CONFIG })).toBe(2);
+      expect(t.make).not.toHaveBeenCalled();
+    }
+  });
+
+  test("STORAGE_BUCKET se pasa a makeActions y se imprime; FIREBASE_CONFIG.storageBucket sirve de respaldo", async () => {
+    const a = mk();
+    expect(await a.run("revoke", ["u"], { ...NO_BUCKET, STORAGE_BUCKET: "b1.firebasestorage.app" })).toBe(0);
+    expect(a.make).toHaveBeenCalledWith({ bucket: "b1.firebasestorage.app" });
+    expect(a.out.join(" ")).toContain("b1.firebasestorage.app");
+    const b = mk();
+    expect(await b.run("revoke", ["u"], { ...NO_BUCKET, FIREBASE_CONFIG: JSON.stringify({ storageBucket: "b2.appspot.com" }) })).toBe(0);
+    expect(b.make).toHaveBeenCalledWith({ bucket: "b2.appspot.com" });
+  });
+
+  test("grant no necesita el bucket", async () => {
+    const t = mk();
+    expect(await t.run("grant", ["u"], NO_BUCKET)).toBe(0);
+    expect(t.grant).toHaveBeenCalledWith("u");
+  });
 });

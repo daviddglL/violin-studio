@@ -4,6 +4,7 @@ import { logger } from "firebase-functions/v2";
 import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
+import type { ObjectStore } from "../recordings/finalize";
 import { defaultLinkCleanupSteps } from "./assignments-cleanup";
 import { linkId } from "./link-id";
 
@@ -15,11 +16,12 @@ export interface RemoveLinkDeps {
   auth: Auth;
   /** Sumidero de logs sin PII; por defecto `logger.info`. */
   log?: (message: string, data: Record<string, unknown>) => void;
+  /** Almacen de objetos: las demostraciones del profesor para el alumno se borran con su objeto (B5b.4). */
+  store: ObjectStore;
   /**
-   * Limpiezas posteriores a la transaccion, en orden. Si se omite se usa `defaultLinkCleanupSteps(db)` (borrar las
-   * tareas `open` del profesor, A6). Un array REEMPLAZA el defecto: quien anada pasos DEBE componer
-   * `[...defaultLinkCleanupSteps(db), extra]` o perdera la limpieza de tareas.
-   * TODO(B5b/B10) componer con `defaultLinkCleanupSteps` y borrar demostraciones del profesor con `sharedWith == s` (`deleteRecording`).
+   * Limpiezas posteriores a la transaccion, en orden. Si se omite se usa `defaultLinkCleanupSteps(db, store)` (borrar las
+   * tareas `open` del profesor, A6, y sus demostraciones con `sharedWith == s`, B5b.4). Un array REEMPLAZA el defecto: quien
+   * anada pasos DEBE componer `[...defaultLinkCleanupSteps(db, store), extra]` o perdera esas limpiezas.
    */
   cleanupSteps?: readonly LinkCleanupStep[];
 }
@@ -72,7 +74,7 @@ export async function removeLink(deps: RemoveLinkDeps, teacherUid: string, stude
     return;
   }
 
-  for (const step of deps.cleanupSteps ?? defaultLinkCleanupSteps(db)) await step(teacherUid, studentUid);
+  for (const step of deps.cleanupSteps ?? defaultLinkCleanupSteps(db, deps.store)) await step(teacherUid, studentUid);
   try {
     await syncClaims(deps, studentUid);
   } catch (e) {

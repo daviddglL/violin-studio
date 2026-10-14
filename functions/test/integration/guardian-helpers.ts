@@ -6,6 +6,7 @@ import { hmacEmail } from "../../src/common/hashing";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
 import { guardianConsentHandler } from "../../src/guardian/confirm";
 import { requestGuardianConsentHandler } from "../../src/guardian/request";
+import { bucketStore } from "../../src/recordings/finalize";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 export const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
@@ -20,7 +21,7 @@ export const erased: string[] = [];
 export const deps = () => ({
   db, auth, clock: () => state.now, currentVersion: 1,
   log: (m: string, d: Record<string, unknown>) => void state.logs.push([m, d]),
-  erase: (uid: string) => { erased.push(uid); return (state.erase ?? ((u: string) => eraseUserData({ db, auth, bucket }, u, { deleteAuth: true })))(uid); },
+  erase: (uid: string) => { erased.push(uid); return (state.erase ?? ((u: string) => eraseUserData({ db, auth, bucket, store: bucketStore(bucket) }, u, { deleteAuth: true })))(uid); },
 });
 export const post = (body: Record<string, unknown>) => guardianConsentHandler(deps(), { method: "POST", query: {}, body });
 export const get = (query: Record<string, unknown>) => guardianConsentHandler(deps(), { method: "GET", query, body: {} });

@@ -4,13 +4,14 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { COLLECTIONS } from "../../src/common/collections";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
+import { bucketStore } from "../../src/recordings/finalize";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
 const auth = getAuth(app);
 const db = getFirestore(app);
 const bucket = getStorage(app).bucket();
-const deps = { db, auth, bucket };
+const deps = { db, auth, bucket, store: bucketStore(bucket) };
 
 async function usuarioCompleto() {
   const { uid } = await auth.createUser({ email: `er-${Date.now()}-${Math.random()}@example.com`, password: "Passw0rd!x" });
@@ -76,7 +77,7 @@ test("dos ejecuciones simultáneas convergen", async () => {
 test("W2: si la cascada falla a medias, la cuenta queda deshabilitada y el reintento completa", async () => {
   const uid = await usuarioCompleto();
   const roto = { deleteFiles: async () => { throw Object.assign(new Error("denied"), { code: "permission-denied" }); } };
-  await expect(eraseUserData({ db, auth, bucket: roto }, uid, { deleteAuth: true })).rejects.toThrow("denied");
+  await expect(eraseUserData({ db, auth, bucket: roto, store: bucketStore(bucket) }, uid, { deleteAuth: true })).rejects.toThrow("denied");
   const u = await auth.getUser(uid);
   expect(u.disabled).toBe(true);
   expect((await db.collection(COLLECTIONS.users).doc(uid).get()).data()).toHaveProperty("deletion.state", "in_progress");

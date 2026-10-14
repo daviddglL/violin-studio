@@ -1,7 +1,12 @@
 import { CollectionName } from "../common/collections";
 
-/** Documentos de una subcolección que llevan el uid de un tercero (no su dueño): se barren con `collectionGroup`. */
-export type ForeignRef = { field: string; action: "delete" };
+/**
+ * Documentos de una subcolección que llevan el uid de un tercero (no su dueño): se barren con `collectionGroup` por `field`
+ * (requiere el índice COLLECTION_GROUP). `delete` borra el doc a pelo; `deleteRecording` lo borra con su objeto de Storage
+ * por la `objectPath` almacenada (demos dirigidas al alumno borrado, B5b.1); `anonymize` re-ubica la revisión en un id
+ * aleatorio con el campo a `null` conservando el contenido (REQ-RVW-04).
+ */
+export type ForeignRef = { field: string; action: "delete" | "deleteRecording" | "anonymize" };
 
 export type ErasurePolicy =
   | { kind: "userDoc" }
@@ -32,12 +37,13 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   teacherLinks: { kind: "link", fields: ["teacherUid", "studentUid"] },
   // Tareas: viven en el espacio del alumno (caen con su `recursiveDelete`) y las del profesor, tambien las hechas, se barren aparte.
   assignments: { kind: "subcollectionOf", parent: "users", foreign: { field: "teacherUid", action: "delete" } },
-  // Grabaciones y demos (objeto en `users/{uid}/recordings|demos/`, doc siempre en `users/{uid}/recordings`): caen con
-  // el `recursiveDelete` del usuario y el barrido de `users/{uid}/`. La cascada `foreign` (demos dirigidas al alumno
-  // borrado, con su objeto) y `reviews` (anonimizar) las anade B5b: aqui solo la politica simple.
-  recordings: { kind: "subcollectionOf", parent: "users" },
-  // Cuelgan de `recordings`: caen con su `recursiveDelete`. Las del profesor borrado en espacios ajenos se anonimizan en B5b.
-  reviews: { kind: "subcollectionOf", parent: "recordings" },
+  // Grabaciones y demos (objeto en `users/{uid}/recordings|demos/`, doc siempre en `users/{uid}/recordings`): las propias
+  // caen con el barrido de `users/{uid}/` y el `recursiveDelete` del usuario; las demos de OTRO profesor dirigidas a este
+  // alumno (`sharedWith == uid`) se borran con su objeto por `deleteRecording` (B5b.1).
+  recordings: { kind: "subcollectionOf", parent: "users", foreign: { field: "sharedWith", action: "deleteRecording" } },
+  // Cuelgan de `recordings`: las de las grabaciones propias caen con su `recursiveDelete`. Las del profesor borrado en
+  // espacios ajenos se anonimizan (id aleatorio, `reviewerUid: null`, texto conservado; REQ-RVW-04).
+  reviews: { kind: "subcollectionOf", parent: "recordings", foreign: { field: "reviewerUid", action: "anonymize" } },
   // Marcas de idempotencia del decremento de `recordingCount` (una por instancia de doc borrada): caen con el
   // `recursiveDelete` del usuario y, mientras tanto, las retira la politica TTL de `expireAt` (30 d).
   recordingCountLedger: { kind: "subcollectionOf", parent: "users" },
