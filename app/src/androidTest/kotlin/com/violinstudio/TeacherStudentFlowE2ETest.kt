@@ -146,8 +146,10 @@ class TeacherStudentFlowE2ETest : E2eTest() {
         }
         delay(2_000)
         assertTrue(links.unlink(teacher, student).isSuccess)
-        assertTrue(withTimeout(E2E_TIMEOUT_MS) { historyEnds.await() }.exceptionOrNull() is PracticeFailure.PermissionDenied)
-        assertTrue(withTimeout(E2E_TIMEOUT_MS) { assignmentsEnd.await() }.exceptionOrNull() is AssignmentFailure.PermissionDenied)
+        val historyError = withTimeout(E2E_TIMEOUT_MS) { historyEnds.await() }.exceptionOrNull()
+        assertTrue("historial: $historyError", historyError is PracticeFailure.PermissionDenied)
+        val listError = withTimeout(E2E_TIMEOUT_MS) { assignmentsEnd.await() }.exceptionOrNull()
+        assertTrue("tareas: $listError", listError is AssignmentFailure.PermissionDenied)
 
         // El vinculo desaparece, el alumno vuelve a independiente, las tareas abiertas se borran y las hechas se conservan.
         awaitBackend("vinculo borrado") { !Emulators.docExists("teacherLinks/${teacher}_$student") }
@@ -158,7 +160,9 @@ class TeacherStudentFlowE2ETest : E2eTest() {
         // Una lectura nueva del profesor ya no se permite.
         val failure = runCatching { practice.observeHistory(student).first() }.exceptionOrNull()
         assertTrue("lectura tras desvincular: $failure", failure is PracticeFailure.PermissionDenied)
-        val assignmentsFailure = runCatching { assignments.observeByTeacher(teacher, student).first() }.exceptionOrNull()
+        val assignmentsFailure = runCatching {
+            assignments.observeByTeacher(teacher, student).first()
+        }.exceptionOrNull()
         assertTrue(assignmentsFailure is AssignmentFailure.PermissionDenied)
     }
 }

@@ -37,6 +37,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
 import java.util.UUID
+import org.json.JSONArray
 import org.json.JSONObject
 
 const val E2E_TIMEOUT_MS = 45_000L
@@ -142,18 +143,16 @@ object Emulators {
      */
     fun setAssignmentDoneAs(idToken: String, student: String, id: String): Response {
         val name = "projects/$PROJECT/$DOCS/users/$student/assignments/$id"
+        val doc = JSONObject().put("name", name).put("fields", JSONObject().put("status", stringValue("done")))
+        val transform = JSONObject().put("fieldPath", "doneAt").put("setToServerValue", "REQUEST_TIME")
         val write = JSONObject()
-            .put("update", JSONObject().put("name", name).put("fields", JSONObject().put("status", stringValue("done"))))
-            .put("updateMask", JSONObject().put("fieldPaths", org.json.JSONArray(listOf("status", "doneAt"))))
-            .put(
-                "updateTransforms",
-                org.json.JSONArray().put(
-                    JSONObject().put("fieldPath", "doneAt").put("setToServerValue", "REQUEST_TIME")
-                )
-            )
+            .put("update", doc)
+            .put("updateMask", JSONObject().put("fieldPaths", JSONArray(listOf("status", "doneAt"))))
+            .put("updateTransforms", JSONArray().put(transform))
             .put("currentDocument", JSONObject().put("exists", true))
         val url = "http://$host:8080/v1/projects/$PROJECT/$DOCS:commit"
-        return request("POST", url, JSONObject().put("writes", org.json.JSONArray().put(write)).toString(), token = idToken)
+        val body = JSONObject().put("writes", JSONArray().put(write)).toString()
+        return request("POST", url, body, token = idToken)
     }
 
     fun stringValue(value: String): JSONObject = JSONObject().put("stringValue", value)
