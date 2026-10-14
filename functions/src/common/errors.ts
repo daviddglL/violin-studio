@@ -25,6 +25,8 @@ export enum ErrorReason {
   NOT_ELIGIBLE = "NOT_ELIGIBLE",
   TEMPORARILY_UNAVAILABLE = "TEMPORARILY_UNAVAILABLE",
   NOT_LINK_PARTY = "NOT_LINK_PARTY",
+  RECORDING_DISABLED = "RECORDING_DISABLED",
+  RECORDING_CONSENT_OUTDATED = "RECORDING_CONSENT_OUTDATED",
 }
 
 /** Error de callable con `details.reason` estable para que el cliente lo mapee sin parsear texto. */

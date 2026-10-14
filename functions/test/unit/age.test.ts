@@ -1,5 +1,5 @@
 import { DIGITAL_CONSENT_AGE, ADULT_AGE } from "../../src/config/identity";
-import { ageOn, isAdult, isMinor, parseBirthDate } from "../../src/identity/age";
+import { ageOn, blurRequiredFor, blurRequiredOf, isAdult, isMinor, parseBirthDate } from "../../src/identity/age";
 
 const hoy = new Date("2026-06-15T10:00:00Z");
 
@@ -114,5 +114,42 @@ describe("ADULT_AGE e isAdult (REQ-PRF-T01)", () => {
   });
   test("umbral inyectable", () => {
     expect(isAdult(nacido18, new Date("2026-06-15T12:00:00Z"), 21)).toBe(false);
+  });
+});
+
+describe("blurRequiredFor (REQ-BLR-01, fail-closed)", () => {
+  const dia = new Date("2026-06-15T12:00:00Z");
+  test("17 años y 364 días -> true; el día del 18.º cumpleaños -> false", () => {
+    expect(blurRequiredFor({ year: 2008, month: 6, day: 16 }, dia)).toBe(true);
+    expect(blurRequiredFor({ year: 2008, month: 6, day: 15 }, dia)).toBe(false);
+  });
+  test("29-feb: el 18.º cumpleaños llega el 1 de marzo en año no bisiesto", () => {
+    const bisiesto = { year: 2008, month: 2, day: 29 };
+    expect(blurRequiredFor(bisiesto, new Date("2026-02-28T12:00:00Z"))).toBe(true);
+    expect(blurRequiredFor(bisiesto, new Date("2026-03-01T12:00:00Z"))).toBe(false);
+  });
+  test("acepta la fecha ISO tal y como está guardada en users/{uid}", () => {
+    expect(blurRequiredFor("2008-06-16", dia)).toBe(true);
+    expect(blurRequiredFor("2008-06-15", dia)).toBe(false);
+    expect(blurRequiredFor("1990-01-01", dia)).toBe(false);
+  });
+  test.each([[null], [undefined], [{}], [{ year: 2010, month: 2, day: 30 }], ["no-es-fecha"], ["2008-02-30"], [""], [42]])(
+    "fail-closed: entrada ilegible %p exige blur",
+    (entrada) => {
+      expect(blurRequiredFor(entrada, dia)).toBe(true);
+    },
+  );
+  test("fecha futura u hoy inválido exigen blur", () => {
+    expect(blurRequiredFor({ year: 2040, month: 1, day: 1 }, dia)).toBe(true);
+    expect(blurRequiredFor({ year: 1990, month: 1, day: 1 }, new Date("nope"))).toBe(true);
+  });
+});
+
+describe("blurRequiredOf: campo del documento, ausente = true", () => {
+  test("solo un false explícito del servidor lo apaga", () => {
+    expect(blurRequiredOf({})).toBe(true);
+    expect(blurRequiredOf({ blurRequired: true })).toBe(true);
+    expect(blurRequiredOf({ blurRequired: false })).toBe(false);
+    for (const v of [null, 0, "false", undefined]) expect(blurRequiredOf({ blurRequired: v })).toBe(true);
   });
 });

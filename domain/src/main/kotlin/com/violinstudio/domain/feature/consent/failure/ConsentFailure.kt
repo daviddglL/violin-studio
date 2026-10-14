@@ -10,6 +10,12 @@ sealed class ConsentFailure(message: String, cause: Throwable? = null) : Excepti
     data object NoProfile : ConsentFailure("No existe perfil")
     data object NoActiveConsent : ConsentFailure("No hay consentimiento activo")
     data object AlreadyGranted : ConsentFailure("Consentimiento ya concedido")
+    data object RecordingDisabled : ConsentFailure("Las grabaciones están desactivadas")
+    data class RecordingConsentOutdated(val currentVersion: Int?) :
+        ConsentFailure("Consentimiento de grabación desactualizado")
+
+    /** Borrado de una revocación anterior aún en curso: reintentable. */
+    data object TemporarilyUnavailable : ConsentFailure("Servicio temporalmente no disponible")
     data object EmailNotVerified : ConsentFailure("Email sin verificar")
 
     /** `INVALID_ARGUMENT` del servidor; [field] viene de `details.field` (p. ej. `policyVersion`, `guardianEmail`). */

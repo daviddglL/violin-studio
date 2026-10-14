@@ -49,6 +49,12 @@ describe("users/{uid}/consents/{id}", () => {
     await assertFails(deleteDoc(doc(alice(), PATH)));
   });
 
+  test("el dueño no escribe consents de grabación (recording_sharing / recording_revocation)", async () => {
+    const own = { type: "recording_sharing", version: 1, grantedBy: "self", timestamp: new Date("2026-01-01T00:00:00Z") };
+    await assertFails(setDoc(doc(alice(), "users/alice/consents/recording_sharing_v1_self_e0"), own));
+    await assertFails(setDoc(doc(alice(), "users/alice/consents/recording_revocation_v1_self_e0"), { ...own, type: "recording_revocation", action: "revoked" }));
+  });
+
   test("un tercero no escribe ni borra", async () => {
     await assertFails(setDoc(doc(bob(), "users/alice/consents/terms_v1_self"), consent));
     await assertFails(updateDoc(doc(bob(), PATH), { version: 2 }));

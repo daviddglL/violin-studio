@@ -34,8 +34,11 @@ object FunctionsErrorMapper {
     }
 
     fun toConsentFailure(error: Throwable): ConsentFailure {
+        val details = Details.of(error)
+        // Antes que la rama sin red: comparte código `unavailable` con la caída de red, pero es del servidor.
+        if (details?.reason == "TEMPORARILY_UNAVAILABLE") return ConsentFailure.TemporarilyUnavailable
         if (isOffline(error)) return ConsentFailure.Network
-        val details = Details.of(error) ?: return ConsentFailure.Unknown(error)
+        if (details == null) return ConsentFailure.Unknown(error)
         return when (details.reason) {
             "EMAIL_NOT_VERIFIED" -> ConsentFailure.EmailNotVerified
             "NO_PROFILE" -> ConsentFailure.NoProfile
@@ -48,6 +51,8 @@ object FunctionsErrorMapper {
             "RATE_LIMITED" -> ConsentFailure.RateLimited(details.retryAfterSeconds)
             "UNDERAGE_NOT_ALLOWED" -> ConsentFailure.UnderageNotAllowed
             "INVALID_ARGUMENT" -> ConsentFailure.InvalidArgument(details.field)
+            "RECORDING_DISABLED" -> ConsentFailure.RecordingDisabled
+            "RECORDING_CONSENT_OUTDATED" -> ConsentFailure.RecordingConsentOutdated(details.currentVersion)
             else -> ConsentFailure.Unknown(error)
         }
     }
