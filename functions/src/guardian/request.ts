@@ -182,9 +182,13 @@ async function requestRecordingConsent(
   deps: RequestGuardianDeps,
   { uid, guardianEmail, hmac, now, token, requestRef, mailRef, userRef }: RecordingRequestCtx,
 ): Promise<{ status: "sent"; emailMasked: string }> {
-  const expiresAt = new Date(now.getTime() + GUARDIAN_LINK_TTL_HOURS * HOUR_MS);
+  const nowMs = now.getTime();
+  const expiresAt = new Date(nowMs + GUARDIAN_LINK_TTL_HOURS * HOUR_MS);
+  // Contadores propios de la finalidad (independientes de `guardian.sends` y del doc de política del mismo destino).
+  const limitRef = deps.db.collection(COLLECTIONS.guardianEmailLimits).doc(`${hmac}_recording_sharing`);
   await deps.db.runTransaction(async (tx) => {
-    const doc = (await tx.get(userRef)).data();
+    const [userSnap, limitSnap] = await Promise.all([tx.get(userRef), tx.get(limitRef)]);
+    const doc = userSnap.data();
     if (!doc || doc.deletion) throw fail("failed-precondition", ErrorReason.NO_PROFILE);
     if (doc.isMinor !== true) throw fail("failed-precondition", ErrorReason.NOT_MINOR);
     if (doc.consentStatus !== "granted" || doc.policyVersion !== (deps.currentVersion ?? CURRENT_POLICY_VERSION)) {
@@ -197,6 +201,21 @@ async function requestRecordingConsent(
     const base = (await tx.get(userRef.collection(COLLECTIONS.consents).doc(baseId))).data();
     if (typeof base?.guardianEmailHmac !== "string" || base.guardianEmailHmac !== hmac) {
       throw fail("failed-precondition", ErrorReason.GUARDIAN_EMAIL_MISMATCH);
+    }
+
+    const recordingGuardian = doc.recordingGuardian as { requestId?: unknown; sends?: unknown } | undefined;
+    const account = checkRateLimit(toMillis(recordingGuardian?.sends), nowMs, GUARDIAN_MAX_SENDS_PER_24H, DAY_MS);
+    const target = checkRateLimit(toMillis(limitSnap.data()?.sends), nowMs, GUARDIAN_MAX_SENDS_PER_24H, DAY_MS);
+    if (!account.allowed || !target.allowed) {
+      const retryAfterSeconds = Math.max(account.retryAfterSeconds ?? 0, target.retryAfterSeconds ?? 0);
+      throw fail("resource-exhausted", ErrorReason.RATE_LIMITED, { retryAfterSeconds });
+    }
+    // Reenviar invalida solo el enlace anterior de grabación (nunca el de política).
+    const previousId = recordingGuardian?.requestId;
+    const previous = typeof previousId === "string" ? deps.db.collection(COLLECTIONS.guardianRequests).doc(previousId) : null;
+    const previousData = previous ? (await tx.get(previous)).data() : undefined;
+    if (previous && previousData && previousData.purpose === "recording_sharing" && !previousData.usedAt && !previousData.supersededAt) {
+      tx.update(previous, { supersededAt: Timestamp.fromDate(now) });
     }
 
     tx.create(requestRef, {
@@ -225,9 +244,14 @@ async function requestRecordingConsent(
         purpose: "recording_sharing",
       }),
     );
+    tx.set(limitRef, { sends: target.sends.map((t) => Timestamp.fromMillis(t)), expireAt: Timestamp.fromMillis(nowMs + DAY_MS) });
     tx.update(userRef, {
       recordingConsent: "parental_pending",
-      recordingGuardian: { requestId: requestRef.id, requestedAt: Timestamp.fromDate(now) },
+      recordingGuardian: {
+        requestId: requestRef.id,
+        requestedAt: Timestamp.fromDate(now),
+        sends: account.sends.map((t) => Timestamp.fromMillis(t)),
+      },
       updatedAt: FieldValue.serverTimestamp(),
     });
   });

@@ -192,3 +192,91 @@ describe("mismo tutor que dio el consentimiento base (REQ-GRD-R01, Q3)", () => {
     await expect(ask(u, { guardianEmail: actual })).resolves.toMatchObject({ status: "sent" });
   });
 });
+
+describe("límites y reenvío por finalidad (REQ-GRD-R01 modificado: Límites de reenvío)", () => {
+  const recent = (n: number) => Array.from({ length: n }, () => Timestamp.fromMillis(now.getTime() - 3600_000));
+  const limitDoc = async (id: string) => (await db.collection("guardianEmailLimits").doc(id).get()).data();
+
+  test("3 envíos de política en 24 h no bloquean la finalidad de grabación; el 4.º de grabación -> resource-exhausted", async () => {
+    const u = await minor({ guardian: { sends: recent(3) } });
+    // Mismo tutor siempre: el límite por cuenta se agota con 3 envíos de grabación.
+    for (let i = 0; i < 3; i++) await expect(ask(u)).resolves.toMatchObject({ status: "sent" });
+    await expect(ask(u)).rejects.toMatchObject({ code: "resource-exhausted", details: { reason: "RATE_LIMITED" } });
+    expect(await where("mail", u.uid)).toHaveLength(3);
+    const p = await perfil(u.uid);
+    expect(p.guardian.sends).toHaveLength(3); // el contador de política no se toca
+    expect(p.recordingGuardian.sends).toHaveLength(3);
+  });
+
+  test("el contador de grabación no consume el de política: tras 3 envíos de grabación, la política sigue con sus 3", async () => {
+    const u = await minor();
+    for (let i = 0; i < 3; i++) await ask(u);
+    expect((await perfil(u.uid)).guardian).toBeUndefined();
+    const priv = await minor({ consentStatus: "pending", policyVersion: null }, false);
+    for (let i = 0; i < 3; i++) await requestGuardianConsentHandler(deps(), priv.uid, priv.email, { guardianEmail: uniq() });
+    expect((await perfil(priv.uid)).guardian.sends).toHaveLength(3);
+  });
+
+  test("por destino: 3 envíos de grabación al mismo tutor desde otras cuentas agotan el límite de grabación sin tocar el de política", async () => {
+    const guardian = uniq();
+    const hmac = hmacEmail(PEPPER, guardian);
+    const kids = await Promise.all([1, 2, 3, 4].map(async () => {
+      const k = await minor({}, false);
+      await db.collection("users").doc(k.uid).collection("consents").doc(`guardian_privacy_policy_v${CURRENT_POLICY_VERSION}_guardian_e0`).set({
+        type: "guardian_privacy_policy", guardianEmailHmac: hmac,
+      });
+      return { ...k, guardian };
+    }));
+    for (const k of kids.slice(0, 3)) await expect(ask(k)).resolves.toMatchObject({ status: "sent" });
+    await expect(ask(kids[3])).rejects.toMatchObject({ code: "resource-exhausted", details: { reason: "RATE_LIMITED" } });
+    expect(await where("mail", kids[3].uid)).toHaveLength(0);
+    expect((await perfil(kids[3].uid)).recordingConsent).toBeUndefined();
+    expect((await limitDoc(`${hmac}_recording_sharing`))!.sends).toHaveLength(3);
+    expect(await limitDoc(hmac)).toBeUndefined(); // el contador por destino de política no existe ni se toca
+  });
+
+  test("el contador por destino de política lleno no bloquea la grabación al mismo destino", async () => {
+    const u = await minor();
+    await db.collection("guardianEmailLimits").doc(hmacEmail(PEPPER, u.guardian)).set({
+      sends: recent(3), expireAt: Timestamp.fromMillis(now.getTime() + 24 * 3600_000),
+    });
+    await expect(ask(u)).resolves.toMatchObject({ status: "sent" });
+    expect((await limitDoc(hmacEmail(PEPPER, u.guardian)))!.sends).toHaveLength(3);
+  });
+
+  test("la ventana de 24 h expira y vuelve a permitirse", async () => {
+    const u = await minor();
+    for (let i = 0; i < 3; i++) await ask(u);
+    await expect(ask(u)).rejects.toMatchObject({ details: { reason: "RATE_LIMITED", retryAfterSeconds: 86400 } });
+    now = new Date(now.getTime() + 24 * 3600_000);
+    await expect(ask(u)).resolves.toMatchObject({ status: "sent" });
+  });
+
+  test("reenviar invalida solo el enlace anterior de grabación; el de política abierto no se toca", async () => {
+    const u = await minor();
+    await ask(u);
+    const first = (await perfil(u.uid)).recordingGuardian.requestId;
+    // Solicitud de política abierta de otro ciclo, referenciada por `guardian.requestId`.
+    const open = db.collection("guardianRequests").doc();
+    await open.set({ uid: u.uid, purpose: "privacy_policy", usedAt: null, supersededAt: null, attempts: 0 });
+    await db.collection("users").doc(u.uid).update({ guardian: { requestId: open.id, sends: [] } });
+
+    await ask(u);
+    const second = (await perfil(u.uid)).recordingGuardian.requestId;
+    expect(second).not.toBe(first);
+    expect((await db.collection("guardianRequests").doc(first).get()).data()!.supersededAt).toBeInstanceOf(Timestamp);
+    expect((await db.collection("guardianRequests").doc(second).get()).data()!.supersededAt).toBeNull();
+    expect((await open.get()).data()!.supersededAt).toBeNull();
+    expect((await perfil(u.uid)).guardian.requestId).toBe(open.id);
+    expect((await perfil(u.uid)).recordingGuardian.sends).toHaveLength(2);
+  });
+
+  test("la solicitud de política tampoco invalida la de grabación", async () => {
+    const u = await minor();
+    await ask(u);
+    const rec = (await perfil(u.uid)).recordingGuardian.requestId;
+    await db.collection("users").doc(u.uid).update({ consentStatus: "pending", policyVersion: null });
+    await requestGuardianConsentHandler(deps(), u.uid, u.email, { guardianEmail: uniq() });
+    expect((await db.collection("guardianRequests").doc(rec).get()).data()!.supersededAt).toBeNull();
+  });
+});
