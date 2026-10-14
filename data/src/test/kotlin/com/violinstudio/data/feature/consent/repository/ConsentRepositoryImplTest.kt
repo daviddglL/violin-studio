@@ -60,6 +60,46 @@ class ConsentRepositoryImplTest {
     }
 
     @Test
+    fun `identityConfig parsea los interruptores de grabacion y la version del consentimiento`() = runTest {
+        functions.response = config() + mapOf(
+            "recordingsEnabled" to true,
+            "videoEnabled" to false,
+            "minorRecordingEnabled" to true,
+            "recordingConsentVersion" to 2.0
+        )
+        val parsed = repo.identityConfig().getOrThrow()
+        assertEquals(true, parsed.recordingsEnabled)
+        assertEquals(false, parsed.videoEnabled)
+        assertEquals(true, parsed.minorRecordingEnabled)
+        assertEquals(2, parsed.recordingConsentVersion)
+    }
+
+    @Test
+    fun `identityConfig sin interruptores de grabacion los toma apagados (servidor antiguo)`() = runTest {
+        functions.response = config()
+        val parsed = repo.identityConfig().getOrThrow()
+        assertEquals(false, parsed.recordingsEnabled)
+        assertEquals(false, parsed.videoEnabled)
+        assertEquals(false, parsed.minorRecordingEnabled)
+        assertEquals(1, parsed.recordingConsentVersion)
+    }
+
+    @Test
+    fun `identityConfig con interruptor de grabacion o version de tipo erroneo es Unknown`() = runTest {
+        listOf(
+            mapOf("recordingsEnabled" to "si"),
+            mapOf("videoEnabled" to 1),
+            mapOf("minorRecordingEnabled" to null),
+            mapOf("recordingConsentVersion" to "1"),
+            mapOf("recordingConsentVersion" to 1.5)
+        ).forEach {
+            functions.response = config() + it
+            val e = repo.identityConfig().exceptionOrNull()
+            assertTrue(e is ConsentFailure.Unknown, "esperaba Unknown para $it y fue $e")
+        }
+    }
+
+    @Test
     fun `recordConsent mapea EMAIL_NOT_VERIFIED y NO_PROFILE`() = runTest {
         functions.failure = failure("EMAIL_NOT_VERIFIED")
         assertEquals(ConsentFailure.EmailNotVerified, repo.recordConsent(1).exceptionOrNull())

@@ -39,6 +39,23 @@ class ConsentShapeTest {
     }
 
     @Test
+    fun `IdentityConfig lleva los interruptores de grabacion apagados por defecto y la version del consentimiento`() {
+        val off = IdentityConfig(1, "https://x/privacy", 14, true)
+        assertEquals(false, off.recordingsEnabled)
+        assertEquals(false, off.videoEnabled)
+        assertEquals(false, off.minorRecordingEnabled)
+        assertEquals(1, off.recordingConsentVersion)
+        val on = off.copy(
+            recordingsEnabled = true,
+            videoEnabled = true,
+            minorRecordingEnabled = true,
+            recordingConsentVersion = 3
+        )
+        assertEquals(true, on.recordingsEnabled)
+        assertEquals(3, on.recordingConsentVersion)
+    }
+
+    @Test
     fun `ConsentFailure lleva la version vigente y la espera`() {
         assertEquals(2, ConsentFailure.PolicyOutdated(currentVersion = 2).currentVersion)
         assertEquals(90L, ConsentFailure.RateLimited(retryAfterSeconds = 90).retryAfterSeconds)

@@ -13,7 +13,15 @@ object ConsentResponseParser {
             policyUrl = map.string("identityConfig", "policyUrl"),
             digitalConsentAge = map.int("identityConfig", "digitalConsentAge"),
             // Ausente = sin flujo de tutor (valor seguro); un tipo erróneo sí es respuesta malformada.
-            guardianFlowEnabled = map.guardianFlow()
+            guardianFlowEnabled = map.guardianFlow(),
+            recordingsEnabled = map.flag("recordingsEnabled"),
+            videoEnabled = map.flag("videoEnabled"),
+            minorRecordingEnabled = map.flag("minorRecordingEnabled"),
+            recordingConsentVersion = if ("recordingConsentVersion" in map) {
+                map.int("identityConfig", "recordingConsentVersion")
+            } else {
+                1
+            }
         )
     }
 
@@ -34,9 +42,12 @@ object ConsentResponseParser {
         return whole?.toInt() ?: throw MalformedResponseException("$op: falta '$key' o no es un entero")
     }
 
-    private fun Map<*, *>.guardianFlow(): Boolean {
-        if ("guardianFlowEnabled" !in this) return false
-        return this["guardianFlowEnabled"] as? Boolean
-            ?: throw MalformedResponseException("identityConfig: 'guardianFlowEnabled' no es booleano")
+    private fun Map<*, *>.guardianFlow(): Boolean = flag("guardianFlowEnabled")
+
+    // Ausente = apagado (valor seguro, p. ej. servidor antiguo); presente con otro tipo = respuesta malformada.
+    private fun Map<*, *>.flag(key: String): Boolean {
+        if (key !in this) return false
+        return this[key] as? Boolean
+            ?: throw MalformedResponseException("identityConfig: '$key' no es booleano")
     }
 }
