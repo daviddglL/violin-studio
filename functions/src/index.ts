@@ -241,14 +241,15 @@ export const onRecordingDeleted = onDocumentDeleted(
 );
 
 /**
- * Purga diaria de grabaciones (REQ-REC-08/14): borra las caducadas (objeto + doc + reviews) y reconcilia `recordingCount`.
+ * Purga diaria de grabaciones (REQ-REC-08/09/14): borra las caducadas (objeto + doc + reviews), completa las revocaciones de
+ * `recording_sharing` pendientes (B5b.3) y reconcilia `recordingCount`.
  * Presupuesto de tiempo como `purgeIdentity`; lo que no se borra hoy sigue cumpliendo la condicion manana.
  */
 export const purgeRecordings = onSchedule(
   { region: REGION, schedule: "every day 03:30", timeZone: "Europe/Madrid", retryCount: 2, timeoutSeconds: 540 },
   async () => {
     const app = admin();
-    await purgeRecordingsHandler({ db: getFirestore(app), store: bucketStore(getStorage(app).bucket(resolveBucketName(app.options))) });
+    await purgeRecordingsHandler({ db: getFirestore(app), store: bucketSweepStore(getStorage(app).bucket(resolveBucketName(app.options))) });
   },
 );
 

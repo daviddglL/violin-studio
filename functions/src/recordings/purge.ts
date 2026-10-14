@@ -1,12 +1,13 @@
-import { DocumentSnapshot, Firestore, Timestamp } from "firebase-admin/firestore";
+import { DocumentSnapshot, FieldPath, Firestore, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions/v2";
 import { COLLECTIONS } from "../common/collections";
 import { safeErrorCode } from "../common/errors";
 import { sha256Hex } from "../common/hashing";
-import { readCursor, writeCursor } from "./cursor";
+import { cursorKey, readCursor, writeCursor } from "./cursor";
 import { deleteRecording } from "./delete-recording";
-import type { ObjectStore } from "./finalize";
+import type { SweepStore } from "./orphan-sweep";
 import { ReconcileOutcome, reconcileAllOwners } from "./recount";
+import { purgeRevokedRecordings } from "./revoke-purge";
 
 /** Se dejan de EMPEZAR borrados a los 480 s de los 540 s de timeout de la funcion; lo pendiente sigue al dia siguiente. */
 export const DEFAULT_BUDGET_MS = 480_000;
@@ -14,7 +15,8 @@ const DEFAULT_PAGE_SIZE = 100;
 
 export interface PurgeRecordingsDeps {
   db: Firestore;
-  store: ObjectStore;
+  /** `ObjectStore` + listado: el paso 2 barre tambien los objetos huerfanos del usuario revocado. */
+  store: SweepStore;
   pageSize?: number;
   /** Presupuesto de tiempo para empezar trabajo (ms). */
   budgetMs?: number;
@@ -34,6 +36,8 @@ export interface PurgeRecordingsDeps {
 
 export interface PurgeRecordingsSummary {
   expired: { found: number; deleted: number; skipped: number; failed: number };
+  /** Paso 2: usuarios con `recordingPurge.pending` (`gone` = en borrado de cuenta: lo completa la cascada). */
+  revocations: { found: number; completed: number; incomplete: number; gone: number; failed: number };
   reconcile: { scanned: number; repaired: number; failed: number };
   budgetExhausted: boolean;
   /** Pasos cuya consulta fallo entera (indice ausente, backend caido). */
@@ -53,7 +57,12 @@ const millis = (v: unknown): number => (v instanceof Timestamp ? v.toMillis() : 
  *     borrar docs (su trigger puede no haber corrido todavia; se hace al dia siguiente). Empieza en el cursor guardado en
  *     `maintenance/recordingReconcile` y, si el presupuesto se acaba, guarda donde se corto (W1): la cola no se queda sin
  *     reconciliar aunque la cabeza agote el presupuesto todos los dias. Presupuesto agotado -> aviso `warn`.
- * Los pasos 2 (revocacion pendiente) y 3 (`blurRequired` al cumplir 18) NO son de este slice (B5b y C2).
+ * (2) completa las revocaciones de `recording_sharing` pendientes (`users where recordingPurge.pending == true`, B5b.3) con
+ *     `purgeRevokedRecordings` (acotado por epoca, huerfanos incluidos; baja `pending` solo si epoca y `since` siguen siendo
+ *     los leidos). Reanudable (cursor `maintenance/recordingPurgePending`, prefijo de uid): si el presupuesto se acaba la
+ *     siguiente pasada sigue ahi y, al terminar la cola, da la vuelta a la cabeza. Los duenos a los que borra docs no se
+ *     reconcilian ese dia (como en el paso 1).
+ * El paso 3 (`blurRequired` al cumplir 18) NO es de este slice (C2).
  */
 export async function purgeRecordingsHandler(deps: PurgeRecordingsDeps, now: Date = new Date()): Promise<PurgeRecordingsSummary> {
   const { db, store } = deps;
@@ -65,6 +74,7 @@ export async function purgeRecordingsHandler(deps: PurgeRecordingsDeps, now: Dat
   const nowMs = now.getTime();
   const summary: PurgeRecordingsSummary = {
     expired: { found: 0, deleted: 0, skipped: 0, failed: 0 },
+    revocations: { found: 0, completed: 0, incomplete: 0, gone: 0, failed: 0 },
     reconcile: { scanned: 0, repaired: 0, failed: 0 },
     budgetExhausted: false,
     failedCategories: [],
@@ -109,6 +119,55 @@ export async function purgeRecordingsHandler(deps: PurgeRecordingsDeps, now: Dat
     failStep("expired", e);
   }
 
+  // (2) revocaciones pendientes. El presupuesto se comprueba por usuario (sin gastar una lectura del reloj si no hay ninguno).
+  if (!summary.budgetExhausted) {
+    try {
+      let current: string | undefined;
+      /** Recorre los pendientes con id en [from, until). `false` = parar (presupuesto): `current` es donde se corto. */
+      const scan = async (from: string, until?: string): Promise<boolean> => {
+        let base = db.collection(COLLECTIONS.users).where("recordingPurge.pending", "==", true);
+        if (from !== "") base = base.where(FieldPath.documentId(), ">=", from); // un id vacio no es un id valido
+        if (until !== undefined) base = base.where(FieldPath.documentId(), "<", until);
+        const query = base.orderBy(FieldPath.documentId());
+        let cursor: DocumentSnapshot | undefined;
+        for (;;) {
+          const snap = await (cursor ? query.startAfter(cursor) : query).limit(pageSize).get();
+          for (const d of snap.docs) {
+            if (outOfTime()) {
+              current = d.id;
+              return false;
+            }
+            summary.revocations.found++;
+            try {
+              const r = await purgeRevokedRecordings({ db, store, pageSize, shouldStop: outOfTime, log }, d.id);
+              if (r.deleted > 0) touchedOwners.add(d.id);
+              if (r.outcome === "completed" || r.outcome === "none") summary.revocations.completed++;
+              else if (r.outcome === "gone") summary.revocations.gone++;
+              else {
+                summary.revocations.incomplete++;
+                if (summary.budgetExhausted) {
+                  current = d.id;
+                  return false;
+                }
+              }
+            } catch (e) {
+              summary.revocations.failed++;
+              log("purgeRecordings.recordingFailed", { category: "revocation", uidHash: sha256Hex(d.id).slice(0, 12), code: safeErrorCode(e) });
+            }
+          }
+          if (snap.size < pageSize) return true;
+          cursor = snap.docs[snap.size - 1];
+        }
+      };
+      const startKey = await readCursor(db, "recordingPurgePending");
+      let completed = await scan(startKey);
+      if (completed && startKey !== "") completed = await scan("", startKey);
+      await writeCursor(db, "recordingPurgePending", completed ? "" : current !== undefined ? cursorKey(current) : startKey);
+    } catch (e) {
+      failStep("revocations", e);
+    }
+  }
+
   // (4) reconciliacion del contador.
   if (deps.reconcile !== false && !outOfTime()) {
     try {
@@ -129,6 +188,11 @@ export async function purgeRecordingsHandler(deps: PurgeRecordingsDeps, now: Dat
   }
 
   if (summary.budgetExhausted) warn("purgeRecordings.budgetExhausted", { found: summary.expired.found, scanned: summary.reconcile.scanned });
-  log("purgeRecordings", { ...summary.expired, repaired: summary.reconcile.repaired, budgetExhausted: summary.budgetExhausted });
+  log("purgeRecordings", {
+    ...summary.expired,
+    revocations: summary.revocations,
+    repaired: summary.reconcile.repaired,
+    budgetExhausted: summary.budgetExhausted,
+  });
   return summary;
 }
