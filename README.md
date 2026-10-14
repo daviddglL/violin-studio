@@ -99,6 +99,21 @@ Para probar en un móvil físico contra los emuladores del PC:
 4. `firebase deploy --only firestore:indexes --project violin-app-dev-f0b55` y espera a que los indices esten READY (el borrado de cuenta consulta `collectionGroup(assignments)`), luego `firebase deploy --only functions --project violin-app-dev-f0b55`
 5. Verifica el despliegue con "Comprobar servidor" en la app.
 
+### Publicar la fase 4a (política v2 y vínculo profesor-alumno)
+
+Orden obligatorio (design §9). Cada paso termina antes de empezar el siguiente:
+
+0. **Puerta bloqueante:** revisión legal del texto de la política v2 hecha (riesgo Q1). Sin ella no se publica nada de lo siguiente.
+1. `firebase functions:secrets:set TEACHER_CODE_PEPPER` (>= 32 caracteres, distinto de `GUARDIAN_EMAIL_PEPPER`; guárdalo fuera del repo).
+2. `firebase deploy --only firestore:rules,firestore:indexes` y espera a que los índices estén READY.
+3. `firebase deploy --only hosting`: publica la política v2 ANTES que las Functions (el texto debe existir cuando alguien vea la v2).
+4. `firebase deploy --only functions`: `CURRENT_POLICY_VERSION = 2` empieza a regir; cada usuario `granted` con la v1 pasa a `pending` al abrir la app.
+5. Reevaluación masiva (cierra la ventana en la que un alumno vinculado sigue `granted` con la v1 y su profesor aún lee su registro):
+   `GCLOUD_PROJECT=<id> CONFIRM_PROJECT=<id> npm --prefix functions run admin:reevaluate-consents` con credenciales de administración. Es idempotente; cada fallo se reintenta una vez en la pasada y devuelve 1 si algún usuario sigue fallando. Repetirla solo reintenta a quienes siguen `granted` con la v1: si el fallo fue de `syncClaims` tras el commit, el claim `consentOk` obsoleto se cura en el siguiente `identityConfig` de ese usuario, no al repetir la pasada.
+6. Distribuye la app y pasa el checklist manual en dispositivo (A11.6 de tasks.md).
+
+Ninguna cuenta de menor se borra por el cambio de versión: vuelven a `pending` y el tutor debe confirmar de nuevo.
+
 ### App Check en prod
 
 Play Integrity solo valida apps instaladas desde Google Play. Mientras la app se reparta por App

@@ -11,6 +11,9 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -114,5 +117,18 @@ class PracticeLogUseCasesTest {
             session("mon", "2026-03-29T22:00:00Z", 7)
         )
         assertEquals(7, weekly("2026-04-01T10:00:00Z", madrid)().first())
+    }
+
+    @Test
+    fun `un historial nuevo sustituye al temporizador anterior`() = runTest {
+        repo.seed("u1", session("a", "2026-03-11T10:00:00Z", 100))
+        val seen = mutableListOf<Int>()
+        val job = launch { weekly("2026-03-11T12:00:00Z")().toList(seen) }
+        runCurrent()
+        assertEquals(listOf(100), seen)
+        repo.seed("u1", session("a", "2026-03-11T10:00:00Z", 100), session("b", "2026-03-11T11:00:00Z", 50))
+        runCurrent()
+        assertEquals(listOf(100, 150), seen)
+        job.cancel()
     }
 }

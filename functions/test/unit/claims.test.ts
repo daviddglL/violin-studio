@@ -59,9 +59,9 @@ describe("syncClaims: fusión de claims", () => {
 
 describe("claimsFromProfile con versión vigente inyectada", () => {
   test("usa la versión inyectada en lugar de la constante", () => {
-    const doc = { ...base, policyVersion: 2 };
-    expect(claimsFromProfile(doc, 2).consentOk).toBe(true);
-    expect(claimsFromProfile(doc, 3).consentOk).toBe(false);
+    const doc = { ...base, policyVersion: CURRENT_POLICY_VERSION + 1 };
+    expect(claimsFromProfile(doc, CURRENT_POLICY_VERSION + 1).consentOk).toBe(true);
+    expect(claimsFromProfile(doc, CURRENT_POLICY_VERSION + 2).consentOk).toBe(false);
     expect(claimsFromProfile(doc).consentOk).toBe(false);
   });
 });

@@ -17,6 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -58,7 +59,7 @@ class StudentDetailViewModelTest {
     private val thisWeek = session("a", "2026-10-13T09:00:00Z", 600, "escalas")
     private val older = session("b", "2026-10-05T09:00:00Z", 900)
 
-    private fun create(uid: String = "s1"): StudentDetailViewModel {
+    private fun create(uid: String = "s1", clock: Clock = this.clock): StudentDetailViewModel {
         every { observeStudents() } returns students
         every { observePractice("s1") } returns practice
         return StudentDetailViewModel(
@@ -66,7 +67,7 @@ class StudentDetailViewModelTest {
             observeStudents,
             observePractice,
             clock
-        )
+        ) { ZoneOffset.UTC }
             .also { created += it }
     }
 
@@ -82,6 +83,53 @@ class StudentDetailViewModelTest {
         create().testMvi {
             loaded()
         }
+    }
+
+    /** Reloj que el test mueve junto al tiempo virtual. */
+    private class MovableClock(var at: Instant) : Clock() {
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+
+        override fun withZone(zone: ZoneId?): Clock = this
+
+        override fun instant(): Instant = at
+    }
+
+    @Test
+    fun `el total semanal se recalcula al cruzar el lunes a las 00-00 sin nueva emision`() = runTest {
+        val movable = MovableClock(Instant.parse("2026-10-18T23:59:00Z")) // domingo
+        val sunday = session("d", "2026-10-18T09:00:00Z", 600)
+        val vm = create(clock = movable)
+        students.emit(listOf(ana))
+        practice.emit(listOf(sunday))
+        runCurrent()
+        assertTrue(vm.state.value.weeklyTotalSec == 600)
+
+        advanceTimeBy(59_000)
+        runCurrent()
+        assertTrue(vm.state.value.weeklyTotalSec == 600)
+
+        movable.at = Instant.parse("2026-10-19T00:00:00Z")
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertTrue(vm.state.value.weeklyTotalSec == 0, "total: ${vm.state.value.weeklyTotalSec}")
+        assertTrue(vm.state.value.sessions == listOf(sunday))
+    }
+
+    @Test
+    fun `una nueva emision tras cruzar el lunes no deja un temporizador viejo vivo`() = runTest {
+        val movable = MovableClock(Instant.parse("2026-10-18T23:59:00Z"))
+        val vm = create(clock = movable)
+        students.emit(listOf(ana))
+        practice.emit(listOf(session("d", "2026-10-18T09:00:00Z", 600)))
+        runCurrent()
+        val monday = session("m", "2026-10-19T00:00:30Z", 120)
+        movable.at = Instant.parse("2026-10-19T00:01:00Z")
+        practice.emit(listOf(monday))
+        runCurrent()
+        assertTrue(vm.state.value.weeklyTotalSec == 120)
+        advanceTimeBy(60_000)
+        runCurrent()
+        assertTrue(vm.state.value.weeklyTotalSec == 120)
     }
 
     @Test
@@ -154,7 +202,7 @@ class StudentDetailViewModelTest {
             observeStudents,
             observePractice,
             clock
-        )
+        ) { ZoneOffset.UTC }
             .also { created += it }
         vm.testMvi {
             students.emit(listOf(ana))
@@ -270,7 +318,7 @@ class StudentDetailViewModelTest {
             observeStudents,
             observePractice,
             clock
-        )
+        ) { ZoneOffset.UTC }
             .also { created += it }
         vm.testMvi {
             students.emit(listOf(ana))
@@ -289,7 +337,7 @@ class StudentDetailViewModelTest {
             observeStudents,
             observePractice,
             clock
-        )
+        ) { ZoneOffset.UTC }
             .also { created += it }
         vm.testMvi {
             students.emit(listOf(ana))
