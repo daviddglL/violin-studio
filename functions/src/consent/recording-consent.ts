@@ -1,4 +1,4 @@
-import { FieldValue, Firestore } from "firebase-admin/firestore";
+import { DocumentReference, FieldValue, Firestore, Transaction } from "firebase-admin/firestore";
 import { logger } from "firebase-functions/v2";
 import { Clock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
@@ -7,7 +7,7 @@ import { requireObject } from "../common/validation";
 import { RecordingFlags } from "../config/features";
 import { CURRENT_POLICY_VERSION, RECORDING_CONSENT_VERSION } from "../config/identity";
 import { blurRequiredFor } from "../identity/age";
-import { buildConsentDoc, consentDocId, recordingEpochOf } from "./consent-docs";
+import { buildConsentDoc, consentDocId, GrantedBy, recordingEpochOf } from "./consent-docs";
 
 export interface GrantRecordingConsentDeps {
   db: Firestore;
@@ -77,4 +77,64 @@ export async function grantRecordingConsentHandler(
 
   (deps.log ?? ((m, d) => logger.info(m, d)))("grantRecordingConsent", { changed, version });
   return { recordingConsent: "granted" };
+}
+
+/**
+ * Escrituras de la revocación de grabación (REQ-CON-R02), a ejecutar DENTRO de una transacción que ya leyó `doc` con
+ * `recordingConsent == "granted"`: registro append-only `recording_revocation` con `action = revoked` (id por época que
+ * se cierra), `recordingConsent = revoked`, época + 1 y `recordingPurge.pending` para que el borrado (B5b) sea
+ * reanudable. Nunca toca `consentStatus` ni `consentOk`. Una versión guardada ilegible se registra como 0.
+ * Devuelve la época cerrada.
+ */
+export function writeRecordingRevocation(
+  tx: Transaction,
+  userRef: DocumentReference,
+  doc: Record<string, unknown>,
+  by: GrantedBy,
+): number {
+  const closing = recordingEpochOf(doc);
+  const v = doc.recordingConsentVersion;
+  const version = typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0;
+  const ref = userRef.collection(COLLECTIONS.consents).doc(consentDocId("recording_revocation", version, by, closing));
+  tx.create(ref, buildConsentDoc("recording_revocation", version, by, "revoked"));
+  tx.update(userRef, {
+    recordingConsent: "revoked",
+    recordingConsentEpoch: closing + 1,
+    recordingPurge: { pending: true, since: FieldValue.serverTimestamp() },
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return closing;
+}
+
+export interface RevokeRecordingConsentDeps {
+  db: Firestore;
+  log?: (message: string, data: Record<string, unknown>) => void;
+}
+
+export interface RevokeRecordingConsentResult {
+  /** Estado resultante: `none` si no había nada que revocar. */
+  recordingConsent: string;
+}
+
+/**
+ * Revoca el consentimiento de grabación del propio usuario (también un menor de 14: la revocación protege datos).
+ * Solo actúa sobre `granted`; en cualquier otro estado es un no-op sin escrituras. No toca el consentimiento base.
+ * El borrado efectivo de las grabaciones lo completa B5b a partir de `recordingPurge.pending`.
+ */
+export async function revokeRecordingConsentHandler(
+  deps: RevokeRecordingConsentDeps,
+  uid: string,
+): Promise<RevokeRecordingConsentResult> {
+  const userRef = deps.db.collection(COLLECTIONS.users).doc(uid);
+  const outcome = await deps.db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const doc = snap.data();
+    if (!snap.exists || !doc || doc.deletion) throw fail("failed-precondition", ErrorReason.NO_PROFILE);
+    if (doc.recordingConsent !== "granted") {
+      return { revoked: false as const, state: typeof doc.recordingConsent === "string" ? doc.recordingConsent : "none" };
+    }
+    return { revoked: true as const, state: "revoked", closed: writeRecordingRevocation(tx, userRef, doc, "self") };
+  });
+  (deps.log ?? ((m, d) => logger.info(m, d)))("revokeRecordingConsent", { revoked: outcome.revoked });
+  return { recordingConsent: outcome.state };
 }
