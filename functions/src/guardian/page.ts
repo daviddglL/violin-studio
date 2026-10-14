@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { escapeHtml as esc } from "./mail";
+import { GuardianPurpose } from "./purpose";
 
 export interface ValidPageInput {
   requestId: string;
@@ -8,6 +9,8 @@ export interface ValidPageInput {
   policyUrl: string;
   policyVersion: number;
   nonce: string;
+  /** Finalidad de la solicitud; por defecto la política de privacidad. */
+  purpose?: GuardianPurpose;
 }
 
 export const makeNonce = (): string => randomBytes(16).toString("base64url");
@@ -54,21 +57,44 @@ const TOKEN_SCRIPT =
   `var m=/(?:^#|&)t=([A-Za-z0-9_-]+)/.exec(location.hash);if(m){document.getElementById("t").value=m[1]}` +
   `history.replaceState(null,"",location.pathname+location.search);`;
 
+/** Textos de la finalidad de grabación: qué se comparte, con quién, el riesgo de identificación, la retención y la revocación. */
+const RECORDING_TEXT = {
+  es: {
+    title: "Consentimiento del tutor legal: grabaciones",
+    intro: (n: string) =>
+      `${n} quiere compartir grabaciones de su práctica de violín con el profesor vinculado en Violin Studio y necesita tu consentimiento como madre, padre o tutor legal.`,
+    warn: "Las grabaciones pueden identificar al menor: la voz y el entorno se oyen. Se conservan 90 días y solo las ve el profesor vinculado. Puedes revocar el consentimiento en cualquier momento (también desde el enlace del correo que recibirás al aceptar); al revocar se eliminan las grabaciones.",
+    reject: "Rechazar (la cuenta no se elimina)",
+  },
+  en: {
+    title: "Legal guardian consent: recordings",
+    intro: (n: string) =>
+      `${n} wants to share violin practice recordings with their linked teacher in Violin Studio and needs your consent as a parent or legal guardian.`,
+    warn: "Recordings may identify the minor: their voice and surroundings can be heard. They are kept for 90 days and only the linked teacher can see them. You can revoke your consent at any time (also from the link in the email you will receive after accepting); revoking deletes the recordings.",
+    reject: "Reject (the account is not deleted)",
+  },
+};
+
 export function renderValidPage(i: ValidPageInput): string {
   if (!i.policyUrl.startsWith("https://")) throw new Error("policyUrl debe empezar por https://");
   const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
   const t = TEXT[lang];
+  const recording = i.purpose === "recording_sharing";
+  const rt = RECORDING_TEXT[lang];
   const script = TOKEN_SCRIPT;
+  // El rechazo de grabación no borra nada: no necesita el segundo paso de confirmación (el servidor lo exige solo si falta `confirm`).
   return shell(
     lang,
-    t.title,
-    `<h1>${esc(t.title)}</h1><p>${esc(t.intro(i.displayName))}</p>` +
+    recording ? rt.title : t.title,
+    `<h1>${esc(recording ? rt.title : t.title)}</h1><p>${esc(recording ? rt.intro(i.displayName) : t.intro(i.displayName))}</p>` +
+      (recording ? `<p><strong>${esc(rt.warn)}</strong></p>` : "") +
       `<p><a href="${esc(i.policyUrl)}">${esc(t.policy(i.policyVersion))}</a></p>` +
       `<form method="post" action=""><input type="hidden" name="r" value="${esc(i.requestId)}">` +
       `<input type="hidden" name="t" id="t" value="">` +
+      (recording ? `<input type="hidden" name="confirm" value="yes">` : "") +
       `<p><label><input type="checkbox" name="declaration"> ${esc(t.declaration)}</label></p>` +
       `<button type="submit" name="action" value="accept">${esc(t.accept)}</button>` +
-      `<button type="submit" name="action" value="reject">${esc(t.reject)}</button></form>` +
+      `<button type="submit" name="action" value="reject">${esc(recording ? rt.reject : t.reject)}</button></form>` +
       `<noscript><p>${esc(t.noscript)}</p></noscript><script nonce="${esc(i.nonce)}">${script}</script>`,
   );
 }
@@ -131,10 +157,15 @@ const REVOKE = {
   en: { title: "Revoke consent", warn: (n: string) => `You are about to withdraw your consent for ${n} to use Violin Studio. Their account will lose access to the app until they ask for your consent again; their data is not deleted.`, button: "Revoke consent", noscript: TEXT.en.noscript },
 };
 
+const REVOKE_RECORDING = {
+  es: { ...REVOKE.es, warn: (n: string) => `Vas a retirar tu consentimiento para que ${n} comparta grabaciones con su profesor. Sus grabaciones se eliminarán; su cuenta no se borra y puede seguir usando la app.`, button: "Revocar el consentimiento de grabaciones" },
+  en: { ...REVOKE.en, warn: (n: string) => `You are about to withdraw your consent for ${n} to share recordings with their teacher. Their recordings will be deleted; their account is not deleted and they can keep using the app.`, button: "Revoke the recordings consent" },
+};
+
 /** Página de revocación del tutor: es en sí la confirmación (explica el efecto, que es reversible; el único botón revoca). GET sin efectos. */
-export function renderRevokePage(i: { requestId: string; displayName: string; locale: string; nonce: string }): string {
+export function renderRevokePage(i: { requestId: string; displayName: string; locale: string; nonce: string; purpose?: GuardianPurpose }): string {
   const lang = i.locale.toLowerCase().startsWith("es") ? "es" : "en";
-  const t = REVOKE[lang];
+  const t = i.purpose === "recording_sharing" ? REVOKE_RECORDING[lang] : REVOKE[lang];
   return shell(
     lang,
     t.title,
@@ -148,3 +179,10 @@ export function renderRevokePage(i: { requestId: string; displayName: string; lo
 
 export const renderRevokedPage = (): string =>
   BILINGUAL("Violin Studio", "Hemos registrado la revocación: la cuenta del menor ya no tiene acceso.", "Your revocation has been recorded: the minor's account no longer has access.");
+
+/** Rechazo de la finalidad de grabación: la solicitud se cierra y nada se borra. */
+export const renderRecordingRejectedPage = (): string =>
+  BILINGUAL("Violin Studio", "Hemos registrado tu rechazo: no se compartirán grabaciones y la cuenta del menor no se elimina.", "Your refusal has been recorded: no recordings will be shared and the minor's account is not deleted.");
+
+export const renderRecordingRevokedPage = (): string =>
+  BILINGUAL("Violin Studio", "Hemos registrado la revocación: se eliminarán las grabaciones del menor y no se compartirán nuevas.", "Your revocation has been recorded: the minor's recordings will be deleted and no new ones will be shared.");

@@ -2,6 +2,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { hmacEmail } from "../../src/common/hashing";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
 import { guardianConsentHandler } from "../../src/guardian/confirm";
 import { requestGuardianConsentHandler } from "../../src/guardian/request";
@@ -42,3 +43,27 @@ export async function setup() {
 export const req = async (r: string) => (await db.collection("guardianRequests").doc(r).get()).data()!;
 export const perfil = async (uid: string) => (await db.collection("users").doc(uid).get()).data()!;
 export const authExists = (uid: string) => auth.getUser(uid).then(() => true, () => false);
+
+/** Menor <14 con consentimiento base dado por un tutor (HMAC en el consent) y solicitud real de `recording_sharing`. */
+export async function setupRecording(perfilOver: Record<string, unknown> = {}) {
+  const email = `m-${Date.now()}-${Math.random()}@example.com`;
+  const { uid } = await auth.createUser({ email, password: "Passw0rd!x" });
+  const guardian = `t${Date.now()}${Math.random()}@example.com`;
+  await db.collection("users").doc(uid).set({
+    displayName: "Ana", locale: "es", isMinor: true, birthDate: "2016-05-01", consentStatus: "granted", policyVersion: 1, ...perfilOver,
+  });
+  await db.collection("users").doc(uid).collection("consents").doc(`guardian_privacy_policy_v1_guardian_e${(perfilOver.consentEpoch as number | undefined) ?? 0}`).set({
+    type: "guardian_privacy_policy", version: 1, grantedBy: "guardian", guardianEmailHmac: hmacEmail(PEPPER, guardian),
+  });
+  await requestGuardianConsentHandler(
+    {
+      db, pepper: PEPPER, linkBaseUrl: "https://x.app", guardianFlowEnabled: true, currentVersion: 1,
+      flags: { recordingsEnabled: true, videoEnabled: true, minorRecordingEnabled: true }, clock: () => state.now, log: () => undefined,
+    },
+    uid, email, { guardianEmail: guardian, purpose: "recording_sharing" },
+  );
+  const [mail] = (await db.collection("mail").where("uid", "==", uid).where("kind", "==", "guardian_recording").get()).docs;
+  const [, r, t] = mail.data().message.text.match(/\/tutor\?r=(\S+)#t=([\w-]+)/)!;
+  return { uid, r: r as string, t: t as string, guardian, email };
+}
+export const consentDocs = async (uid: string) => (await db.collection("users").doc(uid).collection("consents").get()).docs;

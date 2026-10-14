@@ -63,6 +63,20 @@ describe("7b.1 parental_pending caducado (mide desde guardian.requestedAt)", () 
     expect(calls).toEqual([[viejo, { deleteAuth: true }]]);
   });
 
+  test("REQ-GRD-R03: una solicitud recording_sharing caducada (>72 h y >7 d) no activa la purga de la cuenta granted", async () => {
+    const now = new Date();
+    const recording = (ms: number) =>
+      user({
+        consentStatus: "granted", isMinor: true, createdAt: ago(now, 30 * DAY), guardian: { requestedAt: ago(now, 30 * DAY) },
+        recordingConsent: "parental_pending", recordingGuardian: { requestId: "r", requestedAt: ago(now, ms) },
+      });
+    await recording(73 * HOUR);
+    await recording(8 * DAY);
+    await recording(40 * DAY);
+    await purgeIdentityHandler(deps(), now);
+    expect(calls).toEqual([]);
+  });
+
   test("pagina: con pageSize 2 se procesan los 5 caducados", async () => {
     const now = new Date();
     const ids = [];
