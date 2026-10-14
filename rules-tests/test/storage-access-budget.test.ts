@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { matchBrace, stripComments } from "./rules-analysis";
 
 /**
  * A20 / spike B3a.0: el emulador de Storage no aplica el tope de 2 accesos `firestore.get/exists` por evaluacion
@@ -7,19 +8,6 @@ import { join } from "node:path";
  * (suma de accesos en `&&`, maximo entre ramas de `||`, expandiendo las funciones llamadas) debe ser <= 2.
  */
 const MAX_CROSS_SERVICE_ACCESSES = 2;
-
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-}
-
-function matchBrace(src: string, open: number): number {
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === "{") depth++;
-    else if (src[i] === "}" && --depth === 0) return i;
-  }
-  throw new Error("llave sin cerrar");
-}
 
 /** `function nombre(args) { return EXPR; }` -> mapa nombre -> EXPR. */
 export function parseFunctions(src: string): Map<string, string> {

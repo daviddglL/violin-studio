@@ -63,6 +63,35 @@ describe("firestore.indexes.json", () => {
     expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION_GROUP" });
   });
 
+  test("indices compuestos de recordings: (status, createdAt DESC) del profesor y (sharedWith, createdAt DESC) de las demos (B3b)", () => {
+    // El alumno consulta `sharedWith == uid && status == ready` ordenado: se resuelve por fusion de ambos compuestos.
+    for (const campo of ["status", "sharedWith"]) {
+      expect(cfg.indexes).toContainEqual({
+        collectionGroup: "recordings",
+        queryScope: "COLLECTION",
+        fields: [
+          { fieldPath: campo, order: "ASCENDING" },
+          { fieldPath: "createdAt", order: "DESCENDING" },
+        ],
+      });
+    }
+  });
+
+  test.each([
+    ["recordings", "expiresAt"],
+    ["recordings", "sharedWith"],
+    ["reviews", "reviewerUid"],
+  ])("%s.%s: indice COLLECTION_GROUP ascendente (purga diaria y cascadas de borrado, B3b)", (coleccion, campo) => {
+    const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === campo);
+    expect(o).toBeDefined();
+    expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION_GROUP" });
+    expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION" });
+  });
+
+  test("recordings y reviews no declaran TTL (la caducidad la barre purgeRecordings, A21)", () => {
+    for (const f of cfg.fieldOverrides) if (["recordings", "reviews"].includes(f.collectionGroup)) expect(f.ttl).toBeUndefined();
+  });
+
   test.each(["mail", "teacherCodes", "guardianRequests", "guardianEmailLimits"])("%s.expireAt: TTL y indice ascendente habilitado (la purga 7b.4 filtra por rango)", (coleccion) => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === "expireAt");
     expect(o.ttl).toBe(true);
