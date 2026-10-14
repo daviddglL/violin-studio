@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -144,6 +145,31 @@ class TeacherScreensTest {
         assertEquals(null, clipboard.primaryClip?.getItemAt(0)?.text?.toString())
     }
 
+
+    @Test
+    fun `salir de la pantalla borra el portapapeles si aun tiene el codigo`() {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(ClipData.newPlainText("", "WXYZ2345"))
+        val shown = mutableStateOf(true)
+        compose.setContent { if (shown.value) ClearClipboardOnLeave { "WXYZ2345" } }
+        compose.waitForIdle()
+        assertEquals("WXYZ2345", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        shown.value = false
+        compose.waitForIdle()
+        assertEquals(null, clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+    }
+
+    @Test
+    fun `salir sin haber copiado no toca el portapapeles`() {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(ClipData.newPlainText("", "WXYZ2345"))
+        val shown = mutableStateOf(true)
+        compose.setContent { if (shown.value) ClearClipboardOnLeave { null } }
+        compose.waitForIdle()
+        shown.value = false
+        compose.waitForIdle()
+        assertEquals("WXYZ2345", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+    }
     @Test
     fun `crear se bloquea mientras se crea`() {
         showCodes(TeacherCodesState(isLoading = false, isCreating = true))

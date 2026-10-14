@@ -157,8 +157,7 @@ class TeacherCodesViewModelTest {
     }
 
     @Test
-    fun `un fallo al crear no destruye un codigo ya mostrado`() = runTest {
-        // El guard impide crear con uno pendiente; el reductor tampoco lo borra si el fallo llegara igualmente.
+    fun `un fallo al crear deja el boton listo para reintentar`() = runTest {
         createAnswers(Result.failure(LinkFailure.Offline))
         val vm = viewModel()
         vm.testMvi {
@@ -214,6 +213,19 @@ class TeacherCodesViewModelTest {
         }
     }
 
+    @Test
+    fun `compartir y refrescar al volver mantienen el codigo sin cerrar`() = runTest {
+        val vm = viewModel()
+        vm.testMvi {
+            loaded()
+            createdOk()
+            intent(TeacherCodesIntent.Share)
+            assertEffect(TeacherCodesEffect.ShareCode("WXYZ2345"))
+            intent(TeacherCodesIntent.Refresh)
+        }
+        runCurrent()
+        assertEquals(fresh, vm.state.value.created)
+    }
     @Test
     fun `cerrar sin copiar no toca el portapapeles`() = runTest {
         viewModel().testMvi {

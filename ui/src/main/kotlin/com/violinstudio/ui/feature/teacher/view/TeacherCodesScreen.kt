@@ -1,9 +1,11 @@
 package com.violinstudio.ui.feature.teacher.view
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Build
 import android.os.PersistableBundle
@@ -28,7 +30,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -90,8 +94,9 @@ fun TeacherCodesRoute(onBack: () -> Unit, viewModel: TeacherCodesViewModel = hil
             is TeacherCodesEffect.ClearClipboard -> context.clearClipIfEquals(effect.code)
         }
     }
-    // El código en claro no sobrevive a salir de la pantalla (también al abrir el selector de compartir).
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onIntent(TeacherCodesIntent.DismissCreated) }
+    // El código en claro vive hasta "Hecho" o hasta salir de la pantalla (el ViewModel se destruye); compartir o
+    // cambiar de app no lo pierde. El portapapeles se limpia al cerrar o al salir, solo si aún contiene el código.
+    ClearClipboardOnLeave { viewModel.state.value.takeIf { it.copied }?.created?.code }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onIntent(TeacherCodesIntent.Refresh) }
     TeacherCodesScreen(state, viewModel::onIntent, onBack)
 }
@@ -288,4 +293,28 @@ internal fun Context.clearClipIfEquals(code: String) {
     val clipboard = getSystemService(ClipboardManager::class.java) ?: return
     val current = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
     if (current == code) clipboard.clearPrimaryClip()
+}
+
+
+/**
+ * Al salir de la pantalla para siempre (no en un cambio de configuración, ni al pasar a segundo plano o abrir el
+ * selector de compartir) borra el portapapeles si aún contiene el código que copiamos.
+ */
+@Composable
+internal fun ClearClipboardOnLeave(copiedCode: () -> String?) {
+    val context = LocalContext.current
+    val current by rememberUpdatedState(copiedCode)
+    DisposableEffect(Unit) {
+        onDispose {
+            if (context.findActivity()?.isChangingConfigurations != true) {
+                current()?.let(context::clearClipIfEquals)
+            }
+        }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
