@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Instrument
@@ -44,6 +45,7 @@ class RoleRoutesNavTest {
     private var myTeacherComposed = false
     private var studentsComposed = false
     private var codesComposed = false
+    private var detailComposed = false
     private lateinit var nav: NavHostController
 
     private fun start(initial: SessionState) {
@@ -52,6 +54,7 @@ class RoleRoutesNavTest {
         myTeacherComposed = false
         studentsComposed = false
         codesComposed = false
+        detailComposed = false
         compose.setContent {
             ViolinStudioTheme {
                 nav = rememberNavController()
@@ -80,14 +83,24 @@ class RoleRoutesNavTest {
                         redeemComposed = true
                         Button(onClick = onBack, modifier = Modifier.testTag("redeem_screen")) { Text("b") }
                     },
-                    students = { onOpenCodes, onBack ->
+                    students = { onOpenCodes, onOpenStudent, onBack ->
                         studentsComposed = true
                         Column(Modifier.testTag("students_screen")) {
+                            Button(
+                                onClick = { onOpenStudent("s1") },
+                                modifier = Modifier.testTag("students_to_detail")
+                            ) {
+                                Text("d")
+                            }
                             Button(onClick = onOpenCodes, modifier = Modifier.testTag("students_to_codes")) {
                                 Text("c")
                             }
                             Button(onClick = onBack, modifier = Modifier.testTag("students_back")) { Text("b") }
                         }
+                    },
+                    studentDetail = { onBack ->
+                        detailComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("detail_screen")) { Text("b") }
                     },
                     teacherCodes = { onBack ->
                         codesComposed = true
@@ -115,6 +128,7 @@ class RoleRoutesNavTest {
         assertTrue(MyTeacherDestination::class in BUSINESS_ROUTES)
         assertTrue(StudentsDestination::class in BUSINESS_ROUTES)
         assertTrue(TeacherCodesDestination::class in BUSINESS_ROUTES)
+        assertTrue(StudentDetailDestination::class in BUSINESS_ROUTES)
         assertFalse("link" in GatingIsolationTest.SESSION_AWARE_FEATURES)
     }
 
@@ -127,7 +141,11 @@ class RoleRoutesNavTest {
         assertFalse(Role.INDEPENDENT.allows(MyTeacherDestination::class))
         assertFalse(Role.TEACHER.allows(MyTeacherDestination::class))
         assertTrue(Role.TEACHER.allows(HomeDestination::class))
-        for (route in listOf(StudentsDestination::class, TeacherCodesDestination::class)) {
+        for (route in listOf(
+            StudentsDestination::class,
+            TeacherCodesDestination::class,
+            StudentDetailDestination::class
+        )) {
             assertTrue(Role.TEACHER.allows(route))
             assertFalse(Role.STUDENT.allows(route))
             assertFalse(Role.INDEPENDENT.allows(route))
@@ -213,6 +231,57 @@ class RoleRoutesNavTest {
         assertAt(TeacherCodesDestination)
         session.value = ready(Role.INDEPENDENT)
         assertAt(HomeDestination)
+    }
+
+    @Test
+    fun teacherOpensAStudentDetailWithTheUidAsAnArgumentAndBackReturnsToTheList() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_students").performClick()
+        compose.onNodeWithTag("students_to_detail").performClick()
+        assertAt(StudentDetailDestination("s1"))
+        assertEquals("s1", nav.currentBackStackEntry?.toRoute<StudentDetailDestination>()?.studentUid)
+        assertTrue(detailComposed)
+        compose.onNodeWithTag("detail_screen").performClick()
+        assertAt(StudentsDestination)
+    }
+
+    @Test
+    fun studentDetailRouteSerializesItsArgumentAsADataClass() {
+        val route = StudentDetailDestination("abc")
+        assertEquals("abc", route.studentUid)
+        assertEquals(route, StudentDetailDestination("abc"))
+    }
+
+    private fun assertDeepLinkToDetailRedirectsHome(role: Role) {
+        start(ready(role))
+        compose.runOnUiThread { nav.navigate(StudentDetailDestination("s1")) }
+        assertAt(HomeDestination)
+        assertFalse(detailComposed)
+    }
+
+    @Test
+    fun studentDeepLinkToAStudentDetailRedirectsHomeWithoutComposing() =
+        assertDeepLinkToDetailRedirectsHome(Role.STUDENT)
+
+    @Test
+    fun independentDeepLinkToAStudentDetailRedirectsHomeWithoutComposing() =
+        assertDeepLinkToDetailRedirectsHome(Role.INDEPENDENT)
+
+    @Test
+    fun losingTheTeacherRoleWhileOnAStudentDetailRedirectsHome() {
+        start(ready(Role.TEACHER))
+        compose.runOnUiThread { nav.navigate(StudentDetailDestination("s1")) }
+        assertAt(StudentDetailDestination("s1"))
+        session.value = ready(Role.INDEPENDENT)
+        assertAt(HomeDestination)
+    }
+
+    @Test
+    fun withoutReadyAStudentDetailRedirectsToTheStateRoot() {
+        start(SessionState.LoggedOut)
+        compose.runOnUiThread { nav.navigate(StudentDetailDestination("s1")) }
+        assertAt(AuthDestination)
+        assertFalse(detailComposed)
     }
 
     @Test

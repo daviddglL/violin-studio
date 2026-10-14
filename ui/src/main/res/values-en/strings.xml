@@ -369,5 +369,10 @@
     <string name="teacher_codes_error_try_again">No connection or service unavailable. Try again.</string>
     <string name="teacher_codes_error_revoke">The code could not be revoked. Try again.</string>
     <string name="teacher_code_revoke_desc">Revoke code ending in %1$s</string>
+    <string name="teacher_student_detail_readonly">Read-only view: you can see the sessions and notes of your student, but you cannot change them.</string>
+    <string name="teacher_student_detail_empty">This student has not logged any sessions yet.</string>
+    <string name="teacher_student_detail_unavailable">This student is not available. They may no longer be linked to you.</string>
+    <string name="teacher_student_detail_load_failed">The student log could not be loaded. Try again.</string>
+    <string name="teacher_student_open_desc">View the log of %1$s</string>
     <string name="teacher_student_unlink_desc">Unlink %1$s</string>
 </resources>

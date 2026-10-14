@@ -7,12 +7,15 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.domain.feature.link.model.TeacherLink
+import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.teacher.viewmodel.CodesError
+import com.violinstudio.ui.feature.teacher.viewmodel.StudentDetailState
 import com.violinstudio.ui.feature.teacher.viewmodel.StudentsState
 import com.violinstudio.ui.feature.teacher.viewmodel.TeacherCodesState
 import java.time.Instant
+import java.time.ZoneOffset
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,7 +44,35 @@ class TeacherScreensScreenshotTest {
 
     private fun students(state: StudentsState, name: String) {
         compose.setContent {
-            ViolinStudioTheme { StudentsScreen(state, onIntent = {}, onOpenCodes = {}, onBack = {}) }
+            ViolinStudioTheme {
+                StudentsScreen(
+                    state,
+                    onIntent = {},
+                    onOpenCodes = {},
+                    onOpenStudent = {},
+                    onBack = {}
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
+    }
+
+    private val sessions = listOf(
+        PracticeSession(
+            "a",
+            Instant.parse("2026-10-13T09:00:00Z"),
+            1_800,
+            Instrument.VIOLIN,
+            "Escalas en re y vibrato",
+            false
+        ),
+        PracticeSession("b", Instant.parse("2026-10-12T18:30:00Z"), 3_900, Instrument.VIOLIN, null, false),
+        PracticeSession("c", Instant.parse("2026-10-05T09:00:00Z"), 600, Instrument.VIOLIN, "Estudio 3", false)
+    )
+
+    private fun detail(state: StudentDetailState, name: String) {
+        compose.setContent {
+            ViolinStudioTheme { StudentDetailScreen(state, onIntent = {}, onBack = {}, zone = ZoneOffset.UTC) }
         }
         compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
@@ -74,5 +105,23 @@ class TeacherScreensScreenshotTest {
     fun codeCreatedEn() = codes(
         TeacherCodesState(isLoading = false, codes = listOf(fresh.copy(code = null)), created = fresh, copied = true),
         "teacher_code_created_en"
+    )
+
+    @Test fun detailWithSessions() = detail(
+        StudentDetailState(isLoading = false, link = students[0], sessions = sessions, weeklyTotalSec = 5_700),
+        "teacher_student_detail"
+    )
+
+    @Test fun detailEmpty() =
+        detail(StudentDetailState(isLoading = false, link = students[0]), "teacher_student_detail_empty")
+
+    @Test fun detailUnavailable() =
+        detail(StudentDetailState(isLoading = false, unavailable = true), "teacher_student_detail_unavailable")
+
+    @Test
+    @Config(qualifiers = "en-rUS-w411dp-h1200dp-xxhdpi")
+    fun detailWithSessionsEn() = detail(
+        StudentDetailState(isLoading = false, link = students[0], sessions = sessions, weeklyTotalSec = 5_700),
+        "teacher_student_detail_en"
     )
 }

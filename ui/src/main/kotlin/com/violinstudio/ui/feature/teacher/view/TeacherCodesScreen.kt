@@ -295,7 +295,6 @@ internal fun Context.clearClipIfEquals(code: String) {
     if (current == code) clipboard.clearPrimaryClip()
 }
 
-
 /**
  * Al salir de la pantalla para siempre (no en un cambio de configuración, ni al pasar a segundo plano o abrir el
  * selector de compartir) borra el portapapeles si aún contiene el código que copiamos.

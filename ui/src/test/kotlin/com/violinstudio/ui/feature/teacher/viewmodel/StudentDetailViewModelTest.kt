@@ -60,7 +60,12 @@ class StudentDetailViewModelTest {
     private fun create(uid: String = "s1"): StudentDetailViewModel {
         every { observeStudents() } returns students
         every { observePractice("s1") } returns practice
-        return StudentDetailViewModel(SavedStateHandle(mapOf("studentUid" to uid)), observeStudents, observePractice, clock)
+        return StudentDetailViewModel(
+            SavedStateHandle(mapOf("studentUid" to uid)),
+            observeStudents,
+            observePractice,
+            clock
+        )
             .also { created += it }
     }
 
@@ -143,7 +148,12 @@ class StudentDetailViewModelTest {
         }
         every { observeStudents() } returns students
         every { observePractice("s1") } returns denied
-        val vm = StudentDetailViewModel(SavedStateHandle(mapOf("studentUid" to "s1")), observeStudents, observePractice, clock)
+        val vm = StudentDetailViewModel(
+            SavedStateHandle(mapOf("studentUid" to "s1")),
+            observeStudents,
+            observePractice,
+            clock
+        )
             .also { created += it }
         vm.testMvi {
             students.emit(listOf(ana))
@@ -171,7 +181,12 @@ class StudentDetailViewModelTest {
     fun `otro fallo del historial ofrece reintentar y no el vacio`() = runTest {
         every { observeStudents() } returns students
         every { observePractice("s1") } returns flow { throw PracticeFailure.Unknown }
-        val vm = StudentDetailViewModel(SavedStateHandle(mapOf("studentUid" to "s1")), observeStudents, observePractice, clock)
+        val vm = StudentDetailViewModel(
+            SavedStateHandle(mapOf("studentUid" to "s1")),
+            observeStudents,
+            observePractice,
+            clock
+        )
             .also { created += it }
         vm.testMvi {
             students.emit(listOf(ana))
@@ -185,7 +200,12 @@ class StudentDetailViewModelTest {
         var attempt = 0
         every { observeStudents() } returns students
         every { observePractice("s1") } answers { if (attempt++ == 0) flow { throw LinkFailure.Unknown } else practice }
-        val vm = StudentDetailViewModel(SavedStateHandle(mapOf("studentUid" to "s1")), observeStudents, observePractice, clock)
+        val vm = StudentDetailViewModel(
+            SavedStateHandle(mapOf("studentUid" to "s1")),
+            observeStudents,
+            observePractice,
+            clock
+        )
             .also { created += it }
         vm.testMvi {
             students.emit(listOf(ana))

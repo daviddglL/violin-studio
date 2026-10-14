@@ -44,6 +44,7 @@ const val MY_TEACHER_LOADING_TAG = "my_teacher_loading"
 const val MY_TEACHER_NAME_TAG = "my_teacher_name"
 const val MY_TEACHER_LOAD_FAILED_TAG = "my_teacher_load_failed"
 const val MY_TEACHER_RETRY_TAG = "my_teacher_retry"
+const val MY_TEACHER_SEES_TAG = "my_teacher_sees"
 const val MY_TEACHER_NONE_TAG = "my_teacher_none"
 const val MY_TEACHER_UNLINK_TAG = "my_teacher_unlink"
 const val MY_TEACHER_ERROR_TAG = "my_teacher_error"
@@ -106,7 +107,11 @@ private fun TeacherContent(teacher: TeacherLink, state: MyTeacherState, onIntent
         modifier = Modifier.testTag(MY_TEACHER_NAME_TAG)
     )
     Text(stringResource(R.string.link_my_teacher_since, teacher.createdAt.formatted()))
-    Text(stringResource(R.string.link_my_teacher_sees), style = MaterialTheme.typography.bodyMedium)
+    Text(
+        stringResource(R.string.link_my_teacher_sees),
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.testTag(MY_TEACHER_SEES_TAG)
+    )
     state.error?.let {
         Text(
             it.message(),

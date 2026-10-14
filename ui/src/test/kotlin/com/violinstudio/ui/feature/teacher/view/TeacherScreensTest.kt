@@ -46,6 +46,7 @@ class TeacherScreensTest {
     private val studentIntents = mutableListOf<StudentsIntent>()
     private val codeIntents = mutableListOf<TeacherCodesIntent>()
     private var openedCodes = false
+    private val openedStudents = mutableListOf<String>()
     private val ana =
         TeacherLink("t1", "s1", "Marta", "Ana", Instrument.VIOLIN, 1, Instant.parse("2026-10-01T12:00:00Z"))
     private val listed = TeacherCode("h1", null, "AB", Instant.parse("2026-10-20T10:00:00Z"))
@@ -53,7 +54,13 @@ class TeacherScreensTest {
 
     private fun showStudents(state: StudentsState) = compose.setContent {
         ViolinStudioTheme {
-            StudentsScreen(state, { studentIntents += it }, onOpenCodes = { openedCodes = true }, onBack = {})
+            StudentsScreen(
+                state,
+                { studentIntents += it },
+                onOpenCodes = { openedCodes = true },
+                onOpenStudent = { openedStudents += it },
+                onBack = {}
+            )
         }
     }
 
@@ -90,6 +97,21 @@ class TeacherScreensTest {
         compose.onNodeWithTag(STUDENTS_COUNT_TAG).assertIsDisplayed()
         compose.onNodeWithTag(STUDENT_UNLINK_TAG).performClick()
         assertEquals(listOf<StudentsIntent>(StudentsIntent.RequestUnlink(ana)), studentIntents)
+    }
+
+    @Test
+    fun `tocar una fila abre el detalle de ese alumno`() {
+        showStudents(StudentsState(isLoading = false, students = listOf(ana)))
+        compose.onNodeWithTag(STUDENT_ROW_TAG).performClick()
+        assertEquals(listOf("s1"), openedStudents)
+        assertEquals(emptyList<StudentsIntent>(), studentIntents)
+    }
+
+    @Test
+    fun `desvincular desde la fila no abre el detalle`() {
+        showStudents(StudentsState(isLoading = false, students = listOf(ana)))
+        compose.onNodeWithTag(STUDENT_UNLINK_TAG).performClick()
+        assertEquals(emptyList<String>(), openedStudents)
     }
 
     @Test
@@ -145,7 +167,6 @@ class TeacherScreensTest {
         assertEquals(null, clipboard.primaryClip?.getItemAt(0)?.text?.toString())
     }
 
-
     @Test
     fun `salir de la pantalla borra el portapapeles si aun tiene el codigo`() {
         val clipboard = context.getSystemService(ClipboardManager::class.java)
@@ -170,6 +191,7 @@ class TeacherScreensTest {
         compose.waitForIdle()
         assertEquals("WXYZ2345", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
     }
+
     @Test
     fun `crear se bloquea mientras se crea`() {
         showCodes(TeacherCodesState(isLoading = false, isCreating = true))
