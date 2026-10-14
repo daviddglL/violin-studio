@@ -76,12 +76,14 @@ class AndroidAudioRecorderTest {
     }
 
     private class FakeFactory : MediaRecorderFactory {
-        val sessions = mutableListOf<FakeSession>()
+        val sessions: MutableList<FakeSession> = java.util.Collections.synchronizedList(mutableListOf())
+        val firstCreated = java.util.concurrent.CompletableFuture<FakeSession>()
         var configure: (FakeSession) -> Unit = {}
 
         override fun create(): MediaRecorderSession = FakeSession().also {
             configure(it)
             sessions += it
+            firstCreated.complete(it)
         }
     }
 
@@ -284,7 +286,8 @@ class AndroidAudioRecorderTest {
         factory.configure = { it.startGate = gate }
         val rec = recorder()
         val starting = async(Dispatchers.Default) { rec.start(spec()) }
-        assertTrue(factory.sessions.single().startEntered.await(5, TimeUnit.SECONDS))
+        val session = factory.firstCreated.get(5, TimeUnit.SECONDS)
+        assertTrue(session.startEntered.await(5, TimeUnit.SECONDS))
         withTimeout(2_000) { starting.cancelAndJoin() }
         gate.countDown()
         waitUntil { factory.sessions.single().released.get() == 1 }
