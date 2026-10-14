@@ -1,7 +1,7 @@
 import { Auth } from "firebase-admin/auth";
 import { FieldValue, Firestore } from "firebase-admin/firestore";
 import { COLLECTIONS } from "../common/collections";
-import { CURRENT_POLICY_VERSION } from "../config/identity";
+import { CURRENT_POLICY_VERSION, RECORDING_CONSENT_VERSION } from "../config/identity";
 import { claimsFromProfile, syncClaims } from "../identity/claims";
 
 export interface ReevaluateDeps {
@@ -9,6 +9,8 @@ export interface ReevaluateDeps {
   auth: Auth;
   /** Versión vigente; solo se inyecta en tests. */
   currentVersion?: number;
+  /** Versión vigente del consentimiento de grabación; solo se inyecta en tests. */
+  currentRecordingVersion?: number;
   /** `consentOk` del token de quien llama, si se conoce: permite evitar llamadas a Admin Auth innecesarias. */
   knownConsentOk?: boolean;
 }
@@ -25,11 +27,24 @@ export function reevaluatedStatus(doc: Record<string, unknown>, currentVersion: 
 }
 
 /**
+ * Consentimiento de grabación con versión propia (REQ-CON-R03): un `granted` cuya `recordingConsentVersion` es anterior
+ * a la vigente (o ilegible/ausente: fail-closed) pasa a `none`. No mira la política ni borra datos: solo bloquea nuevas
+ * subidas y la lectura del profesor hasta reconsentir. `revoked` y `parental_pending` no se tocan.
+ */
+export function reevaluatedRecording(doc: Record<string, unknown>, currentRecordingVersion: number): "none" | null {
+  if (doc.recordingConsent !== "granted") return null;
+  const v = doc.recordingConsentVersion;
+  if (typeof v === "number" && v >= currentRecordingVersion) return null;
+  return "none";
+}
+
+/**
  * Reevalúa el consentimiento de `uid` contra la versión vigente (decide el documento, no el claim)
  * y deja los claims alineados. No migra datos y no hace nada si el usuario no tiene perfil.
  */
 export async function reevaluateConsent(deps: ReevaluateDeps, uid: string): Promise<void> {
   const current = deps.currentVersion ?? CURRENT_POLICY_VERSION;
+  const currentRecording = deps.currentRecordingVersion ?? RECORDING_CONSENT_VERSION;
   const ref = deps.db.collection(COLLECTIONS.users).doc(uid);
   const { changed, expectedConsentOk } = await deps.db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -37,7 +52,15 @@ export async function reevaluateConsent(deps: ReevaluateDeps, uid: string): Prom
     if (!snap.exists || !doc) return { changed: false, expectedConsentOk: undefined };
     // Borrado en curso: no se reevalúa ni se toca el documento (el claim ya sale falso por `deletion`).
     const next = doc.deletion ? null : reevaluatedStatus(doc, current);
-    if (next) tx.update(ref, { consentStatus: next, updatedAt: FieldValue.serverTimestamp() });
+    const recording = doc.deletion ? null : reevaluatedRecording(doc, currentRecording);
+    if (next || recording) {
+      tx.update(ref, {
+        ...(next ? { consentStatus: next } : {}),
+        // `none` = campo ausente (REQ-PRF-T03).
+        ...(recording ? { recordingConsent: FieldValue.delete() } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
     const finalDoc = next ? { ...doc, consentStatus: next } : doc;
     return { changed: next !== null, expectedConsentOk: claimsFromProfile(finalDoc, current).consentOk };
   });

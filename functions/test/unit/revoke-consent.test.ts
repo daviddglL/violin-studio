@@ -83,11 +83,11 @@ describe("revokeConsentCore", () => {
     });
     expect(writes).toEqual([]);
   });
-  test("el log es exactamente {by, closedEpoch}: sin uid ni PII", async () => {
+  test("el log es exactamente {by, closedEpoch, recordingRevoked}: sin uid ni PII", async () => {
     const { db } = fakeDb({ consentStatus: "granted", policyVersion: 3, consentEpoch: 4, email: "a@b.c" });
     const log = jest.fn();
     await revokeConsentCore(mk(db, fakeAuth(), log), "u1", "self");
-    expect(log.mock.calls).toEqual([["revokeConsent", { by: "self", closedEpoch: 4 }]]);
+    expect(log.mock.calls).toEqual([["revokeConsent", { by: "self", closedEpoch: 4, recordingRevoked: false }]]);
   });
   test("tras el commit sincroniza claims con consentOk=false", async () => {
     const { db } = fakeDb({ role: "student", consentStatus: "granted", policyVersion: 3 });
@@ -108,7 +108,7 @@ describe("revokeConsentCore", () => {
       const log = jest.fn();
       await revokeConsentCore(mk(db, fakeAuth(), log), "u1", "self");
       expect(writes.find((w) => w.op === "create")!.path).toBe("users/u1/consents/revocation_v0_self_e0");
-      expect(log.mock.calls).toEqual([["revokeConsent", { by: "self", closedEpoch: 0, anomaly: "policyVersion" }]]);
+      expect(log.mock.calls).toEqual([["revokeConsent", { by: "self", closedEpoch: 0, recordingRevoked: false, anomaly: "policyVersion" }]]);
     });
   test("W1: si el sync falla tras el commit, el reintento (NO_ACTIVE_CONSENT) cura el claim sin escribir", async () => {
     const { db, writes } = fakeDb({ consentStatus: "granted", policyVersion: 3 });

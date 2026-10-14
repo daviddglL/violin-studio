@@ -6,6 +6,7 @@ import { ErrorReason, fail } from "../common/errors";
 import { CURRENT_POLICY_VERSION } from "../config/identity";
 import { syncClaims } from "../identity/claims";
 import { buildConsentDoc, consentDocId, consentEpochOf, GrantedBy } from "./consent-docs";
+import { writeRecordingRevocation } from "./recording-consent";
 
 export interface RevokeConsentDeps {
   db: Firestore;
@@ -69,7 +70,11 @@ export async function revokeConsentCore(
       consentEpoch: closing + 1,
       updatedAt: FieldValue.serverTimestamp(),
     });
-    return { revoked: true as const, closing, anomaly: !validVersion };
+    // REQ-CON-R03: revocar la política revoca también la grabación, en la MISMA transacción (el borrado efectivo lo
+    // completa la purga a partir de `recordingPurge.pending`).
+    const recordingRevoked = doc.recordingConsent === "granted";
+    if (recordingRevoked) writeRecordingRevocation(tx, userRef, doc, by);
+    return { revoked: true as const, closing, anomaly: !validVersion, recordingRevoked };
   });
 
   if (!outcome.revoked) {
@@ -83,6 +88,6 @@ export async function revokeConsentCore(
   }
 
   await syncClaims(syncDeps, uid);
-  log("revokeConsent", { by, closedEpoch: outcome.closing, ...(outcome.anomaly ? { anomaly: "policyVersion" } : {}) });
+  log("revokeConsent", { by, closedEpoch: outcome.closing, recordingRevoked: outcome.recordingRevoked, ...(outcome.anomaly ? { anomaly: "policyVersion" } : {}) });
   return { consentStatus: "revoked" };
 }
