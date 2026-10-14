@@ -21,11 +21,11 @@ import androidx.navigation.toRoute
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.feature.account.view.WithDeleteAccount
 import com.violinstudio.ui.feature.account.viewmodel.DeleteAccountViewModel
-import com.violinstudio.ui.feature.auth.view.AuthRoute
-import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.assignment.view.AssignmentEditRoute
 import com.violinstudio.ui.feature.assignment.view.StudentAssignmentsRoute
 import com.violinstudio.ui.feature.assignment.view.TeacherAssignmentsRoute
+import com.violinstudio.ui.feature.auth.view.AuthRoute
+import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.consent.view.ConsentSlot
 import com.violinstudio.ui.feature.guardian.view.GuardianWaitSlot
 import com.violinstudio.ui.feature.home.view.HomeNavigation
@@ -171,7 +171,9 @@ private fun SessionGraph(
                             .takeIf { session.profile.role.allows(RedeemCodeDestination::class) },
                         onOpenMyTeacher = { navController.navigate(MyTeacherDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(MyTeacherDestination::class) },
-                        onOpenAssignments = { navController.navigate(AssignmentsDestination) { launchSingleTop = true } }
+                        onOpenAssignments = {
+                            navController.navigate(AssignmentsDestination) { launchSingleTop = true }
+                        }
                             .takeIf { session.profile.role.allows(AssignmentsDestination::class) },
                         onOpenStudents = { navController.navigate(StudentsDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(StudentsDestination::class) },
