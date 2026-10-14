@@ -34,6 +34,19 @@ export function userDoc(overrides: Record<string, unknown> = {}): Record<string,
   };
 }
 
+/** Versión de consentimiento de grabación vigente (espejo de `RECORDING_CONSENT_VERSION` de Functions; paridad en `storage-rules-parity.test.ts`). */
+export const RECORDING_CONSENT_VERSION = 1;
+
+/** Perfil con consentimiento de grabación vigente (`recordingConsent = granted`, época 1). */
+export function recordingUserDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return userDoc({
+    recordingConsent: "granted",
+    recordingConsentVersion: RECORDING_CONSENT_VERSION,
+    recordingConsentEpoch: 1,
+    ...overrides,
+  });
+}
+
 export async function seed(env: RulesTestEnvironment, path: string, data: Record<string, unknown>): Promise<void> {
   await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), path), data);

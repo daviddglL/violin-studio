@@ -1,7 +1,40 @@
 rules_version = '2';
-// Fase 1: todo cerrado.
+// Fase 4b: grabaciones de practica en `users/{uid}/recordings/{id}.m4a` (video llega en 4c). Todo lo demas, cerrado.
+// Reglas multi-servicio: leen `users/{uid}` de Firestore. Tope de la plataforma: 2 `firestore.get/exists` por
+// evaluacion (A20); `storage-recordings.test.ts` lo vigila de forma estatica porque el emulador no lo aplica.
 service firebase.storage {
   match /b/{bucket}/o {
+    function verified() { return request.auth != null && request.auth.token.email_verified == true; }
+    function userDoc(uid) { return firestore.get(/databases/(default)/documents/users/$(uid)).data; }
+    // Doc de usuario activo (consentimiento base vigente, sin borrado en curso) con el consentimiento de grabacion
+    // vigente: `recordingConsent == granted` y version >= RECORDING_CONSENT_VERSION (1; paridad con Functions en
+    // `functions/test/unit/storage-rules-parity.test.ts`).
+    function recordingOk(u) {
+      return u.consentStatus == 'granted' && !('deletion' in u)
+        && u.get('recordingConsent', 'none') == 'granted' && u.get('recordingConsentVersion', 0) >= 1;
+    }
+    function validMeta(m) {
+      return m.keys().hasOnly(['kind', 'durationMs', 'assignmentId', 'sharedWith', 'blurApplied', 'blurPolicyVersion', 'clientVersion'])
+        && m.kind in ['audio', 'video'] && m.durationMs.matches('^[0-9]{1,6}$')
+        && (!('assignmentId' in m) || m.assignmentId.matches('^[A-Za-z0-9-]{1,64}$'))
+        && (!('sharedWith' in m) || m.sharedWith.matches('^[A-Za-z0-9]{1,128}$'));
+    }
+    function validAudio(r) {
+      return r.contentType == 'audio/mp4' && r.size <= 25 * 1024 * 1024 && r.metadata.kind == 'audio';
+    }
+
+    match /users/{uid}/recordings/{file} {
+      // Create-only: `resource == null` es imprescindible (el emulador evalua la sobrescritura como create). 1 acceso a Firestore.
+      allow create: if resource == null && verified() && request.auth.uid == uid && request.auth.token.consentOk == true
+        && file.matches('^[A-Za-z0-9-]{1,64}\\.m4a$')
+        && validMeta(request.resource.metadata)
+        && recordingOk(userDoc(uid))
+        && validAudio(request.resource);
+      // A12: borrar = borrar el doc Firestore; el trigger limpia el objeto. Nadie lista ni actualiza.
+      allow update, delete: if false;
+      allow read: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
