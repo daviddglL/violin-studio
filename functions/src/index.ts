@@ -6,11 +6,12 @@ import * as functionsV1 from "firebase-functions/v1";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { requireVerifiedUser } from "./common/auth-guard";
 import { systemClock } from "./common/clock";
 import { recordingFlags } from "./config/features";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
-import { callableOptions, httpOptions, REGION } from "./config/runtime";
+import { callableOptions, httpOptions, REGION, storageTriggerRegion } from "./config/runtime";
 import { recordConsentHandler } from "./consent/record-consent";
 import { grantRecordingConsentHandler, revokeRecordingConsentHandler } from "./consent/recording-consent";
 import { revokeConsentCore } from "./consent/revoke-consent";
@@ -24,6 +25,7 @@ import { guardianHttpAdapter } from "./guardian/http";
 import { GUARDIAN_EMAIL_PEPPER } from "./guardian/pepper";
 import { requestGuardianConsentHandler } from "./guardian/request";
 import { purgeIdentityHandler } from "./maintenance/purge";
+import { bucketStore, finalizeRecordingHandler } from "./recordings/finalize";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
 import {
@@ -174,5 +176,26 @@ export const purgeIdentity = onSchedule(
   async () => {
     const deps = erasureDeps();
     await purgeIdentityHandler({ db: deps.db, auth: deps.auth, erase: (uid, opts) => eraseUserData(deps, uid, opts) });
+  },
+);
+
+/**
+ * Valida cada objeto subido a `users/{uid}/recordings/` y `users/{uid}/demos/` y crea el doc `ready`/`rejected` (REQ-REC-05/06/14).
+ * Idempotente y con reintentos (entrega al menos una vez): un fallo de Storage/Firestore se relanza; un rechazo no. La region
+ * es la del bucket (spike Q5: `STORAGE_TRIGGER_REGION`). Filtra por prefijo dentro del handler (el trigger recibe todo el bucket).
+ */
+export const finalizeRecording = onObjectFinalized(
+  { region: storageTriggerRegion(), retry: true, maxInstances: 10, timeoutSeconds: 120 },
+  async (event) => {
+    const app = admin();
+    await finalizeRecordingHandler(
+      {
+        db: getFirestore(app),
+        store: bucketStore(getStorage(app).bucket(event.data.bucket)),
+        clock: systemClock,
+        flags: recordingFlags(),
+      },
+      { name: event.data.name, generation: String(event.data.generation), time: event.time },
+    );
   },
 );

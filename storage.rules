@@ -19,9 +19,15 @@ service firebase.storage {
     // Subida: consentimiento de grabacion vigente + cupo (MAX_RECORDINGS_PER_OWNER = 20, A21). Corte rapido: la
     // autoridad es `finalizeRecording`. `recordingCount` ausente = 0. Mismo `get` del doc de usuario, sin acceso extra.
     // Las demos cuentan contra el cupo del profesor (mismo `recordingCount`).
-    function canUpload(u) { return recordingOk(u) && u.get('recordingCount', 0) < 20; }
+    // Sello de la epoca de CAPTURA (W3 de B4b): el cliente pone en `recordingConsentEpoch` la epoca vigente cuando grabo;
+    // debe ser la vigente al subir (ausente en el doc = 0). Una grabacion de una epoca revocada no sube tras reconceder,
+    // y finalize repite la comparacion (autoridad). Forma canonica validada en `validMeta`.
+    function canUpload(u, m) {
+      return recordingOk(u) && u.get('recordingCount', 0) < 20
+        && int(m.recordingConsentEpoch) == u.get('recordingConsentEpoch', 0);
+    }
     // Demos: ademas, `role == 'teacher'` del DOC (server-only), nunca del claim.
-    function canUploadDemo(u) { return canUpload(u) && u.get('role', '') == 'teacher'; }
+    function canUploadDemo(u, m) { return canUpload(u, m) && u.get('role', '') == 'teacher'; }
     function hasConsent() { return request.auth.token.consentOk == true; }
     function linkDoc(t, s) { return firestore.get(/databases/(default)/documents/teacherLinks/$(t + '_' + s)).data; }
     // El id `t_s` es ambiguo si un uid contiene '_' (Functions `linkId` lo rechaza al crear): se comprueban los campos.
@@ -38,8 +44,9 @@ service firebase.storage {
         && linkMatches(linkDoc(uid, request.auth.uid), uid, request.auth.uid);
     }
     function validMeta(m) {
-      return m.keys().hasOnly(['kind', 'durationMs', 'assignmentId', 'sharedWith', 'blurApplied', 'blurPolicyVersion', 'clientVersion'])
+      return m.keys().hasOnly(['kind', 'durationMs', 'recordingConsentEpoch', 'assignmentId', 'sharedWith', 'blurApplied', 'blurPolicyVersion', 'clientVersion'])
         && m.kind in ['audio', 'video'] && m.durationMs.matches('^[0-9]{1,6}$')
+        && m.recordingConsentEpoch.matches('^(0|[1-9][0-9]{0,8})$')
         && (!('assignmentId' in m) || m.assignmentId.matches('^[A-Za-z0-9-]{1,64}$'))
         && (!('sharedWith' in m) || m.sharedWith.matches('^[A-Za-z0-9]{1,128}$'));
     }
@@ -57,7 +64,7 @@ service firebase.storage {
       // Sin `sharedWith`: lo compartido es una demo y va a `demos/` (rutas disjuntas, C1).
       allow create: if resource == null && ownerCreate(uid, file)
         && !('sharedWith' in request.resource.metadata)
-        && canUpload(userDoc(uid))
+        && canUpload(userDoc(uid), request.resource.metadata)
         && validAudio(request.resource);
       // A12: borrar = borrar el doc Firestore; el trigger limpia el objeto. Nadie lista ni actualiza.
       allow update, delete: if false;
@@ -72,7 +79,7 @@ service firebase.storage {
     match /users/{uid}/demos/{file} {
       allow create: if resource == null && ownerCreate(uid, file)
         && 'sharedWith' in request.resource.metadata && 'assignmentId' in request.resource.metadata
-        && canUploadDemo(userDoc(uid))
+        && canUploadDemo(userDoc(uid), request.resource.metadata)
         && validAudio(request.resource);
       allow update, delete: if false;
       allow list: if false;
