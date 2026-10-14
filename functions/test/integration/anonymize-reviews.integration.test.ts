@@ -2,11 +2,14 @@ import { Firestore, Timestamp } from "firebase-admin/firestore";
 import { anonymizeReviews } from "../../src/recordings/anonymize-reviews";
 import { db, recRef, rnd, wipeFirestore } from "./helpers/finalize-fixtures";
 
-const review = (student: string, rec: string, reviewer: string, over: Record<string, unknown> = {}) =>
-  recRef(student, rec)
+/** Revision del profesor sobre una grabacion del alumno; por defecto con su doc de grabacion padre (W2). */
+const review = async (student: string, rec: string, reviewer: string, over: Record<string, unknown> = {}, opts: { parent?: boolean } = {}) => {
+  if (opts.parent !== false) await recRef(student, rec).set({ kind: "audio", status: "ready" }, { merge: true });
+  await recRef(student, rec)
     .collection("reviews")
     .doc(reviewer)
     .set({ reviewerUid: reviewer, verdict: "needs_work", text: `texto de ${rec}`, createdAt: Timestamp.fromMillis(1000), updatedAt: Timestamp.fromMillis(2000), ...over });
+};
 const reviewsOf = async (student: string, rec: string) => (await recRef(student, rec).collection("reviews").get()).docs;
 const allReviews = async () => (await db.collectionGroup("reviews").get()).docs;
 
@@ -54,11 +57,38 @@ describe("anonymizeReviews (REQ-RVW-04)", () => {
     expect(docs.find((d) => d.id === other)?.data().reviewerUid).toBe(other);
   });
 
-  test("revision sin doc de grabacion padre tambien se anonimiza", async () => {
+  test("W2: revision sin doc de grabacion padre: se borra (no se resucita como huerfana anonimizada)", async () => {
     const t = rnd("t");
-    await review(rnd("s"), "fantasma", t);
-    expect(await anonymizeReviews(db, t)).toBe(1);
-    expect((await allReviews())[0].data().reviewerUid).toBeNull();
+    await review(rnd("s"), "fantasma", t, {}, { parent: false });
+    let deleted = 0;
+    expect(await anonymizeReviews(db, t, { onDeleted: (n) => (deleted += n) })).toBe(0);
+    expect(deleted).toBe(1);
+    expect(await allReviews()).toHaveLength(0);
+  });
+
+  test("W2: carrera, el doc padre se borra entre la consulta y la transaccion -> no queda ninguna revision", async () => {
+    const t = rnd("t");
+    const s = rnd("s");
+    await review(s, "r1", t);
+    let raced = false;
+    const racing = new Proxy(db, {
+      get(target, prop) {
+        if (prop === "runTransaction") {
+          return async (...a: unknown[]) => {
+            if (!raced) {
+              raced = true;
+              await recRef(s, "r1").delete();
+            }
+            return (target.runTransaction as (...x: unknown[]) => unknown).apply(target, a);
+          };
+        }
+        const v = Reflect.get(target, prop, target);
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+    }) as Firestore;
+    let deleted = 0;
+    expect(await anonymizeReviews(racing, t, { onDeleted: (n) => (deleted += n) })).toBe(0);
+    expect(await allReviews()).toHaveLength(0);
   });
 
   test("reintento tras un fallo transitorio a mitad: termina sin duplicar ni perder revisiones", async () => {

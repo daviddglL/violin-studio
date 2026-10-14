@@ -160,3 +160,41 @@ describe("W1: precondición de solicitud del tutor (dentro de la transacción)",
     expect(writes).toEqual([]);
   });
 });
+
+describe("W1 (revision fresca B5b): la revocacion nunca pierde la purga inmediata", () => {
+  const conGrabacion = { consentStatus: "granted", policyVersion: 3, recordingConsent: "granted", recordingConsentVersion: 1 };
+  const withPurge = (db: unknown, auth: unknown, purgeRecordings: (uid: string) => Promise<unknown>) =>
+    ({ db, auth, currentVersion: 3, log: () => undefined, purgeRecordings }) as never;
+
+  test("syncClaims falla tras el commit: la purga corre igual (antes de propagar el error)", async () => {
+    const { db } = fakeDb(conGrabacion);
+    const purge = jest.fn(async () => undefined);
+    await expect(revokeConsentCore(withPurge(db, fakeAuth({}, 1), purge), "u1", "self")).rejects.toThrow("auth caído");
+    expect(purge).toHaveBeenCalledWith("u1");
+  });
+
+  test("reintento (NO_ACTIVE_CONSENT) con recordingPurge.pending: reanuda la purga y sigue rechazando", async () => {
+    const { db } = fakeDb(conGrabacion);
+    const failing = jest.fn(async () => {
+      throw new Error("x");
+    });
+    await expect(revokeConsentCore(withPurge(db, fakeAuth({}, 1), failing), "u1", "self")).rejects.toThrow("auth caído");
+    const resume = jest.fn(async () => undefined);
+    const e = await captura(revokeConsentCore(withPurge(db, fakeAuth(), resume), "u1", "self"));
+    expect(e).toMatchObject({ code: "failed-precondition", details: { reason: "NO_ACTIVE_CONSENT" } });
+    expect(resume).toHaveBeenCalledWith("u1");
+  });
+
+  test("reintento sin purga pendiente: no se lanza la purga", async () => {
+    const { db } = fakeDb({ consentStatus: "revoked", policyVersion: 3, recordingPurge: { pending: false } });
+    const purge = jest.fn(async () => undefined);
+    await captura(revokeConsentCore(withPurge(db, fakeAuth(), purge), "u1", "self"));
+    expect(purge).not.toHaveBeenCalled();
+  });
+
+  test("un fallo de la purga en el reintento no cambia el rechazo", async () => {
+    const { db } = fakeDb({ consentStatus: "revoked", policyVersion: 3, recordingPurge: { pending: true, epoch: 0 } });
+    const e = await captura(revokeConsentCore(withPurge(db, fakeAuth(), async () => { throw new Error("y"); }), "u1", "self"));
+    expect(e).toMatchObject({ code: "failed-precondition", details: { reason: "NO_ACTIVE_CONSENT" } });
+  });
+});

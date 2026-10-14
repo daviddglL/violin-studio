@@ -5,7 +5,7 @@ import { grantRecordingConsentHandler, revokeRecordingByGuardian, revokeRecordin
 import { revokeConsentCore } from "../../src/consent/revoke-consent";
 import { finalizeRecordingHandler } from "../../src/recordings/finalize";
 import { bucketSweepStore } from "../../src/recordings/orphan-sweep";
-import { purgeRevokedRecordings } from "../../src/recordings/revoke-purge";
+import { budgetedPurgeHook, purgeRevokedRecordings } from "../../src/recordings/revoke-purge";
 import { bucket, db, exists, idOf, NOW, recDoc, reviewCount, rnd, seedRecording, seedReview, seedUser, upload, userDoc, wipeFirestore } from "./helpers/finalize-fixtures";
 
 const auth = getAuth(getApps()[0]);
@@ -129,5 +129,37 @@ describe("las otras vias de revocacion tambien purgan", () => {
     expect(await recDoc(uid, id)).toBeDefined();
     await purge(uid);
     expect(await exists(ev.name)).toBe(false);
+  });
+});
+
+describe("revision fresca B5b", () => {
+  test("W1: revokeConsentCore con syncClaims caido (sin cuenta Auth) purga igual y el reintento reanuda lo pendiente", async () => {
+    const uid = rnd("u");
+    await seedUser(uid, { recordingConsentVersion: V, consentStatus: "granted", policyVersion: 2 }); // sin auth.createUser: syncClaims falla
+    const ev = await upload(uid);
+    const id = await seedRecording(uid, ev);
+    const failing = async () => {
+      throw Object.assign(new Error("x"), { code: 503 });
+    };
+    await expect(revokeConsentCore({ db, auth, log, currentVersion: 2, purgeRecordings: failing }, uid, "self")).rejects.toBeDefined();
+    expect((await userDoc(uid))?.recordingPurge.pending).toBe(true);
+    await expect(revokeConsentCore({ db, auth, log, currentVersion: 2, purgeRecordings: purge }, uid, "self")).rejects.toMatchObject({ details: { reason: "NO_ACTIVE_CONSENT" } });
+    expect(await recDoc(uid, id)).toBeUndefined();
+    expect(await exists(ev.name)).toBe(false);
+    expect((await userDoc(uid))?.recordingPurge.pending).toBe(false);
+  });
+
+  test("S4: la purga del callable tiene presupuesto: al agotarse la revocacion devuelve normal, consta y queda pending", async () => {
+    const { uid } = await conGrabaciones();
+    for (let i = 0; i < 3; i++) await seedRecording(uid, await upload(uid));
+    let t = 0;
+    const hook = budgetedPurgeHook({ db, store, log }, { budgetMs: 1500, nowMs: () => (t += 1000) });
+    await expect(revokeRecordingConsentHandler({ db, log, purgeRecordings: hook }, uid)).resolves.toEqual({ recordingConsent: "revoked" });
+    const p = await userDoc(uid);
+    expect(p?.recordingConsent).toBe("revoked");
+    expect(p?.recordingPurge.pending).toBe(true);
+    expect((await db.collection("users").doc(uid).collection("recordings").get()).size).toBeGreaterThan(0);
+    await purge(uid); // la purga diaria (o la llamada repetida) la completa
+    expect((await userDoc(uid))?.recordingPurge.pending).toBe(false);
   });
 });

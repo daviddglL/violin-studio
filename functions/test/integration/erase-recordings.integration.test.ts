@@ -152,7 +152,10 @@ describe("borrar un profesor (REQ-DEL-T02, REQ-RVW-04)", () => {
     for (const [s, id] of [[s1, r1Id], [s2, r2Id]] as const) await seedReview(s, id, t);
     await recRef(s1, r1Id).collection("reviews").doc(t).update({ text: "TextoDelProfe", verdict: "approved" });
 
-    await eraseUserData(deps(), t, { deleteAuth: true });
+    const res = await eraseUserData(deps(), t, { deleteAuth: true });
+    // S6 (revision fresca B5b): las revisiones anonimizadas se cuentan como `anonymized`, no como borradas.
+    expect(res.anonymized).toEqual({ reviews: 2 });
+    expect(res.deleted.reviews).toBe(0);
 
     const reviews = (await db.collectionGroup("reviews").get()).docs;
     expect(reviews).toHaveLength(2);

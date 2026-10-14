@@ -1,7 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { readCursor, writeCursor } from "../../src/recordings/cursor";
 import { bucketSweepStore, SweepStore } from "../../src/recordings/orphan-sweep";
-import { purgeRecordingsHandler } from "../../src/recordings/purge";
+import { purgeRecordingsHandler, STUCK_PURGE_AFTER_MS } from "../../src/recordings/purge";
 import { bucket, db, DAY, exists, idOf, NOW, recDoc, recRef, reviewCount, rnd, seedRecording, seedReview, seedUser, upload, userDoc, wipeFirestore } from "./helpers/finalize-fixtures";
 
 const MIN = 60_000;
@@ -295,6 +295,57 @@ describe("paso 2: revocaciones pendientes (REQ-REC-09, B5b.3)", () => {
     const seen: string[] = [];
     await purgeRecordingsHandler(deps({ reconcileOwner: async (_d: unknown, x: string) => (seen.push(x), "ok" as const) }), NOW);
     expect(seen).not.toContain(u);
+  });
+});
+
+describe("revision fresca B5b: W4/W5 del paso 2", () => {
+  const pendingSince = (uid: string, since: Timestamp) =>
+    seedUser(uid, { recordingConsent: "revoked", recordingConsentEpoch: 1, recordingPurge: { pending: true, since, epoch: 0 } });
+  const recE = (uid: string) => rec(uid, +DAY, { recordingConsentEpoch: 0 });
+
+  test("W4: purga pendiente que sigue fallando con since de hace mas de STUCK_PURGE_AFTER_MS -> revokePurge.stuck a ERROR, sin uid", async () => {
+    expect(STUCK_PURGE_AFTER_MS).toBe(3 * DAY);
+    const [old, fresh] = [rnd("a"), rnd("b")];
+    await pendingSince(old, at(-STUCK_PURGE_AFTER_MS - MIN));
+    await pendingSince(fresh, at(-STUCK_PURGE_AFTER_MS + MIN));
+    const ro = await recE(old);
+    const rf = await recE(fresh);
+    const failing: SweepStore = { ...store, remove: async (n, g) => (n === ro.ev.name || n === rf.ev.name ? Promise.reject(Object.assign(new Error("x"), { code: 503 })) : store.remove(n, g)) };
+    const errors: { message: string; data: Record<string, unknown> }[] = [];
+    const s = await purgeRecordingsHandler(deps({ store: failing, reconcile: false, error: (message: string, data: Record<string, unknown>) => void errors.push({ message, data }) }), NOW);
+    expect(s.revocations.incomplete).toBe(2);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ message: "revokePurge.stuck", data: { uidHash: expect.any(String) } });
+    expect(errors[0].data.ageDays).toBeGreaterThanOrEqual(3);
+    const text = JSON.stringify(errors);
+    for (const secret of [old, fresh, ro.ev.name]) expect(text).not.toContain(secret);
+  });
+
+  test("W4: una purga antigua que se completa hoy no se marca como atascada", async () => {
+    const u = rnd("a");
+    await pendingSince(u, at(-10 * DAY));
+    await recE(u);
+    const errors: string[] = [];
+    const s = await purgeRecordingsHandler(deps({ reconcile: false, error: (m: string) => void errors.push(m) }), NOW);
+    expect(s.revocations.completed).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
+  test("W5: las revocaciones pendientes van ANTES que la caducidad: un atasco de caducadas que agota el presupuesto no las deja sin hacer", async () => {
+    const owner = rnd("o");
+    await seedUser(owner);
+    for (let i = 0; i < 6; i++) await rec(owner, -MIN * (i + 1));
+    const u = rnd("u");
+    await pendingSince(u, at(-DAY));
+    const r = await recE(u);
+    let t = 0;
+    // El reloj solo avanza al borrar caducadas: el paso de caducidad agota el presupuesto por si solo.
+    const s = await purgeRecordingsHandler(deps({ reconcile: false, budgetMs: 2500, nowMs: () => t, beforeDelete: async () => void (t += 1000) }), NOW);
+    expect(s.budgetExhausted).toBe(true);
+    expect(s.expired.deleted).toBeLessThan(6);
+    expect(s.revocations.completed).toBe(1);
+    expect((await userDoc(u))?.recordingPurge.pending).toBe(false);
+    expect(await recDoc(u, r.id)).toBeUndefined();
   });
 });
 

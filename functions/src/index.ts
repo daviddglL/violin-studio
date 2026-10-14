@@ -28,7 +28,7 @@ import { purgeIdentityHandler } from "./maintenance/purge";
 import { bucketStore, finalizeRecordingHandler } from "./recordings/finalize";
 import { onRecordingDeletedHandler } from "./recordings/on-deleted";
 import { bucketSweepStore, sweepOrphansHandler } from "./recordings/orphan-sweep";
-import { purgeRevokedRecordings } from "./recordings/revoke-purge";
+import { budgetedPurgeHook } from "./recordings/revoke-purge";
 import { purgeRecordingsHandler } from "./recordings/purge";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
@@ -58,7 +58,8 @@ const purgeRecordingsHook = (): PurgeRecordingsHook => {
   const app = admin();
   const db = getFirestore(app);
   const store = bucketSweepStore(getStorage(app).bucket(resolveBucketName(app.options)));
-  return (uid) => purgeRevokedRecordings({ db, store }, uid);
+  // S4: con presupuesto (~45 s): al agotarse la revocacion devuelve normal y la purga diaria completa lo pendiente.
+  return budgetedPurgeHook({ db, store });
 };
 
 export const health = onCall(callableOptions(), () => ({ status: "ok", version: VERSION }));

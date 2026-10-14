@@ -245,3 +245,65 @@ test("el store de objetos no se usa para listar fuera de users/{uid}/{recordings
   await purgeRevokedRecordings(deps({ store: spy }), u);
   expect(prefixes.sort()).toEqual([`users/${u}/demos/`, `users/${u}/recordings/`]);
 });
+
+describe("revision fresca B5b: S1/S2", () => {
+  test("S1: un doc `skipped` (cambio entre la lectura y el borrado) deja la purga incompleta y pending; el reintento la completa", async () => {
+    const u = rnd("u");
+    await revoked(u, 0);
+    const r = await rec(u, 0);
+    let touched = false;
+    const touching: SweepStore = {
+      ...store,
+      remove: async (n, g) => {
+        if (!touched && n === r.ev.name) {
+          touched = true;
+          await recRef(u, r.id).update({ touchedAt: Timestamp.now() }); // el doc cambia: ref.delete({lastUpdateTime}) falla
+        }
+        return store.remove(n, g);
+      },
+    };
+    const first = await purgeRevokedRecordings(deps({ store: touching }), u);
+    expect(first.outcome).toBe("incomplete");
+    expect(first.skipped).toBe(1);
+    expect((await userDoc(u))?.recordingPurge.pending).toBe(true);
+    expect(await recDoc(u, r.id)).toBeDefined();
+    const again = await purgeRevokedRecordings(deps(), u);
+    expect(again.outcome).toBe("completed");
+    expect(await recDoc(u, r.id)).toBeUndefined();
+  });
+
+  test("S1: el barrido solo respeta objetos de un doc `ready` con la misma objectPath+generation (el de un `rejected` cae)", async () => {
+    const u = rnd("u");
+    await revoked(u, 0);
+    // doc de epoca posterior (fuera de la cota del paso 1) pero `rejected`: su objeto no lo protege
+    const rej = await rec(u, 1, { status: "rejected", rejectReason: "quota" });
+    const ok = await rec(u, 1); // `ready` de epoca posterior: sobrevive con su objeto
+    const r = await purgeRevokedRecordings(deps(), u);
+    expect(r.outcome).toBe("completed");
+    expect(await exists(rej.ev.name)).toBe(false);
+    expect(await recDoc(u, rej.id)).toBeDefined(); // el doc fuera de la cota no se toca
+    expect(await exists(ok.ev.name)).toBe(true);
+  });
+
+  test("S2: docs por encima de la cota de epoca se conservan y se avisa (warn) de la anomalia sin uid ni ids", async () => {
+    const u = rnd("u");
+    await revoked(u, 0);
+    const above = await rec(u, 1);
+    const warns: { message: string; data: Record<string, unknown> }[] = [];
+    const r = await purgeRevokedRecordings(deps({ warn: (message: string, data: Record<string, unknown>) => void warns.push({ message, data }) }), u);
+    expect(r.outcome).toBe("completed");
+    expect(await recDoc(u, above.id)).toBeDefined();
+    expect(warns).toEqual([{ message: "revokePurge.anomaly", data: expect.objectContaining({ anomaly: "epoch_above_bound", count: 1, uidHash: expect.any(String) }) }]);
+    const text = JSON.stringify(warns);
+    for (const secret of [u, above.id, above.ev.name]) expect(text).not.toContain(secret);
+  });
+
+  test("S2: sin docs por encima de la cota no hay aviso", async () => {
+    const u = rnd("u");
+    await revoked(u, 0);
+    await rec(u, 0);
+    const warns: string[] = [];
+    await purgeRevokedRecordings(deps({ warn: (m: string) => void warns.push(m) }), u);
+    expect(warns).toEqual([]);
+  });
+});

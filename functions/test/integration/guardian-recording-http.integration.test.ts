@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { RECORDING_CONSENT_VERSION } from "../../src/config/identity";
-import { grantRecordingConsentHandler, revokeRecordingConsentHandler } from "../../src/consent/recording-consent";
+import { grantRecordingConsentHandler, revokeRecordingByGuardian, revokeRecordingConsentHandler } from "../../src/consent/recording-consent";
 import { guardianConsentHandler } from "../../src/guardian/confirm";
 import { hmacEmail } from "../../src/common/hashing";
 import { renderInvalidPage, renderRetryPage } from "../../src/guardian/page";
@@ -298,6 +298,18 @@ describe("revocación del tutor para la finalidad de grabación", () => {
     expect(res.status).toBe(200);
     expect(purged).toEqual([s.uid]);
     expect((await perfil(s.uid)).recordingConsent).toBe("revoked");
+  });
+
+  test("W1 (revision fresca B5b): revocacion ya guardada pero respuesta perdida (503) -> el reintento del tutor reanuda la purga pendiente", async () => {
+    const s = await granted();
+    await revokeRecordingByGuardian({ db, log: () => undefined, purgeRecordings: async () => { throw new Error("x"); } }, s.uid, s.r);
+    expect((await perfil(s.uid)).recordingPurge.pending).toBe(true);
+    const purged: string[] = [];
+    await guardianConsentHandler(
+      { ...deps(), purgeRecordings: async (uid: string) => void purged.push(uid) },
+      { method: "POST", query: {}, body: { r: s.r, t: s.rev, action: "revoke" } },
+    );
+    expect(purged).toEqual([s.uid]);
   });
 
   test("W1: la revocación del tutor sigue funcionando tras una concesión del tutor sin intermedios", async () => {

@@ -29,17 +29,19 @@ export async function deleteInBatches(db: Firestore, query: Query, onDeleted: (n
 /**
  * Paso `shared`: documentos de subcolecciones AJENAS que llevan el uid (p. ej. las tareas de un profesor en el
  * espacio de cada alumno). Se barren con `collectionGroup(name).where(field, '==', uid)` en lotes hasta vaciar;
- * requiere el indice COLLECTION_GROUP del campo. Los contadores acumulan por coleccion.
+ * requiere el indice COLLECTION_GROUP del campo. Los contadores acumulan por coleccion (`anonymized` aparte de `deleted`).
  */
 export async function sweepShared(
   deps: { db: Firestore; store: ObjectStore; log?: (message: string, data: Record<string, unknown>) => void },
   uid: string,
   deleted: Record<string, number>,
+  anonymized: Record<string, number> = {},
 ): Promise<void> {
   const { db } = deps;
   for (const [name, policy] of Object.entries(ERASABLE_COLLECTIONS)) {
     if (policy.kind !== "subcollectionOf" || !policy.foreign) continue;
     deleted[name] ??= 0;
+    if (policy.foreign.action === "anonymize") anonymized[name] ??= 0;
     const query = db.collectionGroup(name).where(policy.foreign.field, "==", uid);
     switch (policy.foreign.action) {
       case "delete":
@@ -49,7 +51,8 @@ export async function sweepShared(
         await deleteRecordingsInBatches(deps, query, (n) => (deleted[name] += n));
         break;
       case "anonymize":
-        await anonymizeReviews(db, uid, { onProgress: (n) => (deleted[name] += n) });
+        // S6: las anonimizadas no se cuentan como borradas; las huerfanas sin grabacion padre si se borran (W2).
+        await anonymizeReviews(db, uid, { onProgress: (n) => (anonymized[name] += n), onDeleted: (n) => (deleted[name] += n) });
         break;
     }
   }

@@ -394,3 +394,34 @@ describe("revisión 3c-bis", () => {
     expect(p.consentStatus).toBe("revoked");
   });
 });
+
+describe("W1 (revision fresca B5b): la revocacion del tutor no pierde la purga de grabaciones", () => {
+  test("503 tras el commit (syncClaims caido) con la purga fallida: el reintento con el mismo enlace reanuda la purga pendiente", async () => {
+    const s = await accepted();
+    await db.collection("users").doc(s.uid).update({ recordingConsent: "granted", recordingConsentVersion: 1 });
+    const flaky = async (d: Parameters<typeof revokeConsentCore>[0], uid: string, by: "self" | "guardian", opts?: { expectGuardianRequestId?: string }) => {
+      await revokeConsentCore({ ...d, purgeRecordings: async () => { throw new Error("purga caida"); } }, uid, by, opts);
+      throw unavailable(); // p. ej. syncClaims caido justo despues del commit
+    };
+    const first = await withRevoke(flaky, { r: s.r, t: s.rev, action: "revoke" });
+    expect(first.status).toBe(503);
+    expect((await perfil(s.uid)).recordingPurge.pending).toBe(true);
+    const purged: string[] = [];
+    await guardianConsentHandler(
+      { ...deps(), purgeRecordings: async (uid: string) => void purged.push(uid) },
+      { method: "POST", query: {}, body: { r: s.r, t: s.rev, action: "revoke" } },
+    );
+    expect(purged).toEqual([s.uid]);
+  });
+
+  test("token erroneo: nunca reanuda la purga (solo quien demuestra el enlace)", async () => {
+    const s = await accepted();
+    await db.collection("users").doc(s.uid).update({ consentStatus: "revoked", recordingConsent: "revoked", recordingPurge: { pending: true, epoch: 0 } });
+    const purged: string[] = [];
+    await guardianConsentHandler(
+      { ...deps(), purgeRecordings: async (uid: string) => void purged.push(uid) },
+      { method: "POST", query: {}, body: { r: s.r, t: "mal", action: "revoke" } },
+    );
+    expect(purged).toEqual([]);
+  });
+});

@@ -28,6 +28,8 @@ export interface ErasureDeps {
 export interface ErasureResult {
   /** Documentos borrados por colección de consulta (contadores, sin identificadores). */
   deleted: Record<string, number>;
+  /** Documentos ajenos ANONIMIZADOS (no borrados) por coleccion, p. ej. las revisiones del profesor (S6). */
+  anonymized: Record<string, number>;
 }
 
 const codeOf = (e: unknown): unknown => (e as { code?: unknown } | null)?.code;
@@ -142,7 +144,8 @@ export async function eraseUserData(
   await step("collections", sweepCollections);
 
   // 2b. Documentos propios en espacios ajenos (tareas de un profesor en los alumnos): `collectionGroup`.
-  const sweepForeign = () => sweepShared({ db, store: deps.store, log: deps.log }, uid, deleted);
+  const anonymized: Record<string, number> = {};
+  const sweepForeign = () => sweepShared({ db, store: deps.store, log: deps.log }, uid, deleted, anonymized);
   await step("shared", sweepForeign);
 
   // 3. Storage.
@@ -169,6 +172,6 @@ export async function eraseUserData(
     await step("finalUserDoc", sweepUserDoc);
   }
 
-  log("erasure.done", { deleteAuth: opts.deleteAuth, ...deleted });
-  return { deleted };
+  log("erasure.done", { deleteAuth: opts.deleteAuth, ...deleted, anonymized });
+  return { deleted, anonymized };
 }

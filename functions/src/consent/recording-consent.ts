@@ -29,7 +29,8 @@ function purgeOf(doc: Record<string, unknown>): Record<string, unknown> | undefi
   return typeof p === "object" && p !== null ? (p as Record<string, unknown>) : undefined;
 }
 
-function isPurgePending(doc: Record<string, unknown>): boolean {
+/** `recordingPurge.pending === true`: una revocacion de grabacion cuyo borrado efectivo aun no termino. */
+export function isPurgePending(doc: Record<string, unknown>): boolean {
   return purgeOf(doc)?.pending === true;
 }
 
