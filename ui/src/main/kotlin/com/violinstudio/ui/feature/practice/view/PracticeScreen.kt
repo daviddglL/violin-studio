@@ -3,6 +3,7 @@ package com.violinstudio.ui.feature.practice.view
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -241,6 +242,31 @@ private fun SessionControls(state: PracticeState, onIntent: (PracticeIntent) -> 
 
 @Composable
 private fun SessionRow(session: PracticeSession, zone: ZoneId, onEdit: () -> Unit, onDelete: () -> Unit) {
+    SessionItem(session, zone) { date ->
+        val editDescription = stringResource(R.string.practice_edit_named, date)
+        val deleteDescription = stringResource(R.string.practice_delete_named, date)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = onEdit,
+                modifier = Modifier.heightIn(min = minTarget).semantics { contentDescription = editDescription }
+                    .testTag(practiceItemEditTag(session.id))
+            ) { Text(stringResource(R.string.practice_edit)) }
+            OutlinedButton(
+                onClick = onDelete,
+                modifier = Modifier.heightIn(min = minTarget).semantics { contentDescription = deleteDescription }
+                    .testTag(practiceItemDeleteTag(session.id))
+            ) { Text(stringResource(R.string.practice_delete)) }
+        }
+    }
+}
+
+/** Sesión del historial sin acciones: la reutiliza la vista de solo lectura del profesor (REQ-TVW-04). */
+@Composable
+internal fun SessionItem(
+    session: PracticeSession,
+    zone: ZoneId,
+    actions: @Composable ColumnScope.(date: String) -> Unit = {}
+) {
     val resources = LocalContext.current.resources
     val date = formatPracticeDate(session.startedAt, LocalConfiguration.current.locales[0], zone)
     Column(
@@ -258,20 +284,7 @@ private fun SessionRow(session: PracticeSession, zone: ZoneId, onEdit: () -> Uni
                 modifier = Modifier.testTag(practiceItemPendingTag(session.id))
             )
         }
-        val editDescription = stringResource(R.string.practice_edit_named, date)
-        val deleteDescription = stringResource(R.string.practice_delete_named, date)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = onEdit,
-                modifier = Modifier.heightIn(min = minTarget).semantics { contentDescription = editDescription }
-                    .testTag(practiceItemEditTag(session.id))
-            ) { Text(stringResource(R.string.practice_edit)) }
-            OutlinedButton(
-                onClick = onDelete,
-                modifier = Modifier.heightIn(min = minTarget).semantics { contentDescription = deleteDescription }
-                    .testTag(practiceItemDeleteTag(session.id))
-            ) { Text(stringResource(R.string.practice_delete)) }
-        }
+        actions(date)
     }
 }
 

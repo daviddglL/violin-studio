@@ -2,11 +2,13 @@ package com.violinstudio.ui.feature.link.view
 
 import android.app.Application
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -77,6 +79,21 @@ class LinkScreensTest {
         showRedeem(RedeemCodeState(code = "ABCD2345", accepted = true, error = RedeemError.RateLimited(7)))
         compose.onNodeWithTag(REDEEM_ERROR_TAG).performScrollTo()
             .assertTextContains(context.getString(R.string.link_error_rate_limited, 7))
+    }
+
+    @Test
+    fun `el alumno vinculado ve el aviso de lo que ve su profesor junto a su nombre`() {
+        showTeacher(MyTeacherState(isLoading = false, teacher = link))
+        compose.onNodeWithTag(MY_TEACHER_NAME_TAG).assertTextContains("Marta", substring = true)
+        compose.onNodeWithTag(MY_TEACHER_SEES_TAG).performScrollTo().assertIsDisplayed()
+            .assertTextContains(context.getString(R.string.link_my_teacher_sees))
+        compose.onNodeWithTag(MY_TEACHER_UNLINK_TAG).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `sin profesor no hay aviso`() {
+        showTeacher(MyTeacherState(isLoading = false, teacher = null))
+        compose.onAllNodesWithTag(MY_TEACHER_SEES_TAG).assertCountEquals(0)
     }
 
     @Test

@@ -54,6 +54,13 @@ data object MyTeacherDestination
 @Serializable
 data object StudentsDestination
 
+/** Registro de solo lectura de un alumno vinculado ([studentUid]): solo `teacher`. */
+@Serializable
+data class StudentDetailDestination(val studentUid: String) {
+    // El uid del alumno no debe acabar en logs ni volcados de la pila.
+    override fun toString(): String = "StudentDetailDestination"
+}
+
 /** Códigos de vínculo del profesor: solo `teacher`. */
 @Serializable
 data object TeacherCodesDestination
@@ -68,6 +75,7 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         RedeemCodeDestination::class,
         MyTeacherDestination::class,
         StudentsDestination::class,
+        StudentDetailDestination::class,
         TeacherCodesDestination::class
     )
 
@@ -76,6 +84,7 @@ private val ROLE_ROUTES: Map<kotlin.reflect.KClass<*>, Set<Role>> = mapOf(
     RedeemCodeDestination::class to setOf(Role.INDEPENDENT),
     MyTeacherDestination::class to setOf(Role.STUDENT),
     StudentsDestination::class to setOf(Role.TEACHER),
+    StudentDetailDestination::class to setOf(Role.TEACHER),
     TeacherCodesDestination::class to setOf(Role.TEACHER)
 )
 

@@ -226,6 +226,7 @@ class TeacherCodesViewModelTest {
         runCurrent()
         assertEquals(fresh, vm.state.value.created)
     }
+
     @Test
     fun `cerrar sin copiar no toca el portapapeles`() = runTest {
         viewModel().testMvi {
