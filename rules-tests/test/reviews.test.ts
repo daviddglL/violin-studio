@@ -114,6 +114,10 @@ describe("create (REQ-SEC-R02, REQ-RVW-02)", () => {
     await seed(env, "users/alice", Object.fromEntries(Object.entries(recordingUserDoc({ role: "student", recordingConsent: v })).filter(([, x]) => x !== undefined)));
     await assertFails(setDoc(doc(tea(), MINE), valid()));
   });
+  test.each([["cero", 0], ["ausente", undefined]])("denegado: recordingConsentVersion %s aunque el consentimiento sea granted", async (_, v) => {
+    await seed(env, "users/alice", Object.fromEntries(Object.entries(recordingUserDoc({ role: "student", recordingConsentVersion: v })).filter(([, x]) => x !== undefined)));
+    await assertFails(setDoc(doc(tea(), MINE), valid()));
+  });
   test("denegado: alumno dueño, otro alumno y anonimo", async () => {
     await seed(env, "users/bob", recordingUserDoc({ role: "student" }));
     await assertFails(setDoc(doc(alice(), `${REV}/alice`), valid({ reviewerUid: "alice" })));

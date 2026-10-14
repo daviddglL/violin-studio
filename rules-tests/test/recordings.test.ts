@@ -150,6 +150,10 @@ describe("demostracion del profesor (sharedWith, REQ-REC-07)", () => {
     await assertFails(getDoc(doc(alice(), "users/tea/recordings/privada")));
     await assertFails(getDocs(collection(alice(), "users/tea/recordings")));
   });
+  test("lista del destinatario solo con sharedWith (sin status) o solo con status ready (sin sharedWith), denegada", async () => {
+    await assertFails(getDocs(query(collection(alice(), "users/tea/recordings"), where("sharedWith", "==", "alice"))));
+    await assertFails(getDocs(query(collection(alice(), "users/tea/recordings"), where("status", "==", "ready"))));
+  });
   test("el profesor (dueño) la lee y la borra; el alumno no la borra ni escribe", async () => {
     await assertSucceeds(getDoc(doc(tea(), D)));
     await assertFails(deleteDoc(doc(alice(), D)));
