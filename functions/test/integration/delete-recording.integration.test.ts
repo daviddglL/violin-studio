@@ -144,3 +144,12 @@ test("un doc nuevo creado con el mismo id justo tras el borrado NO cae con la ca
   expect(await recDoc(uid, id)).toMatchObject({ generation: next.generation });
   expect(await reviewCount(uid, id)).toBe(0);
 });
+
+test("objectPath de OTRO id del mismo dueno: el doc se borra y ese objeto NO (revision fresca de B5a)", async () => {
+  const uid = rnd("s");
+  const ev = await upload(uid);
+  const other = await upload(uid);
+  const id = await seedRecording(uid, ev, { objectPath: other.name, generation: other.generation });
+  expect(await deleteRecording(deps(), recRef(uid, id))).toBe("deleted");
+  expect(await exists(other.name)).toBe(true);
+});

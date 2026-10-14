@@ -11,6 +11,10 @@ export const COLLECTIONS = {
   assignments: "assignments",
   recordings: "recordings",
   reviews: "reviews",
+  /** `users/{uid}/recordingCountLedger/{marca}`: idempotencia del decremento del cupo en `onRecordingDeleted` (solo servidor, TTL). */
+  recordingCountLedger: "recordingCountLedger",
+  /** Estado tecnico de los trabajos diarios (cursores de reanudacion); solo servidor. */
+  maintenance: "maintenance",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

@@ -214,7 +214,14 @@ export const onRecordingDeleted = onDocumentDeleted(
     const app = admin();
     await onRecordingDeletedHandler(
       { db: getFirestore(app), store: bucketStore(getStorage(app).bucket(resolveBucketName(app.options))) },
-      { uid: event.params.uid, id: event.params.recordingId, data: event.data?.data() },
+      {
+        uid: event.params.uid,
+        id: event.params.recordingId,
+        data: event.data?.data(),
+        // Identidad de esta instancia del doc (idempotencia del decremento) e instante del borrado (vs. reconciliacion).
+        instance: event.data?.createTime ? `${event.data.createTime.seconds}.${event.data.createTime.nanoseconds}` : undefined,
+        deletedAt: event.time ? new Date(event.time) : undefined,
+      },
     );
   },
 );
@@ -233,7 +240,7 @@ export const purgeRecordings = onSchedule(
 
 /**
  * Barrido diario de objetos huerfanos bajo los prefijos recordings/ y demos/ de cada usuario (sin doc `ready` que los apunte y de mas
- * de 24 h; W4 de B4b). Es la cota de lectura de un huerfano (`teacherReads` no exige doc) junto al ciclo de vida a 95 d.
+ * de 24 h; W4 de B4b). Es la cota de lectura de un huerfano (`teacherReads` no exige doc) junto al ciclo de vida a 100 d.
  */
 export const sweepRecordingOrphans = onSchedule(
   { region: REGION, schedule: "every day 04:30", timeZone: "Europe/Madrid", retryCount: 2, timeoutSeconds: 540 },

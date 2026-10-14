@@ -2,6 +2,7 @@ import { DocumentData, DocumentReference, Firestore } from "firebase-admin/fires
 import { logger } from "firebase-functions/v2";
 import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
+import { DEMOS_DIR } from "../config/recordings";
 import type { ObjectStore } from "./finalize";
 import { parseObjectPath } from "./validate";
 
@@ -38,20 +39,24 @@ export const deleteReviews = (db: Firestore, ref: DocumentReference): Promise<vo
 
 /**
  * Ruta del objeto a borrar para ese doc: SIEMPRE la `objectPath` almacenada (una demo vive en `demos/` aunque su doc este
- * en `recordings/`), nunca una reconstruida desde el id. Solo se acepta si cuelga del mismo `users/{uid}` que el doc y
- * dentro de los dos prefijos: un doc con una ruta ajena nunca hace borrar un objeto ajeno.
+ * en `recordings/`), nunca una reconstruida desde el id. Solo se acepta si cuelga del mismo `users/{uid}` que el doc,
+ * dentro de los dos prefijos, con el MISMO id que el doc y, si el doc es `ready`, en el prefijo de su tipo (`demos/` <=>
+ * `sharedWith`, como lo escribe finalize; un `rejected` no guarda `sharedWith` y vale cualquiera de los dos): un doc con
+ * una ruta ajena o de otra grabacion nunca hace borrar ese objeto (lo que sobre lo recoge el barrido de huerfanos).
  */
-export function storedObjectPath(ownerUid: string, data: DocumentData | undefined): string | null {
+export function storedObjectPath(ownerUid: string, docId: string, data: DocumentData | undefined): string | null {
   const p = typeof data?.objectPath === "string" ? parseObjectPath(data.objectPath) : null;
-  return p && p.uid === ownerUid ? (data!.objectPath as string) : null;
+  if (!p || p.uid !== ownerUid || p.id !== docId) return null;
+  if (data!.status === "ready" && (p.dir === DEMOS_DIR) !== (typeof data!.sharedWith === "string")) return null;
+  return data!.objectPath as string;
 }
 
 /**
  * Borra el objeto del doc (solo su generation; 404/412 = OK). `false` = el doc no trae una ruta propia valida: no se borra
  * nada (el barrido de huerfanos recoge lo que haya). Sin generation (no deberia: finalize siempre la guarda) se usa la viva.
  */
-export async function removeStoredObject(store: ObjectStore, ownerUid: string, data: DocumentData): Promise<boolean> {
-  const objectPath = storedObjectPath(ownerUid, data);
+export async function removeStoredObject(store: ObjectStore, ownerUid: string, docId: string, data: DocumentData): Promise<boolean> {
+  const objectPath = storedObjectPath(ownerUid, docId, data);
   if (!objectPath) return false;
   const generation = data.generation !== undefined ? String(data.generation) : (await store.stat(objectPath))?.generation;
   if (generation !== undefined) await store.remove(objectPath, generation);
@@ -77,7 +82,7 @@ export async function deleteRecording(
   if (opts.guard && !opts.guard(data)) return "skipped";
 
   const ownerUid = ref.parent.parent?.id ?? "";
-  if (!(await removeStoredObject(deps.store, ownerUid, data))) {
+  if (!(await removeStoredObject(deps.store, ownerUid, ref.id, data))) {
     const log = deps.log ?? ((m: string, d: Record<string, unknown>) => logger.info(m, d));
     log("deleteRecording", { anomaly: "object_path", uidHash: sha256Hex(ownerUid).slice(0, 12) });
   }

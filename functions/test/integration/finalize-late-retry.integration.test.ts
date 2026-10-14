@@ -85,3 +85,31 @@ test("ventana con el objeto aun vivo: el finalize recrea el doc y onRecordingDel
   await new Promise((r) => setTimeout(r, 1000));
   expect(await count(uid)).toBe(0);
 });
+
+describe("W3 de la revision fresca de B5a: finalize no escribe ready para un objeto viejo", () => {
+  const HOUR = 60 * 60 * 1000;
+  const at = async (name: string, ageMs: number) => {
+    const created = new Date(String((await bucket.file(name).getMetadata())[0].timeCreated)).getTime();
+    return new Date(created + ageMs);
+  };
+  const finalizeAt = (ev: { name: string; generation: string }, when: Date) =>
+    finalizeRecordingHandler({ db, store, clock: () => when, flags, log: () => undefined }, ev);
+
+  test("exito tardio con el objeto ya de 20 h -> rejected(internal), sin plaza y se borra esa generation", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 0 });
+    const ev = await upload(uid);
+    expect(await finalizeAt(ev, await at(ev.name, 20 * HOUR))).toBe("rejected");
+    expect(await recDoc(uid, idOf(ev.name))).toMatchObject({ status: "rejected", rejectReason: "internal" });
+    expect(await exists(ev.name)).toBe(false);
+    expect(await count(uid)).toBe(0);
+  });
+
+  test("justo por debajo del tope -> ready", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 0 });
+    const ev = await upload(uid);
+    expect(await finalizeAt(ev, await at(ev.name, 20 * HOUR - 60_000))).toBe("ready");
+    expect(await count(uid)).toBe(1);
+  });
+});

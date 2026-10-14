@@ -1,4 +1,5 @@
 import { reconcileAllOwners, reconcileOwner } from "../../src/recordings/recount";
+import { Timestamp } from "firebase-admin/firestore";
 import { db, NOW, recRef, rnd, seedUser, userDoc, wipeFirestore } from "./helpers/finalize-fixtures";
 
 /** Doc sembrado directo (sin objeto): el contador solo mira docs `ready`. */
@@ -168,5 +169,59 @@ describe("reconcileAllOwners", () => {
     expect(failures).toEqual(["14"]);
     expect(await count(b)).toBe(0);
     expect(await count(a)).toBe(9);
+  });
+});
+
+describe("W2/W1 de la revision fresca de B5a", () => {
+  test("al reparar sella recordingCountReconciledAt (el trigger de un borrado anterior ya no baja otra vez)", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 7 });
+    await seed(uid);
+    await reconcileOwner(db, uid);
+    expect((await userDoc(uid))?.recordingCountReconciledAt).toBeInstanceOf(Timestamp);
+  });
+
+  test("cursor: con presupuesto para un dueno por pasada, cada pasada sigue donde lo dejo la anterior", async () => {
+    const [a, b, c] = [rnd("a"), rnd("b"), rnd("c")];
+    for (const u of [a, b, c]) await seedUser(u, { recordingCount: 9 });
+    let cursor = "";
+    const visited: string[] = [];
+    const cursors: string[] = [];
+    for (let run = 0; run < 3; run++) {
+      let calls = 0;
+      const r = await reconcileAllOwners(db, {
+        resumeFrom: cursor,
+        shouldStop: () => ++calls > 1,
+        reconcile: async (d, u) => (visited.push(u), reconcileOwner(d, u)),
+      });
+      cursor = r.next;
+      cursors.push(cursor);
+    }
+    expect(visited).toEqual([a, b, c]);
+    expect(cursors[0]).not.toBe("");
+    expect(b.startsWith(cursors[0])).toBe(true);
+    expect(c.startsWith(cursors[1])).toBe(true);
+    expect(cursors[2]).toBe(""); // vuelta completa: la siguiente empieza por la cabeza
+    expect(await Promise.all([a, b, c].map(count))).toEqual([0, 0, 0]);
+  });
+
+  test("el cursor es un prefijo truncado (nunca el uid completo)", async () => {
+    const [a, b] = [rnd("a"), rnd("b")];
+    for (const u of [a, b]) await seedUser(u, { recordingCount: 9 });
+    let calls = 0;
+    const r = await reconcileAllOwners(db, { shouldStop: () => ++calls > 1 });
+    expect(r.next.length).toBeGreaterThan(0);
+    expect(r.next.length).toBeLessThan(b.length);
+  });
+
+  test("con cursor, los duenos de docs ready sin contador por delante del cursor tambien se reparan", async () => {
+    const [a, b] = [rnd("a"), rnd("b")];
+    await seedUser(a); // sin contador, con un doc ready: solo lo encuentra la segunda consulta
+    await seed(a);
+    await seedUser(b);
+    await seed(b);
+    const r = await reconcileAllOwners(db, { resumeFrom: b.slice(0, 4) });
+    expect([await count(a), await count(b)]).toEqual([undefined, 1]); // `a` queda para cuando la vuelta llegue a el
+    expect(r.next).toBe("");
   });
 });

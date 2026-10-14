@@ -74,6 +74,12 @@ export const REJECTED_TTL_DAYS = 7;
  * se trata como permanente (doc `rejected(internal)` + borrado del objeto) en vez de reintentar hasta 7 dias.
  */
 export const POISON_AFTER_MS = 6 * 60 * 60 * 1000;
+/**
+ * W3 (revision fresca de B5a): nunca se escribe `ready` para un objeto con esta antiguedad (`timeCreated`) o mas; se
+ * escribe `rejected(internal)` y se borra esa generation. Queda 4 h por debajo de `ORPHAN_MIN_AGE_MS` (24 h): el barrido
+ * de huerfanos nunca puede borrar un objeto al que un finalize tardio (reintento) le cree el doc `ready` en medio.
+ */
+export const READY_MAX_OBJECT_AGE_MS = 20 * 60 * 60 * 1000;
 /** Forma de un id de documento que se puede interpolar en una ruta (metadatos del cliente: nunca se confia en ellos). */
 const SAFE_ID = /^(?!__)[A-Za-z0-9_-]{1,128}$/;
 /** Rutas dentro de los dos prefijos que no son `users/{uid}/{dir}/{id}.{ext}` validas: no hay id con el que crear un doc. */
@@ -336,7 +342,7 @@ async function finalizeCore(
 
     const assignment = assignmentSnap?.exists ? assignmentSnap.data() : undefined;
     const link = linkSnap?.exists ? linkSnap.data() : undefined;
-    let result: ValidationResult | { ok: false; reason: "quota" } = validateRecording(
+    let result: ValidationResult | { ok: false; reason: "quota" | "internal" } = validateRecording(
       meta,
       { path: event.name, contentType: info.contentType, size: info.size, container },
       {
@@ -373,6 +379,9 @@ async function finalizeCore(
     // mismo dueno. Ausente = 0; un contador ilegible falla cerrado (lo repara `recount-recordings`, B5a).
     const used = u.recordingCount === undefined ? 0 : validCount(u.recordingCount);
     if (result.ok && !(used < MAX_RECORDINGS_PER_OWNER)) result = { ok: false, reason: "quota" };
+    // W3: exito tardio (reintentos durante horas) sobre un objeto ya viejo -> nunca `ready` (ver READY_MAX_OBJECT_AGE_MS).
+    // Se mide con el reloj de ESTE intento de la transaccion.
+    if (result.ok && deps.clock().getTime() - info.timeCreated.getTime() >= READY_MAX_OBJECT_AGE_MS) result = { ok: false, reason: "internal" };
 
     const createdAt = Timestamp.fromDate(now);
     if (!result.ok) {
@@ -399,8 +408,10 @@ async function finalizeCore(
 
   const result = await applyOutcome(deps.store, event, outcome);
   if (result !== "ready") return result;
-  // B5a.5: el dueno pudo borrar el doc (y `onRecordingDeleted` el objeto) entre el `stat` de arriba y este commit: el doc
-  // recien creado apunta a un objeto que ya no existe. Si el objeto ya no esta, se retira (su borrado devuelve la plaza).
+  // B5a.5: el objeto pudo desaparecer entre el `stat` de arriba y este commit. Caso tipico: un intento ANTERIOR de este
+  // mismo evento ya habia creado el doc, el dueno lo borro y `onRecordingDeleted` borro el objeto (y releyo el doc antes de
+  // que este intento lo recreara). El doc recien creado apunta entonces a un objeto que ya no existe: se retira, y el
+  // trigger de ese borrado devuelve la plaza que esta transaccion acaba de sumar.
   const after = await deps.store.stat(event.name);
   if (after && after.generation === event.generation) return "ready";
   await retireDangling(deps, recRef, event);

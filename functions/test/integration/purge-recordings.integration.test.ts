@@ -209,3 +209,29 @@ test("el id de la grabacion no aparece nunca en los logs", async () => {
   await purgeRecordingsHandler(deps(), NOW);
   expect(JSON.stringify(logs)).not.toContain(idOf(r.ev.name));
 });
+
+describe("W1 de la revision fresca de B5a: cursor de la reconciliacion y aviso de presupuesto", () => {
+  const cursorDoc = async () => (await db.collection("maintenance").doc("recordingReconcile").get()).data();
+
+  test("la reconciliacion guarda el cursor en maintenance y la siguiente purga sigue donde lo dejo", async () => {
+    const [a, b, c] = [rnd("a"), rnd("b"), rnd("c")];
+    for (const u of [a, b, c]) await seedUser(u, { recordingCount: 9 });
+    const warns: string[] = [];
+    // Reloj falso (+1 s por consulta): 2,5 s dan para empezar la reconciliacion de UN dueno por pasada.
+    const run = () => {
+      let t = 0;
+      return purgeRecordingsHandler(deps({ budgetMs: 2500, nowMs: () => (t += 1000), warn: (m: string) => void warns.push(m) }), NOW);
+    };
+    const r1 = await run();
+    expect(r1.budgetExhausted).toBe(true);
+    expect([await count(a), await count(b), await count(c)]).toEqual([0, 9, 9]);
+    const c1 = (await cursorDoc())?.cursor as string;
+    expect(b.startsWith(c1) && c1.length > 0 && c1.length < b.length).toBe(true);
+    await run();
+    expect([await count(b), await count(c)]).toEqual([0, 9]);
+    await run();
+    expect(await count(c)).toBe(0);
+    expect((await cursorDoc())?.cursor).toBe("");
+    expect(warns).toContain("purgeRecordings.budgetExhausted");
+  });
+});

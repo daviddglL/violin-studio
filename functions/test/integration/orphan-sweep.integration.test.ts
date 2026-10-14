@@ -1,5 +1,6 @@
 import { getStorage } from "firebase-admin/storage";
 import { bucketSweepStore, SweepStore, sweepOrphansHandler } from "../../src/recordings/orphan-sweep";
+import { finalizeRecordingHandler, FinalizeOutcome } from "../../src/recordings/finalize";
 import { audioMp4 } from "../unit/helpers/mp4-builder";
 import { db, exists as existsIn, idOf, project, recDoc, rnd, seedRecording, seedUser, upload as uploadTo, wipeFirestore } from "./helpers/finalize-fixtures";
 import { getApps } from "firebase-admin/app";
@@ -142,4 +143,92 @@ test("un listado que falla se registra sin PII y no lanza", async () => {
   const s = await sweepOrphansHandler(deps({ store: broken }), later());
   expect(s.failedCategories).toEqual(["list"]);
   expect(JSON.stringify(logs)).not.toContain("secreto");
+});
+
+describe("W1 de la revision fresca de B5a: cursor, lecturas por lotes y aviso de presupuesto", () => {
+  const cursorDoc = async () => (await db.collection("maintenance").doc("sweepRecordingOrphans").get()).data();
+
+  test("la cola no se queda sin barrer: la cabeza que agota el presupuesto no se repite, la siguiente pasada sigue en el cursor", async () => {
+    const a = rnd("a");
+    const b = rnd("b");
+    for (let i = 0; i < 2; i++) await seedRecording(a, await upload(a)); // cabeza: dos objetos que se conservan
+    const orphan = await upload(b);
+    // Reloj falso: cada consulta al presupuesto avanza 1 s; 4,5 s dan para la cabeza entera (2 dirs + 2 objetos) y nada mas.
+    const run = () => {
+      let t = 0;
+      return sweepOrphansHandler(deps({ budgetMs: 4500, nowMs: () => (t += 1000) }), later());
+    };
+    const first = await run();
+    expect(first.budgetExhausted).toBe(true);
+    expect(await exists(orphan.name)).toBe(true);
+    const c = (await cursorDoc())?.cursor as string;
+    expect(c.length).toBeGreaterThan(0);
+    expect(b.startsWith(c)).toBe(true);
+    expect(c.length).toBeLessThan(b.length); // prefijo truncado, nunca el uid completo
+    await run();
+    expect(await exists(orphan.name)).toBe(false);
+  });
+
+  test("al completar la vuelta el cursor vuelve a la cabeza", async () => {
+    const uid = rnd("s");
+    await upload(uid);
+    await db.collection("maintenance").doc("sweepRecordingOrphans").set({ cursor: "zzz" });
+    await sweepOrphansHandler(deps(), later()); // cursor por detras de todo: no hay nada que barrer y la vuelta se completa
+    expect((await cursorDoc())?.cursor).toBe("");
+    const s = await sweepOrphansHandler(deps(), later());
+    expect(s.deleted).toBe(1);
+    expect(s.budgetExhausted).toBe(false);
+    expect((await cursorDoc())?.cursor).toBe("");
+  });
+
+  test("los docs de una pagina se leen en UN getAll (no una lectura por objeto)", async () => {
+    const uid = rnd("s");
+    for (let i = 0; i < 3; i++) await upload(uid);
+    const spy = jest.spyOn(db, "getAll");
+    try {
+      const s = await sweepOrphansHandler(deps(), later());
+      expect(s.deleted).toBe(3);
+      // `DocumentReference.get()` (cursor de maintenance) tambien pasa por `getAll`: se cuentan solo las lecturas de grabaciones.
+      const recordingReads = spy.mock.calls.filter((args) => args.some((r) => "path" in r && r.path.includes("/recordings/")));
+      expect(recordingReads).toHaveLength(1);
+      expect(recordingReads[0]).toHaveLength(3);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("presupuesto agotado -> aviso a nivel warn (sin PII)", async () => {
+    const uid = rnd("s");
+    for (let i = 0; i < 3; i++) await upload(uid);
+    const warns: { message: string; data: Record<string, unknown> }[] = [];
+    let t = 0;
+    const warn = (message: string, data: Record<string, unknown>) => void warns.push({ message, data });
+    await sweepOrphansHandler(deps({ budgetMs: 1500, nowMs: () => (t += 1000), warn }), later());
+    expect(warns).toEqual([expect.objectContaining({ message: "sweepOrphans.budgetExhausted" })]);
+    expect(JSON.stringify(warns)).not.toContain(uid);
+  });
+});
+
+describe("W3: finalize tardio frente al barrido", () => {
+  const flags = { recordingsEnabled: true, videoEnabled: false, minorRecordingEnabled: false };
+
+  test("un finalize que termina entre la comprobacion del doc y el borrado no deja un doc ready sin objeto", async () => {
+    const uid = rnd("s");
+    await seedUser(uid);
+    const ev = await upload(uid);
+    const when = await nowFor(ev.name, 25 * HOUR);
+    let outcome: FinalizeOutcome | undefined;
+    const racing: SweepStore = {
+      ...store,
+      remove: async (n, g) => {
+        outcome = await finalizeRecordingHandler({ db, store, clock: () => when, flags, log: () => undefined }, ev);
+        return store.remove(n, g);
+      },
+    };
+    await sweepOrphansHandler(deps({ store: racing }), when);
+    expect(outcome).toBeDefined();
+    expect(outcome).not.toBe("ready");
+    expect(await exists(ev.name)).toBe(false);
+    expect((await recDoc(uid, idOf(ev.name)))?.status).not.toBe("ready");
+  });
 });

@@ -1,5 +1,7 @@
 import { bucketStore, finalizeRecordingHandler, ObjectStore } from "../../src/recordings/finalize";
+import { Timestamp } from "firebase-admin/firestore";
 import { onRecordingDeletedHandler } from "../../src/recordings/on-deleted";
+import { reconcileOwner } from "../../src/recordings/recount";
 import { bucket, db, exists, idOf, recDoc, recRef, reviewCount, rnd, seedRecording, seedReview, seedUser, triggerBucket, upload, userDoc, wipeFirestore } from "./helpers/finalize-fixtures";
 
 const store = bucketStore(bucket);
@@ -233,5 +235,101 @@ describe("camino completo", () => {
     const out = await finalizeRecordingHandler({ db, store, clock: () => new Date(), flags, log: () => undefined }, ev);
     expect(out).toBe("ignored");
     expect(await recDoc(uid, id)).toBeUndefined();
+  });
+});
+
+const ledger = (uid: string) => db.collection("users").doc(uid).collection("recordingCountLedger").get();
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+describe("idempotencia del decremento (W2 de la revision fresca de B5a)", () => {
+  test("doble entrega del MISMO evento: baja una sola vez y deja una marca con TTL", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 5 });
+    const { event } = await seedDeleted(uid);
+    const ev = { ...event, instance: "1760436000.123000000" };
+    await onRecordingDeletedHandler(deps(), ev);
+    await onRecordingDeletedHandler(deps(), ev);
+    expect(await count(uid)).toBe(4);
+    const marks = await ledger(uid);
+    expect(marks.size).toBe(1);
+    expect(marks.docs[0].data().expireAt).toBeInstanceOf(Timestamp);
+  });
+
+  test("dos entregas simultaneas del mismo evento: una sola bajada", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 5 });
+    const { event } = await seedDeleted(uid);
+    await Promise.all([onRecordingDeletedHandler(deps(), event), onRecordingDeletedHandler(deps(), event)]);
+    expect(await count(uid)).toBe(4);
+  });
+
+  test("otra INSTANCIA del doc (mismo id y generation, recreado por un finalize tardio, W5) si baja otra vez", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 5 });
+    const { event } = await seedDeleted(uid);
+    await onRecordingDeletedHandler(deps(), { ...event, instance: "100.1" });
+    await onRecordingDeletedHandler(deps(), { ...event, instance: "200.2" });
+    expect(await count(uid)).toBe(3);
+  });
+
+  test("cuenta en borrado: ni baja ni deja marca bajo users/{uid}", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 5, deletion: { state: "in_progress" } });
+    await onRecordingDeletedHandler(deps(), (await seedDeleted(uid)).event);
+    expect(await count(uid)).toBe(5);
+    expect((await ledger(uid)).size).toBe(0);
+  });
+});
+
+describe("reconciliacion frente a un trigger de borrado en vuelo (W2)", () => {
+  /** Doc `ready` real (sin objeto): lo que la reconciliacion cuenta. */
+  const seedReady = (uid: string) => recRef(uid, rnd("r")).set({ status: "ready", objectPath: "x", generation: "1" });
+
+  test("la reconciliacion repara DESPUES del borrado (ya no lo cuenta): el trigger posterior NO vuelve a bajar", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 2 });
+    await seedReady(uid);
+    const { event } = await seedDeleted(uid); // el doc ya no existe: su trigger aun no ha corrido
+    const deletedAt = new Date();
+    await sleep(20);
+    expect(await reconcileOwner(db, uid)).toBe("repaired");
+    expect(await count(uid)).toBe(1);
+    await onRecordingDeletedHandler(deps(), { ...event, deletedAt });
+    expect(await count(uid)).toBe(1);
+  });
+
+  test("una reconciliacion ANTERIOR al borrado no impide la bajada", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 7 });
+    await seedReady(uid);
+    await seedReady(uid);
+    expect(await reconcileOwner(db, uid)).toBe("repaired");
+    await sleep(20);
+    const { event } = await seedDeleted(uid);
+    await onRecordingDeletedHandler(deps(), { ...event, deletedAt: new Date() });
+    expect(await count(uid)).toBe(1);
+  });
+});
+
+describe("cascada de reviews frente a un doc NUEVO con el mismo id (W4)", () => {
+  test("un trigger retrasado no borra las reviews de un doc de otra generation creado despues", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 2 });
+    const { event, id } = await seedDeleted(uid, {}, { id: rnd("w") });
+    const next = await upload(uid, { id });
+    await seedRecording(uid, next);
+    await seedReview(uid, id);
+    expect(await onRecordingDeletedHandler(deps(), event)).toBe("cleaned");
+    expect(await recDoc(uid, id)).toMatchObject({ generation: next.generation });
+    expect(await reviewCount(uid, id)).toBe(1);
+  });
+
+  test("sin doc nuevo, las reviews del doc borrado si caen", async () => {
+    const uid = rnd("s");
+    await seedUser(uid, { recordingCount: 2 });
+    const { event, id } = await seedDeleted(uid);
+    await seedReview(uid, id);
+    await onRecordingDeletedHandler(deps(), event);
+    expect(await reviewCount(uid, id)).toBe(0);
   });
 });

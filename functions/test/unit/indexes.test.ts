@@ -99,6 +99,12 @@ describe("firestore.indexes.json", () => {
     expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION" });
   });
 
+  test("recordingCountLedger.expireAt: TTL (marcas de idempotencia del decremento del cupo, B5a W2)", () => {
+    const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === "recordingCountLedger" && f.fieldPath === "expireAt");
+    expect(o).toBeDefined();
+    expect(o.ttl).toBe(true);
+  });
+
   test("ningun fieldOverride con indexes vacios deshabilita un campo que purge.ts consulta con rango", () => {
     const src = readFileSync(join(__dirname, "../../src/maintenance/purge.ts"), "utf8");
     const ranged = [...src.matchAll(/where\("([\w.]+)",\s*"(?:<|<=|>|>=)"/g)].map((m) => m[1]);

@@ -1,16 +1,19 @@
 import type { ReconcileAllResult } from "../recordings/recount";
 
+/** El CLI hace una vuelta completa sin cursor: no usa `next`. */
+type RecountResult = Omit<ReconcileAllResult, "next">;
+
 type Env = Record<string, string | undefined>;
 
 /**
  * Logica de `admin:recount-recordings` (B5a.4, A21): recalcula `recordingCount` desde los docs `ready`, de todos los
  * duenos o de uno (`<uid>`). Mismas protecciones que `reevaluate-consents`: exige proyecto, muestra EMULADOR/REAL y un
  * proyecto real pide `--yes` o `CONFIRM_PROJECT=<id>`. Nunca imprime uids ni detalles de error. Devuelve el codigo de
- * salida (0 ok, 1 fallo, 2 uso/seguridad). Ejecutar con la app quieta: un borrado en vuelo puede bajar el contador una vez mas.
+ * salida (0 ok, 1 fallo, 2 uso/seguridad). Un borrado en vuelo no baja de mas: la reparacion sella `recordingCountReconciledAt`.
  */
 export async function runRecountRecordingsCli(
   argv: string[],
-  makeRun: () => (uid?: string) => Promise<ReconcileAllResult>,
+  makeRun: () => (uid?: string) => Promise<RecountResult>,
   print: (line: string) => void,
   env: Env = process.env,
 ): Promise<number> {
@@ -31,7 +34,7 @@ export async function runRecountRecordingsCli(
     print("Proyecto REAL: confirma con --yes o CONFIRM_PROJECT=<id del proyecto>.");
     return 2;
   }
-  let run: (uid?: string) => Promise<ReconcileAllResult>;
+  let run: (uid?: string) => Promise<RecountResult>;
   try {
     run = makeRun();
   } catch {

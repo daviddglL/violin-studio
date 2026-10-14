@@ -15,6 +15,8 @@ describe("COLLECTIONS", () => {
       assignments: "assignments",
       recordings: "recordings",
       reviews: "reviews",
+      recordingCountLedger: "recordingCountLedger",
+      maintenance: "maintenance",
     });
   });
   test("CollectionName admite los valores registrados", () => {
