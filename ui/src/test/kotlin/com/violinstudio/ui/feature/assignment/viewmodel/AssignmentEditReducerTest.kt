@@ -75,7 +75,11 @@ class AssignmentEditReducerTest {
     @Test
     fun `la fecha limite es opcional y se puede quitar`() {
         val due = Instant.parse("2026-12-01T00:00:00Z")
-        val withDue = reduce(empty, AssignmentEditMutation.TitleEdited("Escalas"), AssignmentEditMutation.DueAtChanged(due))
+        val withDue = reduce(
+            empty,
+            AssignmentEditMutation.TitleEdited("Escalas"),
+            AssignmentEditMutation.DueAtChanged(due)
+        )
         assertEquals(due, withDue.dueAt)
         assertTrue(withDue.canSave)
         val cleared = reduce(withDue, AssignmentEditMutation.DueAtChanged(null))
@@ -138,7 +142,11 @@ class AssignmentEditReducerTest {
 
     @Test
     fun `toString no incluye titulo ni descripcion`() {
-        val s = reduce(empty, AssignmentEditMutation.TitleEdited("secreto-titulo"), AssignmentEditMutation.DescriptionEdited("secreto-desc"))
+        val s = reduce(
+            empty,
+            AssignmentEditMutation.TitleEdited("secreto-titulo"),
+            AssignmentEditMutation.DescriptionEdited("secreto-desc")
+        )
         assertFalse(s.toString().contains("secreto"))
     }
 }

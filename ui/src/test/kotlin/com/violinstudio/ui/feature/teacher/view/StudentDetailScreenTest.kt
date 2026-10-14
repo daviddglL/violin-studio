@@ -91,7 +91,8 @@ class StudentDetailScreenTest {
         compose.onNodeWithTag(STUDENT_DETAIL_UNAVAILABLE_TAG).assertIsDisplayed()
         compose.onAllNodesWithTag(STUDENT_DETAIL_EMPTY_TAG).assertCountEquals(0)
         compose.onAllNodesWithTag(STUDENT_DETAIL_WEEKLY_TAG).assertCountEquals(0)
-        compose.onNodeWithTag(STUDENT_DETAIL_UNAVAILABLE_TAG).assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion))
+        compose.onNodeWithTag(STUDENT_DETAIL_UNAVAILABLE_TAG)
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion))
     }
 
     @Test
