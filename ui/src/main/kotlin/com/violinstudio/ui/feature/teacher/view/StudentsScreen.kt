@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -119,7 +120,7 @@ private fun StudentList(state: StudentsState, onIntent: (StudentsIntent) -> Unit
         HorizontalDivider()
         Column(
             Modifier.fillMaxWidth().testTag(STUDENT_ROW_TAG)
-                .clickable(onClickLabel = openDesc) { onOpenStudent(link.studentUid) },
+                .clickable(onClickLabel = openDesc, role = Role.Button) { onOpenStudent(link.studentUid) },
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(link.studentDisplayName, style = MaterialTheme.typography.titleMedium)

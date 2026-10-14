@@ -93,6 +93,7 @@ fun StudentDetailScreen(
                     Text(
                         stringResource(R.string.teacher_student_detail_unavailable),
                         modifier = Modifier.testTag(STUDENT_DETAIL_UNAVAILABLE_TAG)
+                            .semantics { liveRegion = LiveRegionMode.Polite }
                     )
                 }
                 state.loadFailed -> item { LoadFailed(onIntent) }

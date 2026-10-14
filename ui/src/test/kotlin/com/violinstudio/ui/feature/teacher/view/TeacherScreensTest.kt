@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -105,6 +106,13 @@ class TeacherScreensTest {
         compose.onNodeWithTag(STUDENT_ROW_TAG).performClick()
         assertEquals(listOf("s1"), openedStudents)
         assertEquals(emptyList<StudentsIntent>(), studentIntents)
+    }
+
+    @Test
+    fun `la fila del alumno se anuncia como boton`() {
+        showStudents(StudentsState(isLoading = false, students = listOf(ana)))
+        compose.onNodeWithTag(STUDENT_ROW_TAG)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
     }
 
     @Test

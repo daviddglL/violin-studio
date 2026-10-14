@@ -22,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -161,10 +162,93 @@ class StudentDetailViewModelTest {
             assertState { it.sessions == listOf(thisWeek) }
             deny.complete(Unit)
             // El vacio del caso de uso llega antes del fin del flujo; despues se retira tambien el alumno.
-            assertState { it.sessions.isEmpty() && it.link == ana }
-            assertState { it.sessions.isEmpty() && it.link == null && it.weeklyTotalSec == 0 && !it.isLoading }
+            // El vacio del caso de uso no se aplica: el estado intermedio (sin sesiones y con vinculo) es imposible.
+            assertState {
+                it.sessions.isEmpty() && it.link == null && it.weeklyTotalSec == 0 && !it.isLoading && it.unavailable
+            }
             assertEffect(StudentDetailEffect.NavigateBack)
         }
+    }
+
+    @Test
+    fun `un vacio tras datos no se aplica hasta la siguiente emision`() = runTest {
+        val vm = create()
+        students.emit(listOf(ana))
+        practice.emit(listOf(thisWeek))
+        runCurrent()
+        practice.emit(emptyList())
+        runCurrent()
+        advanceTimeBy(SETTLE_MS - 1)
+        assertTrue(vm.state.value.sessions == listOf(thisWeek))
+        practice.emit(listOf(thisWeek, older))
+        runCurrent()
+        advanceTimeBy(SETTLE_MS * 2)
+        runCurrent()
+        assertTrue(vm.state.value.sessions == listOf(thisWeek, older))
+    }
+
+    @Test
+    fun `un vacio tras datos se aplica pasado el margen si el flujo sigue`() = runTest {
+        val vm = create()
+        students.emit(listOf(ana))
+        practice.emit(listOf(thisWeek))
+        runCurrent()
+        practice.emit(emptyList())
+        runCurrent()
+        advanceTimeBy(SETTLE_MS + 1)
+        runCurrent()
+        assertTrue(vm.state.value.sessions.isEmpty() && vm.state.value.link == ana && !vm.state.value.isLoading)
+    }
+
+    @Test
+    fun `primera emision vacia y luego datos dentro del margen nunca muestra el vacio`() = runTest {
+        val vm = create()
+        val seen = mutableListOf<StudentDetailState>()
+        val job = launch { vm.state.collect { seen += it } }
+        students.emit(listOf(ana))
+        practice.emit(emptyList())
+        runCurrent()
+        advanceTimeBy(SETTLE_MS / 2)
+        practice.emit(listOf(thisWeek))
+        runCurrent()
+        advanceTimeBy(SETTLE_MS * 2)
+        runCurrent()
+        job.cancel()
+        assertFalse(seen.any { !it.isLoading && it.sessions.isEmpty() })
+        assertTrue(vm.state.value.sessions == listOf(thisWeek))
+    }
+
+    @Test
+    fun `una re-emision del vinculo tras perderlo no repuebla la vista`() = runTest {
+        val vm = create()
+        students.emit(listOf(ana))
+        practice.emit(listOf(thisWeek))
+        runCurrent()
+        students.emit(listOf(leo))
+        runCurrent()
+        assertTrue(vm.state.value.link == null && vm.state.value.unavailable)
+        students.emit(listOf(ana))
+        runCurrent()
+        assertTrue(vm.state.value.link == null && vm.state.value.sessions.isEmpty() && vm.state.value.unavailable)
+    }
+
+    @Test
+    fun `el total semanal usa la zona inyectada en el limite de semana`() = runTest {
+        // Domingo 2026-10-18 23:30Z es lunes 01:30 en +02:00: ya cae en la semana siguiente.
+        val sunday = session("z", "2026-10-18T23:30:00Z", 500)
+        val clockNextWeek = Clock.fixed(Instant.parse("2026-10-19T12:00:00Z"), ZoneOffset.UTC)
+        every { observeStudents() } returns students
+        every { observePractice("s1") } returns practice
+        val vm = StudentDetailViewModel(
+            SavedStateHandle(mapOf("studentUid" to "s1")),
+            observeStudents,
+            observePractice,
+            clockNextWeek
+        ) { ZoneOffset.ofHours(2) }.also { created += it }
+        students.emit(listOf(ana))
+        practice.emit(listOf(sunday))
+        runCurrent()
+        assertTrue(vm.state.value.weeklyTotalSec == 500, "total=${vm.state.value.weeklyTotalSec}")
     }
 
     @Test
@@ -224,5 +308,9 @@ class StudentDetailViewModelTest {
         vm.testMvi { loaded() }
         val text = vm.state.value.toString()
         assertFalse(text.contains("Ana") || text.contains("escalas") || text.contains("s1"))
+        val linkText = ana.toString()
+        assertFalse(linkText.contains("Ana") || linkText.contains("Marta") || linkText.contains("s1"), linkText)
+        val sessionText = thisWeek.toString()
+        assertFalse(sessionText.contains("escalas"), sessionText)
     }
 }

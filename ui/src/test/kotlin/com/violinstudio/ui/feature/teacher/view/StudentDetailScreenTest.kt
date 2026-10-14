@@ -1,6 +1,9 @@
 package com.violinstudio.ui.feature.teacher.view
 
 import android.app.Application
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
@@ -88,6 +91,7 @@ class StudentDetailScreenTest {
         compose.onNodeWithTag(STUDENT_DETAIL_UNAVAILABLE_TAG).assertIsDisplayed()
         compose.onAllNodesWithTag(STUDENT_DETAIL_EMPTY_TAG).assertCountEquals(0)
         compose.onAllNodesWithTag(STUDENT_DETAIL_WEEKLY_TAG).assertCountEquals(0)
+        compose.onNodeWithTag(STUDENT_DETAIL_UNAVAILABLE_TAG).assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion))
     }
 
     @Test

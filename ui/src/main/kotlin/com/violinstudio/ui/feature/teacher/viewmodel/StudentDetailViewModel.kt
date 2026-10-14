@@ -7,6 +7,7 @@ import com.violinstudio.domain.feature.link.usecase.ObserveMyStudentsUseCase
 import com.violinstudio.domain.feature.link.usecase.ObserveStudentPracticeUseCase
 import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.domain.feature.practice.usecase.weeklyTotalSec
+import com.violinstudio.ui.commons.flow.SETTLE_MS
 import com.violinstudio.ui.commons.flow.collectSettled
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import java.time.ZoneId
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -26,16 +28,27 @@ import kotlinx.coroutines.launch
  * (lección 8).
  */
 @HiltViewModel
-class StudentDetailViewModel @Inject constructor(
+class StudentDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val observeStudents: ObserveMyStudentsUseCase,
     private val observePractice: ObserveStudentPracticeUseCase,
-    private val clock: Clock
+    private val clock: Clock,
+    private val zone: () -> ZoneId
 ) : MviViewModel<StudentDetailState, StudentDetailIntent, StudentDetailEffect>(StudentDetailState()) {
+    @Inject
+    constructor(
+        savedStateHandle: SavedStateHandle,
+        observeStudents: ObserveMyStudentsUseCase,
+        observePractice: ObserveStudentPracticeUseCase,
+        clock: Clock
+    ) : this(savedStateHandle, observeStudents, observePractice, clock, { ZoneId.systemDefault() })
+
     private val studentUid: String? = savedStateHandle.get<String>(STUDENT_UID_KEY)
     private var linkObserver: Job? = null
     private var practiceObserver: Job? = null
     private var seenLink = false
+    private var pendingEmpty: Job? = null
+    private var shownSessions: List<PracticeSession>? = null
     private var gone = false
 
     init {
@@ -45,6 +58,8 @@ class StudentDetailViewModel @Inject constructor(
     private fun start() {
         linkObserver?.cancel()
         practiceObserver?.cancel()
+        pendingEmpty?.cancel()
+        shownSessions = null
         seenLink = false
         gone = false
         linkObserver = viewModelScope.launch { observeLink() }
@@ -69,6 +84,7 @@ class StudentDetailViewModel @Inject constructor(
     }
 
     private fun onLink(uid: String, link: TeacherLink?) {
+        if (gone) return
         if (link == null) {
             if (seenLink) onLinkLost() else setState { copy(isLoading = false, unavailable = true) }
             return
@@ -82,9 +98,10 @@ class StudentDetailViewModel @Inject constructor(
 
     private suspend fun collectPractice(uid: String) {
         try {
-            // La primera lista vacía puede ser solo la caché: se espera al servidor antes de mostrar el vacío.
-            observePractice(uid).collectSettled(isEmpty = { it.isEmpty() }) { sessions -> onSessions(sessions) }
-            // Un flujo que termina es el vínculo caído (permission-denied): el caso de uso ya emitió el vacío.
+            // Un vacío (el primero, que puede ser solo la caché, o uno que llega tras datos) se retiene hasta el
+            // margen: si llega otra emisión o el flujo termina (permission-denied) nunca se aplica.
+            observePractice(uid).collect { sessions -> onEmission(sessions) }
+            pendingEmpty?.cancel()
             onLinkLost()
         } catch (e: CancellationException) {
             throw e
@@ -93,9 +110,25 @@ class StudentDetailViewModel @Inject constructor(
         }
     }
 
+    private fun onEmission(sessions: List<PracticeSession>) {
+        pendingEmpty?.cancel()
+        val shown = shownSessions
+        if (sessions.isEmpty() && (shown == null || shown.isNotEmpty())) {
+            pendingEmpty = viewModelScope.launch {
+                delay(SETTLE_MS)
+                onSessions(sessions)
+            }
+        } else {
+            onSessions(sessions)
+        }
+    }
+
     private fun onSessions(sessions: List<PracticeSession>) {
         if (gone) return
-        val total = sessions.weeklyTotalSec(clock.instant(), ZoneId.systemDefault())
+        shownSessions = sessions
+        // El total se calcula solo al emitir (igual que WeeklyPracticeTotalUseCase): no se refresca al cambiar de
+        // semana sin nueva emisión. TODO(A11): recalcular el lunes a las 00:00.
+        val total = sessions.weeklyTotalSec(clock.instant(), zone())
         setState { copy(isLoading = false, sessions = sessions, weeklyTotalSec = total) }
     }
 
@@ -103,7 +136,8 @@ class StudentDetailViewModel @Inject constructor(
         if (gone) return
         gone = true
         practiceObserver?.cancel()
-        setState { copy(isLoading = false, link = null, sessions = emptyList(), weeklyTotalSec = 0) }
+        pendingEmpty?.cancel()
+        setState { copy(isLoading = false, unavailable = true, link = null, sessions = emptyList(), weeklyTotalSec = 0) }
         sendEffect(StudentDetailEffect.NavigateBack)
     }
 
