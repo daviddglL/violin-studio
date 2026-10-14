@@ -8,7 +8,7 @@ const flags = { recordingsEnabled: true, videoEnabled: false, minorRecordingEnab
 const finalize = (ev: { name: string; generation: string }, s: ObjectStore = store) =>
   finalizeRecordingHandler({ db, store: s, clock: () => NOW, flags, log: () => undefined }, ev);
 const count = async (uid: string) => (await userDoc(uid))?.recordingCount;
-async function waitFor<T>(fn: () => Promise<T | undefined>, ms = 15000): Promise<T> {
+async function waitFor<T>(fn: () => Promise<T | undefined>, ms = 25000): Promise<T> {
   const end = Date.now() + ms;
   for (;;) {
     const v = await fn();

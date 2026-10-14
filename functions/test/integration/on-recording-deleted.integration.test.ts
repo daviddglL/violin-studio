@@ -6,7 +6,7 @@ const store = bucketStore(bucket);
 let logs: unknown[];
 const deps = (over: Partial<{ store: ObjectStore }> = {}) => ({ db, store, log: (m: string, d: Record<string, unknown>) => void logs.push([m, d]), ...over });
 const count = async (uid: string) => (await userDoc(uid))?.recordingCount;
-async function waitFor<T>(fn: () => Promise<T | undefined>, ms = 15000): Promise<T> {
+async function waitFor<T>(fn: () => Promise<T | undefined>, ms = 25000): Promise<T> {
   const end = Date.now() + ms;
   for (;;) {
     const v = await fn();

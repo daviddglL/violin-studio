@@ -80,6 +80,7 @@ describe("firestore.indexes.json", () => {
   test.each([
     ["recordings", "expiresAt"],
     ["recordings", "sharedWith"],
+    ["recordings", "status"],
     ["reviews", "reviewerUid"],
   ])("%s.%s: indice COLLECTION_GROUP ascendente (purga diaria y cascadas de borrado, B3b)", (coleccion, campo) => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === campo);

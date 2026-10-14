@@ -56,6 +56,7 @@
     { "collectionGroup": "assignments", "fieldPath": "teacherUid", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
     { "collectionGroup": "recordings", "fieldPath": "expiresAt", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
     { "collectionGroup": "recordings", "fieldPath": "sharedWith", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
+    { "collectionGroup": "recordings", "fieldPath": "status", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
     { "collectionGroup": "reviews", "fieldPath": "reviewerUid", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
     { "collectionGroup": "guardianEmailLimits", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] }
   ]
