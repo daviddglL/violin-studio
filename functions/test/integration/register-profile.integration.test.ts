@@ -39,6 +39,34 @@ test("alta de adulto: rol independent, isMinor=false, consentStatus=pending, pol
   expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: CURRENT_POLICY_VERSION });
 });
 
+test("alta: recordingConsent ausente (none) y blurRequired calculado en servidor (REQ-PRF-T03, REQ-BLR-01)", async () => {
+  const { uid: adulto } = await nuevoUsuario();
+  await registerProfileHandler(deps(), adulto, payload({ birthDate: "1996-05-10" }));
+  const a = (await leer(adulto)).data()!;
+  expect(a.blurRequired).toBe(false);
+  expect("recordingConsent" in a).toBe(false);
+
+  const { uid: de15 } = await nuevoUsuario();
+  await registerProfileHandler(deps(), de15, payload({ birthDate: "2011-03-01" }));
+  expect((await leer(de15)).data()!.blurRequired).toBe(true);
+
+  // 17 años y 364 días el 2026-09-30 -> true; cumple 18 ese día -> false.
+  const { uid: casi18 } = await nuevoUsuario();
+  await registerProfileHandler(deps(), casi18, payload({ birthDate: "2008-10-01" }));
+  expect((await leer(casi18)).data()!.blurRequired).toBe(true);
+  const { uid: justo18 } = await nuevoUsuario();
+  await registerProfileHandler(deps(), justo18, payload({ birthDate: "2008-09-30" }));
+  expect((await leer(justo18)).data()!.blurRequired).toBe(false);
+});
+
+test("idempotencia: una segunda llamada no recalcula ni reescribe blurRequired", async () => {
+  const { uid } = await nuevoUsuario();
+  await registerProfileHandler(deps(), uid, payload({ birthDate: "2011-03-01" }));
+  await db.collection("users").doc(uid).update({ blurRequired: false });
+  await registerProfileHandler(deps(), uid, payload({ birthDate: "1990-01-01" }));
+  expect((await leer(uid)).data()!.blurRequired).toBe(false);
+});
+
 test("alta de menor con flujo activo: isMinor=true, pending y sin consentOk", async () => {
   const { uid } = await nuevoUsuario();
   const res = await registerProfileHandler(deps(), uid, payload({ birthDate: "2013-06-01" }));
