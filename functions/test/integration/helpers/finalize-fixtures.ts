@@ -1,5 +1,6 @@
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Bucket } from "@google-cloud/storage";
 import { getStorage } from "firebase-admin/storage";
 import { FinalizeEvent } from "../../../src/recordings/finalize";
 import { audioMp4 } from "../../unit/helpers/mp4-builder";
@@ -7,7 +8,12 @@ import { audioMp4 } from "../../unit/helpers/mp4-builder";
 export const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
 export const db = getFirestore(app);
-export const bucket = getStorage(app).bucket();
+/**
+ * Los tests que llaman al handler directamente usan OTRO bucket: el trigger emulado solo escucha el bucket por defecto, asi
+ * no compite con ellos (doble procesamiento). `finalize-trigger` usa `triggerBucket`.
+ */
+export const bucket = getStorage(app).bucket(`${project}-finalize-direct`);
+export const triggerBucket = getStorage(app).bucket();
 
 export const NOW = new Date("2026-10-14T10:00:00.000Z");
 export const DAY = 24 * 60 * 60 * 1000;
@@ -58,13 +64,14 @@ export interface UploadOpts {
   contentType?: string;
   meta?: Record<string, string>;
   ext?: string;
+  bucket?: Bucket;
 }
 
 /** Sube un objeto con Admin al emulador de Storage y devuelve el evento que dispararia `onObjectFinalized`. */
 export async function upload(uid: string, o: UploadOpts = {}): Promise<FinalizeEvent> {
   const id = o.id ?? rnd("r");
   const name = `users/${uid}/${o.dir ?? "recordings"}/${id}.${o.ext ?? "m4a"}`;
-  const file = bucket.file(name);
+  const file = (o.bucket ?? bucket).file(name);
   await file.save(o.buf ?? audioMp4(30), {
     resumable: false,
     contentType: o.contentType ?? "audio/mp4",
@@ -74,7 +81,7 @@ export async function upload(uid: string, o: UploadOpts = {}): Promise<FinalizeE
   return { name, generation: String(m.generation) };
 }
 
-export const exists = async (name: string) => (await bucket.file(name).exists())[0];
+export const exists = async (name: string, b: Bucket = bucket) => (await b.file(name).exists())[0];
 export const recRef = (uid: string, id: string) => db.collection("users").doc(uid).collection("recordings").doc(id);
 export const recDoc = async (uid: string, id: string) => (await recRef(uid, id).get()).data();
 export const idOf = (name: string) => name.split("/").pop()!.replace(/\.(m4a|mp4)$/, "");
