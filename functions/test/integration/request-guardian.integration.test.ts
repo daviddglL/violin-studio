@@ -1,4 +1,5 @@
 import functionsTest from "firebase-functions-test";
+import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { requestGuardianConsent } from "../../src/index";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -65,7 +66,7 @@ describe("requestGuardianConsentHandler", () => {
   });
 
   test("granted vigente -> failed-precondition sin escrituras; no menor -> NOT_MINOR", async () => {
-    const g = await user({ consentStatus: "granted", policyVersion: 1 });
+    const g = await user({ consentStatus: "granted", policyVersion: CURRENT_POLICY_VERSION });
     await expect(ask(g, uniq())).rejects.toMatchObject({ code: "failed-precondition" });
     expect(await where("mail", g.uid)).toHaveLength(0);
     const adult = await user({ isMinor: false });

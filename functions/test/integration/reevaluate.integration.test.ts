@@ -1,4 +1,5 @@
 import functionsTest from "firebase-functions-test";
+import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
@@ -70,7 +71,7 @@ test("el callable identityConfig reevalúa (granted con versión anterior a la v
   const uid = await granted(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const res: any = await fft.wrap(identityConfig)({ data: {}, auth: { uid, token: { email_verified: true } } } as never);
-  expect(res).toMatchObject({ policyVersion: 1 });
+  expect(res).toMatchObject({ policyVersion: CURRENT_POLICY_VERSION });
   expect((await perfil(uid)).consentStatus).toBe("pending");
   expect((await auth.getUser(uid)).customClaims?.consentOk).toBe(false);
 });
