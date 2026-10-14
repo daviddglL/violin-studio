@@ -8,9 +8,11 @@ import { onCall, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { requireVerifiedUser } from "./common/auth-guard";
 import { systemClock } from "./common/clock";
+import { recordingFlags } from "./config/features";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
 import { callableOptions, httpOptions, REGION } from "./config/runtime";
 import { recordConsentHandler } from "./consent/record-consent";
+import { grantRecordingConsentHandler } from "./consent/recording-consent";
 import { revokeConsentCore } from "./consent/revoke-consent";
 import { resolveBucketName } from "./erasure/bucket";
 import { deleteAccountHandler } from "./erasure/delete-account";
@@ -65,6 +67,16 @@ export const recordConsent = onCall(callableOptions(), async (request) => {
   const { uid } = requireVerifiedUser(request);
   const app = admin();
   return recordConsentHandler({ db: getFirestore(app), auth: getAuth(app) }, uid, request.data);
+});
+
+/** Consentimiento de grabación del propio usuario (14+); los <14 solo por el tutor. No toca la base ni los claims. */
+export const grantRecordingConsent = onCall(callableOptions(), (request) => {
+  const { uid } = requireVerifiedUser(request);
+  return grantRecordingConsentHandler(
+    { db: getFirestore(admin()), clock: systemClock, flags: recordingFlags() },
+    uid,
+    request.data,
+  );
 });
 
 export const revokeConsent = onCall(callableOptions(), async (request) => {
