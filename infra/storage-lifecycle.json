@@ -1,0 +1,10 @@
+{
+  "lifecycle": {
+    "rule": [
+      {
+        "action": { "type": "Delete" },
+        "condition": { "age": 95, "matchesSuffix": [".m4a", ".mp4"] }
+      }
+    ]
+  }
+}
