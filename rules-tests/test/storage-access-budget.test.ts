@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { matchBrace, stripComments } from "./rules-analysis";
 
 /**
  * A20 / spike B3a.0: el emulador de Storage no aplica el tope de 2 accesos `firestore.get/exists` por evaluacion
@@ -7,19 +8,6 @@ import { join } from "node:path";
  * (suma de accesos en `&&`, maximo entre ramas de `||`, expandiendo las funciones llamadas) debe ser <= 2.
  */
 const MAX_CROSS_SERVICE_ACCESSES = 2;
-
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-}
-
-function matchBrace(src: string, open: number): number {
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === "{") depth++;
-    else if (src[i] === "}" && --depth === 0) return i;
-  }
-  throw new Error("llave sin cerrar");
-}
 
 /** `function nombre(args) { return EXPR; }` -> mapa nombre -> EXPR. */
 export function parseFunctions(src: string): Map<string, string> {
@@ -65,6 +53,9 @@ function unwrap(term: string): string | null {
   return t.slice(1, -1);
 }
 
+/** Funciones libres del lenguaje de reglas que no son helpers del fichero (los metodos van tras un punto). */
+const BUILTINS = new Set(["int", "float", "string", "bool", "path", "duration", "timestamp", "latlng", "bytes", "debug", "hashing"]);
+
 export function worstCase(expr: string, fns: Map<string, string>, seen: string[] = []): number {
   const branches = splitTop(expr, "||");
   // Cortocircuito: `a || b` evalua b solo si a fue false, pero los accesos que a ya gasto cuentan igual (A20, C1).
@@ -73,7 +64,11 @@ export function worstCase(expr: string, fns: Map<string, string>, seen: string[]
   if (terms.length > 1) return terms.reduce((n, t) => n + worstCase(t, fns, seen), 0);
   const inner = unwrap(expr);
   if (inner !== null) return worstCase(inner, fns, seen);
-  const direct = (expr.match(/firestore\.(get|exists)\s*\(/g) ?? []).length;
+  const direct = (expr.match(/firestore\.(get|exists|getAfter|existsAfter)\s*\(/g) ?? []).length;
+  // Una llamada libre a un helper que no existe contaria 0 en silencio (falso verde): falla en voz alta.
+  for (const m of expr.matchAll(/(^|[^\w.$])(\w+)\s*\(/g)) {
+    if (!fns.has(m[2]) && !BUILTINS.has(m[2])) throw new Error(`helper no definido: ${m[2]}`);
+  }
   let viaFns = 0;
   for (const [name, body] of fns) {
     if (!new RegExp(`(^|[^\\w.])${name}\\s*\\(`).test(expr)) continue;
@@ -115,13 +110,36 @@ describe("contador estatico de accesos entre servicios (autoprueba)", () => {
   });
 });
 
+describe("endurecimiento del contador (B3b)", () => {
+  const fns = parseFunctions("function g(x) { return firestore.get(/a/$(x)).data; }");
+  test("getAfter y existsAfter tambien cuentan como acceso", () => {
+    expect(worstCase("firestore.getAfter(/a/$(1)).data.ok == true", fns)).toBe(1);
+    expect(worstCase("firestore.existsAfter(/a/$(1)) && g(2).ok", fns)).toBe(2);
+  });
+  test("una funcion auxiliar no definida falla en voz alta (no cuenta 0 en silencio)", () => {
+    expect(() => worstCase("helperInexistente(1) && g(2).ok", fns)).toThrow(/helperInexistente/);
+  });
+  test("los metodos (.matches, .hasOnly) y los accesos firestore.* no son helpers sin definir", () => {
+    expect(worstCase("m.keys().hasOnly(['a']) && x.matches('^a$') && g(1).ok", fns)).toBe(1);
+  });
+  test("las llaves de una cadena no desajustan las funciones ni el parseo", () => {
+    const f = parseFunctions("function q(x) { return x.matches('^[a-z]{1,3}$') && firestore.exists(/a/$(x)); } function r(x) { return q(x); }");
+    expect(worstCase("r(1)", f)).toBe(1);
+  });
+  test("los && y || dentro de una cadena no parten la expresion", () => {
+    expect(worstCase("x.matches('a&&b||c') && firestore.exists(/a/$(1))", fns)).toBe(1);
+  });
+});
+
 describe("storage.rules respeta el presupuesto de accesos (A20)", () => {
   const raw = stripComments(readFileSync(join(__dirname, "../../storage.rules"), "utf8"));
   const fns = parseFunctions(raw);
   const rules = allowRules(raw);
 
-  test("hay reglas allow que analizar", () => {
-    expect(rules.length).toBeGreaterThanOrEqual(3);
+  test("hay exactamente las reglas allow esperadas y el analizador las ve todas", () => {
+    // 2 rutas x (create, update/delete, list, get) + el comodin final. Si cambia, revisar el presupuesto a mano.
+    expect(rules).toHaveLength(9);
+    expect((raw.match(/\ballow\b/g) ?? []).length).toBe(rules.length);
   });
   test.each(rules.map((r) => [r.methods, r.expr] as const))("allow %s: <= 2 accesos en el peor camino", (_m, expr) => {
     expect(worstCase(expr, fns)).toBeLessThanOrEqual(MAX_CROSS_SERVICE_ACCESSES);
