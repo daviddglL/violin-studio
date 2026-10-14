@@ -19,3 +19,20 @@ export const MAX_TEACHER_DURATION_SEC = 120;
  * conflicto registrado en apply-progress B4a; cambiar aqui si producto decide otra cosa.
  */
 export const DURATION_TOLERANCE_SEC = 0.5;
+/** Duracion minima aceptada (W2): descarta 0 s (p. ej. MP4 fragmentado, cuyo `mvhd` trae duracion 0) y audios vacios. */
+export const MIN_DURATION_SEC = 0.5;
+/**
+ * Tasa de bits maxima aceptada, `size * 8 / max(duracion, 1)` (W1). La duracion del `mvhd` la declara el cliente y es
+ * falsificable: esto es defensa en profundidad junto al tope de tamano, no una garantia. AAC de Android = 64-128 kbps;
+ * 1 Mbps deja ~8x de margen (VBR, metadatos) y rechaza 25 MB declarando 1 s (200 Mbps).
+ */
+export const MAX_BITRATE_BPS = 1_000_000;
+/** Marcas mayores de `ftyp` aceptadas para audio MP4 (W5): ISO base, MP4 v1/v2 y M4A/M4B de iTunes. */
+export const ALLOWED_BRANDS: readonly string[] = [
+  "isom",
+  "iso2",
+  "mp41",
+  "mp42",
+  "M4A ",
+  "M4B ",
+];
