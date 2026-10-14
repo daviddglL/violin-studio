@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -48,6 +49,7 @@ const val STUDENT_DETAIL_EMPTY_TAG = "student_detail_empty"
 const val STUDENT_DETAIL_LOADING_TAG = "student_detail_loading"
 const val STUDENT_DETAIL_UNAVAILABLE_TAG = "student_detail_unavailable"
 const val STUDENT_DETAIL_LOAD_FAILED_TAG = "student_detail_load_failed"
+const val STUDENT_DETAIL_ASSIGNMENTS_TAG = "student_detail_assignments"
 const val STUDENT_DETAIL_RETRY_TAG = "student_detail_retry"
 
 /**
@@ -55,14 +57,18 @@ const val STUDENT_DETAIL_RETRY_TAG = "student_detail_retry"
  * pide volver a la lista.
  */
 @Composable
-fun StudentDetailRoute(onBack: () -> Unit, viewModel: StudentDetailViewModel = hiltViewModel()) {
+fun StudentDetailRoute(
+    onOpenAssignments: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: StudentDetailViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     ObserveAsEvents(viewModel.effects) { effect ->
         when (effect) {
             StudentDetailEffect.NavigateBack -> onBack()
         }
     }
-    StudentDetailScreen(state, viewModel::onIntent, onBack)
+    StudentDetailScreen(state, viewModel::onIntent, onBack, onOpenAssignments)
 }
 
 /** Solo lectura (REQ-TVW-04): ni editar, ni borrar, ni crear sesiones; la zona se inyecta para fechas deterministas. */
@@ -71,6 +77,7 @@ fun StudentDetailScreen(
     state: StudentDetailState,
     onIntent: (StudentDetailIntent) -> Unit,
     onBack: () -> Unit,
+    onOpenAssignments: () -> Unit = {},
     zone: ZoneId = ZoneId.systemDefault()
 ) {
     val resources = LocalContext.current.resources
@@ -97,13 +104,18 @@ fun StudentDetailScreen(
                     )
                 }
                 state.loadFailed -> item { LoadFailed(onIntent) }
-                else -> content(state, weekly, zone)
+                else -> content(state, weekly, zone, onOpenAssignments)
             }
         }
     }
 }
 
-private fun LazyListScope.content(state: StudentDetailState, weekly: String, zone: ZoneId) {
+private fun LazyListScope.content(
+    state: StudentDetailState,
+    weekly: String,
+    zone: ZoneId,
+    onOpenAssignments: () -> Unit
+) {
     state.link?.let { link ->
         item {
             Text(
@@ -118,6 +130,12 @@ private fun LazyListScope.content(state: StudentDetailState, weekly: String, zon
             stringResource(R.string.teacher_student_detail_readonly),
             style = MaterialTheme.typography.bodyMedium
         )
+    }
+    item {
+        Button(
+            onClick = onOpenAssignments,
+            modifier = Modifier.fillMaxWidth().testTag(STUDENT_DETAIL_ASSIGNMENTS_TAG)
+        ) { Text(stringResource(R.string.assignment_teacher_open)) }
     }
     item {
         Text(

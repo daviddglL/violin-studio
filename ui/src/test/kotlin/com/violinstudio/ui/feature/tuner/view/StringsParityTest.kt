@@ -44,6 +44,18 @@ class StringsParityTest {
     }
 
     @Test
+    fun `las cadenas de tareas existen en es y en y se traducen`() {
+        val es = load("values")
+        val en = load("values-en")
+        val keys = es.keys.filter { it.startsWith("assignment_") || it == "home_assignments_card" }
+        assertTrue(keys.size >= 40, "se esperaban las cadenas de tareas, hay ${keys.size}")
+        assertEquals(emptyList<String>(), keys.filterNot { it in en.keys }, "faltan en values-en")
+        // Salvo el contador numerico, ninguna cadena de tareas queda sin traducir (igual en ambos idiomas).
+        val untranslated = keys.filter { es.getValue(it) == en.getValue(it) && it != "assignment_counter" }
+        assertEquals(emptyList<String>(), untranslated)
+    }
+
+    @Test
     fun `el fichero de cadenas no tiene entradas que el analizador no vea`() {
         for (dir in listOf("values", "values-en")) {
             val declared = File("src/main/res/$dir/strings.xml").readLines().count { it.contains("<string ") }
