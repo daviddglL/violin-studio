@@ -16,9 +16,17 @@ test("el registro cubre todas las colecciones con la política prevista", () => 
     parent: "users",
     foreign: { field: "teacherUid", action: "delete" },
   });
-  // B3b: politica simple; las cascadas `foreign` (demos dirigidas al alumno, anonimizar revisiones) llegan en B5b.
-  expect(ERASABLE_COLLECTIONS.recordings).toEqual({ kind: "subcollectionOf", parent: "users" });
-  expect(ERASABLE_COLLECTIONS.reviews).toEqual({ kind: "subcollectionOf", parent: "recordings" });
+  // B5b.1: demos dirigidas al alumno borrado (con su objeto) y revisiones del profesor borrado (anonimizar).
+  expect(ERASABLE_COLLECTIONS.recordings).toEqual({
+    kind: "subcollectionOf",
+    parent: "users",
+    foreign: { field: "sharedWith", action: "deleteRecording" },
+  });
+  expect(ERASABLE_COLLECTIONS.reviews).toEqual({
+    kind: "subcollectionOf",
+    parent: "recordings",
+    foreign: { field: "reviewerUid", action: "anonymize" },
+  });
   // B5a (W2 de la revision fresca): marcas de idempotencia del decremento del cupo; caen con el usuario y tienen TTL.
   expect(ERASABLE_COLLECTIONS.recordingCountLedger).toEqual({ kind: "subcollectionOf", parent: "users" });
   // B5a (W1): cursores de los trabajos diarios; sin uid completo (prefijo truncado), exenta con motivo.

@@ -1,7 +1,7 @@
 import { Firestore } from "firebase-admin/firestore";
 import { COLLECTIONS } from "../common/collections";
 
-const DEFAULT_BATCH = 100;
+const DEFAULT_BATCH = 400;
 const PARALLEL = 10;
 
 export interface AnonymizeOpts {

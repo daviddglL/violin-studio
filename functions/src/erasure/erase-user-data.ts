@@ -142,7 +142,7 @@ export async function eraseUserData(
   await step("collections", sweepCollections);
 
   // 2b. Documentos propios en espacios ajenos (tareas de un profesor en los alumnos): `collectionGroup`.
-  const sweepForeign = () => sweepShared(db, uid, deleted);
+  const sweepForeign = () => sweepShared({ db, store: deps.store, log: deps.log }, uid, deleted);
   await step("shared", sweepForeign);
 
   // 3. Storage.

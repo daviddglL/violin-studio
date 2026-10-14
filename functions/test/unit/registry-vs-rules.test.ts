@@ -249,3 +249,17 @@ describe("parser de reglas (endurecido)", () => {
     },
   );
 });
+
+test("cada cascada `foreign` del registro tiene su indice COLLECTION_GROUP del campo y una accion conocida (B5b.2, REQ-DEL-T03)", () => {
+  const cfg = JSON.parse(readFileSync(resolve(__dirname, "../../../firestore.indexes.json"), "utf8"));
+  const foreign = Object.entries(ERASABLE_COLLECTIONS).flatMap(([name, p]) => (p.kind === "subcollectionOf" && p.foreign ? [{ name, ...p.foreign }] : []));
+  expect(foreign.map((f) => `${f.name}.${f.field}:${f.action}`).sort()).toEqual([
+    "assignments.teacherUid:delete",
+    "recordings.sharedWith:deleteRecording",
+    "reviews.reviewerUid:anonymize",
+  ]);
+  for (const f of foreign) {
+    const o = cfg.fieldOverrides.find((x: { collectionGroup: string; fieldPath: string }) => x.collectionGroup === f.name && x.fieldPath === f.field);
+    expect({ f, ok: o?.indexes?.some((i: { queryScope: string }) => i.queryScope === "COLLECTION_GROUP") }).toEqual({ f, ok: true });
+  }
+});
