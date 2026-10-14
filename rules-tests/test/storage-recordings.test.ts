@@ -1,4 +1,5 @@
 import { assertFails, assertSucceeds, RulesTestContext, RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import { deleteDoc, doc } from "firebase/firestore";
 import { deleteObject, getBytes, listAll, ref, updateMetadata, uploadBytes } from "firebase/storage";
 import { Claims, createEnv, OK, recordingUserDoc, seed } from "./helpers";
 
@@ -170,5 +171,104 @@ describe("Storage recordings: cupo de 20 vivas, corte rapido (REQ-REC-14, A21)",
     await withCount(20);
     await seed(env, "users/bob", recordingUserDoc({ recordingCount: 3 }));
     await assertSucceeds(upload(asCtx("bob"), "bob", "b.m4a"));
+  });
+});
+
+describe("Storage recordings: lectura (REQ-SEC-R03)", () => {
+  const OBJ = path("alice", "rec1.m4a");
+  const DEMO = path("tea", "demo1.m4a");
+  const link = (t: string, s: string, over: Record<string, unknown> = {}) => ({
+    teacherUid: t,
+    studentUid: s,
+    teacherDisplayName: "Profe",
+    studentDisplayName: "Alumno",
+    studentInstrument: "violin",
+    ackVersion: 1,
+    createdAt: new Date("2026-03-01T10:00:00Z"),
+    ...over,
+  });
+  const read = (uid: string, p: string, claims: Claims = OK) => getBytes(ref(asCtx(uid, claims).storage(), p));
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage(), OBJ), bytes(16), AUDIO);
+      await uploadBytes(ref(ctx.storage(), DEMO), bytes(16), AUDIO);
+    });
+    await seed(env, "users/tea", recordingUserDoc({ role: "teacher" }));
+    await seed(env, "users/stu", recordingUserDoc());
+    await seed(env, "teacherLinks/tea_alice", link("tea", "alice"));
+    await seed(env, "teacherLinks/tea_stu", link("tea", "stu"));
+    await seed(env, "users/tea/recordings/demo1", { status: "ready", sharedWith: "stu" });
+  });
+
+  test("el dueño lee su grabación", async () => {
+    await assertSucceeds(read("alice", OBJ));
+  });
+  test("el dueño verificado lee aunque su consentimiento de grabación esté revocado (exportar/ver lo suyo)", async () => {
+    await seed(env, "users/alice", recordingUserDoc({ recordingConsent: "revoked" }));
+    await assertSucceeds(read("alice", OBJ));
+  });
+  test("el profesor vinculado lee con recordingConsent granted", async () => {
+    await assertSucceeds(read("tea", OBJ));
+  });
+  test("profesor no vinculado, otro alumno y anónimo se deniegan", async () => {
+    await assertFails(read("eve", OBJ));
+    await assertFails(read("stu", OBJ));
+    await assertFails(getBytes(ref(env.unauthenticatedContext().storage(), OBJ)));
+  });
+  test("vínculo borrado: pierde el acceso con el mismo token", async () => {
+    const ctx = asCtx("tea");
+    await assertSucceeds(getBytes(ref(ctx.storage(), OBJ)));
+    await env.withSecurityRulesDisabled(async (c) => {
+      await deleteDoc(doc(c.firestore(), "teacherLinks/tea_alice"));
+    });
+    await assertFails(getBytes(ref(ctx.storage(), OBJ)));
+  });
+  test("vínculo con campos que no casan (id ambiguo) se deniega", async () => {
+    await seed(env, "teacherLinks/tea_alice", link("tea_x", "alice"));
+    await assertFails(read("tea", OBJ));
+  });
+  test.each(["revoked", "parental_pending", "none"])("alumno con recordingConsent = %s: el profesor no lee", async (s) => {
+    await seed(env, "users/alice", recordingUserDoc({ recordingConsent: s }));
+    await assertFails(read("tea", OBJ));
+  });
+  test("version de consentimiento antigua, base revocado o deletion: el profesor no lee", async () => {
+    await seed(env, "users/alice", recordingUserDoc({ recordingConsentVersion: 0 }));
+    await assertFails(read("tea", OBJ));
+    await seed(env, "users/alice", recordingUserDoc({ consentStatus: "revoked" }));
+    await assertFails(read("tea", OBJ));
+    await seed(env, "users/alice", recordingUserDoc({ deletion: { startedAt: new Date("2026-02-01T00:00:00Z") } }));
+    await assertFails(read("tea", OBJ));
+  });
+  test("profesor con email sin verificar o consentOk:false no lee", async () => {
+    await assertFails(read("tea", OBJ, { email_verified: false, consentOk: true }));
+    await assertFails(read("tea", OBJ, { email_verified: true, consentOk: false }));
+  });
+  test("el alumno destinatario de una demostración la lee con vínculo", async () => {
+    await assertSucceeds(read("stu", DEMO));
+  });
+  test("demostración: otro alumno, alumno sin vínculo, vínculo borrado y anónimo se deniegan", async () => {
+    await seed(env, "users/other", recordingUserDoc());
+    await seed(env, "teacherLinks/tea_other", link("tea", "other"));
+    await assertFails(read("other", DEMO));
+    await assertFails(read("eve", DEMO));
+    await assertFails(getBytes(ref(env.unauthenticatedContext().storage(), DEMO)));
+    const ctx = asCtx("stu");
+    await assertSucceeds(getBytes(ref(ctx.storage(), DEMO)));
+    await env.withSecurityRulesDisabled(async (c) => {
+      await deleteDoc(doc(c.firestore(), "teacherLinks/tea_stu"));
+    });
+    await assertFails(getBytes(ref(ctx.storage(), DEMO)));
+  });
+  test("demostración sin sharedWith no la lee un alumno vinculado", async () => {
+    await seed(env, "users/tea/recordings/demo1", { status: "ready" });
+    await assertFails(read("stu", DEMO));
+  });
+  test("get de objetos inexistentes o con doc de grabación ausente se deniega", async () => {
+    await assertFails(read("stu", path("tea", "ghost.m4a")));
+  });
+  test("update, delete y listado de terceros siguen denegados", async () => {
+    await assertFails(deleteObject(ref(asCtx("tea").storage(), OBJ)));
+    await assertFails(listAll(ref(asCtx("tea").storage(), "users/alice/recordings")));
   });
 });

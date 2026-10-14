@@ -16,6 +16,20 @@ service firebase.storage {
     // Subida: consentimiento de grabacion vigente + cupo (MAX_RECORDINGS_PER_OWNER = 20, A21). Corte rapido: la
     // autoridad es `finalizeRecording`. `recordingCount` ausente = 0. Mismo `get` del doc de usuario, sin acceso extra.
     function canUpload(u) { return recordingOk(u) && u.get('recordingCount', 0) < 20; }
+    function hasConsent() { return request.auth.token.consentOk == true; }
+    function linkDoc(t, s) { return firestore.get(/databases/(default)/documents/teacherLinks/$(t + '_' + s)).data; }
+    // El id `t_s` es ambiguo si un uid contiene '_': se comprueban los campos del vinculo, no solo su existencia.
+    function linkMatches(l, t, s) { return l.teacherUid == t && l.studentUid == s; }
+    // Profesor vinculado leyendo a su alumno: 2 accesos (vinculo + doc del alumno). Manda el vinculo, nunca el claim `role`.
+    function teacherReads(uid) {
+      return hasConsent() && linkMatches(linkDoc(request.auth.uid, uid), request.auth.uid, uid) && recordingOk(userDoc(uid));
+    }
+    // Alumno destinatario (`sharedWith`) de una demostracion de su profesor `uid`: 2 accesos (doc de la grabacion + vinculo).
+    function demoReads(uid, file) {
+      return hasConsent()
+        && firestore.get(/databases/(default)/documents/users/$(uid)/recordings/$(file.split('\\.')[0])).data.get('sharedWith', '') == request.auth.uid
+        && linkMatches(linkDoc(uid, request.auth.uid), uid, request.auth.uid);
+    }
     function validMeta(m) {
       return m.keys().hasOnly(['kind', 'durationMs', 'assignmentId', 'sharedWith', 'blurApplied', 'blurPolicyVersion', 'clientVersion'])
         && m.kind in ['audio', 'video'] && m.durationMs.matches('^[0-9]{1,6}$')
@@ -35,7 +49,9 @@ service firebase.storage {
         && validAudio(request.resource);
       // A12: borrar = borrar el doc Firestore; el trigger limpia el objeto. Nadie lista ni actualiza.
       allow update, delete: if false;
-      allow read: if false;
+      // Sin comprobar `status` del doc para quedarse en <= 2 accesos (A20): los `rejected` se borran en finalize.
+      allow list: if false;
+      allow get: if verified() && (request.auth.uid == uid || teacherReads(uid) || demoReads(uid, file));
     }
 
     match /{allPaths=**} {

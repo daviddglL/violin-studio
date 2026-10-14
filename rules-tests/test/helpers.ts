@@ -34,7 +34,7 @@ export function userDoc(overrides: Record<string, unknown> = {}): Record<string,
   };
 }
 
-/** Versión de consentimiento de grabación vigente (espejo de `RECORDING_CONSENT_VERSION` de Functions; paridad en `storage-rules-parity.test.ts`). */
+/** Versión de consentimiento de grabación vigente (espejo de `RECORDING_CONSENT_VERSION` de Functions; paridad en `functions/test/unit/storage-rules-parity.test.ts`). */
 export const RECORDING_CONSENT_VERSION = 1;
 
 /** Perfil con consentimiento de grabación vigente (`recordingConsent = granted`, época 1). */
