@@ -49,6 +49,8 @@ fun studentTaskTag(id: String) = "student_task_$id"
 
 fun studentTaskToggleTag(id: String) = "student_task_toggle_$id"
 
+fun studentTaskDoneTag(id: String) = "student_task_done_$id"
+
 fun studentTaskPendingTag(id: String) = "student_task_pending_$id"
 
 /** El rol lo comprueba la navegación antes de componer esta ruta. */
@@ -127,6 +129,14 @@ private fun TaskRow(task: Assignment, busy: Boolean, onIntent: (StudentAssignmen
         Text(task.title, style = MaterialTheme.typography.titleMedium)
         task.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
         Text(task.statusLabel())
+        val doneAt = task.doneAt
+        if (done && doneAt != null) {
+            Text(
+                stringResource(R.string.assignment_done_on, formatDueDate(doneAt, rememberLocale(), zone)),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.testTag(studentTaskDoneTag(task.id))
+            )
+        }
         Text(dueLabel(task.dueAt, zone), style = MaterialTheme.typography.bodyMedium)
         if (task.pendingSync) PendingBadge(studentTaskPendingTag(task.id))
         val intent = if (done) StudentAssignmentsIntent.Reopen(task.id) else StudentAssignmentsIntent.Complete(task.id)

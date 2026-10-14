@@ -384,6 +384,7 @@
     <string name="assignment_load_failed">Assignments could not be loaded. Try again.</string>
     <string name="assignment_status_open">Open</string>
     <string name="assignment_status_done">Done</string>
+    <string name="assignment_done_on">Done on %1$s</string>
     <string name="assignment_pending_sync">Pending sync</string>
     <string name="assignment_due">Due %1$s</string>
     <string name="assignment_no_due">No due date</string>

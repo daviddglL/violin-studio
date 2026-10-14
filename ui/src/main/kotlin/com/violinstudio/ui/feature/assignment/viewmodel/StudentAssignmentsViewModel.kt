@@ -109,9 +109,15 @@ class StudentAssignmentsViewModel @Inject constructor(
             if (failure == null) {
                 keepGuard = true
                 awaiting[id] = from
-                viewModelScope.launch {
-                    delay(SETTLE_MS)
-                    if (awaiting[id] == from) release(id)
+                // La lista pudo reflejar el cambio antes de fijar la guarda (la reemisión llegó durante la
+                // escritura): ya no habrá otra emisión que la libere.
+                if (state.value.assignments.none { it.id == id && it.status == from }) {
+                    release(id)
+                } else {
+                    viewModelScope.launch {
+                        delay(SETTLE_MS)
+                        if (awaiting[id] == from) release(id)
+                    }
                 }
             }
             setState {

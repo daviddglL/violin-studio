@@ -186,6 +186,27 @@ class StudentAssignmentsViewModelTest {
     }
 
     @Test
+    fun `si la lista ya refleja el cambio antes de acabar la escritura la guarda se libera al terminar`() = runTest {
+        coEvery { complete(any()) } coAnswers {
+            delay(100)
+            Result.success(Unit)
+        }
+        coEvery { reopen(any()) } returns Result.success(Unit)
+        viewModel().testMvi {
+            loaded(task("a"))
+            intent(StudentAssignmentsIntent.Complete("a"))
+            assertState { it.busyIds == setOf("a") }
+            // El SDK reemite la tarea hecha mientras la escritura sigue en curso (aun no hay guarda de espera).
+            loaded(task("a", AssignmentStatus.DONE, pending = true))
+            assertState { it.busyIds.isEmpty() }
+            intent(StudentAssignmentsIntent.Reopen("a"))
+            assertState { it.busyIds == setOf("a") }
+            assertState { it.busyIds.isEmpty() }
+        }
+        coVerify(exactly = 1) { reopen("a") }
+    }
+
+    @Test
     fun `si la lista nunca refleja el cambio la guarda se libera pasado el margen`() = runTest {
         coEvery { complete(any()) } returns Result.success(Unit)
         viewModel().testMvi {

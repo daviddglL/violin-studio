@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.assignment.view
 
 import android.app.Application
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -56,7 +57,8 @@ class AssignmentScreensTest {
         id: String,
         status: AssignmentStatus = AssignmentStatus.OPEN,
         pending: Boolean = false,
-        dueAt: Instant? = Instant.parse("2026-10-20T12:00:00Z")
+        dueAt: Instant? = Instant.parse("2026-10-20T12:00:00Z"),
+        doneAt: Instant? = Instant.parse("2026-10-10T10:00:00Z")
     ) = Assignment(
         id,
         "t1",
@@ -64,7 +66,7 @@ class AssignmentScreensTest {
         "Do mayor",
         dueAt,
         status,
-        if (status == AssignmentStatus.DONE) Instant.parse("2026-10-10T10:00:00Z") else null,
+        if (status == AssignmentStatus.DONE) doneAt else null,
         Instant.parse("2026-10-01T10:00:00Z"),
         pending
     )
@@ -297,6 +299,40 @@ class AssignmentScreensTest {
     }
 
     @Test
+    fun `mientras guarda cancelar esta deshabilitado`() {
+        edit(AssignmentEditState(title = "Escalas", busy = true))
+        compose.onNodeWithTag(ASSIGNMENT_EDIT_BACK_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun `el aceptar del selector de fecha solo se habilita con un dia elegido`() {
+        edit(AssignmentEditState(title = "Escalas"))
+        compose.onNodeWithTag(ASSIGNMENT_EDIT_DUE_TAG).performClick()
+        compose.onNodeWithTag(ASSIGNMENT_EDIT_DATE_CONFIRM_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun `el aceptar del selector de fecha esta habilitado si ya hay fecha`() {
+        edit(AssignmentEditState(title = "Escalas", dueAt = Instant.parse("2026-10-20T12:00:00Z")))
+        compose.onNodeWithTag(ASSIGNMENT_EDIT_DUE_TAG).performClick()
+        compose.onNodeWithTag(ASSIGNMENT_EDIT_DATE_CONFIRM_TAG).assertIsEnabled()
+    }
+
+    @Test
+    fun `la salida de la edicion es idempotente`() {
+        var pops = 0
+        compose.setContent {
+            val pop = rememberPopOnce { pops++ }
+            LaunchedEffect(Unit) {
+                pop()
+                pop()
+            }
+        }
+        compose.waitForIdle()
+        assertEquals(1, pops)
+    }
+
+    @Test
     fun `cancelar vuelve atras`() {
         edit(AssignmentEditState())
         compose.onNodeWithTag(ASSIGNMENT_EDIT_BACK_TAG).performClick()
@@ -340,6 +376,27 @@ class AssignmentScreensTest {
                     it.config.getOrNull(SemanticsProperties.ContentDescription)?.any { d -> "Escalas a" in d } == true
                 }
             )
+    }
+
+    @Test
+    fun `una tarea hecha con fecha muestra Hecha el y la fecha`() {
+        student(StudentAssignmentsState(isLoading = false, assignments = listOf(task("b", AssignmentStatus.DONE))))
+        val date = formatDueDate(Instant.parse("2026-10-10T10:00:00Z"), java.util.Locale.getDefault(), ZoneOffset.UTC)
+        compose.onNodeWithTag(studentTaskDoneTag("b"))
+            .assertTextContains(context.getString(R.string.assignment_done_on, date))
+    }
+
+    @Test
+    fun `una tarea hecha sin fecha todavia no muestra la linea de fecha y una abierta tampoco`() {
+        student(
+            StudentAssignmentsState(
+                isLoading = false,
+                assignments = listOf(task("b", AssignmentStatus.DONE, doneAt = null), task("a"))
+            )
+        )
+        compose.onAllNodesWithTag(studentTaskDoneTag("b")).assertCountEquals(0)
+        compose.onAllNodesWithTag(studentTaskDoneTag("a")).assertCountEquals(0)
+        compose.onNodeWithTag(studentTaskTag("b")).assertIsDisplayed()
     }
 
     @Test

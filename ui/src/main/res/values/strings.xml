@@ -384,6 +384,7 @@
     <string name="assignment_load_failed">No se han podido cargar las tareas. Inténtalo de nuevo.</string>
     <string name="assignment_status_open">Abierta</string>
     <string name="assignment_status_done">Hecha</string>
+    <string name="assignment_done_on">Hecha el %1$s</string>
     <string name="assignment_pending_sync">Pendiente de sincronizar</string>
     <string name="assignment_due">Para el %1$s</string>
     <string name="assignment_no_due">Sin fecha límite</string>

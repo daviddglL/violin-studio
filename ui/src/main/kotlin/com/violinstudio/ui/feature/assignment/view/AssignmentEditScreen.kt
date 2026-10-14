@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.assignment.view
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,6 +65,7 @@ const val ASSIGNMENT_EDIT_DESCRIPTION_COUNT_TAG = "assignment_edit_description_c
 const val ASSIGNMENT_EDIT_DUE_TAG = "assignment_edit_due"
 const val ASSIGNMENT_EDIT_DUE_CLEAR_TAG = "assignment_edit_due_clear"
 const val ASSIGNMENT_EDIT_DATE_DIALOG_TAG = "assignment_edit_date_dialog"
+const val ASSIGNMENT_EDIT_DATE_CONFIRM_TAG = "assignment_edit_date_confirm"
 const val ASSIGNMENT_EDIT_SAVE_TAG = "assignment_edit_save"
 const val ASSIGNMENT_EDIT_LOADING_TAG = "assignment_edit_loading"
 const val ASSIGNMENT_EDIT_UNAVAILABLE_TAG = "assignment_edit_unavailable"
@@ -75,13 +79,32 @@ const val ASSIGNMENT_EDIT_ERROR_DISMISS_TAG = "assignment_edit_error_dismiss"
 @Composable
 fun AssignmentEditRoute(onBack: () -> Unit, viewModel: AssignmentEditViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Guardado, no encontrada y cancelar pueden coincidir: la salida solo se ejecuta una vez.
+    val pop = rememberPopOnce(onBack)
     ObserveAsEvents(viewModel.effects) { effect ->
         when (effect) {
-            AssignmentEditEffect.Saved -> onBack()
+            AssignmentEditEffect.Saved -> pop()
         }
     }
-    LaunchedEffect(state.notFound) { if (state.notFound) onBack() }
-    AssignmentEditScreen(state, viewModel::onIntent, onBack)
+    LaunchedEffect(state.notFound) { if (state.notFound) pop() }
+    // Sin salir con atrás del sistema mientras se guarda.
+    BackHandler(enabled = state.busy) {}
+    AssignmentEditScreen(state, viewModel::onIntent, pop)
+}
+
+/** Envuelve [onBack] para que solo se ejecute una vez durante la vida de esta composición. */
+@Composable
+internal fun rememberPopOnce(onBack: () -> Unit): () -> Unit {
+    val current by rememberUpdatedState(onBack)
+    var popped by remember { mutableStateOf(false) }
+    return remember {
+        {
+            if (!popped) {
+                popped = true
+                current()
+            }
+        }
+    }
 }
 
 @Composable
@@ -97,7 +120,11 @@ fun AssignmentEditScreen(
                 .testTag(ASSIGNMENT_EDIT_TAG),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            TextButton(onClick = onBack, modifier = Modifier.testTag(ASSIGNMENT_EDIT_BACK_TAG)) {
+            TextButton(
+                onClick = onBack,
+                enabled = !state.busy,
+                modifier = Modifier.testTag(ASSIGNMENT_EDIT_BACK_TAG)
+            ) {
                 Text(stringResource(R.string.assignment_cancel))
             }
             Text(
@@ -266,6 +293,8 @@ private fun DueDate(
             modifier = Modifier.testTag(ASSIGNMENT_EDIT_DATE_DIALOG_TAG),
             confirmButton = {
                 TextButton(
+                    enabled = pickerState.selectedDateMillis != null,
+                    modifier = Modifier.testTag(ASSIGNMENT_EDIT_DATE_CONFIRM_TAG),
                     onClick = {
                         pickerState.selectedDateMillis?.let {
                             val dueAt = dueAtOfLocalDate(pickerMillisToLocalDate(it), zone)
