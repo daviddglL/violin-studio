@@ -119,6 +119,11 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
                     Text(stringResource(R.string.home_redeem_card))
                 }
             }
+            it.onOpenAssignments?.let { open ->
+                OutlinedButton(onClick = open, modifier = Modifier.testTag("home_assignments")) {
+                    Text(stringResource(R.string.home_assignments_card))
+                }
+            }
             it.onOpenStudents?.let { open ->
                 OutlinedButton(onClick = open, modifier = Modifier.testTag("home_students")) {
                     Text(stringResource(R.string.home_students_card))
@@ -150,5 +155,7 @@ data class HomeNavigation(
     val onOpenMyTeacher: (() -> Unit)? = null,
     /** Solo para `teacher`. */
     val onOpenStudents: (() -> Unit)? = null,
-    val onOpenCodes: (() -> Unit)? = null
+    val onOpenCodes: (() -> Unit)? = null,
+    /** Solo para `student`. */
+    val onOpenAssignments: (() -> Unit)? = null
 )

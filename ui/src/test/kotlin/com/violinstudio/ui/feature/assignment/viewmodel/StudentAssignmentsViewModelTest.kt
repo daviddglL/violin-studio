@@ -164,6 +164,66 @@ class StudentAssignmentsViewModelTest {
     }
 
     @Test
+    fun `tras escribir con exito un segundo toque se ignora hasta que la lista refleja el cambio`() = runTest {
+        coEvery { complete(any()) } returns Result.success(Unit)
+        coEvery { reopen(any()) } returns Result.success(Unit)
+        viewModel().testMvi {
+            loaded(task("a"))
+            intent(StudentAssignmentsIntent.Complete("a"))
+            assertState { it.busyIds == setOf("a") }
+            assertState { it.busyIds.isEmpty() }
+            // La lista aun no ha reemitido: el estado local sigue como OPEN, pero no se vuelve a escribir.
+            intent(StudentAssignmentsIntent.Complete("a"))
+            assertNoEffects()
+            coVerify(exactly = 1) { complete("a") }
+            // El SDK reemite la tarea hecha: la guarda se libera y se puede reabrir.
+            loaded(task("a", AssignmentStatus.DONE, pending = true))
+            intent(StudentAssignmentsIntent.Reopen("a"))
+            assertState { it.busyIds == setOf("a") }
+            assertState { it.busyIds.isEmpty() }
+        }
+        coVerify(exactly = 1) { reopen("a") }
+    }
+
+    @Test
+    fun `si la lista ya refleja el cambio antes de acabar la escritura la guarda se libera al terminar`() = runTest {
+        coEvery { complete(any()) } coAnswers {
+            delay(100)
+            Result.success(Unit)
+        }
+        coEvery { reopen(any()) } returns Result.success(Unit)
+        viewModel().testMvi {
+            loaded(task("a"))
+            intent(StudentAssignmentsIntent.Complete("a"))
+            assertState { it.busyIds == setOf("a") }
+            // El SDK reemite la tarea hecha mientras la escritura sigue en curso (aun no hay guarda de espera).
+            loaded(task("a", AssignmentStatus.DONE, pending = true))
+            assertState { it.busyIds.isEmpty() }
+            intent(StudentAssignmentsIntent.Reopen("a"))
+            assertState { it.busyIds == setOf("a") }
+            assertState { it.busyIds.isEmpty() }
+        }
+        coVerify(exactly = 1) { reopen("a") }
+    }
+
+    @Test
+    fun `si la lista nunca refleja el cambio la guarda se libera pasado el margen`() = runTest {
+        coEvery { complete(any()) } returns Result.success(Unit)
+        viewModel().testMvi {
+            loaded(task("a"))
+            intent(StudentAssignmentsIntent.Complete("a"))
+            assertState { it.busyIds == setOf("a") }
+            assertState { it.busyIds.isEmpty() }
+            advanceTimeBy(SETTLE_MS + 1)
+            runCurrent()
+            intent(StudentAssignmentsIntent.Complete("a"))
+            assertState { it.busyIds == setOf("a") }
+            assertState { it.busyIds.isEmpty() }
+        }
+        coVerify(exactly = 2) { complete("a") }
+    }
+
+    @Test
     fun `un fallo al escribir muestra el error y se descarta`() = runTest {
         coEvery { complete(any()) } returns Result.failure(AssignmentFailure.PermissionDenied)
         viewModel().testMvi {
