@@ -4,13 +4,13 @@ import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.link.usecase.ObserveMyTeacherUseCase
 import com.violinstudio.domain.feature.link.usecase.UnlinkUseCase
+import com.violinstudio.ui.commons.flow.SETTLE_MS as SETTLE_WINDOW_MS
+import com.violinstudio.ui.commons.flow.collectSettled
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -35,13 +35,10 @@ class MyTeacherViewModel @Inject constructor(
     }
 
     private suspend fun observe() {
-        var seen = false
         try {
-            observeTeacher().collectLatest { link ->
-                // La primera instantánea vacía suele ser la caché: se espera un momento a que llegue el servidor
-                // (una emisión nueva cancela esta espera) antes de afirmar que no hay profesor.
-                if (link == null && !seen) delay(SETTLE_MS)
-                seen = true
+            // La primera instantánea vacía suele ser la caché: se espera a que llegue el servidor antes de afirmar
+            // que no hay profesor.
+            observeTeacher().collectSettled(isEmpty = { it == null }) { link ->
                 setState { copy(isLoading = false, teacher = link) }
             }
         } catch (e: CancellationException) {
@@ -99,7 +96,7 @@ class MyTeacherViewModel @Inject constructor(
     }
 
     companion object {
-        const val SETTLE_MS = 1_500L
+        const val SETTLE_MS = SETTLE_WINDOW_MS
     }
 }
 
