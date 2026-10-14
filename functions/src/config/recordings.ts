@@ -4,3 +4,9 @@
  */
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 export const MAX_RECORDINGS_PER_OWNER = 20;
+/**
+ * Carpetas de objeto bajo `users/{uid}/`: grabaciones propias y demostraciones del profesor (C1: rutas disjuntas para
+ * que cada `allow get` gaste <= 2 accesos a Firestore). El doc de ambas vive en `users/{uid}/recordings/{id}`.
+ */
+export const RECORDINGS_DIR = "recordings";
+export const DEMOS_DIR = "demos";

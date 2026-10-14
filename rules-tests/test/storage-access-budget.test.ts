@@ -67,7 +67,8 @@ function unwrap(term: string): string | null {
 
 export function worstCase(expr: string, fns: Map<string, string>, seen: string[] = []): number {
   const branches = splitTop(expr, "||");
-  if (branches.length > 1) return Math.max(...branches.map((b) => worstCase(b, fns, seen)));
+  // Cortocircuito: `a || b` evalua b solo si a fue false, pero los accesos que a ya gasto cuentan igual (A20, C1).
+  if (branches.length > 1) return branches.reduce((n, b) => n + worstCase(b, fns, seen), 0);
   const terms = splitTop(expr, "&&");
   if (terms.length > 1) return terms.reduce((n, t) => n + worstCase(t, fns, seen), 0);
   const inner = unwrap(expr);
@@ -92,12 +93,22 @@ export function allowRules(src: string): { methods: string; expr: string }[] {
 }
 
 describe("contador estatico de accesos entre servicios (autoprueba)", () => {
-  const fns = parseFunctions("function g(x) { return firestore.get(/a/$(x)).data; } function e(x) { return firestore.exists(/a/$(x)); }");
-  test("suma en && y maximo en ||", () => {
+  const fns = parseFunctions(
+    "function g(x) { return firestore.get(/a/$(x)).data; } function e(x) { return firestore.exists(/a/$(x)); }" +
+      " function two(x) { return g(x).ok && e(x); }",
+  );
+  test("&& suma los accesos de todos sus terminos", () => {
     expect(worstCase("e(1) && e(2) && e(3)", fns)).toBe(3);
-    expect(worstCase("e(1) || (e(2) && g(3))", fns)).toBe(2);
-    expect(worstCase("g(1).ok == true && (e(2) || e(3))", fns)).toBe(2);
     expect(worstCase("a == b", fns)).toBe(0);
+  });
+  test("|| tambien suma: las ramas falsas ya evaluadas cuentan para el tope (A20, C1)", () => {
+    expect(worstCase("e(1) || two(2)", fns)).toBe(3);
+    expect(worstCase("e(1) || (e(2) && g(3))", fns)).toBe(3);
+    expect(worstCase("g(1).ok == true && (e(2) || e(3))", fns)).toBe(3);
+    expect(worstCase("x == y || e(1)", fns)).toBe(1);
+  });
+  test("caso C1: dueño || lectura de profesor (2) || lectura de demo (2) = 4", () => {
+    expect(worstCase("uid == me || two(1) || two(2)", fns)).toBe(4);
   });
   test("una funcion invocada dos veces cuenta dos veces", () => {
     expect(worstCase("g(1).a == g(2).a", fns)).toBe(2);
@@ -118,10 +129,10 @@ describe("storage.rules respeta el presupuesto de accesos (A20)", () => {
 });
 
 describe("el cupo no anade accesos (REQ-REC-14)", () => {
-  test("allow create usa exactamente 1 acceso (el get del doc de usuario)", () => {
+  test("cada allow create (grabaciones y demostraciones) usa exactamente 1 acceso (el get del doc de usuario)", () => {
     const raw = stripComments(readFileSync(join(__dirname, "../../storage.rules"), "utf8"));
-    const create = allowRules(raw).find((r) => r.methods === "create");
-    expect(create).toBeDefined();
-    expect(worstCase(create!.expr, parseFunctions(raw))).toBe(1);
+    const creates = allowRules(raw).filter((r) => r.methods === "create");
+    expect(creates).toHaveLength(2);
+    for (const c of creates) expect(worstCase(c.expr, parseFunctions(raw))).toBe(1);
   });
 });

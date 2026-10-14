@@ -1,7 +1,10 @@
 rules_version = '2';
-// Fase 4b: grabaciones de practica en `users/{uid}/recordings/{id}.m4a` (video llega en 4c). Todo lo demas, cerrado.
-// Reglas multi-servicio: leen `users/{uid}` de Firestore. Tope de la plataforma: 2 `firestore.get/exists` por
-// evaluacion (A20); `storage-recordings.test.ts` lo vigila de forma estatica porque el emulador no lo aplica.
+// Fase 4b: grabaciones de practica en `users/{uid}/recordings/{id}.m4a` y demostraciones del profesor en
+// `users/{uid}/demos/{id}.m4a` (video llega en 4c). Todo lo demas, cerrado.
+// Reglas multi-servicio: leen Firestore. Tope de la plataforma: 2 `firestore.get/exists` EVALUADOS por peticion (A20),
+// sumando las ramas de `||` ya evaluadas (el cortocircuito solo ahorra las que nunca se evaluan). Por eso cada ruta
+// tiene UNA sola rama que gasta accesos: grabaciones -> teacherReads, demos -> demoReads (C1). El emulador no aplica el
+// tope; `storage-access-budget.test.ts` lo vigila de forma estatica (peor caso acumulado).
 service firebase.storage {
   match /b/{bucket}/o {
     function verified() { return request.auth != null && request.auth.token.email_verified == true; }
@@ -15,16 +18,20 @@ service firebase.storage {
     }
     // Subida: consentimiento de grabacion vigente + cupo (MAX_RECORDINGS_PER_OWNER = 20, A21). Corte rapido: la
     // autoridad es `finalizeRecording`. `recordingCount` ausente = 0. Mismo `get` del doc de usuario, sin acceso extra.
+    // Las demos cuentan contra el cupo del profesor (mismo `recordingCount`).
     function canUpload(u) { return recordingOk(u) && u.get('recordingCount', 0) < 20; }
+    // Demos: ademas, `role == 'teacher'` del DOC (server-only), nunca del claim.
+    function canUploadDemo(u) { return canUpload(u) && u.get('role', '') == 'teacher'; }
     function hasConsent() { return request.auth.token.consentOk == true; }
     function linkDoc(t, s) { return firestore.get(/databases/(default)/documents/teacherLinks/$(t + '_' + s)).data; }
-    // El id `t_s` es ambiguo si un uid contiene '_': se comprueban los campos del vinculo, no solo su existencia.
+    // El id `t_s` es ambiguo si un uid contiene '_' (Functions `linkId` lo rechaza al crear): se comprueban los campos.
     function linkMatches(l, t, s) { return l.teacherUid == t && l.studentUid == s; }
     // Profesor vinculado leyendo a su alumno: 2 accesos (vinculo + doc del alumno). Manda el vinculo, nunca el claim `role`.
     function teacherReads(uid) {
       return hasConsent() && linkMatches(linkDoc(request.auth.uid, uid), request.auth.uid, uid) && recordingOk(userDoc(uid));
     }
-    // Alumno destinatario (`sharedWith`) de una demostracion de su profesor `uid`: 2 accesos (doc de la grabacion + vinculo).
+    // Alumno destinatario (`sharedWith`, escrito por finalize) de una demo de su profesor `uid`: 2 accesos (doc de la
+    // grabacion `users/{uid}/recordings/{id}` + vinculo).
     function demoReads(uid, file) {
       return hasConsent()
         && firestore.get(/databases/(default)/documents/users/$(uid)/recordings/$(file.split('\\.')[0])).data.get('sharedWith', '') == request.auth.uid
@@ -40,18 +47,37 @@ service firebase.storage {
       return r.contentType == 'audio/mp4' && r.size <= 25 * 1024 * 1024 && r.metadata.kind == 'audio';
     }
 
+    function ownerCreate(uid, file) {
+      return verified() && request.auth.uid == uid && request.auth.token.consentOk == true
+        && file.matches('^[A-Za-z0-9-]{1,64}\\.m4a$') && validMeta(request.resource.metadata);
+    }
+
     match /users/{uid}/recordings/{file} {
-      // Create-only: `resource == null` es imprescindible (el emulador evalua la sobrescritura como create). 1 acceso a Firestore.
-      allow create: if resource == null && verified() && request.auth.uid == uid && request.auth.token.consentOk == true
-        && file.matches('^[A-Za-z0-9-]{1,64}\\.m4a$')
-        && validMeta(request.resource.metadata)
+      // Create-only: `resource == null` es imprescindible (el emulador evalua la sobrescritura como create). 1 acceso.
+      // Sin `sharedWith`: lo compartido es una demo y va a `demos/` (rutas disjuntas, C1).
+      allow create: if resource == null && ownerCreate(uid, file)
+        && !('sharedWith' in request.resource.metadata)
         && canUpload(userDoc(uid))
         && validAudio(request.resource);
       // A12: borrar = borrar el doc Firestore; el trigger limpia el objeto. Nadie lista ni actualiza.
       allow update, delete: if false;
       // Sin comprobar `status` del doc para quedarse en <= 2 accesos (A20): los `rejected` se borran en finalize.
       allow list: if false;
-      allow get: if verified() && (request.auth.uid == uid || teacherReads(uid) || demoReads(uid, file));
+      // 2 accesos en el peor caso: solo teacherReads gasta.
+      allow get: if verified() && (request.auth.uid == uid || teacherReads(uid));
+    }
+
+    // Demostraciones del profesor `uid` para un alumno (`sharedWith`) adjuntas a una tarea (`assignmentId`). El doc
+    // Firestore vive en `users/{uid}/recordings/{id}` (mismo cupo, purga y borrado que las grabaciones).
+    match /users/{uid}/demos/{file} {
+      allow create: if resource == null && ownerCreate(uid, file)
+        && 'sharedWith' in request.resource.metadata && 'assignmentId' in request.resource.metadata
+        && canUploadDemo(userDoc(uid))
+        && validAudio(request.resource);
+      allow update, delete: if false;
+      allow list: if false;
+      // 2 accesos en el peor caso: solo demoReads gasta.
+      allow get: if verified() && (request.auth.uid == uid || demoReads(uid, file));
     }
 
     match /{allPaths=**} {

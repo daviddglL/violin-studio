@@ -118,6 +118,13 @@ Ninguna cuenta de menor se borra por el cambio de versión: vuelven a `pending` 
 
 Antes de `firebase deploy --only functions`, `functions/.env.<project-id>` (no versionado) debe definir los tres interruptores: `RECORDINGS_ENABLED=true`, `VIDEO_ENABLED=...` y `MINOR_RECORDING_ENABLED=...`. Sin ellos (o con cualquier valor distinto de `true`) las grabaciones quedan apagadas en producción.
 
+Orden (detalle en `docs/runbooks/storage-rules-iam.md`):
+
+1. IAM del agente de servicio de Storage y `firebase deploy --only storage`.
+2. Smoke test en staging de subida, lectura del profesor vinculado y lectura de demo del alumno destinatario (el emulador no aplica el tope de 2 accesos a Firestore de las reglas de Storage).
+3. Regla de ciclo de vida del bucket (`infra/storage-lifecycle.json`) aplicada: `recordingCount` solo cuenta grabaciones finalizadas, así que las subidas abandonadas solo las acota esa regla.
+4. Solo entonces `RECORDINGS_ENABLED=true` y `firebase deploy --only functions`.
+
 ### App Check en prod
 
 Play Integrity solo valida apps instaladas desde Google Play. Mientras la app se reparta por App
