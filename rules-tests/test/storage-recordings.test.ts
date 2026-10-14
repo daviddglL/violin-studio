@@ -149,3 +149,26 @@ describe("Storage recordings: quien puede crear (REQ-REC-02, REQ-SEC-R03)", () =
     await assertFails(upload(asCtx("zed"), "zed", "x.m4a"));
   });
 });
+
+describe("Storage recordings: cupo de 20 vivas, corte rapido (REQ-REC-14, A21)", () => {
+  const withCount = (n: unknown) => seed(env, "users/alice", recordingUserDoc({ recordingCount: n }));
+
+  test("recordingCount = 19 crea", async () => {
+    await withCount(19);
+    await assertSucceeds(upload(asCtx("alice"), "alice", "q19.m4a"));
+  });
+  test("recordingCount = 20 deniega (y mas)", async () => {
+    await withCount(20);
+    await assertFails(upload(asCtx("alice"), "alice", "q20.m4a"));
+    await withCount(25);
+    await assertFails(upload(asCtx("alice"), "alice", "q25.m4a"));
+  });
+  test("recordingCount ausente cuenta como 0", async () => {
+    await assertSucceeds(upload(asCtx("alice"), "alice", "q0.m4a"));
+  });
+  test("el cupo es por dueño: el de alice no afecta a bob", async () => {
+    await withCount(20);
+    await seed(env, "users/bob", recordingUserDoc({ recordingCount: 3 }));
+    await assertSucceeds(upload(asCtx("bob"), "bob", "b.m4a"));
+  });
+});

@@ -13,6 +13,9 @@ service firebase.storage {
       return u.consentStatus == 'granted' && !('deletion' in u)
         && u.get('recordingConsent', 'none') == 'granted' && u.get('recordingConsentVersion', 0) >= 1;
     }
+    // Subida: consentimiento de grabacion vigente + cupo (MAX_RECORDINGS_PER_OWNER = 20, A21). Corte rapido: la
+    // autoridad es `finalizeRecording`. `recordingCount` ausente = 0. Mismo `get` del doc de usuario, sin acceso extra.
+    function canUpload(u) { return recordingOk(u) && u.get('recordingCount', 0) < 20; }
     function validMeta(m) {
       return m.keys().hasOnly(['kind', 'durationMs', 'assignmentId', 'sharedWith', 'blurApplied', 'blurPolicyVersion', 'clientVersion'])
         && m.kind in ['audio', 'video'] && m.durationMs.matches('^[0-9]{1,6}$')
@@ -28,7 +31,7 @@ service firebase.storage {
       allow create: if resource == null && verified() && request.auth.uid == uid && request.auth.token.consentOk == true
         && file.matches('^[A-Za-z0-9-]{1,64}\\.m4a$')
         && validMeta(request.resource.metadata)
-        && recordingOk(userDoc(uid))
+        && canUpload(userDoc(uid))
         && validAudio(request.resource);
       // A12: borrar = borrar el doc Firestore; el trigger limpia el objeto. Nadie lista ni actualiza.
       allow update, delete: if false;
