@@ -199,9 +199,9 @@ async function requestRecordingConsent(
     // Mismo tutor (Q3): el HMAC debe ser el del consentimiento base vigente. Sin ese registro no se puede verificar -> se rechaza.
     const baseId = consentDocId("guardian_privacy_policy", doc.policyVersion as number, "guardian", consentEpochOf(doc));
     const base = (await tx.get(userRef.collection(COLLECTIONS.consents).doc(baseId))).data();
-    if (typeof base?.guardianEmailHmac !== "string" || base.guardianEmailHmac !== hmac) {
-      throw fail("failed-precondition", ErrorReason.GUARDIAN_EMAIL_MISMATCH);
-    }
+    // Registro heredado sin HMAC: el tutor no se puede verificar y el email no es el problema (razón propia para el cliente).
+    if (base && typeof base.guardianEmailHmac !== "string") throw fail("failed-precondition", ErrorReason.GUARDIAN_LEGACY_CONSENT);
+    if (base?.guardianEmailHmac !== hmac) throw fail("failed-precondition", ErrorReason.GUARDIAN_EMAIL_MISMATCH);
 
     const recordingGuardian = doc.recordingGuardian as { requestId?: unknown; sends?: unknown } | undefined;
     const account = checkRateLimit(toMillis(recordingGuardian?.sends), nowMs, GUARDIAN_MAX_SENDS_PER_24H, DAY_MS);

@@ -33,6 +33,17 @@ function isPurgePending(doc: Record<string, unknown>): boolean {
   return purgeOf(doc)?.pending === true;
 }
 
+/**
+ * Desvincula la concesión/solicitud de grabación del tutor (`recordingGuardian.requestId`) conservando `sends` (límite de
+ * reenvíos). Sin ese vínculo un enlace viejo del tutor no puede revocar una concesión posterior ni reanimar una solicitud.
+ * Solo si el mapa existe: un borrado anidado sobre un mapa ausente no debe crear uno vacío.
+ */
+export function clearRecordingRequest(doc: Record<string, unknown>): Record<string, unknown> {
+  return typeof doc.recordingGuardian === "object" && doc.recordingGuardian !== null
+    ? { "recordingGuardian.requestId": FieldValue.delete() }
+    : {};
+}
+
 function parseVersion(data: unknown, current: number): number {
   const version = requireObject(data).version;
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1 || version > current) {
@@ -83,6 +94,8 @@ export async function grantRecordingConsentHandler(
       recordingConsent: "granted",
       recordingConsentVersion: version,
       blurRequired: blur,
+      // La concesión es del propio usuario: ningún enlace del tutor (de una solicitud anterior) puede revocarla.
+      ...clearRecordingRequest(doc),
       updatedAt: FieldValue.serverTimestamp(),
     });
     return true;
@@ -116,6 +129,7 @@ export function writeRecordingRevocation(
   tx.update(userRef, {
     recordingConsent: "revoked",
     recordingConsentEpoch: closing + 1,
+    ...clearRecordingRequest(doc),
     recordingPurge: {
       pending: true,
       since: prev?.since ?? FieldValue.serverTimestamp(),

@@ -171,13 +171,13 @@ describe("mismo tutor que dio el consentimiento base (REQ-GRD-R01, Q3)", () => {
     expect((await where("guardianRequests", u.uid))[0].data().guardianEmailHmac).toBe(hmacEmail(PEPPER, u.guardian));
   });
 
-  test("sin registro del consentimiento base (o sin HMAC) no se puede verificar -> GUARDIAN_EMAIL_MISMATCH", async () => {
+  test("sin registro del consentimiento base no se puede verificar -> GUARDIAN_EMAIL_MISMATCH; con registro heredado sin HMAC -> GUARDIAN_LEGACY_CONSENT (S4)", async () => {
     const sin = await minor({}, false);
     await expect(ask(sin)).rejects.toMatchObject({ details: { reason: "GUARDIAN_EMAIL_MISMATCH" } });
     const sinHmac = await minor();
     await db.collection("users").doc(sinHmac.uid).collection("consents")
       .doc(`guardian_privacy_policy_v${CURRENT_POLICY_VERSION}_guardian_e0`).set({ type: "guardian_privacy_policy" });
-    await expect(ask(sinHmac)).rejects.toMatchObject({ details: { reason: "GUARDIAN_EMAIL_MISMATCH" } });
+    await expect(ask(sinHmac)).rejects.toMatchObject({ code: "failed-precondition", details: { reason: "GUARDIAN_LEGACY_CONSENT" } });
     expect(await where("mail", sin.uid)).toHaveLength(0);
     expect(await where("mail", sinHmac.uid)).toHaveLength(0);
   });

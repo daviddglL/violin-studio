@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { RECORDING_CONSENT_VERSION } from "../../src/config/identity";
+import { grantRecordingConsentHandler, revokeRecordingConsentHandler } from "../../src/consent/recording-consent";
 import { guardianConsentHandler } from "../../src/guardian/confirm";
 import { hmacEmail } from "../../src/common/hashing";
 import { renderInvalidPage, renderRetryPage } from "../../src/guardian/page";
@@ -271,6 +272,28 @@ describe("revocación del tutor para la finalidad de grabación", () => {
     return { ...s, rev: rev as string };
   }
   const revoke = (s: { r: string; rev: string }, over: Record<string, unknown> = {}) => post({ r: s.r, t: s.rev, action: "revoke", ...over });
+
+  test("W1: un enlace viejo del tutor no revoca una concesión posterior del propio usuario (revocó y re-concedió a los 14)", async () => {
+    const s = await granted();
+    await revokeRecordingConsentHandler({ db, log: () => undefined }, s.uid); // el menor revoca
+    await db.collection("users").doc(s.uid).update({ isMinor: false, "recordingPurge.pending": false }); // cumple 14, purga terminada
+    await grantRecordingConsentHandler(
+      { db, clock: () => state.now, flags: { recordingsEnabled: true, videoEnabled: true, minorRecordingEnabled: true }, currentPolicyVersion: 1, log: () => undefined },
+      s.uid, { version: RECORDING_CONSENT_VERSION },
+    );
+    const before = await perfil(s.uid);
+    expect(before.recordingConsent).toBe("granted");
+    expect((await get({ r: s.r })).body).toBe(INVALID);
+    expect((await revoke(s)).body).toBe(INVALID);
+    expect(await perfil(s.uid)).toEqual(before);
+  });
+
+  test("W1: la revocación del tutor sigue funcionando tras una concesión del tutor sin intermedios", async () => {
+    const s = await granted();
+    expect((await get({ r: s.r })).status).toBe(200);
+    expect((await revoke(s)).status).toBe(200);
+    expect((await perfil(s.uid)).recordingConsent).toBe("revoked");
+  });
 
   test("GET con el enlace de revocación muestra la página de grabaciones sin cambiar nada", async () => {
     const s = await granted();

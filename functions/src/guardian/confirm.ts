@@ -105,7 +105,7 @@ const recordingOn = (deps: GuardianConsentDeps): boolean => {
 /**
  * El menor sigue esperando a ESTE tutor para la grabación: menor (<14) con la base vigente `granted` y `recordingConsent =
  * parental_pending` de esta solicitud. Si cumplió 14 (`isMinor` falso), concedió por sí mismo o la base cambió (revocada,
- * política nueva) el enlace deja de valer: `revokeConsentCore` no limpia el `parental_pending` de grabación, así que se comprueba aquí.
+ * política nueva) el enlace deja de valer: `revokeConsentCore` ya restablece el `parental_pending` de grabación; la comprobación aquí cubre además la política nueva.
  */
 const recordingAwaiting = (u: Record<string, unknown> | undefined, requestId: string, version: number): u is Record<string, unknown> =>
   !!u &&
