@@ -1,7 +1,9 @@
 import { Bucket } from "@google-cloud/storage";
 import { DocumentData, DocumentReference, DocumentSnapshot, Firestore, Timestamp } from "firebase-admin/firestore";
+import { logger } from "firebase-functions/v2";
 import { Clock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
+import { sha256Hex } from "../common/hashing";
 import { RecordingFlags } from "../config/features";
 import { RECORDING_CONSENT_VERSION } from "../config/identity";
 import { DEMOS_DIR, MAX_RECORDINGS_PER_OWNER, RECORDINGS_DIR } from "../config/recordings";
@@ -145,8 +147,32 @@ function createdAfterGrant(timeCreated: Date, grants: DocumentSnapshot[]): boole
   return Number.isFinite(grantedAt) && timeCreated.getTime() >= grantedAt;
 }
 
+/**
+ * Entrada del trigger. Registra UNA linea por evento con `outcome`, `reason`, `dir` y `uidHash` (REQ-REC-12): nunca la
+ * ruta, el id de la grabacion, el uid, tareas, nombres ni el mensaje de un error. Un fallo se relanza para que reintente.
+ */
 export async function finalizeRecordingHandler(deps: FinalizeDeps, event: FinalizeEvent): Promise<FinalizeOutcome> {
+  const log = deps.log ?? ((m: string, d: Record<string, unknown>) => logger.info(m, d));
   const path = parseObjectPath(event.name);
+  const who = path ? { uidHash: sha256Hex(path.uid).slice(0, 12), dir: path.dir } : {};
+  const note: { reason?: string } = {};
+  let outcome: FinalizeOutcome;
+  try {
+    outcome = await finalizeCore(deps, event, path, note);
+  } catch (e) {
+    log("finalizeRecording", { outcome: "error", ...who });
+    throw e;
+  }
+  log("finalizeRecording", { outcome, ...(note.reason ? { reason: note.reason } : {}), ...who });
+  return outcome;
+}
+
+async function finalizeCore(
+  deps: FinalizeDeps,
+  event: FinalizeEvent,
+  path: ReturnType<typeof parseObjectPath>,
+  note: { reason?: string },
+): Promise<FinalizeOutcome> {
   if (!path) {
     if (!IN_PREFIX.test(event.name)) return "ignored";
     await deps.store.remove(event.name);
@@ -240,6 +266,7 @@ export async function finalizeRecordingHandler(deps: FinalizeDeps, event: Finali
 
     const createdAt = Timestamp.fromDate(now);
     if (!result.ok) {
+      note.reason = result.reason;
       tx.set(recRef, rejectedDoc(result.reason, createdAt, event, now));
       return { action: "rejected" as const };
     }
