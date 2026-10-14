@@ -138,6 +138,25 @@ describe("rechazos sin escrituras", () => {
     expect(await consents(uid)).toEqual({});
   });
 
+  test("purga pendiente (revocar y reconsentir de inmediato): TEMPORARILY_UNAVAILABLE reintentable, sin escrituras", async () => {
+    const uid = await usuario({
+      recordingConsent: "revoked", recordingConsentEpoch: 1, recordingPurge: { pending: true, since: Timestamp.now(), epoch: 0 },
+    });
+    const antes = await perfil(uid);
+    await expect(grantRecordingConsentHandler(d(), uid, { version: V })).rejects.toMatchObject({
+      code: "unavailable", details: { reason: "TEMPORARILY_UNAVAILABLE" },
+    });
+    await sinEfectos(uid, antes);
+  });
+
+  test("purga terminada (pending=false): se puede reconsentir", async () => {
+    const uid = await usuario({
+      recordingConsent: "revoked", recordingConsentEpoch: 1, recordingPurge: { pending: false, since: Timestamp.now(), epoch: 0 },
+    });
+    await grantRecordingConsentHandler(d(), uid, { version: V });
+    expect((await perfil(uid)).recordingConsent).toBe("granted");
+  });
+
   test("MINOR_RECORDING_ENABLED=false: rechaza a <18 (16 años) pero no a adultos", async () => {
     const flags = { ...TODOS, minorRecordingEnabled: false };
     const de16 = await usuario({ birthDate: "2010-03-01" });
@@ -173,6 +192,10 @@ describe("rechazos sin escrituras", () => {
 
 describe("callable grantRecordingConsent", () => {
   const llamar = grantRecordingConsent && fft.wrap(grantRecordingConsent);
+  const ENV = ["RECORDINGS_ENABLED", "VIDEO_ENABLED", "MINOR_RECORDING_ENABLED"];
+  const guardado = ENV.map((k) => process.env[k]);
+  beforeAll(() => ENV.forEach((k) => (process.env[k] = "true")));
+  afterAll(() => ENV.forEach((k, i) => (guardado[i] === undefined ? delete process.env[k] : (process.env[k] = guardado[i]))));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const req = (uid: string, token: Record<string, unknown>, data: unknown = { version: V }): any => ({ data, auth: { uid, token } });
 
@@ -188,7 +211,7 @@ describe("callable grantRecordingConsent", () => {
     expect(await consents(uid)).toEqual({});
   });
 
-  test("usuario verificado: granted (los interruptores del emulador/test están encendidos)", async () => {
+  test("usuario verificado: granted (interruptores fijados explícitamente en el test)", async () => {
     const uid = await usuario({ policyVersion: CURRENT_POLICY_VERSION });
     expect(await llamar(req(uid, { email_verified: true }))).toEqual({ recordingConsent: "granted" });
     expect((await perfil(uid)).recordingConsent).toBe("granted");

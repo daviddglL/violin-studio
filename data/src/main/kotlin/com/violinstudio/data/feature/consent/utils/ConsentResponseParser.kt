@@ -18,7 +18,9 @@ object ConsentResponseParser {
             videoEnabled = map.flag("videoEnabled"),
             minorRecordingEnabled = map.flag("minorRecordingEnabled"),
             recordingConsentVersion = if ("recordingConsentVersion" in map) {
-                map.int("identityConfig", "recordingConsentVersion")
+                map.int("identityConfig", "recordingConsentVersion").also {
+                    if (it < 1) throw MalformedResponseException("identityConfig: 'recordingConsentVersion' debe ser >= 1")
+                }
             } else {
                 1
             }

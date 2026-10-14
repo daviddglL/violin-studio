@@ -42,6 +42,7 @@ describe("revokeRecordingConsent", () => {
     const p = await perfil(uid);
     expect(p).toMatchObject({ recordingConsent: "revoked", recordingConsentEpoch: 1, consentStatus: "granted", policyVersion: POLICY });
     expect(p.recordingPurge.pending).toBe(true);
+    expect(p.recordingPurge.epoch).toBe(0);
     expect(Math.abs((p.recordingPurge.since as Timestamp).toMillis() - antes)).toBeLessThan(60_000);
     const c = await consents(uid);
     expect(Object.keys(c).sort()).toEqual([`recording_revocation_v${V}_self_e0`, `recording_sharing_v${V}_self_e0`]);
@@ -50,6 +51,24 @@ describe("revokeRecordingConsent", () => {
     });
     expect(Object.keys(c[`recording_revocation_v${V}_self_e0`]).sort()).toEqual(["action", "grantedBy", "timestamp", "type", "version"]);
     expect((await auth.getUser(uid)).customClaims?.consentOk).toBeUndefined();
+  });
+
+  test("la purga lleva la época de la grabación cerrada (acota el borrado de B5b)", async () => {
+    const uid = await concedido({ recordingConsentEpoch: 4 });
+    await revocar(uid);
+    const p = await perfil(uid);
+    expect(p.recordingConsentEpoch).toBe(5);
+    expect(p.recordingPurge).toMatchObject({ pending: true, epoch: 4 });
+  });
+
+  test("una segunda revocación con purga pendiente conserva pending, la época máxima y el since original", async () => {
+    const since = Timestamp.fromMillis(1_700_000_000_000);
+    const uid = await concedido({ recordingConsentEpoch: 2, recordingPurge: { pending: true, since, epoch: 5 } });
+    await revocar(uid);
+    const p = await perfil(uid);
+    expect(p.recordingPurge.pending).toBe(true);
+    expect(p.recordingPurge.epoch).toBe(5);
+    expect((p.recordingPurge.since as Timestamp).toMillis()).toBe(1_700_000_000_000);
   });
 
   test("no toca el consentimiento base: consentStatus, policyVersion y consentEpoch intactos", async () => {
@@ -98,6 +117,8 @@ describe("revokeRecordingConsent", () => {
     const deps = { db, clock: () => new Date("2026-09-30T12:00:00Z"), flags, currentPolicyVersion: POLICY };
     await grantRecordingConsentHandler(deps, uid, { version: V });
     await revocar(uid);
+    // La purga (B5b) aún no existe: se simula su final bajando `pending`.
+    await db.collection("users").doc(uid).update({ "recordingPurge.pending": false });
     await grantRecordingConsentHandler(deps, uid, { version: V });
     expect(Object.keys(await consents(uid)).sort()).toEqual([
       `recording_revocation_v${V}_self_e0`, `recording_sharing_v${V}_self_e0`, `recording_sharing_v${V}_self_e1`,

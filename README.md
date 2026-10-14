@@ -114,6 +114,10 @@ Orden obligatorio (design §9). Cada paso termina antes de empezar el siguiente:
 
 Ninguna cuenta de menor se borra por el cambio de versión: vuelven a `pending` y el tutor debe confirmar de nuevo.
 
+### Publicar la fase 4b (grabaciones)
+
+Antes de `firebase deploy --only functions`, `functions/.env.<project-id>` (no versionado) debe definir los tres interruptores: `RECORDINGS_ENABLED=true`, `VIDEO_ENABLED=...` y `MINOR_RECORDING_ENABLED=...`. Sin ellos (o con cualquier valor distinto de `true`) las grabaciones quedan apagadas en producción.
+
 ### App Check en prod
 
 Play Integrity solo valida apps instaladas desde Google Play. Mientras la app se reparta por App

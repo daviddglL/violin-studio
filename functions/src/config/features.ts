@@ -4,7 +4,8 @@
  * emulador pregunta por consola y se cuelga en CI.
  *
  * Sin variable: apagados en producción (fail-closed; el despliegue de 4b los enciende por proyecto) y encendidos en el
- * emulador o bajo test. Cualquier valor distinto de `true` cuenta como apagado.
+ * emulador o bajo test. Solo `true` enciende (se toleran mayúsculas y espacios alrededor); cualquier otro valor cuenta como apagado.
+ * Producción: `functions/.env.<project>` debe definir los tres para que 4b los encienda al desplegar.
  */
 export interface RecordingFlags {
   recordingsEnabled: boolean;

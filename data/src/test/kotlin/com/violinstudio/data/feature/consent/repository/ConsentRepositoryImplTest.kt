@@ -91,7 +91,9 @@ class ConsentRepositoryImplTest {
             mapOf("videoEnabled" to 1),
             mapOf("minorRecordingEnabled" to null),
             mapOf("recordingConsentVersion" to "1"),
-            mapOf("recordingConsentVersion" to 1.5)
+            mapOf("recordingConsentVersion" to 1.5),
+            mapOf("recordingConsentVersion" to 0),
+            mapOf("recordingConsentVersion" to -3)
         ).forEach {
             functions.response = config() + it
             val e = repo.identityConfig().exceptionOrNull()

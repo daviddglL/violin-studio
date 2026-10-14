@@ -81,3 +81,12 @@ test("un documento con deletion en curso no se reevalúa (queda intacto)", async
   await reevaluateConsent({ db, auth, currentVersion: 2 }, uid);
   expect(await perfil(uid)).toMatchObject({ consentStatus: "granted", policyVersion: 1, deletion: { state: "in_progress" } });
 });
+
+test("recordingConsent granted con versión de grabación antigua pasa a none y sube la época (ids de grant nuevos, S2)", async () => {
+  const uid = await granted(2, { recordingConsent: "granted", recordingConsentVersion: 1, recordingConsentEpoch: 2 });
+  await reevaluateConsent({ db, auth, currentVersion: 2, currentRecordingVersion: 2 }, uid);
+  const d = await perfil(uid);
+  expect(d.recordingConsent).toBeUndefined();
+  expect(d.recordingConsentEpoch).toBe(3);
+  expect(d).toMatchObject({ consentStatus: "granted", policyVersion: 2 });
+});

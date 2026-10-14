@@ -3,6 +3,7 @@ import { FieldValue, Firestore } from "firebase-admin/firestore";
 import { COLLECTIONS } from "../common/collections";
 import { CURRENT_POLICY_VERSION, RECORDING_CONSENT_VERSION } from "../config/identity";
 import { claimsFromProfile, syncClaims } from "../identity/claims";
+import { recordingEpochOf } from "./consent-docs";
 
 export interface ReevaluateDeps {
   db: Firestore;
@@ -57,7 +58,8 @@ export async function reevaluateConsent(deps: ReevaluateDeps, uid: string): Prom
       tx.update(ref, {
         ...(next ? { consentStatus: next } : {}),
         // `none` = campo ausente (REQ-PRF-T03).
-        ...(recording ? { recordingConsent: FieldValue.delete() } : {}),
+        // La época sube para que el reconsentimiento no choque con el id de grant anterior y las subidas en vuelo caduquen.
+        ...(recording ? { recordingConsent: FieldValue.delete(), recordingConsentEpoch: recordingEpochOf(doc) + 1 } : {}),
         updatedAt: FieldValue.serverTimestamp(),
       });
     }

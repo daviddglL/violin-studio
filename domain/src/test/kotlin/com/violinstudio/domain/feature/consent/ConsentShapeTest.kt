@@ -19,6 +19,9 @@ class ConsentShapeTest {
         ConsentFailure.AlreadyGranted -> "granted"
         ConsentFailure.EmailNotVerified -> "unverified"
         is ConsentFailure.InvalidArgument -> "invalid-argument"
+        ConsentFailure.RecordingDisabled -> "recording-disabled"
+        is ConsentFailure.RecordingConsentOutdated -> "recording-outdated"
+        ConsentFailure.TemporarilyUnavailable -> "unavailable"
         ConsentFailure.Network -> "network"
         is ConsentFailure.Unknown -> "unknown"
     }

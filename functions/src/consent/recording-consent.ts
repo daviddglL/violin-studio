@@ -24,6 +24,15 @@ export interface GrantRecordingConsentResult {
   recordingConsent: "granted";
 }
 
+function purgeOf(doc: Record<string, unknown>): Record<string, unknown> | undefined {
+  const p = doc.recordingPurge;
+  return typeof p === "object" && p !== null ? (p as Record<string, unknown>) : undefined;
+}
+
+function isPurgePending(doc: Record<string, unknown>): boolean {
+  return purgeOf(doc)?.pending === true;
+}
+
 function parseVersion(data: unknown, current: number): number {
   const version = requireObject(data).version;
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1 || version > current) {
@@ -36,7 +45,9 @@ function parseVersion(data: unknown, current: number): number {
 }
 
 /**
- * Consentimiento de grabación del propio usuario (REQ-CON-R01, U5): solo 14+ (`isMinor == false`; un valor no booleano
+ * Consentimiento de grabación del propio usuario (REQ-CON-R01, U5): mientras `recordingPurge.pending` siga activo falla
+ * con `TEMPORARILY_UNAVAILABLE` (reintentable) para que una purga en curso no borre grabaciones de la nueva concesión.
+ * Solo 14+ (`isMinor == false`; un valor no booleano
  * cuenta como menor) con el consentimiento base vigente y sin borrado en curso. Decide el documento, nunca el claim.
  * Recalcula `blurRequired` desde `birthDate` y, si es < 18, exige `MINOR_RECORDING_ENABLED`. NO toca `consentStatus` ni
  * `consentOk`. Idempotente: el id del consent es determinista por época de grabación y no se sobrescribe ninguno.
@@ -62,6 +73,8 @@ export async function grantRecordingConsentHandler(
     }
     const blur = blurRequiredFor(doc.birthDate, now);
     if (blur && !deps.flags.minorRecordingEnabled) throw fail("failed-precondition", ErrorReason.RECORDING_DISABLED);
+    // Purga de una revocación anterior aún en curso (B5b): reconsentir ahora mezclaría grabaciones nuevas con el borrado.
+    if (isPurgePending(doc)) throw fail("unavailable", ErrorReason.TEMPORARILY_UNAVAILABLE);
     if (doc.recordingConsent === "granted" && doc.recordingConsentVersion === version) return false;
 
     const ref = userRef.collection(COLLECTIONS.consents).doc(consentDocId("recording_sharing", version, "self", recordingEpochOf(doc)));
@@ -82,8 +95,9 @@ export async function grantRecordingConsentHandler(
 /**
  * Escrituras de la revocación de grabación (REQ-CON-R02), a ejecutar DENTRO de una transacción que ya leyó `doc` con
  * `recordingConsent == "granted"`: registro append-only `recording_revocation` con `action = revoked` (id por época que
- * se cierra), `recordingConsent = revoked`, época + 1 y `recordingPurge.pending` para que el borrado (B5b) sea
- * reanudable. Nunca toca `consentStatus` ni `consentOk`. Una versión guardada ilegible se registra como 0.
+ * se cierra), `recordingConsent = revoked`, época + 1 y `recordingPurge {pending, since, epoch}` para que el borrado
+ * (B5b) sea reanudable y acotado: `epoch` es la mayor época cerrada aún sin purgar (con una purga ya pendiente se
+ * conservan su `since` y el máximo de épocas, nunca se pierde el pendiente). Nunca toca `consentStatus` ni `consentOk`. Una versión guardada ilegible se registra como 0.
  * Devuelve la época cerrada.
  */
 export function writeRecordingRevocation(
@@ -97,10 +111,16 @@ export function writeRecordingRevocation(
   const version = typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0;
   const ref = userRef.collection(COLLECTIONS.consents).doc(consentDocId("recording_revocation", version, by, closing));
   tx.create(ref, buildConsentDoc("recording_revocation", version, by, "revoked"));
+  const prev = isPurgePending(doc) ? purgeOf(doc) : undefined;
+  const prevEpoch = prev && typeof prev.epoch === "number" && Number.isInteger(prev.epoch) ? prev.epoch : -1;
   tx.update(userRef, {
     recordingConsent: "revoked",
     recordingConsentEpoch: closing + 1,
-    recordingPurge: { pending: true, since: FieldValue.serverTimestamp() },
+    recordingPurge: {
+      pending: true,
+      since: prev?.since ?? FieldValue.serverTimestamp(),
+      epoch: Math.max(closing, prevEpoch),
+    },
     updatedAt: FieldValue.serverTimestamp(),
   });
   return closing;
@@ -133,7 +153,8 @@ export async function revokeRecordingConsentHandler(
     if (doc.recordingConsent !== "granted") {
       return { revoked: false as const, state: typeof doc.recordingConsent === "string" ? doc.recordingConsent : "none" };
     }
-    return { revoked: true as const, state: "revoked", closed: writeRecordingRevocation(tx, userRef, doc, "self") };
+    writeRecordingRevocation(tx, userRef, doc, "self");
+    return { revoked: true as const, state: "revoked" };
   });
   (deps.log ?? ((m, d) => logger.info(m, d)))("revokeRecordingConsent", { revoked: outcome.revoked });
   return { recordingConsent: outcome.state };
