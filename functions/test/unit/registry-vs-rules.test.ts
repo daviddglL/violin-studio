@@ -163,12 +163,19 @@ test("toda subcoleccion registrada tiene su match explicito bajo su padre inmedi
     if (p.kind === "subcollectionOf") expect(declared).toContainEqual({ name, parent: p.parent });
   }
   expect(declared).toContainEqual({ name: "recordings", parent: "users" });
+  expect(declared).toContainEqual({ name: "reviews", parent: "recordings" });
+});
+
+test("reviews cuelga de recordings y no de users: otro padre falla (negativo)", () => {
+  const mal = wrap("match /users/{u} { match /reviews/{id} { } }");
+  expect(unregisteredSubs(nestedCollections(mal))).toEqual(["reviews"]);
 });
 
 test("quitar el match de una subcoleccion registrada se detecta (negativo)", () => {
   const sin = rules.replace("match /recordings/{r} {", "match /otraCosa/{r} {");
   expect(nestedCollections(sin)).not.toContainEqual({ name: "recordings", parent: "users" });
-  expect(unregisteredSubs(nestedCollections(sin))).toEqual(["otraCosa"]);
+  // `reviews` queda bajo otro padre: tambien se detecta.
+  expect(unregisteredSubs(nestedCollections(sin))).toEqual(["otraCosa", "reviews"]);
 });
 
 test("un match plano mal formado falla en voz alta", () => {

@@ -36,6 +36,8 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   // el `recursiveDelete` del usuario y el barrido de `users/{uid}/`. La cascada `foreign` (demos dirigidas al alumno
   // borrado, con su objeto) y `reviews` (anonimizar) las anade B5b: aqui solo la politica simple.
   recordings: { kind: "subcollectionOf", parent: "users" },
+  // Cuelgan de `recordings`: caen con su `recursiveDelete`. Las del profesor borrado en espacios ajenos se anonimizan en B5b.
+  reviews: { kind: "subcollectionOf", parent: "recordings" },
 };
 
 /**

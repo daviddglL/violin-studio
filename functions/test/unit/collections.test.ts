@@ -14,6 +14,7 @@ describe("COLLECTIONS", () => {
       teacherLinks: "teacherLinks",
       assignments: "assignments",
       recordings: "recordings",
+      reviews: "reviews",
     });
   });
   test("CollectionName admite los valores registrados", () => {

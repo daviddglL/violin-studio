@@ -18,6 +18,7 @@ test("el registro cubre todas las colecciones con la política prevista", () => 
   });
   // B3b: politica simple; las cascadas `foreign` (demos dirigidas al alumno, anonimizar revisiones) llegan en B5b.
   expect(ERASABLE_COLLECTIONS.recordings).toEqual({ kind: "subcollectionOf", parent: "users" });
+  expect(ERASABLE_COLLECTIONS.reviews).toEqual({ kind: "subcollectionOf", parent: "recordings" });
   const exempt = ERASABLE_COLLECTIONS.guardianEmailLimits;
   expect(exempt.kind).toBe("exempt");
   expect(exempt.kind === "exempt" && exempt.reason.length).toBeGreaterThan(10);
@@ -39,6 +40,7 @@ test("una colección sin política no compila", () => {
     teacherLinks: { kind: "exempt", reason: "x" },
     assignments: { kind: "subcollectionOf", parent: "users" },
     recordings: { kind: "subcollectionOf", parent: "users" },
+    reviews: { kind: "subcollectionOf", parent: "recordings" },
   };
   expect(incompleto).toBeDefined();
 });

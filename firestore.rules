@@ -50,6 +50,13 @@ service cloud.firestore {
     function recordingGranted(u) {
       return u.get('recordingConsent', 'none') == 'granted' && u.get('recordingConsentVersion', 0) >= 1;
     }
+    // Esquema cerrado de la revision (REQ-RVW-01). `reviewerUid` y las marcas de tiempo las fijan las reglas de escritura.
+    function validReview(d) {
+      return d.keys().hasOnly(['reviewerUid', 'verdict', 'text', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['reviewerUid', 'verdict', 'text', 'createdAt', 'updatedAt'])
+        && d.reviewerUid is string && d.verdict in ['approved', 'needs_work']
+        && d.text is string && d.text.size() <= 1000;
+    }
     // Titulo de tarea: misma lista blanca que el nombre (sin control/formato ni espacios en los extremos), 1..120.
     function validTitle(n) {
       return n is string && n == n.trim() && n.size() >= 1 && n.size() <= 120
@@ -146,6 +153,25 @@ service cloud.firestore {
             && resource.data.status == 'ready' && linkOk(uid, request.auth.uid));
         allow create, update: if false;
         allow delete: if isOwner(uid); // A12: supresion siempre disponible, sin consentimiento
+
+        // Revision del profesor (REQ-SEC-R02): id = uid del revisor (una por profesor). Solo Admin crea revisiones
+        // anonimizadas (id aleatorio, `reviewerUid: null`). El alumno conserva la lectura tras desvincular (dueno).
+        // El profesor lee/escribe SOLO la suya y mientras exista el vinculo; no hay `list` para el profesor (la regla
+        // no puede acotar por id en una consulta). Accesos distintos: dueno 0; profesor 3 (isLinkedTeacher) y +1 en
+        // `create` (doc de la grabacion) = 4, el maximo permitido por B3b.3.
+        match /reviews/{reviewId} {
+          allow get: if isOwner(uid) || (isLinkedTeacher(uid) && reviewId == request.auth.uid);
+          allow list: if isOwner(uid);
+          allow create: if isLinkedTeacher(uid) && reviewId == request.auth.uid
+            && get(/databases/$(database)/documents/users/$(uid)/recordings/$(r)).data.status == 'ready'
+            && recordingGranted(get(/databases/$(database)/documents/users/$(uid)).data)
+            && validReview(request.resource.data) && request.resource.data.reviewerUid == request.auth.uid
+            && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+          allow update: if isLinkedTeacher(uid) && reviewId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verdict', 'text', 'updatedAt'])
+            && validReview(request.resource.data) && request.resource.data.updatedAt == request.time;
+          allow delete: if isLinkedTeacher(uid) && reviewId == request.auth.uid;
+        }
       }
     }
 

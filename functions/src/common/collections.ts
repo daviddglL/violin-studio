@@ -10,6 +10,7 @@ export const COLLECTIONS = {
   teacherLinks: "teacherLinks",
   assignments: "assignments",
   recordings: "recordings",
+  reviews: "reviews",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
