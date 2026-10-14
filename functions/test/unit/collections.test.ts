@@ -13,6 +13,7 @@ describe("COLLECTIONS", () => {
       teacherCodes: "teacherCodes",
       teacherLinks: "teacherLinks",
       assignments: "assignments",
+      recordings: "recordings",
     });
   });
   test("CollectionName admite los valores registrados", () => {

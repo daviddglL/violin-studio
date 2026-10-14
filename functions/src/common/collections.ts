@@ -9,6 +9,7 @@ export const COLLECTIONS = {
   teacherCodes: "teacherCodes",
   teacherLinks: "teacherLinks",
   assignments: "assignments",
+  recordings: "recordings",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

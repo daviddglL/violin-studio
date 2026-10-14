@@ -32,6 +32,10 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   teacherLinks: { kind: "link", fields: ["teacherUid", "studentUid"] },
   // Tareas: viven en el espacio del alumno (caen con su `recursiveDelete`) y las del profesor, tambien las hechas, se barren aparte.
   assignments: { kind: "subcollectionOf", parent: "users", foreign: { field: "teacherUid", action: "delete" } },
+  // Grabaciones y demos (objeto en `users/{uid}/recordings|demos/`, doc siempre en `users/{uid}/recordings`): caen con
+  // el `recursiveDelete` del usuario y el barrido de `users/{uid}/`. La cascada `foreign` (demos dirigidas al alumno
+  // borrado, con su objeto) y `reviews` (anonimizar) las anade B5b: aqui solo la politica simple.
+  recordings: { kind: "subcollectionOf", parent: "users" },
 };
 
 /**
