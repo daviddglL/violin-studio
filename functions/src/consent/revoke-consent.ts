@@ -6,7 +6,7 @@ import { ErrorReason, fail } from "../common/errors";
 import { CURRENT_POLICY_VERSION } from "../config/identity";
 import { syncClaims } from "../identity/claims";
 import { buildConsentDoc, consentDocId, consentEpochOf, GrantedBy } from "./consent-docs";
-import { clearRecordingRequest, writeRecordingRevocation } from "./recording-consent";
+import { clearRecordingRequest, PurgeRecordingsHook, runPurgeAfterRevocation, writeRecordingRevocation } from "./recording-consent";
 
 export interface RevokeConsentDeps {
   db: Firestore;
@@ -15,6 +15,8 @@ export interface RevokeConsentDeps {
   currentVersion?: number;
   /** Sumidero de logs sin PII; por defecto `logger.info`. */
   log?: (message: string, data: Record<string, unknown>) => void;
+  /** Borrado efectivo de las grabaciones cuando la revocacion tambien revoco la de grabacion (REQ-CON-R03); fallo = solo log. */
+  purgeRecordings?: PurgeRecordingsHook;
 }
 
 export interface RevokeConsentResult {
@@ -93,5 +95,6 @@ export async function revokeConsentCore(
 
   await syncClaims(syncDeps, uid);
   log("revokeConsent", { by, closedEpoch: outcome.closing, recordingRevoked: outcome.recordingRevoked, ...(outcome.anomaly ? { anomaly: "policyVersion" } : {}) });
+  if (outcome.recordingRevoked) await runPurgeAfterRevocation(deps.purgeRecordings, uid, log);
   return { consentStatus: "revoked" };
 }

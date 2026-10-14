@@ -140,9 +140,32 @@ export function writeRecordingRevocation(
   return closing;
 }
 
+/** Borrado efectivo de las grabaciones tras una revocacion (`purgeRevokedRecordings`); inyectado para no acoplar el handler a Storage. */
+export type PurgeRecordingsHook = (uid: string) => Promise<unknown>;
+
 export interface RevokeRecordingConsentDeps {
   db: Firestore;
   log?: (message: string, data: Record<string, unknown>) => void;
+  /**
+   * Se ejecuta DESPUES de la transaccion de revocacion (REQ-REC-09). Su fallo nunca deshace ni falla la revocacion (ya consta;
+   * `recordingPurge.pending` sigue y la reanudan la propia llamada repetida o la purga diaria): solo se registra el codigo.
+   */
+  purgeRecordings?: PurgeRecordingsHook;
+}
+
+/** Lanza la purga tras revocar sin que un fallo escape: el estado revocado ya esta escrito y la purga es reanudable. */
+export async function runPurgeAfterRevocation(
+  hook: PurgeRecordingsHook | undefined,
+  uid: string,
+  log: (message: string, data: Record<string, unknown>) => void,
+): Promise<void> {
+  if (!hook) return;
+  try {
+    await hook(uid);
+  } catch (e) {
+    const code = (e as { code?: unknown } | null)?.code;
+    log("revokeRecordingConsent.purgeFailed", { code: typeof code === "string" || typeof code === "number" ? code : "unknown" });
+  }
 }
 
 export interface RevokeRecordingConsentResult {
@@ -153,7 +176,8 @@ export interface RevokeRecordingConsentResult {
 /**
  * Revoca el consentimiento de grabación del propio usuario (también un menor de 14: la revocación protege datos).
  * Solo actúa sobre `granted`; en cualquier otro estado es un no-op sin escrituras. No toca el consentimiento base.
- * El borrado efectivo de las grabaciones lo completa B5b a partir de `recordingPurge.pending`.
+ * El borrado efectivo de las grabaciones lo hace `purgeRecordings` (B5b.3) justo despues; en cualquier estado que no sea
+ * `granted` la llamada repetida reanuda una purga que siga pendiente (reintento tras un fallo parcial).
  */
 export async function revokeRecordingConsentHandler(
   deps: RevokeRecordingConsentDeps,
@@ -170,7 +194,9 @@ export async function revokeRecordingConsentHandler(
     writeRecordingRevocation(tx, userRef, doc, "self");
     return { revoked: true as const, state: "revoked" };
   });
-  (deps.log ?? ((m, d) => logger.info(m, d)))("revokeRecordingConsent", { revoked: outcome.revoked });
+  const log = deps.log ?? ((m, d) => logger.info(m, d));
+  log("revokeRecordingConsent", { revoked: outcome.revoked });
+  await runPurgeAfterRevocation(deps.purgeRecordings, uid, log);
   return { recordingConsent: outcome.state };
 }
 
@@ -189,5 +215,7 @@ export async function revokeRecordingByGuardian(deps: RevokeRecordingConsentDeps
     if (doc.recordingConsent !== "granted" || owner !== requestId) throw fail("failed-precondition", ErrorReason.NO_ACTIVE_CONSENT);
     writeRecordingRevocation(tx, userRef, doc, "guardian");
   });
-  (deps.log ?? ((m, d) => logger.info(m, d)))("revokeRecordingConsent", { revoked: true, by: "guardian" });
+  const log = deps.log ?? ((m, d) => logger.info(m, d));
+  log("revokeRecordingConsent", { revoked: true, by: "guardian" });
+  await runPurgeAfterRevocation(deps.purgeRecordings, uid, log);
 }

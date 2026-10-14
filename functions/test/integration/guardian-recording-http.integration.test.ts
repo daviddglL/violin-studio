@@ -288,6 +288,18 @@ describe("revocación del tutor para la finalidad de grabación", () => {
     expect(await perfil(s.uid)).toEqual(before);
   });
 
+  test("B5b.3: la revocación del tutor lanza el borrado efectivo (purga) del menor; si la purga falla la revocación consta igual", async () => {
+    const s = await granted();
+    const purged: string[] = [];
+    const res = await guardianConsentHandler(
+      { ...deps(), purgeRecordings: async (uid: string) => { purged.push(uid); throw new Error("x"); } },
+      { method: "POST", query: {}, body: { r: s.r, t: s.rev, action: "revoke" } },
+    );
+    expect(res.status).toBe(200);
+    expect(purged).toEqual([s.uid]);
+    expect((await perfil(s.uid)).recordingConsent).toBe("revoked");
+  });
+
   test("W1: la revocación del tutor sigue funcionando tras una concesión del tutor sin intermedios", async () => {
     const s = await granted();
     expect((await get({ r: s.r })).status).toBe(200);

@@ -13,7 +13,7 @@ import { recordingFlags } from "./config/features";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
 import { callableOptions, httpOptions, REGION, storageTriggerRegion } from "./config/runtime";
 import { recordConsentHandler } from "./consent/record-consent";
-import { grantRecordingConsentHandler, revokeRecordingConsentHandler } from "./consent/recording-consent";
+import { grantRecordingConsentHandler, PurgeRecordingsHook, revokeRecordingConsentHandler } from "./consent/recording-consent";
 import { revokeConsentCore } from "./consent/revoke-consent";
 import { resolveBucketName } from "./erasure/bucket";
 import { deleteAccountHandler } from "./erasure/delete-account";
@@ -28,6 +28,7 @@ import { purgeIdentityHandler } from "./maintenance/purge";
 import { bucketStore, finalizeRecordingHandler } from "./recordings/finalize";
 import { onRecordingDeletedHandler } from "./recordings/on-deleted";
 import { bucketSweepStore, sweepOrphansHandler } from "./recordings/orphan-sweep";
+import { purgeRevokedRecordings } from "./recordings/revoke-purge";
 import { purgeRecordingsHandler } from "./recordings/purge";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
@@ -50,6 +51,14 @@ const erasureDeps = () => {
   const app = admin();
   const bucket = getStorage(app).bucket(resolveBucketName(app.options));
   return { db: getFirestore(app), auth: getAuth(app), bucket, store: bucketStore(bucket) };
+};
+
+/** Borrado efectivo de las grabaciones de un usuario tras revocar `recording_sharing` (REQ-REC-09); reanudable, ver `purgeRevokedRecordings`. */
+const purgeRecordingsHook = (): PurgeRecordingsHook => {
+  const app = admin();
+  const db = getFirestore(app);
+  const store = bucketSweepStore(getStorage(app).bucket(resolveBucketName(app.options)));
+  return (uid) => purgeRevokedRecordings({ db, store }, uid);
 };
 
 export const health = onCall(callableOptions(), () => ({ status: "ok", version: VERSION }));
@@ -88,13 +97,13 @@ export const grantRecordingConsent = onCall(callableOptions(), (request) => {
 /** Revoca solo la grabación (también un menor de 14); la base de consentimiento no cambia. */
 export const revokeRecordingConsent = onCall(callableOptions(), (request) => {
   const { uid } = requireVerifiedUser(request);
-  return revokeRecordingConsentHandler({ db: getFirestore(admin()) }, uid);
+  return revokeRecordingConsentHandler({ db: getFirestore(admin()), purgeRecordings: purgeRecordingsHook() }, uid);
 });
 
 export const revokeConsent = onCall(callableOptions(), async (request) => {
   const { uid } = requireVerifiedUser(request);
   const app = admin();
-  return revokeConsentCore({ db: getFirestore(app), auth: getAuth(app) }, uid, "self");
+  return revokeConsentCore({ db: getFirestore(app), auth: getAuth(app), purgeRecordings: purgeRecordingsHook() }, uid, "self");
 });
 
 export const requestGuardianConsent = onCall(
@@ -118,7 +127,7 @@ export const requestGuardianConsent = onCall(
 /** Página del tutor (Hosting reescribe /tutor aquí). Sin secretos: el handler no necesita el pepper; sin App Check (lo abre un navegador). */
 export const guardianConsent = onRequest({ ...httpOptions, timeoutSeconds: 300 }, (req, res) => {
   const app = admin();
-  return guardianHttpAdapter((r) => guardianConsentHandler({ db: getFirestore(app), auth: getAuth(app), erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, r))(req, res);
+  return guardianHttpAdapter((r) => guardianConsentHandler({ db: getFirestore(app), auth: getAuth(app), purgeRecordings: purgeRecordingsHook(), erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, r))(req, res);
 });
 
 /** Codigos de vinculo del profesor (REQ-LNK-01/02): el rol y el consentimiento se leen del doc, no del claim. */
