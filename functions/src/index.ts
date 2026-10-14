@@ -3,7 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import * as functionsV1 from "firebase-functions/v1";
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
@@ -26,6 +26,7 @@ import { GUARDIAN_EMAIL_PEPPER } from "./guardian/pepper";
 import { requestGuardianConsentHandler } from "./guardian/request";
 import { purgeIdentityHandler } from "./maintenance/purge";
 import { bucketStore, finalizeRecordingHandler } from "./recordings/finalize";
+import { onRecordingDeletedHandler } from "./recordings/on-deleted";
 import { identityConfigHandler } from "./profile/identity-config";
 import { registerProfileHandler } from "./profile/register-profile";
 import {
@@ -196,6 +197,22 @@ export const finalizeRecording = onObjectFinalized(
         flags: recordingFlags(),
       },
       { name: event.data.name, generation: String(event.data.generation), time: event.time },
+    );
+  },
+);
+
+/**
+ * Limpia lo que deja el borrado de un doc de grabacion (el dueno lo borra desde el cliente, la purga o la cascada): objeto
+ * de Storage por la `objectPath` guardada, `reviews` y plaza del cupo (A12, A21). PREREQUISITO DURO de `RECORDINGS_ENABLED`.
+ * Idempotente y con reintentos (entrega al menos una vez).
+ */
+export const onRecordingDeleted = onDocumentDeleted(
+  { document: "users/{uid}/recordings/{recordingId}", region: REGION, maxInstances: 10, retry: true, timeoutSeconds: 120 },
+  async (event) => {
+    const app = admin();
+    await onRecordingDeletedHandler(
+      { db: getFirestore(app), store: bucketStore(getStorage(app).bucket(resolveBucketName(app.options))) },
+      { uid: event.params.uid, id: event.params.recordingId, data: event.data?.data() },
     );
   },
 );

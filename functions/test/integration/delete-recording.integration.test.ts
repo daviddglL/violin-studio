@@ -130,3 +130,17 @@ test("no escribe PII en logs (ninguno)", async () => {
   expect(text).not.toContain(uid);
   expect(text).not.toContain(idOf(ev.name));
 });
+
+test("un doc nuevo creado con el mismo id justo tras el borrado NO cae con la cascada (solo caen las reviews)", async () => {
+  const uid = rnd("s");
+  const ev = await upload(uid);
+  const id = await seedRecording(uid, ev);
+  await seedReview(uid, id);
+  const next = await upload(uid, { id });
+  const out = await deleteRecording(deps(), recRef(uid, id), {
+    afterDelete: async () => void (await seedRecording(uid, next, { generation: next.generation })),
+  });
+  expect(out).toBe("deleted");
+  expect(await recDoc(uid, id)).toMatchObject({ generation: next.generation });
+  expect(await reviewCount(uid, id)).toBe(0);
+});
