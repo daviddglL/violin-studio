@@ -1,0 +1,10 @@
+{
+  "lifecycle": {
+    "rule": [
+      {
+        "action": { "type": "Delete" },
+        "condition": { "age": 100, "matchesPrefix": ["users/"], "matchesSuffix": [".m4a", ".mp4"] }
+      }
+    ]
+  }
+}

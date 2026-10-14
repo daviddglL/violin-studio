@@ -337,3 +337,38 @@ describe("readMp4DurationSec (REQ-REC-05, A11)", () => {
     });
   });
 });
+
+describe("errores de JS del parser frente a cajas manipuladas (revision fresca de B5a)", () => {
+  // Con un lector honesto los tamanos ya se acotan antes de cada lectura; esto es defensa en profundidad: si un tamano
+  // manipulado llevara al parser a leer fuera del buffer (RangeError) o a operar sobre algo que no es lo esperado
+  // (TypeError), el resultado debe ser un rechazo (`Mp4Error`), no un fallo transitorio que se reintenta durante horas.
+  const valid = () => Buffer.concat([ftyp(), moov(mvhd({ timescale: 1000, duration: 20_000 })), mdat()]);
+
+  test.each([
+    ["RangeError", () => new RangeError("The value of \"offset\" is out of range")],
+    ["TypeError", () => new TypeError("Cannot read properties of undefined")],
+  ])("un %s al interpretar una caja -> Mp4Error(inconsistent)", async (_n, err) => {
+    const data = valid();
+    const { read, size } = rangeReader(data);
+    // La 3.a lectura es la de `mvhd`: su buffer revienta al leer los campos, como lo haria una caja con tamanos imposibles.
+    let n = 0;
+    const crafted = async (o: number, l: number) => {
+      const buf = await read(o, l);
+      if (++n < 3) return buf;
+      return Object.assign(Buffer.from(buf), {
+        readUInt32BE: () => {
+          throw err();
+        },
+      });
+    };
+    expect(await codeOf(readMp4DurationSec(crafted, size))).toBe("inconsistent");
+  });
+
+  test.each([
+    ["RangeError", () => new RangeError("lector")],
+    ["TypeError", () => new TypeError("lector")],
+  ])("un %s del LECTOR (Storage) NO se convierte: se propaga para que finalize reintente", async (_n, err) => {
+    const e = err();
+    await expect(readMp4DurationSec(() => Promise.reject(e), valid().length)).rejects.toBe(e);
+  });
+});
