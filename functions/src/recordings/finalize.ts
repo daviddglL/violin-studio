@@ -4,10 +4,10 @@ import { Clock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
 import { RecordingFlags } from "../config/features";
 import { RECORDING_CONSENT_VERSION } from "../config/identity";
-import { DEMOS_DIR, RECORDINGS_DIR } from "../config/recordings";
+import { DEMOS_DIR, MAX_RECORDINGS_PER_OWNER, RECORDINGS_DIR } from "../config/recordings";
 import { consentDocId, recordingEpochOf } from "../consent/consent-docs";
 import { Mp4Error, readMp4DurationSec } from "./mp4-duration";
-import { ContainerProbe, parseObjectPath, RecordingMeta, RejectReason, validateRecording } from "./validate";
+import { ContainerProbe, parseObjectPath, RecordingMeta, RejectReason, ValidationResult, validateRecording } from "./validate";
 
 /** Lo unico que `onObjectFinalized` aporta: el resto se lee del objeto (metadatos frescos). */
 export interface FinalizeEvent {
@@ -130,6 +130,9 @@ function isNewer(a: unknown, b: unknown): boolean {
   }
 }
 
+/** `recordingCount` valido (entero >= 0) o infinito: un valor corrupto cuenta como cupo agotado. */
+const validCount = (v: unknown): number => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : Infinity);
+
 const str = (v: unknown): string | undefined => (typeof v === "string" && v !== "" ? v : undefined);
 
 /** Inicio de la epoca = la concesion mas reciente registrada para (version, epoca); la escribe `grantRecordingConsent` o el tutor. */
@@ -204,7 +207,7 @@ export async function finalizeRecordingHandler(deps: FinalizeDeps, event: Finali
 
     const assignment = assignmentSnap?.exists ? assignmentSnap.data() : undefined;
     const link = linkSnap?.exists ? linkSnap.data() : undefined;
-    let result = validateRecording(
+    let result: ValidationResult | { ok: false; reason: "quota" } = validateRecording(
       meta,
       { path: event.name, contentType: info.contentType, size: info.size, container },
       {
@@ -230,11 +233,17 @@ export async function finalizeRecordingHandler(deps: FinalizeDeps, event: Finali
     // de una epoca anterior (revocada y reconcedida) no pasa. Sin registro fechado de la concesion, falla cerrado.
     if (result.ok && !createdAfterGrant(info.timeCreated, grantSnaps)) result = { ok: false, reason: "consent" };
 
+    // Cupo (A21): la autoridad es esta transaccion; la lectura del usuario la serializa con las demas finalizaciones del
+    // mismo dueno. Ausente = 0; un contador ilegible falla cerrado (lo repara `recount-recordings`, B5a).
+    const used = u.recordingCount === undefined ? 0 : validCount(u.recordingCount);
+    if (result.ok && !(used < MAX_RECORDINGS_PER_OWNER)) result = { ok: false, reason: "quota" };
+
     const createdAt = Timestamp.fromDate(now);
     if (!result.ok) {
       tx.set(recRef, rejectedDoc(result.reason, createdAt, event, now));
       return { action: "rejected" as const };
     }
+    tx.update(userRef, { recordingCount: used + 1 });
     tx.set(recRef, {
       kind: result.kind,
       status: "ready",
@@ -259,7 +268,7 @@ export async function finalizeRecordingHandler(deps: FinalizeDeps, event: Finali
   return (await settleExisting(outcome)) ?? "duplicate";
 }
 
-function rejectedDoc(reason: RejectReason, createdAt: Timestamp, event: FinalizeEvent, now: Date) {
+function rejectedDoc(reason: RejectReason | "quota", createdAt: Timestamp, event: FinalizeEvent, now: Date) {
   return {
     status: "rejected",
     rejectReason: reason,

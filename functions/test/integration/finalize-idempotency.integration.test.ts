@@ -77,7 +77,7 @@ describe("B4b.2 idempotencia y reintentos", () => {
     await bucket.file(ev.name).delete();
     expect(await run(ev)).toBe("ignored");
     expect(await recDoc(uid, idOf(ev.name))).toBeUndefined();
-    expect((await userDoc(uid))?.recordingCount).toBeUndefined();
+    expect((await userDoc(uid))?.recordingCount).toBe(1); // el reintento no suma (el decremento del borrado es de B5a)
   });
 
   test("evento con generation distinta de la vigente del objeto (stale) -> ignorado sin tocar nada", async () => {
@@ -167,7 +167,7 @@ describe("B4b.2 objectPath: mismo id en el otro prefijo (B3)", () => {
     expect((await recDoc(t, id))?.objectPath).toBe(own.name);
     expect(await exists(demo.name)).toBe(false);
     expect(await exists(own.name)).toBe(true);
-    expect((await userDoc(t))?.recordingCount).toBeUndefined(); // sin contador: se comprueba en B4b.3
+    expect((await userDoc(t))?.recordingCount).toBe(1); // el conflicto no suma ni resta
   });
 
   test("a la inversa (doc de demo, llega el mismo id en recordings/) y con doc rejected tambien", async () => {
