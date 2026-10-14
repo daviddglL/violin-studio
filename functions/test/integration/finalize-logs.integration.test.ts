@@ -43,7 +43,7 @@ describe("B4b.4 logs de finalize: solo uidHash, sin PII ni rutas", () => {
     // un fallo de Storage tambien deja traza sin ruta
     await expect(
       run(ready, { store: { ...bucketStore(bucket), stat: async () => { throw new Error("boom"); } } }),
-    ).rejects.toThrow("boom");
+    ).rejects.toThrow(/^finalize_transient:/);
 
     expect(logs.length).toBeGreaterThanOrEqual(7);
     const blob = JSON.stringify(logs);

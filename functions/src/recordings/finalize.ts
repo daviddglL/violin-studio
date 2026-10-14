@@ -15,13 +15,15 @@ import { ContainerProbe, parseObjectPath, RecordingMeta, RejectReason, Validatio
 export interface FinalizeEvent {
   name: string;
   generation: string;
+  /** `time` del CloudEvent (ISO 8601): fija la antiguedad del evento para cortar reintentos envenenados (W4). */
+  time?: string;
 }
 
 export interface ObjectInfo {
   generation: string;
   size: number;
   contentType?: string;
-  /** Metadatos personalizados del cliente (`kind`, `assignmentId`, `sharedWith`, ...). */
+  /** Metadatos personalizados del cliente (`kind`, `assignmentId`, `sharedWith`, `recordingConsentEpoch`, ...). */
   metadata: Record<string, string>;
   timeCreated: Date;
 }
@@ -31,8 +33,11 @@ export interface ObjectStore {
   /** `null` = el objeto ya no existe (404). Cualquier otro error se propaga para que el trigger reintente. */
   stat(name: string): Promise<ObjectInfo | null>;
   readRange(name: string, offset: number, length: number): Promise<Buffer>;
-  /** Borra por la ruta dada; 404 = OK. */
-  remove(name: string): Promise<void>;
+  /**
+   * Borra SOLO esa generation (precondicion `ifGenerationMatch`): si el cliente ya resubio el mismo nombre, la generation
+   * nueva no se toca (W1). 404 (ya no existe) y 412 (ahora hay otra generation) = OK.
+   */
+  remove(name: string, generation: string): Promise<void>;
 }
 
 export interface FinalizeDeps {
@@ -47,24 +52,43 @@ export interface FinalizeDeps {
 }
 
 /**
- * - `ready` / `rejected`: doc escrito; el objeto rechazado se borra.
- * - `duplicate`: ya habia un doc para esa ruta (reintento / evento doble / otra generation): no se toca.
- * - `ignored`: ruta ajena a los dos prefijos, objeto desaparecido o evento obsoleto: sin efectos.
- * - `conflict`: el doc existente apunta a otro `objectPath` (mismo id en el otro prefijo/extension): doc intacto, se borra el objeto del evento.
+ * Todo borrado es del objeto del EVENTO y solo de su generation (W1).
+ * - `ready` / `rejected`: doc escrito; el objeto rechazado se borra. `rejected(internal)` = evento envenenado (W4).
+ * - `duplicate`: ya habia un doc para esta misma generation (reintento / evento doble) o uno `rejected` mas nuevo: no se toca.
+ * - `ignored`: ruta ajena a los dos prefijos, objeto desaparecido o evento obsoleto: sin efectos (o abandono envenenado).
+ * - `conflict`: el doc existente es de otro `objectPath` (mismo id en el otro prefijo/extension) o es `ready` de otra
+ *   generation (sobrescritura, W2): doc intacto y se borra el objeto del evento (nunca se sirven bytes sin validar).
  * - `dropped`: se borra el objeto sin escribir doc (ruta sin id valido dentro de los prefijos, cuenta borrada o en borrado).
  */
 export type FinalizeOutcome = "ready" | "rejected" | "duplicate" | "ignored" | "conflict" | "dropped";
 
+/** `quota` lo decide la transaccion (A21) e `internal` el corte de eventos envenenados (W4); el resto, el validador. */
+export type FinalizeRejectReason = RejectReason | "quota" | "internal";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const READY_TTL_DAYS = 90;
 export const REJECTED_TTL_DAYS = 7;
+/**
+ * W4: un fallo que no es `Mp4Error` (Storage/Firestore caidos, bug) se reintenta; pasado este tiempo desde `event.time`
+ * se trata como permanente (doc `rejected(internal)` + borrado del objeto) en vez de reintentar hasta 7 dias.
+ */
+export const POISON_AFTER_MS = 6 * 60 * 60 * 1000;
 /** Forma de un id de documento que se puede interpolar en una ruta (metadatos del cliente: nunca se confia en ellos). */
 const SAFE_ID = /^(?!__)[A-Za-z0-9_-]{1,128}$/;
 /** Rutas dentro de los dos prefijos que no son `users/{uid}/{dir}/{id}.{ext}` validas: no hay id con el que crear un doc. */
 const IN_PREFIX = new RegExp(`^users/[^/]+/(?:${RECORDINGS_DIR}|${DEMOS_DIR})/.`);
 
+const errorCode = (e: unknown): unknown => (e as { code?: unknown } | null)?.code;
+
 function isNotFound(e: unknown): boolean {
-  return (e as { code?: unknown } | null)?.code === 404;
+  return errorCode(e) === 404;
+}
+
+/** S2: lo que ve el runtime no lleva el mensaje del SDK (rutas, uids): solo un codigo con forma segura, y sin `cause`. */
+function sanitized(e: unknown): Error {
+  const c = errorCode(e);
+  const safe = (typeof c === "number" && Number.isInteger(c)) || (typeof c === "string" && /^[A-Za-z0-9_-]{1,32}$/.test(c));
+  return new Error(`finalize_transient:${safe ? String(c) : "unknown"}`);
 }
 
 export function bucketStore(bucket: Bucket): ObjectStore {
@@ -90,8 +114,18 @@ export function bucketStore(bucket: Bucket): ObjectStore {
       for await (const chunk of stream) chunks.push(chunk as Buffer);
       return Buffer.concat(chunks);
     },
-    async remove(name) {
-      await bucket.file(name).delete({ ignoreNotFound: true });
+    async remove(name, generation) {
+      const file = bucket.file(name);
+      try {
+        // En GCS la atomicidad la da `ifGenerationMatch`; el emulador ignora esa precondicion en delete, y la lectura
+        // previa hace la regla observable en los tests de integracion (y ahorra el 412 en el caso comun).
+        const [m] = await file.getMetadata();
+        if (String(m.generation) !== generation) return;
+        await file.delete({ ifGenerationMatch: generation });
+      } catch (e) {
+        if (isNotFound(e) || errorCode(e) === 412) return;
+        throw e;
+      }
     },
   };
 }
@@ -108,19 +142,22 @@ async function probeContainer(store: ObjectStore, name: string, size: number): P
 }
 
 type ExistingDecision = { action: "proceed" } | { action: "duplicate"; redelete: boolean } | { action: "conflict" };
+type TxOutcome = ExistingDecision | { action: "ready" | "rejected" | "dropped" };
 
 /**
  * Que hacer con un doc ya existente para este id (decision pura, se aplica antes y dentro de la transaccion):
  * - otro `objectPath` -> `conflict`: el doc NO se toca (B3);
  * - misma generation -> `duplicate` (si estaba `rejected`, se vuelve a borrar el objeto por si el borrado fallo);
- * - otra generation: solo un doc `rejected` con generation MENOR se reevalua (el cliente reintenta el mismo id tras un
- *   rechazo); un doc `ready` o un evento viejo no lo alteran (el doc es la autoridad).
+ * - otra generation: un doc `rejected` con generation MENOR se reevalua (el cliente reintenta el mismo id tras un
+ *   rechazo); un doc `ready` -> `conflict` (W2): el doc manda y el objeto del evento, sin validar, se borra para no
+ *   servirlo bajo el doc viejo; un doc `rejected` mas nuevo que el evento -> `duplicate` sin efectos.
  */
 function decideExisting(doc: DocumentData | undefined, event: FinalizeEvent): ExistingDecision {
   if (!doc) return { action: "proceed" };
   if (doc.objectPath !== event.name) return { action: "conflict" };
   if (doc.generation === event.generation) return { action: "duplicate", redelete: doc.status === "rejected" };
   if (doc.status === "rejected" && isNewer(event.generation, doc.generation)) return { action: "proceed" };
+  if (doc.status === "ready") return { action: "conflict" };
   return { action: "duplicate", redelete: false };
 }
 
@@ -137,6 +174,8 @@ const validCount = (v: unknown): number => (typeof v === "number" && Number.isIn
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v !== "" ? v : undefined);
 
+const isDeleting = (u: DocumentData | undefined): boolean => !u || (u.deletion !== undefined && u.deletion !== null);
+
 /** Inicio de la epoca = la concesion mas reciente registrada para (version, epoca); la escribe `grantRecordingConsent` o el tutor. */
 function createdAfterGrant(timeCreated: Date, grants: DocumentSnapshot[]): boolean {
   let grantedAt = -Infinity;
@@ -147,9 +186,16 @@ function createdAfterGrant(timeCreated: Date, grants: DocumentSnapshot[]): boole
   return Number.isFinite(grantedAt) && timeCreated.getTime() >= grantedAt;
 }
 
+/** El evento lleva fallando `POISON_AFTER_MS` o mas (sin `time` valido nunca se da por perdido). */
+function isPoisoned(deps: FinalizeDeps, event: FinalizeEvent): boolean {
+  const at = event.time ? Date.parse(event.time) : NaN;
+  return Number.isFinite(at) && deps.clock().getTime() - at >= POISON_AFTER_MS;
+}
+
 /**
  * Entrada del trigger. Registra UNA linea por evento con `outcome`, `reason`, `dir` y `uidHash` (REQ-REC-12): nunca la
- * ruta, el id de la grabacion, el uid, tareas, nombres ni el mensaje de un error. Un fallo se relanza para que reintente.
+ * ruta, el id de la grabacion, el uid, tareas, nombres ni el mensaje de un error. Un fallo se relanza saneado
+ * (`finalize_transient:<code>`, S2) para que la plataforma reintente, salvo que el evento este envenenado (W4).
  */
 export async function finalizeRecordingHandler(deps: FinalizeDeps, event: FinalizeEvent): Promise<FinalizeOutcome> {
   const log = deps.log ?? ((m: string, d: Record<string, unknown>) => logger.info(m, d));
@@ -158,13 +204,69 @@ export async function finalizeRecordingHandler(deps: FinalizeDeps, event: Finali
   const note: { reason?: string } = {};
   let outcome: FinalizeOutcome;
   try {
-    outcome = await finalizeCore(deps, event, path, note);
+    try {
+      outcome = await finalizeCore(deps, event, path, note);
+    } catch (e) {
+      if (!isPoisoned(deps, event)) throw e;
+      outcome = await settlePoisoned(deps, event, path, note);
+    }
   } catch (e) {
     log("finalizeRecording", { outcome: "error", ...who });
-    throw e;
+    throw sanitized(e);
   }
   log("finalizeRecording", { outcome, ...(note.reason ? { reason: note.reason } : {}), ...who });
   return outcome;
+}
+
+/** Efectos en Storage tras decidir (siempre el objeto del evento y solo su generation). */
+async function applyOutcome(store: ObjectStore, event: FinalizeEvent, outcome: TxOutcome): Promise<FinalizeOutcome> {
+  switch (outcome.action) {
+    case "ready":
+      return "ready";
+    case "rejected":
+    case "dropped":
+    case "conflict":
+      await store.remove(event.name, event.generation);
+      return outcome.action;
+    case "duplicate":
+      if (outcome.redelete) await store.remove(event.name, event.generation);
+      return "duplicate";
+    case "proceed":
+      // `decideExisting` lo devuelve, pero las transacciones lo resuelven siempre en ready/rejected/dropped.
+      throw new Error("finalize: proceed sin resolver");
+  }
+}
+
+/**
+ * W4: el evento sigue fallando tras `POISON_AFTER_MS`. Sin id (ruta invalida dentro de los prefijos) no hay doc que
+ * escribir: se abandona (`ignored`; lo recoge el barrido de huerfanos de B5a). Con id: doc `rejected(internal)` con la
+ * misma guarda transaccional que el camino normal (doc existente, cuenta borrada o en borrado) y borrado del objeto
+ * de esa generation. Si esto tambien falla, se relanza (saneado) y la plataforma reintenta.
+ */
+async function settlePoisoned(
+  deps: FinalizeDeps,
+  event: FinalizeEvent,
+  path: ReturnType<typeof parseObjectPath>,
+  note: { reason?: string },
+): Promise<FinalizeOutcome> {
+  if (!path) {
+    note.reason = "internal";
+    return "ignored";
+  }
+  const userRef = deps.db.collection(COLLECTIONS.users).doc(path.uid);
+  const recRef = userRef.collection(COLLECTIONS.recordings).doc(path.id);
+  const now = deps.clock();
+  const outcome = await deps.db.runTransaction(async (tx): Promise<TxOutcome> => {
+    delete note.reason;
+    const [existingSnap, userSnap] = await Promise.all([tx.get(recRef), tx.get(userRef)]);
+    const existing = decideExisting(existingSnap.data(), event);
+    if (existing.action !== "proceed") return existing;
+    if (!userSnap.exists || isDeleting(userSnap.data())) return { action: "dropped" };
+    note.reason = "internal";
+    tx.set(recRef, rejectedDoc("internal", Timestamp.fromDate(now), event, now));
+    return { action: "rejected" };
+  });
+  return applyOutcome(deps.store, event, outcome);
 }
 
 async function finalizeCore(
@@ -175,7 +277,7 @@ async function finalizeCore(
 ): Promise<FinalizeOutcome> {
   if (!path) {
     if (!IN_PREFIX.test(event.name)) return "ignored";
-    await deps.store.remove(event.name);
+    await deps.store.remove(event.name, event.generation);
     return "dropped";
   }
   // Metadatos frescos: confirman que el objeto sigue ahi con esta generation (un reintento tardio tras el borrado del
@@ -189,13 +291,8 @@ async function finalizeCore(
   const now = deps.clock();
 
   // Comprobacion barata antes de leer el contenedor; la autoritativa se repite dentro de la transaccion.
-  const settleExisting = async (d: ExistingDecision): Promise<FinalizeOutcome | undefined> => {
-    if (d.action === "proceed") return undefined;
-    if (d.action === "conflict" || d.redelete) await deps.store.remove(event.name);
-    return d.action === "conflict" ? "conflict" : "duplicate";
-  };
-  const early = await settleExisting(decideExisting((await recRef.get()).data(), event));
-  if (early) return early;
+  const early = decideExisting((await recRef.get()).data(), event);
+  if (early.action !== "proceed") return applyOutcome(deps.store, event, early);
 
   const meta: RecordingMeta = {
     kind: str(info.metadata.kind),
@@ -204,7 +301,8 @@ async function finalizeCore(
   };
   const container = await probeContainer(deps.store, event.name, info.size);
 
-  const outcome = await deps.db.runTransaction(async (tx) => {
+  const outcome = await deps.db.runTransaction(async (tx): Promise<TxOutcome> => {
+    delete note.reason; // S3: cada intento de la transaccion decide de nuevo
     const getIf = (ref: DocumentReference | null): Promise<DocumentSnapshot | null> => (ref ? tx.get(ref) : Promise.resolve(null));
     const sharedOk = meta.sharedWith !== undefined && SAFE_ID.test(meta.sharedWith);
     const assignOk = meta.assignmentId !== undefined && SAFE_ID.test(meta.assignmentId);
@@ -229,7 +327,7 @@ async function finalizeCore(
     const existing = decideExisting(existingSnap.data(), event);
     if (existing.action !== "proceed") return existing;
     // Sin doc de usuario o con la cuenta en borrado no se escribe nada bajo `users/{uid}`: la cascada ya paso o esta en curso.
-    if (!userSnap.exists || !u || (u.deletion !== undefined && u.deletion !== null)) return { action: "dropped" as const };
+    if (!userSnap.exists || !u || isDeleting(u)) return { action: "dropped" };
 
     const assignment = assignmentSnap?.exists ? assignmentSnap.data() : undefined;
     const link = linkSnap?.exists ? linkSnap.data() : undefined;
@@ -255,8 +353,15 @@ async function finalizeCore(
         teacherLinkExists: link !== undefined && link.teacherUid === path.uid && link.studentUid === meta.sharedWith,
       },
     );
-    // Epoca de captura: el objeto debe haberse creado DESPUES de la concesion de la epoca vigente. Una subida en vuelo
-    // de una epoca anterior (revocada y reconcedida) no pasa. Sin registro fechado de la concesion, falla cerrado.
+    // Epoca de captura (W3), dos defensas:
+    // 1) sello del cliente: el metadato `recordingConsentEpoch` (las reglas de Storage exigen que sea la epoca vigente AL
+    //    SUBIR) debe ser la epoca vigente ahora. Una grabacion capturada en una epoca anterior y subida tras reconceder
+    //    (cola offline, otro dispositivo) lleva el sello viejo y no pasa;
+    // 2) `timeCreated` del objeto >= concesion de la epoca vigente: atrapa las subidas EMPEZADAS antes de la concesion.
+    // Residual: el servidor no conoce el instante de CAPTURA; si un cliente sella mal (bug) una grabacion vieja con la
+    // epoca nueva, se acepta y se estampa con la nueva, y la purga acotada por epoca (B5b) no la quitaria.
+    // Sin registro fechado de la concesion, falla cerrado.
+    if (result.ok && info.metadata.recordingConsentEpoch !== String(result.consentEpoch)) result = { ok: false, reason: "consent" };
     if (result.ok && !createdAfterGrant(info.timeCreated, grantSnaps)) result = { ok: false, reason: "consent" };
 
     // Cupo (A21): la autoridad es esta transaccion; la lectura del usuario la serializa con las demas finalizaciones del
@@ -268,7 +373,7 @@ async function finalizeCore(
     if (!result.ok) {
       note.reason = result.reason;
       tx.set(recRef, rejectedDoc(result.reason, createdAt, event, now));
-      return { action: "rejected" as const };
+      return { action: "rejected" };
     }
     tx.update(userRef, { recordingCount: used + 1 });
     tx.set(recRef, {
@@ -284,18 +389,13 @@ async function finalizeCore(
       ...(result.sharedWith !== undefined ? { sharedWith: result.sharedWith } : {}),
       ...(result.assignmentId !== undefined ? { assignmentId: result.assignmentId } : {}),
     });
-    return { action: "ready" as const };
+    return { action: "ready" };
   });
 
-  if (outcome.action === "ready") return "ready";
-  if (outcome.action === "rejected" || outcome.action === "dropped") {
-    await deps.store.remove(event.name);
-    return outcome.action;
-  }
-  return (await settleExisting(outcome)) ?? "duplicate";
+  return applyOutcome(deps.store, event, outcome);
 }
 
-function rejectedDoc(reason: RejectReason | "quota", createdAt: Timestamp, event: FinalizeEvent, now: Date) {
+function rejectedDoc(reason: FinalizeRejectReason, createdAt: Timestamp, event: FinalizeEvent, now: Date) {
   return {
     status: "rejected",
     rejectReason: reason,

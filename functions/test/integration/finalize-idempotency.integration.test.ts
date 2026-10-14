@@ -62,7 +62,8 @@ describe("B4b.2 idempotencia y reintentos", () => {
     await seedUser(uid);
     for (const name of [`users/${uid}/recordings/bad_name.m4a`, `users/${uid}/demos/x.txt`, `users/${uid}/recordings/sub/x.m4a`]) {
       await bucket.file(name).save(audioMp4(10), { resumable: false, contentType: "audio/mp4" });
-      expect(await run({ name, generation: "1" })).toBe("dropped");
+      const generation = String((await bucket.file(name).getMetadata())[0].generation); // el borrado es por generation (W1)
+      expect(await run({ name, generation })).toBe("dropped");
       expect(await exists(name)).toBe(false);
     }
     expect((await db.collection("users").doc(uid).collection("recordings").get()).size).toBe(0);
@@ -94,7 +95,7 @@ describe("B4b.2 idempotencia y reintentos", () => {
     await seedUser(uid);
     const ev = await upload(uid);
     const flaky: ObjectStore = { ...real, readRange: async () => { throw new Error("storage unavailable"); } };
-    await expect(run(ev, { store: flaky })).rejects.toThrow("storage unavailable");
+    await expect(run(ev, { store: flaky })).rejects.toThrow(/^finalize_transient:/);
     expect(await recDoc(uid, idOf(ev.name))).toBeUndefined();
     expect(await exists(ev.name)).toBe(true);
     expect(await run(ev)).toBe("ready"); // el reintento funciona
@@ -105,7 +106,7 @@ describe("B4b.2 idempotencia y reintentos", () => {
     await seedUser(uid);
     const ev = await upload(uid);
     const flaky: ObjectStore = { ...real, stat: async () => { throw new Error("boom"); } };
-    await expect(run(ev, { store: flaky })).rejects.toThrow("boom");
+    await expect(run(ev, { store: flaky })).rejects.toThrow(/^finalize_transient:/);
     expect(await run(ev)).toBe("ready");
   });
 
@@ -114,7 +115,7 @@ describe("B4b.2 idempotencia y reintentos", () => {
     await seedUser(uid, { recordingConsent: "revoked" });
     const ev = await upload(uid);
     const noDelete: ObjectStore = { ...real, remove: async () => { throw new Error("delete failed"); } };
-    await expect(run(ev, { store: noDelete })).rejects.toThrow("delete failed");
+    await expect(run(ev, { store: noDelete })).rejects.toThrow(/^finalize_transient:/);
     expect((await recDoc(uid, idOf(ev.name)))?.status).toBe("rejected");
     expect(await exists(ev.name)).toBe(true);
     expect(await run(ev)).toBe("duplicate"); // el doc rejected ya existia; solo se completa el borrado
@@ -136,16 +137,18 @@ describe("B4b.2 idempotencia y reintentos", () => {
     expect((await recDoc(uid, id))?.status).toBe("ready");
   });
 
-  test("un doc ready existente con otra generation en la misma ruta no se sobrescribe", async () => {
+  test("W2: doc ready y llega OTRA generation en la misma ruta -> conflict: doc intacto y se borra ese objeto sin validar", async () => {
     const uid = rnd("s");
     await seedUser(uid);
     const id = rnd("r");
     const first = await upload(uid, { id });
     expect(await run(first)).toBe("ready");
     const before = await snap(uid, id);
-    const second = await upload(uid, { id, buf: audioMp4(20) });
-    expect(await run(second)).toBe("duplicate");
-    expect(await snap(uid, id)).toEqual(before);
+    const second = await upload(uid, { id, buf: audioMp4(20) }); // sobrescritura (solo un actor privilegiado; las reglas la deniegan)
+    expect(await run(second)).toBe("conflict");
+    expect(await snap(uid, id)).toEqual(before); // byte a byte (datos + updateTime)
+    expect(await exists(second.name)).toBe(false); // nunca se sirven bytes sin validar bajo el doc ready viejo
+    expect((await userDoc(uid))?.recordingCount).toBe(1);
   });
 });
 
@@ -227,7 +230,7 @@ describe("B4b.2 consentimiento y cuenta durante la subida", () => {
     // epoca 1 concedida dentro de 1 h: el objeto (creado ahora) es de la epoca 0
     await seedUser(uid, { recordingConsentEpoch: 1 }, { consentDoc: false });
     await seedGrant(uid, 1, 1, new Date(Date.now() + 3600_000));
-    const ev = await upload(uid);
+    const ev = await upload(uid, { meta: { recordingConsentEpoch: "1" } }); // sello correcto: lo que falla es timeCreated
     expect(await run(ev)).toBe("rejected");
     expect((await recDoc(uid, idOf(ev.name)))?.rejectReason).toBe("consent");
     expect(await exists(ev.name)).toBe(false);
@@ -237,7 +240,7 @@ describe("B4b.2 consentimiento y cuenta durante la subida", () => {
     const uid = rnd("s");
     await seedUser(uid, { recordingConsentEpoch: 2 }, { consentDoc: false });
     await seedGrant(uid, 1, 2, new Date(Date.now() - 3600_000), "guardian");
-    const ev = await upload(uid);
+    const ev = await upload(uid, { meta: { recordingConsentEpoch: "2" } });
     expect(await run(ev)).toBe("ready");
     expect((await recDoc(uid, idOf(ev.name)))?.recordingConsentEpoch).toBe(2);
   });

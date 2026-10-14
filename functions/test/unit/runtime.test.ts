@@ -24,9 +24,19 @@ describe("config/runtime", () => {
       expect(storageTriggerRegion({})).toBe(REGION);
       expect(storageTriggerRegion({ STORAGE_TRIGGER_REGION: " europe-west3 " })).toBe("europe-west3");
     });
-    test("valor vacio o con forma invalida cae a REGION (no se despliega con una region rota)", () => {
+    test("valor vacio o solo espacios = sin configurar -> REGION", () => {
+      expect(storageTriggerRegion({ STORAGE_TRIGGER_REGION: "" })).toBe(REGION);
       expect(storageTriggerRegion({ STORAGE_TRIGGER_REGION: "  " })).toBe(REGION);
-      expect(storageTriggerRegion({ STORAGE_TRIGGER_REGION: "Europe West!" })).toBe(REGION);
+    });
+    test("valor NO vacio con forma invalida lanza al cargar (sin caida silenciosa a otra region)", () => {
+      expect(() => storageTriggerRegion({ STORAGE_TRIGGER_REGION: "Europe West!" })).toThrow(/STORAGE_TRIGGER_REGION/);
+      expect(() => storageTriggerRegion({ STORAGE_TRIGGER_REGION: "europe-west" })).toThrow(/STORAGE_TRIGGER_REGION/);
+    });
+    test("multirregion (us/eu/asia) no es una region de Functions: lanza (usar una region miembro)", () => {
+      for (const multi of ["us", "eu", "asia", "EU"]) {
+        expect(() => storageTriggerRegion({ STORAGE_TRIGGER_REGION: multi })).toThrow(/STORAGE_TRIGGER_REGION/);
+      }
+      expect(storageTriggerRegion({ STORAGE_TRIGGER_REGION: "us-central1" })).toBe("us-central1");
     });
   });
 });

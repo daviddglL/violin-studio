@@ -62,7 +62,8 @@ export interface UploadOpts {
   id?: string;
   buf?: Buffer;
   contentType?: string;
-  meta?: Record<string, string>;
+  /** `undefined` quita la clave (p. ej. `recordingConsentEpoch`, que por defecto es "0" como la epoca de `seedUser`). */
+  meta?: Record<string, string | undefined>;
   ext?: string;
   bucket?: Bucket;
 }
@@ -72,10 +73,11 @@ export async function upload(uid: string, o: UploadOpts = {}): Promise<FinalizeE
   const id = o.id ?? rnd("r");
   const name = `users/${uid}/${o.dir ?? "recordings"}/${id}.${o.ext ?? "m4a"}`;
   const file = (o.bucket ?? bucket).file(name);
+  const custom = Object.entries({ kind: "audio", recordingConsentEpoch: "0", ...(o.meta ?? {}) }).filter(([, v]) => v !== undefined);
   await file.save(o.buf ?? audioMp4(30), {
     resumable: false,
     contentType: o.contentType ?? "audio/mp4",
-    metadata: { metadata: { kind: "audio", ...(o.meta ?? {}) } },
+    metadata: { metadata: Object.fromEntries(custom) },
   });
   const [m] = await file.getMetadata();
   return { name, generation: String(m.generation) };

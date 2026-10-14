@@ -195,7 +195,7 @@ export const finalizeRecording = onObjectFinalized(
         clock: systemClock,
         flags: recordingFlags(),
       },
-      { name: event.data.name, generation: String(event.data.generation) },
+      { name: event.data.name, generation: String(event.data.generation), time: event.time },
     );
   },
 );

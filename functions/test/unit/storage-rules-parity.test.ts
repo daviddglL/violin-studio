@@ -27,6 +27,13 @@ describe("tripwire de literales: storage.rules <-> functions/src/config", () => 
     expect(rules).toContain(`u.get('recordingConsentVersion', 0) >= ${RECORDING_CONSENT_VERSION}`);
   });
 
+  test("sello de epoca de captura (W3 de B4b): metadato recordingConsentEpoch admitido y atado a la epoca del doc (ausente = 0)", () => {
+    expect(rules).toMatch(/hasOnly\(\[[^\]]*'recordingConsentEpoch'/);
+    expect(rules).toContain("int(m.recordingConsentEpoch) == u.get('recordingConsentEpoch', 0)");
+    const finalize = readFileSync(join(__dirname, "../../src/recordings/finalize.ts"), "utf8");
+    expect(finalize).toContain("info.metadata.recordingConsentEpoch !== String(result.consentEpoch)");
+  });
+
   test("rutas de objeto: grabaciones en RECORDINGS_DIR y demos del profesor en DEMOS_DIR (C1, rutas disjuntas)", () => {
     expect([RECORDINGS_DIR, DEMOS_DIR]).toEqual(["recordings", "demos"]);
     expect(rules).toContain(`match /users/{uid}/${RECORDINGS_DIR}/{file} {`);
