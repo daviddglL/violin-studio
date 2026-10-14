@@ -123,6 +123,20 @@ class AssignmentEditReducerTest {
     }
 
     @Test
+    fun `mientras carga la tarea a editar o si no existe no se puede guardar`() {
+        val loading = AssignmentEditState(loading = true)
+        val withTitle = reduce(loading, AssignmentEditMutation.TitleEdited("Escalas"))
+        assertFalse(withTitle.canSave)
+        val loaded = reduce(loading, AssignmentEditMutation.Loaded("Escalas", null, null))
+        assertFalse(loaded.loading)
+        assertTrue(loaded.canSave)
+        val missing = reduce(loading, AssignmentEditMutation.NotFound)
+        assertFalse(missing.loading)
+        assertTrue(missing.notFound)
+        assertFalse(reduce(missing, AssignmentEditMutation.TitleEdited("Escalas")).canSave)
+    }
+
+    @Test
     fun `toString no incluye titulo ni descripcion`() {
         val s = reduce(empty, AssignmentEditMutation.TitleEdited("secreto-titulo"), AssignmentEditMutation.DescriptionEdited("secreto-desc"))
         assertFalse(s.toString().contains("secreto"))

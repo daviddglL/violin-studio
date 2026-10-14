@@ -23,6 +23,12 @@ data class AssignmentEditState(
     val saveAttempted: Boolean = false,
     /** Edita una tarea existente (ya cargada) en vez de crear una. */
     val isEditing: Boolean = false,
+
+    /** Se espera la primera lectura de la tarea que se edita. */
+    val loading: Boolean = false,
+
+    /** La tarea a editar no existe (o el vínculo cayó): no se puede guardar. */
+    val notFound: Boolean = false,
     val busy: Boolean = false,
     val error: AssignmentEditError? = null
 ) : UiState {
@@ -46,7 +52,8 @@ data class AssignmentEditState(
         get() = if (AssignmentRules.description(description).isFailure) DescriptionError.TOO_LONG else null
 
     /** Guardar se bloquea con cualquier error de validación (también el vacío aún no mostrado) o mientras guarda. */
-    val canSave: Boolean get() = rawTitleError == null && descriptionError == null && !busy
+    val canSave: Boolean
+        get() = rawTitleError == null && descriptionError == null && !busy && !loading && !notFound
 
     // El contenido de la tarea no sale en volcados del estado.
     override fun toString(): String =
@@ -86,6 +93,8 @@ sealed interface AssignmentEditMutation {
     data class Busy(val busy: Boolean) : AssignmentEditMutation
 
     data class Failed(val error: AssignmentEditError) : AssignmentEditMutation
+
+    data object NotFound : AssignmentEditMutation
 
     data object ErrorDismissed : AssignmentEditMutation
 }

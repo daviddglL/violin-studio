@@ -11,10 +11,14 @@ object AssignmentEditReducer {
             title = mutation.title,
             description = mutation.description.orEmpty(),
             dueAt = mutation.dueAt,
-            isEditing = true
+            isEditing = true,
+            loading = false,
+            notFound = false
         )
-        is AssignmentEditMutation.Busy -> state.copy(busy = mutation.busy)
+        is AssignmentEditMutation.Busy ->
+            state.copy(busy = mutation.busy, error = if (mutation.busy) null else state.error)
         is AssignmentEditMutation.Failed -> state.copy(busy = false, error = mutation.error)
+        AssignmentEditMutation.NotFound -> state.copy(loading = false, notFound = true)
         AssignmentEditMutation.ErrorDismissed -> state.copy(error = null)
     }
 }
