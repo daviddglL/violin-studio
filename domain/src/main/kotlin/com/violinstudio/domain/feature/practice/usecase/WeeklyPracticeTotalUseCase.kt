@@ -1,7 +1,9 @@
 package com.violinstudio.domain.feature.practice.usecase
 
+import com.violinstudio.domain.feature.practice.model.PracticeSession
 import java.time.Clock
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
@@ -23,12 +25,13 @@ class WeeklyPracticeTotalUseCase(
     constructor(history: ObservePracticeHistoryUseCase, clock: Clock) :
         this(history, clock, { ZoneId.systemDefault() })
 
-    operator fun invoke(): Flow<Int> = history().map { sessions ->
-        val zone = zone()
-        val today = clock.instant().atZone(zone).toLocalDate()
-        val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val start = monday.atStartOfDay(zone).toInstant()
-        val end = monday.plusWeeks(1).atStartOfDay(zone).toInstant()
-        sessions.filter { it.startedAt >= start && it.startedAt < end }.sumOf { it.durationSec }
-    }
+    operator fun invoke(): Flow<Int> = history().map { sessions -> sessions.weeklyTotalSec(clock.instant(), zone()) }
+}
+
+/** Segundos de las sesiones cuyo `startedAt` cae en la semana ISO (lunes a lunes) de [now] en [zone]. */
+fun List<PracticeSession>.weeklyTotalSec(now: Instant, zone: ZoneId): Int {
+    val monday = now.atZone(zone).toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val start = monday.atStartOfDay(zone).toInstant()
+    val end = monday.plusWeeks(1).atStartOfDay(zone).toInstant()
+    return filter { it.startedAt >= start && it.startedAt < end }.sumOf { it.durationSec }
 }
