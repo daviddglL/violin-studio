@@ -1,6 +1,8 @@
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { bucketStore } from "../../src/recordings/finalize";
 import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { grantTeacher, revokeTeacher, TeacherRoleDeps, TeacherRoleError } from "../../src/admin/teacher-role";
 import { createTeacherCodeHandler } from "../../src/teacher/code-handlers";
@@ -16,6 +18,7 @@ const deps = (parche: Partial<TeacherRoleDeps> = {}): TeacherRoleDeps => ({
   db,
   auth,
   clock: () => HOY,
+  store: bucketStore(getStorage(app).bucket(`${project}.appspot.com`)),
   log: (message, data) => logs.push({ message, data }),
   ...parche,
 });

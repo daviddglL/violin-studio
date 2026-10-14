@@ -48,7 +48,8 @@ const admin = () => getApps()[0] ?? initializeApp();
 
 const erasureDeps = () => {
   const app = admin();
-  return { db: getFirestore(app), auth: getAuth(app), bucket: getStorage(app).bucket(resolveBucketName(app.options)) };
+  const bucket = getStorage(app).bucket(resolveBucketName(app.options));
+  return { db: getFirestore(app), auth: getAuth(app), bucket, store: bucketStore(bucket) };
 };
 
 export const health = onCall(callableOptions(), () => ({ status: "ok", version: VERSION }));
@@ -150,7 +151,11 @@ export const redeemTeacherCode = onCall({ ...callableOptions(), secrets: [TEACHE
 export const unlinkTeacher = onCall(callableOptions(), (request) => {
   const { uid } = requireVerifiedUser(request);
   const app = admin();
-  return unlinkTeacherHandler({ db: getFirestore(app), auth: getAuth(app) }, uid, request.data);
+  return unlinkTeacherHandler(
+    { db: getFirestore(app), auth: getAuth(app), store: bucketStore(getStorage(app).bucket(resolveBucketName(app.options))) },
+    uid,
+    request.data,
+  );
 });
 
 /** Copia de nombre/instrumento en los vinculos (REQ-LNK-09); el handler descarta cualquier otro cambio sin leer. */

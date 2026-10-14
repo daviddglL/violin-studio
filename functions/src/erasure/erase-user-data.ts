@@ -5,6 +5,7 @@ import { Clock, systemClock } from "../common/clock";
 import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
+import type { ObjectStore } from "../recordings/finalize";
 import { ERASABLE_COLLECTIONS, STORAGE_PREFIXES } from "./registry";
 import { deleteInBatches, sweepLinks, sweepShared } from "./shared";
 
@@ -16,6 +17,8 @@ export interface ErasureDeps {
   auth: Auth;
   /** Solo lo que se usa del bucket: borrado por prefijo. */
   bucket: { deleteFiles(options: { prefix: string; force?: boolean }): Promise<unknown> };
+  /** Objetos de grabaciones ajenas que la cascada borra por su `objectPath` (demos dirigidas al alumno borrado, B5b.1). */
+  store: ObjectStore;
   clock?: Clock;
   sleep?: (ms: number) => Promise<void>;
   /** Sumidero de logs sin PII; por defecto `logger.info`. */
@@ -127,7 +130,7 @@ export async function eraseUserData(
   const countedLinks = new Set<string>();
   const sweepCollections = async () => {
     // `link` primero: corta el acceso cruzado y recalcula contadores, rol y claims de la otra parte.
-    await sweepLinks({ db, auth, log: deps.log }, uid, deleted, countedLinks);
+    await sweepLinks({ db, auth, store: deps.store, log: deps.log }, uid, deleted, countedLinks);
     for (const [name, policy] of Object.entries(ERASABLE_COLLECTIONS)) {
       if (policy.kind !== "queryByFields") continue;
       deleted[name] ??= 0;

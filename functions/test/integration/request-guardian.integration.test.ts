@@ -8,6 +8,7 @@ import { getStorage } from "firebase-admin/storage";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
 import { requestGuardianConsentHandler } from "../../src/guardian/request";
 import { hmacEmail, sha256Hex } from "../../src/common/hashing";
+import { bucketStore } from "../../src/recordings/finalize";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
@@ -128,7 +129,7 @@ describe("requestGuardianConsentHandler", () => {
     const u = await user();
     await ask(u, "cascada@example.com");
     const bucket = getStorage(app).bucket(`${project}.appspot.com`);
-    await eraseUserData({ db, auth, bucket }, u.uid, { deleteAuth: true });
+    await eraseUserData({ db, auth, bucket, store: bucketStore(bucket) }, u.uid, { deleteAuth: true });
     expect(await where("guardianRequests", u.uid)).toHaveLength(0);
     expect(await where("mail", u.uid)).toHaveLength(0);
     expect((await db.collection("guardianEmailLimits").doc(hmacEmail(PEPPER, "cascada@example.com")).get()).exists).toBe(true);

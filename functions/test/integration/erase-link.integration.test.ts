@@ -4,6 +4,7 @@ import { Firestore, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
+import { bucketStore } from "../../src/recordings/finalize";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
@@ -14,7 +15,7 @@ const bucket = getStorage(app).bucket();
 const logs: Array<{ message: string; data: Record<string, unknown> }> = [];
 const log = (message: string, data: Record<string, unknown>) => logs.push({ message, data });
 const sleep = async () => undefined;
-const deps = { db, auth, bucket, log, sleep };
+const deps = { db, auth, bucket, store: bucketStore(bucket), log, sleep };
 beforeEach(() => {
   logs.length = 0;
 });
