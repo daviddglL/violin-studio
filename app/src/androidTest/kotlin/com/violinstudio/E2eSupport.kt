@@ -57,13 +57,19 @@ object Emulators {
 
     class Response(val code: Int, val body: String)
 
-    fun request(method: String, url: String, body: String? = null, form: Boolean = false): Response {
+    fun request(
+        method: String,
+        url: String,
+        body: String? = null,
+        form: Boolean = false,
+        token: String = "owner"
+    ): Response {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.requestMethod = method
             conn.connectTimeout = 10_000
             conn.readTimeout = 20_000
-            conn.setRequestProperty("Authorization", "Bearer owner")
+            conn.setRequestProperty("Authorization", "Bearer $token")
             if (body != null) {
                 conn.doOutput = true
                 val type = if (form) "application/x-www-form-urlencoded" else "application/json"
@@ -93,6 +99,64 @@ object Emulators {
         val response = request("POST", "${authBase()}/accounts:update", """{"localId":"$uid","emailVerified":true}""")
         check(response.code == 200) { "accounts:update fallo: ${response.code}" }
     }
+
+    /** Alta de una cuenta de Auth (emulador): devuelve su uid. La clave de API es irrelevante en el emulador. */
+    fun signUp(email: String, password: String = E2E_PASSWORD): String {
+        val body = JSONObject().put("email", email).put("password", password).put("returnSecureToken", true)
+        val r = request("POST", "${authBase()}/accounts:signUp?key=e2e", body.toString())
+        check(r.code == 200) { "signUp fallo: ${r.code}" }
+        return JSONObject(r.body).getString("localId")
+    }
+
+    /** ID token fresco (con los claims y `email_verified` actuales) de una cuenta ya creada. */
+    fun idToken(email: String, password: String = E2E_PASSWORD): String {
+        val body = JSONObject().put("email", email).put("password", password).put("returnSecureToken", true)
+        val r = request("POST", "${authBase()}/accounts:signInWithPassword?key=e2e", body.toString())
+        check(r.code == 200) { "signIn fallo: ${r.code}" }
+        return JSONObject(r.body).getString("idToken")
+    }
+
+    /** Llamada a una callable de las Functions como [idToken] (protocolo HTTP de las callables). */
+    fun callAs(idToken: String, function: String, data: JSONObject = JSONObject()): Response {
+        val url = "http://$host:5001/$PROJECT/$REGION/$function"
+        return request("POST", url, JSONObject().put("data", data).toString(), token = idToken)
+    }
+
+    /** Fija los custom claims de una cuenta (lo que hace `syncClaims` en el backend). */
+    fun setCustomClaims(uid: String, claimsJson: String) {
+        val body = JSONObject().put("localId", uid).put("customAttributes", claimsJson)
+        val response = request("POST", "${authBase()}/accounts:update", body.toString())
+        check(response.code == 200) { "setCustomClaims fallo: ${response.code}" }
+    }
+
+    /** Actualiza un unico campo de un documento (resto intacto) saltando las reglas. */
+    fun patchField(path: String, field: String, value: JSONObject) {
+        val url = docsUrl(path) + "?updateMask.fieldPaths=$field"
+        val response = request("PATCH", url, JSONObject().put("fields", JSONObject().put(field, value)).toString())
+        check(response.code == 200) { "patchField fallo en $path: ${response.code}" }
+    }
+
+    /**
+     * Completa o reabre una tarea COMO el alumno (con sus reglas): `doneAt` va como transformacion de servidor
+     * (`request.time`, lo que exige `validDone`) igual que hace el SDK con `serverTimestamp()`.
+     */
+    fun setAssignmentDoneAs(idToken: String, student: String, id: String): Response {
+        val name = "projects/$PROJECT/$DOCS/users/$student/assignments/$id"
+        val write = JSONObject()
+            .put("update", JSONObject().put("name", name).put("fields", JSONObject().put("status", stringValue("done"))))
+            .put("updateMask", JSONObject().put("fieldPaths", org.json.JSONArray(listOf("status", "doneAt"))))
+            .put(
+                "updateTransforms",
+                org.json.JSONArray().put(
+                    JSONObject().put("fieldPath", "doneAt").put("setToServerValue", "REQUEST_TIME")
+                )
+            )
+            .put("currentDocument", JSONObject().put("exists", true))
+        val url = "http://$host:8080/v1/projects/$PROJECT/$DOCS:commit"
+        return request("POST", url, JSONObject().put("writes", org.json.JSONArray().put(write)).toString(), token = idToken)
+    }
+
+    fun stringValue(value: String): JSONObject = JSONObject().put("stringValue", value)
 
     /** Valor de un campo string de un documento (p. ej. `consentStatus`), o `null` si no existe. */
     fun stringField(path: String, field: String): String? {

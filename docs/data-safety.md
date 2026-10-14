@@ -1,6 +1,6 @@
 # Declaración de Data safety y política: micrófono (`RECORD_AUDIO`)
 
-Estado: borrador de la fase 3 (slice C1) para Google Play Console > Contenido de la app > Seguridad de los datos y para
+Estado: borrador de la fase 3 (slice C1), ampliado en la fase 4a (A11) para Google Play Console > Contenido de la app > Seguridad de los datos y para
 el texto definitivo de la política de privacidad (`hosting/public/politica/index.html`, hoy marcador provisional).
 Cubre REQ-AUD-05 de `practice-audio`.
 
@@ -28,6 +28,32 @@ nacimiento (edad), instrumento, historial de práctica (fecha, duración, instru
 consentimiento. El historial de práctica no contiene audio, frecuencias ni notas tocadas. Se puede borrar por sesión o
 junto con la cuenta (borrado completo desde la app).
 
+## Vínculo profesor-alumno, tareas y visibilidad del registro (fase 4a)
+
+Cubre REQ-CON-R04. Declaración para Play Console de lo que añade el vínculo; el audio y el vídeo de las grabaciones
+(fase 4b/4c) NO están incluidos aquí y se declararán cuando existan.
+
+| Pregunta | Respuesta | Motivo |
+|---|---|---|
+| Datos personales: nombre, correo, fecha de nacimiento | Recopilados y, solo el nombre y el instrumento, **compartidos con el profesor vinculado** | El alumno elige vincularse canjeando el código y acepta un aviso versionado (`LinkNotice`) que lo explica |
+| Actividad en la app: historial de práctica (fecha, duración, instrumento) y **notas del alumno** | Recopilada y **compartida con el profesor vinculado** (solo lectura) | Las reglas de Firestore solo dejan leer al profesor con vínculo vigente, consentimiento vigente y sin borrado en curso |
+| Contenido generado por el usuario: tareas (título, descripción, fecha límite, estado y fecha de hecha) | Recopiladas; visibles para el profesor autor y el alumno | El profesor las crea y las edita; el alumno solo cambia el estado |
+| ¿Se comparten datos con terceros? | No, salvo el profesor elegido por el propio usuario | Sin SDK de terceros para esto |
+| Cifrado en tránsito | Sí | Firebase (TLS) |
+| Borrado | El usuario desvincula al instante (el profesor pierde la vista y se borran las tareas abiertas) y puede borrar la cuenta completa | `unlinkTeacher` y `deleteAccount`; el borrado de un profesor desvincula a sus alumnos |
+
+Controles técnicos relacionados (verificados por tests de reglas y de integración):
+
+- El profesor solo existe por alta administrativa (`admin:grant-teacher`, adulto con consentimiento vigente); ninguna
+  llamada del cliente asigna el rol.
+- Un alumno tiene como máximo 1 profesor; un profesor, 30 alumnos y 5 códigos activos (20 en 24 h). Los códigos se
+  guardan con HMAC, caducan a los 7 días y el canje tiene límite de 5 fallos por hora y alumno.
+- El profesor no puede escribir ni borrar el registro del alumno.
+- Un cambio de versión de la política (v2) devuelve a todos a `pending` (`admin:reevaluate-consents` lo aplica en
+  bloque): el vínculo se conserva, pero el profesor no tiene acceso hasta que ambos vuelvan a consentir. Ninguna cuenta
+  de menor se borra por el cambio.
+- Los registros de Functions solo llevan hashes de uid y contadores; nunca nombres, notas ni códigos.
+
 ## Texto para la política de privacidad
 
 > El afinador usa el micrófono de tu dispositivo solo mientras la pantalla del afinador está abierta. El sonido se
@@ -52,4 +78,7 @@ no se recopila ni se comparte, así que no altera el tratamiento de datos del me
 ## Pendiente antes de publicar
 
 - Confirmar en Play Console el propósito (análisis, estabilidad) y el cifrado en tránsito de cada fila de diagnósticos.
-- Sustituir el marcador de la política de privacidad por el texto legal definitivo (y subir `CURRENT_POLICY_VERSION`).
+- La política v2 (`hosting/public/politica/index.html`, `CURRENT_POLICY_VERSION = 2`) está publicada como borrador de
+  la fase 4 completa (vínculo, tareas, grabaciones de audio y vídeo, difuminado, retención de 90 días, cupo de 20).
+  **Falta la revisión legal** antes de publicar en Play (riesgo Q1 abierto).
+- Declarar en Play Console las grabaciones de audio y vídeo cuando se publique la fase 4b/4c.
