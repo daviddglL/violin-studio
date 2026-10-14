@@ -95,6 +95,8 @@ class TeacherStudentFlowE2ETest : E2eTest() {
             JSONObject().put("code", code).put("ackVersion", LinkNotice.VERSION - 1)
         )
         assertEquals("NOTICE_OUTDATED rechazado", 400, stale.code)
+        assertTrue("estado FAILED_PRECONDITION: ${stale.body}", stale.body.contains("FAILED_PRECONDITION"))
+        assertTrue("motivo NOTICE_OUTDATED: ${stale.body}", stale.body.contains("NOTICE_OUTDATED"))
         assertFalse(Emulators.docExists("teacherLinks/${teacher}_$student"))
 
         val redeemed = Emulators.callAs(

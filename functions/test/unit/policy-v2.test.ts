@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CURRENT_POLICY_VERSION, POLICY_URL } from "../../src/config/identity";
+import { CURRENT_POLICY_VERSION, MAX_STUDENTS_PER_TEACHER, POLICY_URL } from "../../src/config/identity";
 
 const html = readFileSync(join(__dirname, "../../../hosting/public/politica/index.html"), "utf8");
 const firebase = JSON.parse(readFileSync(join(__dirname, "../../../firebase.json"), "utf8"));
@@ -27,6 +27,17 @@ describe("A11.2 politica v2 publicada (REQ-CON-R04)", () => {
   ] as const)("el texto %s cubre la fase 4 (vinculo, tareas, grabaciones, video, blur, cupo, retencion, revocacion)", (lang, terms) => {
     const text = section(lang);
     for (const t of terms) expect(text).toContain(t);
+  });
+
+  test.each([
+    ["es", /30 alumnos/, /20 grabaciones/],
+    ["en", /30 students/, /20 recordings/],
+  ] as const)("el texto %s declara los cupos reales (MAX_STUDENTS_PER_TEACHER)", (lang, students, recordings) => {
+    expect(MAX_STUDENTS_PER_TEACHER).toBe(30);
+    const text = section(lang);
+    expect(text).toMatch(students);
+    expect(text).toMatch(recordings);
+    expect(text).not.toMatch(/20 (alumnos|students)/);
   });
 
   test("ya no es un marcador provisional", () => {

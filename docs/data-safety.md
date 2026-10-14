@@ -80,5 +80,7 @@ no se recopila ni se comparte, así que no altera el tratamiento de datos del me
 - Confirmar en Play Console el propósito (análisis, estabilidad) y el cifrado en tránsito de cada fila de diagnósticos.
 - La política v2 (`hosting/public/politica/index.html`, `CURRENT_POLICY_VERSION = 2`) está publicada como borrador de
   la fase 4 completa (vínculo, tareas, grabaciones de audio y vídeo, difuminado, retención de 90 días, cupo de 20).
-  **Falta la revisión legal** antes de publicar en Play (riesgo Q1 abierto).
+  **Falta la revisión legal** antes de publicar en Play (riesgo Q1 abierto, puerta bloqueante en README). El texto
+  actual no incluye identidad y contacto del responsable del tratamiento, base jurídica ni derechos de los
+  interesados (acceso, rectificación, supresión, etc.): esa revisión debe cubrirlos; no se ha inventado texto legal.
 - Declarar en Play Console las grabaciones de audio y vídeo cuando se publique la fase 4b/4c.

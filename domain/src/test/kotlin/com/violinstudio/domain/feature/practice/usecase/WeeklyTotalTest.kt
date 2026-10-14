@@ -84,4 +84,42 @@ class WeeklyTotalTest {
         val seen = listOf(session("2026-10-13T10:00:00Z", 600)).weeklyTotalFlow(clock) { ZoneOffset.UTC }.toList()
         assertEquals(listOf(600), seen)
     }
+
+    @Test
+    fun `un salto del reloj hacia delante se detecta en menos de un minuto, no al final de la espera larga`() =
+        runTest {
+            val clock = MovableClock(Instant.parse("2026-10-14T12:00:00Z")) // faltan casi 5 dias para el lunes
+            val sessions = listOf(session("2026-10-13T10:00:00Z", 600))
+            val seen = mutableListOf<Int>()
+            val job = launch { sessions.weeklyTotalFlow(clock) { ZoneOffset.UTC }.toList(seen) }
+            runCurrent()
+            assertEquals(listOf(600), seen)
+
+            // El dispositivo "duerme" y el reloj de pared salta a la semana siguiente mientras el reloj virtual avanza poco.
+            clock.at = Instant.parse("2026-10-20T08:00:00Z")
+            advanceTimeBy(60_000)
+            runCurrent()
+            assertEquals(listOf(600, 0), seen)
+            job.cancel()
+        }
+
+    @Test
+    fun `una espera larga sin saltos sigue sin re-emitir hasta cruzar el lunes`() = runTest {
+        val clock = MovableClock(Instant.parse("2026-10-18T22:00:00Z"))
+        val sessions = listOf(session("2026-10-17T10:00:00Z", 600))
+        val seen = mutableListOf<Int>()
+        val job = launch { sessions.weeklyTotalFlow(clock) { ZoneOffset.UTC }.toList(seen) }
+        runCurrent()
+        repeat(60) {
+            clock.at = clock.at.plusSeconds(60)
+            advanceTimeBy(60_000)
+            runCurrent()
+        }
+        assertEquals(listOf(600), seen)
+        clock.at = Instant.parse("2026-10-19T00:00:00Z")
+        advanceTimeBy(60_000)
+        runCurrent()
+        assertEquals(listOf(600, 0), seen)
+        job.cancel()
+    }
 }

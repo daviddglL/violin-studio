@@ -45,23 +45,29 @@ fun List<PracticeSession>.weeklyTotalSec(now: Instant, zone: ZoneId): Int {
 fun Instant.nextWeekStart(zone: ZoneId): Instant =
     atZone(zone).toLocalDate().with(TemporalAdjusters.next(DayOfWeek.MONDAY)).atStartOfDay(zone).toInstant()
 
-/** Margen por el que `delay` (reloj monotónico) puede despertar antes que el reloj de pared. */
-private val EARLY_WAKE_TOLERANCE: Duration = Duration.ofSeconds(5)
+/** Espera máxima entre comprobaciones del reloj de pared (tras dormir el dispositivo o saltar el reloj). */
+private val MAX_WAIT: Duration = Duration.ofSeconds(60)
 
 /**
  * Total semanal de estas sesiones que se vuelve a emitir al cruzar el lunes a las 00:00 sin nuevo historial
- * (el total de la semana que acaba pasa a ser el de la nueva). El reloj y la zona se leen en cada emisión. Si tras
- * esperar el [clock] no ha llegado al límite (reloj fijo en tests o salto del reloj del sistema) deja de
- * re-armar: la siguiente emisión del historial lo rearma; así un reloj que no avanza no produce un bucle.
+ * (el total de la semana que acaba pasa a ser el de la nueva). El reloj y la zona se leen en cada emisión y la
+ * espera se trocea en tramos de como mucho [MAX_WAIT], volviendo a mirar el reloj de pared en cada uno: así un
+ * despertar tardío tras dormir el dispositivo o un salto del reloj del sistema se detecta en menos de un minuto
+ * (también un cambio de zona). Si tras esperar el [clock] no ha avanzado (reloj fijo en tests) deja de re-armar:
+ * la siguiente emisión del historial lo rearma; así un reloj que no avanza no produce un bucle.
  */
 fun List<PracticeSession>.weeklyTotalFlow(clock: Clock, zone: () -> ZoneId): Flow<Int> = flow {
     while (true) {
-        val now = clock.instant()
-        val currentZone = zone()
-        emit(weeklyTotalSec(now, currentZone))
-        val next = now.nextWeekStart(currentZone)
-        delay(Duration.between(now, next).toMillis().coerceAtLeast(1))
-        val after = clock.instant()
-        if (after < next && Duration.between(after, next) > EARLY_WAKE_TOLERANCE) return@flow
+        var now = clock.instant()
+        val emitZone = zone()
+        emit(weeklyTotalSec(now, emitZone))
+        val next = now.nextWeekStart(emitZone)
+        while (now < next && zone() == emitZone) {
+            val wait = minOf(Duration.between(now, next), MAX_WAIT)
+            delay(wait.toMillis().coerceAtLeast(1))
+            val after = clock.instant()
+            if (after <= now) return@flow
+            now = after
+        }
     }
 }

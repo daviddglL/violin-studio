@@ -34,8 +34,10 @@ const DEFAULT_PAGE_SIZE = 200;
  * `consentStatus`, no la versión) dejarían al profesor leer su registro durante ese intervalo.
  *
  * Cada usuario pasa por `reevaluateConsent` (transacción que relee el documento: decide el documento, no el
- * claim, y no toca borrados en curso). Un fallo se cuenta y se registra sin PII y no detiene el lote; la
- * pasada es idempotente y reanudable (lo ya reevaluado deja de ser `granted`).
+ * claim, y no toca borrados en curso). Un fallo se cuenta y se registra sin PII y no detiene el lote; cada
+ * fallo se reintenta una vez en la pasada (cura un `syncClaims` caído tras el commit). Si el reintento también
+ * falla, un usuario ya pasado a `pending` no se vuelve a escanear: su claim `consentOk` se cura en su siguiente
+ * `identityConfig` (que reevalúa y sincroniza claims). La pasada es idempotente.
  */
 export async function reevaluateAllConsents(deps: ReevaluateAllDeps): Promise<ReevaluateAllResult> {
   const current = deps.currentVersion ?? CURRENT_POLICY_VERSION;
@@ -51,13 +53,24 @@ export async function reevaluateAllConsents(deps: ReevaluateAllDeps): Promise<Re
     if (snap.empty) break;
     for (const d of snap.docs) {
       result.scanned++;
-      if (reevaluatedStatus(d.data(), current) === null) continue;
+      const data = d.data();
+      // Borrado en curso: `reevaluateConsent` no lo toca, así que no cuenta como cambiado.
+      if (data.deletion || reevaluatedStatus(data, current) === null) continue;
+      const rd = { db: deps.db, auth: deps.auth, currentVersion: current };
       try {
-        await run({ db: deps.db, auth: deps.auth, currentVersion: current }, d.id);
+        await run(rd, d.id);
         result.changed++;
-      } catch (e) {
-        result.failed++;
-        log("reevaluateAll.userFailed", { uidHash: sha256Hex(d.id).slice(0, 12), code: safeErrorCode(e) });
+      } catch (first) {
+        // Si la transacción ya confirmó y falló `syncClaims`, el documento deja de ser `granted` y una pasada
+        // posterior no lo vería: el reintento en la misma pasada (idempotente) cura el claim.
+        log("reevaluateAll.retry", { uidHash: sha256Hex(d.id).slice(0, 12), code: safeErrorCode(first) });
+        try {
+          await run(rd, d.id);
+          result.changed++;
+        } catch (e) {
+          result.failed++;
+          log("reevaluateAll.userFailed", { uidHash: sha256Hex(d.id).slice(0, 12), code: safeErrorCode(e) });
+        }
       }
     }
     if (snap.size < pageSize) break;
