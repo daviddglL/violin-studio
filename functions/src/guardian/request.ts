@@ -11,6 +11,7 @@ import {
   GUARDIAN_LINK_TTL_HOURS,
   GUARDIAN_MAX_SENDS_PER_24H,
 } from "../config/identity";
+import { consentDocId, consentEpochOf } from "../consent/consent-docs";
 import { buildGuardianMail, maskEmail } from "./mail";
 import { requirePepper } from "./pepper";
 import { GUARDIAN_PURPOSES, GuardianPurpose } from "./purpose";
@@ -191,6 +192,12 @@ async function requestRecordingConsent(
     }
     if (doc.recordingConsent === "granted") throw fail("failed-precondition", ErrorReason.CONSENT_ALREADY_GRANTED);
     if ((doc.recordingPurge as { pending?: unknown } | undefined)?.pending === true) throw fail("unavailable", ErrorReason.TEMPORARILY_UNAVAILABLE);
+    // Mismo tutor (Q3): el HMAC debe ser el del consentimiento base vigente. Sin ese registro no se puede verificar -> se rechaza.
+    const baseId = consentDocId("guardian_privacy_policy", doc.policyVersion as number, "guardian", consentEpochOf(doc));
+    const base = (await tx.get(userRef.collection(COLLECTIONS.consents).doc(baseId))).data();
+    if (typeof base?.guardianEmailHmac !== "string" || base.guardianEmailHmac !== hmac) {
+      throw fail("failed-precondition", ErrorReason.GUARDIAN_EMAIL_MISMATCH);
+    }
 
     tx.create(requestRef, {
       uid,

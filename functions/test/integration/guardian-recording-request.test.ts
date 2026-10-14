@@ -150,3 +150,45 @@ describe("requestGuardianConsent purpose=recording_sharing (REQ-GRD-R01)", () =>
     await sinEscrituras(u, before);
   });
 });
+
+describe("mismo tutor que dio el consentimiento base (REQ-GRD-R01, Q3)", () => {
+  const noLimits = async (hmac: string) => expect((await db.collection("guardianEmailLimits").doc(hmac).get()).exists).toBe(false);
+
+  test("email con HMAC distinto -> GUARDIAN_EMAIL_MISMATCH sin escrituras (ni solicitud, ni mail, ni contador)", async () => {
+    const u = await minor();
+    const before = await perfil(u.uid);
+    const otro = uniq();
+    await expect(ask(u, { guardianEmail: otro })).rejects.toMatchObject({
+      code: "failed-precondition", details: { reason: "GUARDIAN_EMAIL_MISMATCH" },
+    });
+    await sinEscrituras(u, before);
+    await noLimits(hmacEmail(PEPPER, otro));
+  });
+
+  test("el mismo email escrito con otras mayúsculas y espacios se acepta", async () => {
+    const u = await minor();
+    await expect(ask(u, { guardianEmail: `  ${u.guardian.toUpperCase()} ` })).resolves.toMatchObject({ status: "sent" });
+    expect((await where("guardianRequests", u.uid))[0].data().guardianEmailHmac).toBe(hmacEmail(PEPPER, u.guardian));
+  });
+
+  test("sin registro del consentimiento base (o sin HMAC) no se puede verificar -> GUARDIAN_EMAIL_MISMATCH", async () => {
+    const sin = await minor({}, false);
+    await expect(ask(sin)).rejects.toMatchObject({ details: { reason: "GUARDIAN_EMAIL_MISMATCH" } });
+    const sinHmac = await minor();
+    await db.collection("users").doc(sinHmac.uid).collection("consents")
+      .doc(`guardian_privacy_policy_v${CURRENT_POLICY_VERSION}_guardian_e0`).set({ type: "guardian_privacy_policy" });
+    await expect(ask(sinHmac)).rejects.toMatchObject({ details: { reason: "GUARDIAN_EMAIL_MISMATCH" } });
+    expect(await where("mail", sin.uid)).toHaveLength(0);
+    expect(await where("mail", sinHmac.uid)).toHaveLength(0);
+  });
+
+  test("solo cuenta el consentimiento vigente: versión y época actuales; los antiguos no valen", async () => {
+    const u = await minor({ consentEpoch: 2 }); // e0 (otro tutor anterior) sembrado por `minor`
+    const actual = uniq();
+    await db.collection("users").doc(u.uid).collection("consents").doc(`guardian_privacy_policy_v${CURRENT_POLICY_VERSION}_guardian_e2`).set({
+      type: "guardian_privacy_policy", guardianEmailHmac: hmacEmail(PEPPER, actual),
+    });
+    await expect(ask(u)).rejects.toMatchObject({ details: { reason: "GUARDIAN_EMAIL_MISMATCH" } }); // el de e0
+    await expect(ask(u, { guardianEmail: actual })).resolves.toMatchObject({ status: "sent" });
+  });
+});
