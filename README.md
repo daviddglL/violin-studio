@@ -123,7 +123,8 @@ Orden (detalle en `docs/runbooks/storage-rules-iam.md`):
 1. IAM del agente de servicio de Storage y `firebase deploy --only storage`.
 2. **Puerta de release (obligatoria, no consultiva)**: smoke test en staging ANTES de poner `RECORDINGS_ENABLED=true`. Debe pasar completo y sin excepciones, y su resultado se anota en la PR/release: las dos rutas de lectura (`get` del dueno/profesor vinculado en `users/{uid}/recordings/` y `get` del alumno destinatario en `users/{t}/demos/`) y las dos de creacion (subida de una grabacion y de una demo). El emulador no aplica el tope de 2 accesos a Firestore de las reglas de Storage ni el IAM del agente de servicio, asi que solo este smoke test los valida. Si falla cualquiera de los cuatro, `RECORDINGS_ENABLED` NO se activa.
 3. Regla de ciclo de vida del bucket (`infra/storage-lifecycle.json`) aplicada: `recordingCount` solo cuenta grabaciones finalizadas, así que las subidas abandonadas solo las acota esa regla.
-4. Solo entonces `RECORDINGS_ENABLED=true` y `firebase deploy --only functions`.
+4. **Prerrequisito duro: B5a** (`onRecordingDeleted`, que borra el objeto de Storage por el `objectPath` guardado y hace la cascada de `reviews`) desplegado y verificado. Sin el, cuando el alumno borra el documento el objeto de Storage sigue legible por el profesor vinculado o el destinatario hasta que corre el trigger. `RECORDINGS_ENABLED` NO se activa sin B5a. Anota el resultado del smoke test del paso 2 en la PR/checklist de release.
+5. Solo entonces `RECORDINGS_ENABLED=true` y `firebase deploy --only functions`.
 
 ### App Check en prod
 
