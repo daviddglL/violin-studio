@@ -8,6 +8,7 @@ import { RecordingFlags } from "../config/features";
 import { RECORDING_CONSENT_VERSION } from "../config/identity";
 import { DEMOS_DIR, MAX_RECORDINGS_PER_OWNER, RECORDINGS_DIR } from "../config/recordings";
 import { consentDocId, recordingEpochOf } from "../consent/consent-docs";
+import { deleteRecording } from "./delete-recording";
 import { Mp4Error, readMp4DurationSec } from "./mp4-duration";
 import { ContainerProbe, parseObjectPath, RecordingMeta, RejectReason, ValidationResult, validateRecording } from "./validate";
 
@@ -282,12 +283,16 @@ async function finalizeCore(
   }
   // Metadatos frescos: confirman que el objeto sigue ahi con esta generation (un reintento tardio tras el borrado del
   // dueno no debe resucitar el doc) y evitan fiarse de lo que trae el evento.
-  const info = await deps.store.stat(event.name);
-  if (!info || info.generation !== event.generation) return "ignored";
-
   const users = deps.db.collection(COLLECTIONS.users);
   const userRef = users.doc(path.uid);
   const recRef = userRef.collection(COLLECTIONS.recordings).doc(path.id);
+  const info = await deps.store.stat(event.name);
+  if (!info || info.generation !== event.generation) {
+    // Un doc `ready` de ESTA generation sin objeto es un finalize que cayo tras el commit mientras el objeto se borraba
+    // (B5a.5): se retira para no dejar un doc colgando ni una plaza ocupada. Un doc de otra generation no se toca.
+    if (!info) await retireDangling(deps, recRef, event);
+    return "ignored";
+  }
   const now = deps.clock();
 
   // Comprobacion barata antes de leer el contenedor; la autoritativa se repite dentro de la transaccion.
@@ -392,7 +397,22 @@ async function finalizeCore(
     return { action: "ready" };
   });
 
-  return applyOutcome(deps.store, event, outcome);
+  const result = await applyOutcome(deps.store, event, outcome);
+  if (result !== "ready") return result;
+  // B5a.5: el dueno pudo borrar el doc (y `onRecordingDeleted` el objeto) entre el `stat` de arriba y este commit: el doc
+  // recien creado apunta a un objeto que ya no existe. Si el objeto ya no esta, se retira (su borrado devuelve la plaza).
+  const after = await deps.store.stat(event.name);
+  if (after && after.generation === event.generation) return "ready";
+  await retireDangling(deps, recRef, event);
+  note.reason = "object_gone";
+  return "ignored";
+}
+
+/** Borra el doc `ready` que apunta a (objectPath, generation) del evento si el objeto ya no existe; su trigger baja el contador. */
+async function retireDangling(deps: FinalizeDeps, recRef: DocumentReference, event: FinalizeEvent): Promise<void> {
+  await deleteRecording({ db: deps.db, store: deps.store }, recRef, {
+    guard: (d) => d.status === "ready" && d.objectPath === event.name && String(d.generation) === event.generation,
+  });
 }
 
 function rejectedDoc(reason: FinalizeRejectReason, createdAt: Timestamp, event: FinalizeEvent, now: Date) {
