@@ -1,3 +1,4 @@
+import { recordingFlags } from "../../src/config/features";
 import { identityConfigHandler } from "../../src/profile/identity-config";
 
 /** Firestore/Auth falsos mínimos: un único documento de usuario y contadores de llamadas. */
@@ -63,4 +64,26 @@ test("un documento con deletion no se toca aunque tenga una versión vieja", asy
   const { db, auth, updates } = fakes({ ...granted, deletion: { state: "in_progress" } }, { role: "independent", consentOk: false });
   await identityConfigHandler(req(false), { db, auth, currentVersion: 2 } as never);
   expect(updates).toEqual([]);
+});
+
+describe("interruptores de grabación y versión del consentimiento (REQ-REC-02, A19)", () => {
+  test("se exponen tal y como los entrega el servidor, con la versión vigente de grabación", async () => {
+    const { db, auth } = fakes(granted, { role: "independent", consentOk: true });
+    const flags = { recordingsEnabled: true, videoEnabled: false, minorRecordingEnabled: false };
+    const cfg = await identityConfigHandler(req(true), { db, auth, currentVersion: 1, flags } as never);
+    expect(cfg).toMatchObject({ recordingsEnabled: true, videoEnabled: false, minorRecordingEnabled: false, recordingConsentVersion: 1 });
+  });
+
+  test("sin inyección salen de recordingFlags() (entorno)", async () => {
+    const { db, auth } = fakes(granted, { role: "independent", consentOk: true });
+    const cfg = await identityConfigHandler(req(true), { db, auth, currentVersion: 1 } as never);
+    expect(cfg).toMatchObject(recordingFlags());
+  });
+
+  test("todos apagados: se exponen apagados", async () => {
+    const { db, auth } = fakes(granted, { role: "independent", consentOk: true });
+    const flags = { recordingsEnabled: false, videoEnabled: false, minorRecordingEnabled: false };
+    const cfg = await identityConfigHandler(req(true), { db, auth, currentVersion: 1, flags } as never);
+    expect(cfg).toMatchObject(flags);
+  });
 });
