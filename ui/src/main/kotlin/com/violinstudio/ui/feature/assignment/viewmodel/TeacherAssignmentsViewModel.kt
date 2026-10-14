@@ -145,6 +145,8 @@ class TeacherAssignmentsViewModel @Inject constructor(
             val target = state.value.deleteTarget ?: return
             val uid = studentUid ?: return
             setState { copy(isDeleting = true) }
+            // Antes de llamar: la lista puede llegar sin la tarea mientras el borrado sigue en curso (no es rechazo).
+            locallyDeleted += target.id
             val result = try {
                 deleteAssignment(uid, target.id)
             } catch (e: CancellationException) {
@@ -152,7 +154,7 @@ class TeacherAssignmentsViewModel @Inject constructor(
             } catch (_: Throwable) {
                 Result.failure(AssignmentFailure.Unknown)
             }
-            if (result.isSuccess) locallyDeleted += target.id
+            if (result.isFailure) locallyDeleted -= target.id
             val failure = result.exceptionOrNull()
             setState {
                 copy(

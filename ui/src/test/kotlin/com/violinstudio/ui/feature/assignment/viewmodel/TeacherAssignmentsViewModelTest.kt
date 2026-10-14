@@ -219,6 +219,42 @@ class TeacherAssignmentsViewModelTest {
     }
 
     @Test
+    fun `una tarea que borro no genera aviso aunque la lista llegue sin ella con el borrado aun en curso`() = runTest {
+        coEvery { delete(any(), any()) } coAnswers {
+            delay(100)
+            Result.success(Unit)
+        }
+        viewModel().testMvi {
+            loaded(task("a"), task("b", pending = true))
+            intent(TeacherAssignmentsIntent.RequestDelete("b"))
+            assertState { it.deleteTarget != null }
+            intent(TeacherAssignmentsIntent.ConfirmDelete)
+            assertState { it.isDeleting }
+            list.emit(listOf(task("a")))
+            assertState { it.assignments == listOf(task("a")) && it.notice == null }
+            assertState { !it.isDeleting && it.deleteTarget == null }
+        }
+    }
+
+    @Test
+    fun `si el borrado falla la tarea vuelve a contar como propia y su desaparicion posterior si avisa`() = runTest {
+        coEvery { delete(any(), any()) } coAnswers {
+            delay(100)
+            Result.failure(AssignmentFailure.Unknown)
+        }
+        viewModel().testMvi {
+            loaded(task("a"), task("b", pending = true))
+            intent(TeacherAssignmentsIntent.RequestDelete("b"))
+            assertState { it.deleteTarget != null }
+            intent(TeacherAssignmentsIntent.ConfirmDelete)
+            assertState { it.isDeleting }
+            assertState { !it.isDeleting && it.error == TeacherAssignmentsError.UNKNOWN }
+            list.emit(listOf(task("a")))
+            assertState { it.notice == TeacherAssignmentsNotice.REJECTED }
+        }
+    }
+
+    @Test
     fun `vinculo caido en caliente vacia la vista, marca no disponible y vuelve atras una sola vez`() = runTest {
         val channel = Channel<List<Assignment>>(Channel.UNLIMITED)
         val vm = viewModelWith(channel.receiveAsFlow())

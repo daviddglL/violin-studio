@@ -19,8 +19,10 @@ import io.mockk.mockk
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -142,10 +144,10 @@ class AssignmentEditViewModelTest {
     }
 
     @Test
-    fun `doble toque en guardar es una sola llamada`() = runTest {
+    fun `doble toque en guardar con fallo es una sola llamada y luego se puede reintentar`() = runTest {
         coEvery { create(any(), any(), any(), any()) } coAnswers {
             delay(100)
-            Result.success("id1")
+            Result.failure(AssignmentFailure.Unknown)
         }
         viewModel().testMvi {
             fill()
@@ -153,9 +155,14 @@ class AssignmentEditViewModelTest {
             intent(AssignmentEditIntent.Save)
             assertState { it.saveAttempted }
             assertState { it.busy }
-            assertEffect(AssignmentEditEffect.Saved)
+            assertState { !it.busy && it.error == AssignmentEditError.UNKNOWN }
+            runCurrent()
+            coVerify(exactly = 1) { create(any(), any(), any(), any()) }
+            intent(AssignmentEditIntent.Save)
+            assertState { it.busy && it.error == null }
+            assertState { !it.busy && it.error == AssignmentEditError.UNKNOWN }
         }
-        coVerify(exactly = 1) { create(any(), any(), any(), any()) }
+        coVerify(exactly = 2) { create(any(), any(), any(), any()) }
     }
 
     @Test
@@ -213,5 +220,43 @@ class AssignmentEditViewModelTest {
             assertNoEffects()
         }
         coVerify(exactly = 0) { create(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `al editar, si el flujo termina tras rellenar el vinculo cayo y no se puede guardar`() = runTest {
+        val channel = Channel<List<Assignment>>(Channel.UNLIMITED)
+        every { observe("s1") } returns channel.receiveAsFlow()
+        val handle = SavedStateHandle(mapOf("studentUid" to "s1", "assignmentId" to "a"))
+        val vm = AssignmentEditViewModel(handle, create, update, observe).also { created += it }
+        vm.testMvi {
+            channel.send(listOf(existing))
+            assertState { it.isEditing && !it.notFound && it.canSave }
+            channel.close()
+            assertState { it.notFound && !it.canSave }
+        }
+    }
+
+    @Test
+    fun `al crear, si el flujo del vinculo termina no se puede guardar`() = runTest {
+        val channel = Channel<List<Assignment>>(Channel.UNLIMITED)
+        every { observe("s1") } returns channel.receiveAsFlow()
+        val vm = AssignmentEditViewModel(SavedStateHandle(mapOf("studentUid" to "s1")), create, update, observe)
+            .also { created += it }
+        vm.testMvi {
+            fill()
+            channel.close()
+            assertState { it.notFound && !it.canSave }
+            intent(AssignmentEditIntent.Save)
+            assertState { it.saveAttempted }
+            assertNoEffects()
+        }
+        coVerify(exactly = 0) { create(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `al crear sin alumno en la ruta queda no disponible en vez de ignorar el guardado`() = runTest {
+        val vm = AssignmentEditViewModel(SavedStateHandle(), create, update, observe).also { created += it }
+        assertTrue(vm.state.value.notFound)
+        assertFalse(vm.state.value.canSave)
     }
 }

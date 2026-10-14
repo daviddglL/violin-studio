@@ -27,7 +27,7 @@ data class AssignmentEditState(
     /** Se espera la primera lectura de la tarea que se edita. */
     val loading: Boolean = false,
 
-    /** La tarea a editar no existe (o el vínculo cayó): no se puede guardar. */
+    /** La tarea no existe, falta el alumno o el vínculo cayó (también al crear): no se guarda y se vuelve atrás. */
     val notFound: Boolean = false,
     val busy: Boolean = false,
     val error: AssignmentEditError? = null
@@ -62,9 +62,13 @@ data class AssignmentEditState(
 }
 
 sealed interface AssignmentEditIntent : UiIntent {
-    data class TitleChanged(val title: String) : AssignmentEditIntent
+    data class TitleChanged(val title: String) : AssignmentEditIntent {
+        override fun toString() = "TitleChanged(***)"
+    }
 
-    data class DescriptionChanged(val description: String) : AssignmentEditIntent
+    data class DescriptionChanged(val description: String) : AssignmentEditIntent {
+        override fun toString() = "DescriptionChanged(***)"
+    }
 
     data class DueAtChanged(val dueAt: Instant?) : AssignmentEditIntent
 
@@ -79,16 +83,22 @@ sealed interface AssignmentEditEffect : UiEffect {
 }
 
 sealed interface AssignmentEditMutation {
-    data class TitleEdited(val title: String) : AssignmentEditMutation
+    data class TitleEdited(val title: String) : AssignmentEditMutation {
+        override fun toString() = "TitleEdited(***)"
+    }
 
-    data class DescriptionEdited(val description: String) : AssignmentEditMutation
+    data class DescriptionEdited(val description: String) : AssignmentEditMutation {
+        override fun toString() = "DescriptionEdited(***)"
+    }
 
     data class DueAtChanged(val dueAt: Instant?) : AssignmentEditMutation
 
     data object SaveAttempted : AssignmentEditMutation
 
     /** Datos de la tarea que se edita (primera lectura). */
-    data class Loaded(val title: String, val description: String?, val dueAt: Instant?) : AssignmentEditMutation
+    data class Loaded(val title: String, val description: String?, val dueAt: Instant?) : AssignmentEditMutation {
+        override fun toString() = "Loaded(dueAt=$dueAt)"
+    }
 
     data class Busy(val busy: Boolean) : AssignmentEditMutation
 

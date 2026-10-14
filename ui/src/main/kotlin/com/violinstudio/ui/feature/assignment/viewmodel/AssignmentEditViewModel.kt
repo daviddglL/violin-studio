@@ -34,13 +34,23 @@ class AssignmentEditViewModel @Inject constructor(
     private var prefilled = false
 
     init {
-        if (assignmentId != null) {
-            val uid = studentUid
-            if (uid == null) {
-                reduce(AssignmentEditMutation.NotFound)
-            } else {
-                viewModelScope.launch { load(uid, assignmentId) }
-            }
+        val uid = studentUid
+        when {
+            uid == null -> reduce(AssignmentEditMutation.NotFound)
+            assignmentId != null -> viewModelScope.launch { load(uid, assignmentId) }
+            else -> viewModelScope.launch { watchLink(uid) }
+        }
+    }
+
+    /** Al crear: el flujo termina cuando el vínculo cae (permission-denied) o no hay sesión; no se puede guardar. */
+    private suspend fun watchLink(uid: String) {
+        try {
+            observeAssignments(uid).collect { }
+            reduce(AssignmentEditMutation.NotFound)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // Fallo transitorio: el guardado es offline-first y se resuelve al sincronizar.
         }
     }
 
@@ -52,7 +62,8 @@ class AssignmentEditViewModel @Inject constructor(
                 val found = list.firstOrNull { it.id == id }
                 if (found != null) prefill(found) else notFoundIfLoading()
             }
-            notFoundIfLoading()
+            // El flujo terminó: sin tarea es no encontrada y, ya rellenada, el vínculo cayó.
+            reduce(AssignmentEditMutation.NotFound)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Throwable) {

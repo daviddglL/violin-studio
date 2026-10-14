@@ -149,4 +149,30 @@ class AssignmentEditReducerTest {
         )
         assertFalse(s.toString().contains("secreto"))
     }
+
+    @Test
+    fun `mientras carga la tarea las ediciones se ignoran`() {
+        val loading = AssignmentEditState(loading = true)
+        val due = Instant.parse("2026-12-01T00:00:00Z")
+        assertEquals(loading, reduce(loading, AssignmentEditMutation.TitleEdited("x")))
+        assertEquals(loading, reduce(loading, AssignmentEditMutation.DescriptionEdited("x")))
+        assertEquals(loading, reduce(loading, AssignmentEditMutation.DueAtChanged(due)))
+    }
+
+    @Test
+    fun `toString de intents y mutaciones con texto no lo incluye`() {
+        val texts = listOf(
+            AssignmentEditIntent.TitleChanged("secreto-titulo"),
+            AssignmentEditIntent.DescriptionChanged("secreto-desc"),
+            AssignmentEditMutation.TitleEdited("secreto-titulo"),
+            AssignmentEditMutation.DescriptionEdited("secreto-desc"),
+            AssignmentEditMutation.Loaded("secreto-titulo", "secreto-desc", null)
+        )
+        texts.forEach { assertFalse(it.toString().contains("secreto"), it::class.simpleName) }
+        assertEquals("TitleChanged(***)", AssignmentEditIntent.TitleChanged("x").toString())
+        assertEquals("DescriptionChanged(***)", AssignmentEditIntent.DescriptionChanged("x").toString())
+        assertEquals("TitleEdited(***)", AssignmentEditMutation.TitleEdited("x").toString())
+        assertEquals("DescriptionEdited(***)", AssignmentEditMutation.DescriptionEdited("x").toString())
+        assertTrue(AssignmentEditMutation.Loaded("x", "y", null).toString().startsWith("Loaded("))
+    }
 }
