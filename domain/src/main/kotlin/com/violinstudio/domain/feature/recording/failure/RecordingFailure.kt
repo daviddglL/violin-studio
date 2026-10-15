@@ -20,6 +20,12 @@ sealed class RecordingFailure(message: String) : Exception(message) {
     /** Micro ocupado o sin fuente: recuperable, sin fichero parcial. */
     data object MicUnavailable : RecordingFailure("Microfono no disponible")
 
+    /** Ya hay una toma en curso (el micro es unico): no es un fallo del grabador, la UI no debe reintentar a ciegas. */
+    data object Busy : RecordingFailure("Ya hay una grabacion en curso")
+
+    /** La toma dura menos de `RecordingLimits.MIN_DURATION_MS`: el servidor la rechazaria; se borra en el cliente. */
+    data object TooShort : RecordingFailure("La grabacion es demasiado corta")
+
     /** Fallo de `MediaRecorder` o de disco durante o al cerrar la toma: recuperable, sin fichero parcial. */
     data object RecorderFailed : RecordingFailure("Fallo del grabador")
 }

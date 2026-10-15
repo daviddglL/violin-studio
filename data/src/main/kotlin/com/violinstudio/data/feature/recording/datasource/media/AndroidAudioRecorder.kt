@@ -53,8 +53,10 @@ class AndroidAudioRecorder(
     private val busy = AtomicBoolean(false)
 
     override suspend fun start(spec: RecordingSpec): Result<RecordingHandle> {
-        if (!ID.matches(spec.id) || !UID.matches(spec.uid)) return Result.failure(RecordingFailure.RecorderFailed)
-        if (!busy.compareAndSet(false, true)) return Result.failure(RecordingFailure.RecorderFailed)
+        if (!RecordingNames.ID.matches(spec.id) || !RecordingNames.UID.matches(spec.uid)) {
+            return Result.failure(RecordingFailure.RecorderFailed)
+        }
+        if (!busy.compareAndSet(false, true)) return Result.failure(RecordingFailure.Busy)
         val opening = ioScope.async { open(spec) }
         return try {
             opening.await()
@@ -65,8 +67,16 @@ class AndroidAudioRecorder(
         }
     }
 
+    override suspend fun deleteTake(take: RecordedTake) {
+        if (!RecordingNames.ID.matches(take.id) || !RecordingNames.UID.matches(take.uid)) return
+        val own = File(directories.forUid(take.uid), "${take.id}.m4a")
+        // Solo la ruta propia de la toma: una ruta ajena (o con `..`) no se toca.
+        if (own.path != take.path) return
+        ioScope.launch { own.delete() }.join()
+    }
+
     private fun discardOrphan(handle: RecordingHandle?) {
-        (handle as? ActiveHandle)?.discardNow()
+        (handle as? ActiveHandle)?.discardNow(force = true)
     }
 
     private fun open(spec: RecordingSpec): Result<RecordingHandle> {
@@ -76,12 +86,16 @@ class AndroidAudioRecorder(
         var session: MediaRecorderSession? = null
         return try {
             if (!dir.isDirectory && !dir.mkdirs()) throw DirectoryUnavailable()
+            // Huerfanos de una toma anterior (proceso matado, cierre fallido): ninguna toma viva comparte el uid aqui.
+            directories.sweepPartials(spec.uid)
             part.delete()
             finished.delete()
             val created = factory.create().also { session = it }
             val handle = ActiveHandle(spec, created, part, finished)
+            // El inicio se fija ANTES de arrancar: un aviso temprano del MediaRecorder ya mide desde aqui.
+            handle.markStarted(nowMs())
             created.start(part, spec.autoStopMs, handle)
-            handle.arm(nowMs())
+            handle.arm()
             Result.success(handle)
         } catch (e: Exception) {
             runCatching { session?.release() }
@@ -110,13 +124,19 @@ class AndroidAudioRecorder(
         private val lock = Any()
         private var state = State.RECORDING
         private var take: RecordedTake? = null
+        @Volatile
         private var startedAt = 0L
         private var timer: Job? = null
         private val mutableOutcome = MutableStateFlow<RecordingOutcome?>(null)
         override val outcome: StateFlow<RecordingOutcome?> = mutableOutcome.asStateFlow()
 
-        fun arm(now: Long) {
+        fun markStarted(now: Long) {
             startedAt = now
+        }
+
+        /** Arma la parada automatica, salvo que un aviso temprano ya haya cerrado la toma. */
+        fun arm() = synchronized(lock) {
+            if (state != State.RECORDING) return@synchronized
             timer = ioScope.launch {
                 delay(spec.autoStopMs)
                 finish(auto = true)
@@ -137,13 +157,13 @@ class AndroidAudioRecorder(
                 closing.await()
             } catch (e: CancellationException) {
                 // Nadie recogera la toma: se descarta cuando el recorder termine de cerrarla (otro hilo).
-                closing.invokeOnCompletion { discardNow() }
+                closing.invokeOnCompletion { discardNow(force = true) }
                 throw e
             }
         }
 
         override suspend fun discard() {
-            ioScope.launch { discardNow() }.join()
+            ioScope.launch { discardNow(force = false) }.join()
         }
 
         private fun finish(auto: Boolean): Result<RecordedTake> = synchronized(lock) {
@@ -170,7 +190,7 @@ class AndroidAudioRecorder(
             if (auto) {
                 mutableOutcome.value = result.fold(
                     { RecordingOutcome.AutoStopped(it) },
-                    { RecordingOutcome.Failed(RecordingFailure.RecorderFailed) }
+                    { RecordingOutcome.Failed(it as? RecordingFailure ?: RecordingFailure.RecorderFailed) }
                 )
             }
             result
@@ -178,10 +198,11 @@ class AndroidAudioRecorder(
 
         private fun closeFile(): Result<RecordedTake> {
             val size = if (part.isFile) part.length() else 0L
-            if (size <= 0L || size > RecordingLimits.MAX_AUDIO_BYTES || !part.renameTo(finished)) {
-                return Result.failure(RecordingFailure.RecorderFailed)
-            }
-            val elapsed = (nowMs() - startedAt).coerceIn(0L, spec.maxDurationMs)
+            if (size <= 0L || size > RecordingLimits.MAX_AUDIO_BYTES) return Result.failure(RecordingFailure.RecorderFailed)
+            val raw = nowMs() - startedAt
+            if (raw < RecordingLimits.MIN_DURATION_MS) return Result.failure(RecordingFailure.TooShort)
+            if (!part.renameTo(finished)) return Result.failure(RecordingFailure.RecorderFailed)
+            val elapsed = raw.coerceAtMost(spec.maxDurationMs)
             return Result.success(
                 RecordedTake(spec.id, spec.uid, finished.path, elapsed, size, spec.consentEpoch)
             )
@@ -197,8 +218,12 @@ class AndroidAudioRecorder(
             mutableOutcome.value = RecordingOutcome.Failed(RecordingFailure.RecorderFailed)
         }
 
-        fun discardNow(): Unit = synchronized(lock) {
-            if (state == State.CLOSED) return@synchronized
+        /**
+         * [force] = false es el `discard()` publico: tras entregar la toma (DONE) no toca el `.m4a`, ya es de su receptor.
+         * [force] = true es la limpieza interna de una toma que nadie va a recoger (llamador cancelado).
+         */
+        fun discardNow(force: Boolean): Unit = synchronized(lock) {
+            if (state == State.CLOSED || (state == State.DONE && !force)) return@synchronized
             timer?.cancel()
             if (state == State.RECORDING) runCatching { session.stop() }
             deleteFiles()
@@ -224,7 +249,5 @@ class AndroidAudioRecorder(
 
     private companion object {
         const val NANOS_PER_MILLI = 1_000_000L
-        val ID = Regex("[A-Za-z0-9-]{1,64}")
-        val UID = Regex("[A-Za-z0-9]{1,128}")
     }
 }

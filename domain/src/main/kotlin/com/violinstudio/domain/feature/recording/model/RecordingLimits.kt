@@ -17,6 +17,9 @@ object RecordingLimits {
     /** Margen que el servidor concede sobre el limite por el redondeo del contenedor (`DURATION_TOLERANCE_SEC`). */
     const val SERVER_TOLERANCE_MS = 500L
 
+    /** Duracion minima que el servidor acepta (`MIN_DURATION_SEC`): una toma mas corta se descarta en el cliente. */
+    const val MIN_DURATION_MS = 500L
+
     fun maxDurationMs(role: Role): Long = if (role == Role.TEACHER) TEACHER_MAX_MS else STUDENT_MAX_MS
 
     /**

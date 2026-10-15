@@ -26,6 +26,12 @@ class RecordingLimitsTest {
     }
 
     @Test
+    fun `la duracion minima coincide con la de Functions y es 500 ms`() {
+        assertEquals((serverNumber("MIN_DURATION_SEC") * 1000).toLong(), RecordingLimits.MIN_DURATION_MS)
+        assertEquals(500L, RecordingLimits.MIN_DURATION_MS)
+    }
+
+    @Test
     fun `el valor literal es 60 s, 120 s y 25 MiB`() {
         assertEquals(60_000L, RecordingLimits.STUDENT_MAX_MS)
         assertEquals(120_000L, RecordingLimits.TEACHER_MAX_MS)

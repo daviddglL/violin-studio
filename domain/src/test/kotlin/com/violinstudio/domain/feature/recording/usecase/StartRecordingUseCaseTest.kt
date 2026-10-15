@@ -42,6 +42,8 @@ class StartRecordingUseCaseTest {
             specs += spec
             return result ?: Result.success(handle)
         }
+
+        override suspend fun deleteTake(take: RecordedTake) = Unit
     }
 
     private class FakeAccounts(var result: Result<RecordingAccount>) : RecordingAccountSource {

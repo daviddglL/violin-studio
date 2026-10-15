@@ -9,11 +9,14 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -52,6 +55,9 @@ class AndroidAudioRecorderTest {
         var stopGate: CountDownLatch? = null
         val stopEntered = CountDownLatch(1)
 
+        /** Se ejecuta dentro de `start`, con el fichero ya escrito (avisos tempranos del MediaRecorder). */
+        var duringStart: (MediaRecorderSession.Listener) -> Unit = {}
+
         override fun start(output: File, maxDurationMs: Long, listener: MediaRecorderSession.Listener) {
             startEntered.countDown()
             startGate?.await(GATE_SECONDS, TimeUnit.SECONDS)
@@ -60,6 +66,7 @@ class AndroidAudioRecorderTest {
             this.listener.set(listener)
             startedMaxMs.set(maxDurationMs)
             RandomAccessFile(output, "rw").use { it.setLength(bytes) }
+            duringStart(listener)
         }
 
         override fun stop() {
@@ -92,7 +99,10 @@ class AndroidAudioRecorderTest {
     private fun spec(id: String = "rec-1", autoStopMs: Long = 59_500) =
         RecordingSpec(id, "uid1", autoStopMs + 500, autoStopMs, consentEpoch = 4)
 
-    private fun recorder(dispatcher: CoroutineDispatcher = Dispatchers.IO, now: () -> Long = { 0L }) =
+    // Reloj por defecto: cada lectura avanza 1 s (inicio y cierre quedan separados por mas que MIN_DURATION_MS).
+    private val ticks = AtomicLong(0)
+
+    private fun recorder(dispatcher: CoroutineDispatcher = Dispatchers.IO, now: () -> Long = { ticks.getAndAdd(1_000) }) =
         AndroidAudioRecorder(factory, dirs, dispatcher, now)
 
     private fun part(id: String = "rec-1") = File(root, "recordings/uid1/$id.part")
@@ -129,11 +139,67 @@ class AndroidAudioRecorderTest {
     }
 
     @Test
-    fun `discard tras parar borra tambien la toma cerrada`() = runBlocking {
-        val handle = recorder().start(spec()).getOrThrow()
-        handle.stop().getOrThrow()
+    fun `discard tras entregar la toma no borra el m4a y deleteTake es la forma explicita de borrarlo`() = runBlocking {
+        val rec = recorder()
+        val handle = rec.start(spec()).getOrThrow()
+        val take = handle.stop().getOrThrow()
         handle.discard()
+        handle.discard()
+        assertTrue(m4a().isFile)
+        assertEquals(listOf("rec-1.m4a"), files())
+        rec.deleteTake(take)
         assertEquals(emptyList<String>(), files())
+        rec.deleteTake(take)
+    }
+
+    @Test
+    fun `discard tras una parada automatica tampoco borra la toma entregada`() = runBlocking {
+        val rec = recorder()
+        val handle = rec.start(spec()).getOrThrow()
+        factory.sessions.single().listener.get()!!.onMaxDurationReached()
+        val outcome = handle.awaitOutcome() as RecordingOutcome.AutoStopped
+        handle.discard()
+        assertTrue(m4a().isFile)
+        rec.deleteTake(outcome.take)
+        assertEquals(emptyList<String>(), files())
+    }
+
+    @Test
+    fun `deleteTake solo borra la ruta propia de la toma`() = runBlocking {
+        val rec = recorder()
+        val take = rec.start(spec()).getOrThrow().stop().getOrThrow()
+        val other = File(root, "keep.m4a").apply { writeText("x") }
+        rec.deleteTake(take.copy(path = other.path))
+        assertTrue(other.isFile)
+        assertTrue(m4a().isFile)
+        rec.deleteTake(take.copy(id = "../keep"))
+        assertTrue(other.isFile)
+    }
+
+    @Test
+    fun `al empezar se borran los parciales huerfanos del uid y la toma actual no se toca`() = runBlocking {
+        val dir = File(root, "recordings/uid1").apply { mkdirs() }
+        File(dir, "old-1.part").writeText("a")
+        File(dir, "old-2.part").writeText("b")
+        File(dir, "done.m4a").writeText("keep")
+        val otherUid = File(root, "recordings/uid2").apply { mkdirs() }
+        File(otherUid, "x.part").writeText("c")
+        val handle = recorder().start(spec()).getOrThrow()
+        assertEquals(setOf("rec-1.part", "done.m4a"), dir.list()!!.toSet())
+        assertTrue(File(otherUid, "x.part").isFile)
+        assertEquals(4_096L, part().length())
+        handle.discard()
+    }
+
+    @Test
+    fun `sweepPartials borra solo los parciales del uid`() {
+        val dir = File(root, "recordings/uid1").apply { mkdirs() }
+        File(dir, "a.part").writeText("a")
+        File(dir, "b.m4a").writeText("b")
+        assertEquals(1, dirs.sweepPartials("uid1"))
+        assertEquals(listOf("b.m4a"), dir.list()!!.toList())
+        assertEquals(0, dirs.sweepPartials("uid1"))
+        assertEquals(0, dirs.sweepPartials("nunca"))
     }
 
     @Test
@@ -186,7 +252,8 @@ class AndroidAudioRecorderTest {
     fun `solo una toma a la vez y se puede grabar otra tras descartar`() = runBlocking {
         val rec = recorder()
         val first = rec.start(spec()).getOrThrow()
-        assertEquals(RecordingFailure.RecorderFailed, rec.start(spec("rec-2")).exceptionOrNull())
+        assertEquals(RecordingFailure.Busy, rec.start(spec("rec-2")).exceptionOrNull())
+        assertEquals(1, factory.sessions.size)
         first.discard()
         rec.start(spec("rec-2")).getOrThrow().discard()
         assertEquals(emptyList<String>(), files())
@@ -261,6 +328,89 @@ class AndroidAudioRecorderTest {
         runCurrent()
         assertNull(handle.outcome.value)
         assertEquals(1, factory.sessions.single().stopped.get())
+    }
+
+    @Test
+    fun `una toma de menos de 500 ms es TooShort, se borra y libera`() = runTest {
+        val rec = recorder(StandardTestDispatcher(testScheduler)) { currentTime }
+        val handle = rec.start(spec()).getOrThrow()
+        advanceTimeBy(499)
+        assertEquals(RecordingFailure.TooShort, handle.stop().exceptionOrNull())
+        assertEquals(emptyList<String>(), files())
+        assertEquals(1, factory.sessions.single().released.get())
+        // El turno queda libre.
+        advanceTimeBy(10_000)
+        val again = rec.start(spec("rec-2")).getOrThrow()
+        advanceTimeBy(500)
+        assertEquals(500L, again.stop().getOrThrow().durationMs)
+    }
+
+    @Test
+    fun `una parada automatica demasiado corta publica Failed(TooShort)`() = runBlocking {
+        var clock = 1_000L
+        val handle = recorder(now = { clock }).start(spec()).getOrThrow()
+        clock += 100
+        factory.sessions.single().listener.get()!!.onMaxDurationReached()
+        assertEquals(RecordingOutcome.Failed(RecordingFailure.TooShort), handle.awaitOutcome())
+        assertEquals(emptyList<String>(), files())
+    }
+
+    @Test
+    fun `el reloj arranca antes de start y un aviso temprano del limite usa ese inicio`() = runBlocking {
+        var clock = 1_000L
+        factory.configure = {
+            it.duringStart = { listener ->
+                clock = 3_000L
+                listener.onMaxDurationReached()
+            }
+        }
+        val handle = recorder(now = { clock }).start(spec()).getOrThrow()
+        val outcome = handle.awaitOutcome() as RecordingOutcome.AutoStopped
+        assertEquals(2_000L, outcome.take.durationMs)
+        assertEquals(1, factory.sessions.single().stopped.get())
+    }
+
+    @Test
+    fun `temporizador y aviso del limite a la vez cierran la toma una sola vez`() = runBlocking {
+        repeat(40) { round ->
+            val factory = FakeFactory()
+            var clock = 0L
+            val rec = AndroidAudioRecorder(factory, dirs, Dispatchers.IO) { clock }
+            val handle = rec.start(spec("r$round", autoStopMs = 5)).getOrThrow()
+            clock = 5_000
+            val gate = CountDownLatch(1)
+            val racer = Thread {
+                gate.await()
+                factory.sessions.single().listener.get()!!.onMaxDurationReached()
+            }.also { it.start() }
+            gate.countDown()
+            val outcome = handle.awaitOutcome() as RecordingOutcome.AutoStopped
+            racer.join()
+            val session = factory.sessions.single()
+            waitUntil { session.released.get() == 1 }
+            assertEquals(1, session.stopped.get(), "ronda $round")
+            assertEquals(1, session.released.get(), "ronda $round")
+            assertEquals(outcome.take, handle.stop().getOrThrow())
+            assertEquals(listOf("r$round.m4a"), File(root, "recordings/uid1").list()!!.filter { it.startsWith("r$round") })
+            rec.deleteTake(outcome.take)
+        }
+    }
+
+    @Test
+    fun `stop se ejecuta en el hilo del recorder y no en el del llamador`() = runBlocking {
+        val executor = Executors.newSingleThreadExecutor { Thread(it, "rec-io-test") }
+        try {
+            val rec = recorder(executor.asCoroutineDispatcher())
+            val handle = rec.start(spec()).getOrThrow()
+            val caller = Thread.currentThread().name
+            handle.stop().getOrThrow()
+            val session = factory.sessions.single()
+            // El nombre del hilo lleva el sufijo " @coroutine#n" del depurador de corrutinas.
+            assertTrue(session.stopThread.get()!!.startsWith("rec-io-test"), session.stopThread.get())
+            assertTrue(caller != session.stopThread.get())
+        } finally {
+            executor.shutdown()
+        }
     }
 
     @Test
