@@ -86,6 +86,9 @@ object Emulators {
     }
 
     private fun authBase() = "http://$host:9099/identitytoolkit.googleapis.com/v1/projects/$PROJECT"
+
+    /** signUp y signInWithPassword solo existen sin `projects/` en el emulador de Auth (con el, 404). */
+    private fun authPublicBase() = "http://$host:9099/identitytoolkit.googleapis.com/v1"
     private fun docsUrl(path: String) = "http://$host:8080/v1/projects/$PROJECT/$DOCS/$path"
 
     /** Cuenta de Auth por email (`localId`, `emailVerified`) o `null` si no existe. */
@@ -104,7 +107,7 @@ object Emulators {
     /** Alta de una cuenta de Auth (emulador): devuelve su uid. La clave de API es irrelevante en el emulador. */
     fun signUp(email: String, password: String = E2E_PASSWORD): String {
         val body = JSONObject().put("email", email).put("password", password).put("returnSecureToken", true)
-        val r = request("POST", "${authBase()}/accounts:signUp?key=e2e", body.toString())
+        val r = request("POST", "${authPublicBase()}/accounts:signUp?key=e2e", body.toString())
         check(r.code == 200) { "signUp fallo: ${r.code}" }
         return JSONObject(r.body).getString("localId")
     }
@@ -112,7 +115,7 @@ object Emulators {
     /** ID token fresco (con los claims y `email_verified` actuales) de una cuenta ya creada. */
     fun idToken(email: String, password: String = E2E_PASSWORD): String {
         val body = JSONObject().put("email", email).put("password", password).put("returnSecureToken", true)
-        val r = request("POST", "${authBase()}/accounts:signInWithPassword?key=e2e", body.toString())
+        val r = request("POST", "${authPublicBase()}/accounts:signInWithPassword?key=e2e", body.toString())
         check(r.code == 200) { "signIn fallo: ${r.code}" }
         return JSONObject(r.body).getString("idToken")
     }
