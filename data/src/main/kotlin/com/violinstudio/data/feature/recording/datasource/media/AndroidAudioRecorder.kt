@@ -124,6 +124,7 @@ class AndroidAudioRecorder(
         private val lock = Any()
         private var state = State.RECORDING
         private var take: RecordedTake? = null
+
         @Volatile
         private var startedAt = 0L
         private var timer: Job? = null
@@ -198,7 +199,9 @@ class AndroidAudioRecorder(
 
         private fun closeFile(): Result<RecordedTake> {
             val size = if (part.isFile) part.length() else 0L
-            if (size <= 0L || size > RecordingLimits.MAX_AUDIO_BYTES) return Result.failure(RecordingFailure.RecorderFailed)
+            if (size <= 0L || size > RecordingLimits.MAX_AUDIO_BYTES) {
+                return Result.failure(RecordingFailure.RecorderFailed)
+            }
             val raw = nowMs() - startedAt
             if (raw < RecordingLimits.MIN_DURATION_MS) return Result.failure(RecordingFailure.TooShort)
             if (!part.renameTo(finished)) return Result.failure(RecordingFailure.RecorderFailed)

@@ -8,8 +8,8 @@ import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -102,8 +102,10 @@ class AndroidAudioRecorderTest {
     // Reloj por defecto: cada lectura avanza 1 s (inicio y cierre quedan separados por mas que MIN_DURATION_MS).
     private val ticks = AtomicLong(0)
 
-    private fun recorder(dispatcher: CoroutineDispatcher = Dispatchers.IO, now: () -> Long = { ticks.getAndAdd(1_000) }) =
-        AndroidAudioRecorder(factory, dirs, dispatcher, now)
+    private fun recorder(
+        dispatcher: CoroutineDispatcher = Dispatchers.IO,
+        now: () -> Long = { ticks.getAndAdd(1_000) }
+    ) = AndroidAudioRecorder(factory, dirs, dispatcher, now)
 
     private fun part(id: String = "rec-1") = File(root, "recordings/uid1/$id.part")
     private fun m4a(id: String = "rec-1") = File(root, "recordings/uid1/$id.m4a")
@@ -374,10 +376,12 @@ class AndroidAudioRecorderTest {
     fun `temporizador y aviso del limite a la vez cierran la toma una sola vez`() = runBlocking {
         repeat(40) { round ->
             val factory = FakeFactory()
-            var clock = 0L
-            val rec = AndroidAudioRecorder(factory, dirs, Dispatchers.IO) { clock }
+            // La 1a lectura (inicio) da 0 y las demas 5 s: el temporizador de 5 ms no puede ver una toma de 0 ms.
+            val reads = AtomicInteger(0)
+            val rec = AndroidAudioRecorder(factory, dirs, Dispatchers.IO) {
+                if (reads.getAndIncrement() == 0) 0L else 5_000L
+            }
             val handle = rec.start(spec("r$round", autoStopMs = 5)).getOrThrow()
-            clock = 5_000
             val gate = CountDownLatch(1)
             val racer = Thread {
                 gate.await()
@@ -391,7 +395,8 @@ class AndroidAudioRecorderTest {
             assertEquals(1, session.stopped.get(), "ronda $round")
             assertEquals(1, session.released.get(), "ronda $round")
             assertEquals(outcome.take, handle.stop().getOrThrow())
-            assertEquals(listOf("r$round.m4a"), File(root, "recordings/uid1").list()!!.filter { it.startsWith("r$round") })
+            val files = File(root, "recordings/uid1").list()!!.filter { it.startsWith("r$round") }
+            assertEquals(listOf("r$round.m4a"), files)
             rec.deleteTake(outcome.take)
         }
     }
