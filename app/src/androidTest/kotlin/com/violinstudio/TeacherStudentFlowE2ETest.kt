@@ -148,6 +148,14 @@ class TeacherStudentFlowE2ETest : E2eTest() {
         }
         delay(2_000)
         assertTrue(links.unlink(teacher, student).isSuccess)
+        // Firestore solo revalida las reglas de un oyente activo cuando cambia un doc de su resultado (no al borrar el
+        // vinculo que consultan con get()): se toca un doc escuchado de cada coleccion para forzar la revalidacion.
+        Emulators.patchField(
+            "users/$student/practiceSessions/$sessionId",
+            "notes",
+            Emulators.stringValue("Escalas lentas (editada)")
+        )
+        Emulators.patchField("users/$student/assignments/$doneId", "title", Emulators.stringValue("Escalas (editada)"))
         val historyError = withTimeout(E2E_TIMEOUT_MS) { historyEnds.await() }.exceptionOrNull()
         assertTrue("historial: $historyError", historyError is PracticeFailure.PermissionDenied)
         val listError = withTimeout(E2E_TIMEOUT_MS) { assignmentsEnd.await() }.exceptionOrNull()
