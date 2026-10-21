@@ -23,7 +23,11 @@ enum class RecordingsMessage {
     SAVED,
     SAVE_FAILED,
     DELETE_FAILED,
-    ACTION_FAILED
+    ACTION_FAILED,
+    GUARDIAN_EMAIL_INVALID,
+    GUARDIAN_MISMATCH,
+    GUARDIAN_LEGACY,
+    RATE_LIMITED
 }
 
 /** Permiso de micro: [RATIONALE] explica antes de volver a pedirlo; [BLOCKED] solo se arregla en Ajustes. */
@@ -49,7 +53,10 @@ data class RecordingsState(
     val playback: PlaybackState = PlaybackState.Idle,
     val reviewsFor: String? = null,
     val reviews: List<Review>? = null,
-    val reviewsFailed: Boolean = false
+    val reviewsFailed: Boolean = false,
+    /** Email del tutor que escribe un menor para pedir el permiso; [guardianSentTo] el enmascarado del ultimo envio. */
+    val guardianEmail: String = "",
+    val guardianSentTo: String? = null
 ) : UiState {
     val isRecording: Boolean get() = elapsedMs != null
 
@@ -103,6 +110,11 @@ sealed interface RecordingsIntent : UiIntent {
 
     /** Abre las valoraciones de [id], o las cierra si ya estaban abiertas. */
     data class ToggleReviews(val id: String) : RecordingsIntent
+
+    data class SetGuardianEmail(val email: String) : RecordingsIntent
+
+    /** Un menor pide el permiso de grabacion a su tutor (mismo tutor que acepto la politica). */
+    data object RequestGuardian : RecordingsIntent
 }
 
 sealed interface RecordingsEffect : UiEffect {
@@ -143,4 +155,8 @@ sealed interface RecordingsMutation {
     data class ReviewsLoaded(val id: String, val reviews: List<Review>) : RecordingsMutation
 
     data class ReviewsFailed(val id: String) : RecordingsMutation
+
+    data class GuardianEmail(val email: String) : RecordingsMutation
+
+    data class GuardianSent(val emailMasked: String) : RecordingsMutation
 }

@@ -12,6 +12,8 @@ class ConsentShapeTest {
         ConsentFailure.GuardianRequired -> "guardian"
         is ConsentFailure.RateLimited -> "rate"
         ConsentFailure.GuardianEmailInvalid -> "email"
+        ConsentFailure.GuardianEmailMismatch -> "email-mismatch"
+        ConsentFailure.GuardianLegacyConsent -> "legacy-consent"
         ConsentFailure.NotMinor -> "not-minor"
         ConsentFailure.UnderageNotAllowed -> "underage"
         ConsentFailure.NoProfile -> "no-profile"

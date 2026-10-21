@@ -20,6 +20,7 @@ import com.violinstudio.domain.feature.recording.usecase.GrantRecordingConsentUs
 import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingReviewsUseCase
 import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingsUseCase
 import com.violinstudio.domain.feature.recording.usecase.RecordingPlaybackUseCase
+import com.violinstudio.domain.feature.recording.usecase.RequestRecordingGuardianUseCase
 import com.violinstudio.domain.feature.recording.usecase.RetryUploadUseCase
 import com.violinstudio.domain.feature.recording.usecase.RevokeRecordingConsentUseCase
 import com.violinstudio.domain.feature.recording.usecase.StartRecordingUseCase
@@ -85,9 +86,10 @@ class RecordingsViewModelTest {
         every { state } returns playbackState
     }
     private val reviews = mockk<ObserveRecordingReviewsUseCase>()
+    private val guardian = mockk<RequestRecordingGuardianUseCase>()
 
     private fun TestScope.viewModel(): RecordingsViewModel = RecordingsViewModel(
-        getAccess, grant, revoke, start, finish, observe, retry, discard, delete, playback, reviews
+        getAccess, grant, revoke, start, finish, observe, retry, discard, delete, playback, reviews, guardian
     )
         .also { runCurrent() }
 
@@ -404,5 +406,50 @@ class RecordingsViewModelTest {
         runCurrent()
         assertNull(vm.now.reviewsFor)
         assertFalse(vm.now.reviewsFailed)
+    }
+
+    @Test
+    fun `un menor pide el permiso a su tutor y queda pendiente`() = runTest {
+        coEvery { getAccess() } returns Result.success(RecordingAccess.NeedsConsent(false, 1))
+        coEvery { guardian("tutor@example.com") } returns Result.success("t***@e***.com")
+        val vm = viewModel()
+        vm.onIntent(RecordingsIntent.SetGuardianEmail("tutor@example.com"))
+        coEvery { getAccess() } returns Result.success(RecordingAccess.NeedsConsent(false, 1, guardianPending = true))
+        vm.onIntent(RecordingsIntent.RequestGuardian)
+        runCurrent()
+        assertEquals("t***@e***.com", vm.now.guardianSentTo)
+        assertEquals("", vm.now.guardianEmail)
+        assertEquals(RecordingAccess.NeedsConsent(false, 1, guardianPending = true), vm.now.access)
+        assertFalse(vm.now.busy)
+    }
+
+    @Test
+    fun `un adulto no pide permiso al tutor y los fallos del tutor se explican`() = runTest {
+        coEvery { getAccess() } returns Result.success(RecordingAccess.NeedsConsent(true, 1))
+        val vm = viewModel()
+        vm.onIntent(RecordingsIntent.RequestGuardian)
+        runCurrent()
+        coVerify(exactly = 0) { guardian(any()) }
+        coEvery { getAccess() } returns Result.success(RecordingAccess.NeedsConsent(false, 1))
+        vm.onIntent(RecordingsIntent.Refresh)
+        vm.onIntent(RecordingsIntent.SetGuardianEmail("x@example.com"))
+        listOf(
+            ConsentFailure.GuardianEmailInvalid to RecordingsMessage.GUARDIAN_EMAIL_INVALID,
+            ConsentFailure.InvalidArgument("guardianEmail") to RecordingsMessage.GUARDIAN_EMAIL_INVALID,
+            ConsentFailure.InvalidArgument("purpose") to RecordingsMessage.CONSENT_FAILED,
+            ConsentFailure.GuardianEmailMismatch to RecordingsMessage.GUARDIAN_MISMATCH,
+            ConsentFailure.GuardianLegacyConsent to RecordingsMessage.GUARDIAN_LEGACY,
+            ConsentFailure.RateLimited(60) to RecordingsMessage.RATE_LIMITED
+        ).forEach { (failure, message) ->
+            coEvery { guardian(any()) } returns Result.failure(failure)
+            vm.onIntent(RecordingsIntent.RequestGuardian)
+            runCurrent()
+            assertEquals(message, vm.now.message)
+        }
+        coEvery { guardian(any()) } returns Result.failure(ConsentFailure.AlreadyGranted)
+        coEvery { getAccess() } returns Result.success(allowed)
+        vm.onIntent(RecordingsIntent.RequestGuardian)
+        runCurrent()
+        assertEquals(allowed, vm.now.access)
     }
 }

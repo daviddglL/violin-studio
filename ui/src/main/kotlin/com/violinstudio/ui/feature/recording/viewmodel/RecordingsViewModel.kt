@@ -13,6 +13,7 @@ import com.violinstudio.domain.feature.recording.usecase.GrantRecordingConsentUs
 import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingReviewsUseCase
 import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingsUseCase
 import com.violinstudio.domain.feature.recording.usecase.RecordingPlaybackUseCase
+import com.violinstudio.domain.feature.recording.usecase.RequestRecordingGuardianUseCase
 import com.violinstudio.domain.feature.recording.usecase.RetryUploadUseCase
 import com.violinstudio.domain.feature.recording.usecase.RevokeRecordingConsentUseCase
 import com.violinstudio.domain.feature.recording.usecase.StartRecordingUseCase
@@ -45,7 +46,8 @@ class RecordingsViewModel @Inject constructor(
     private val discardUpload: DiscardUploadUseCase,
     private val deleteRecording: DeleteRecordingUseCase,
     private val playback: RecordingPlaybackUseCase,
-    private val observeReviews: ObserveRecordingReviewsUseCase
+    private val observeReviews: ObserveRecordingReviewsUseCase,
+    private val requestGuardian: RequestRecordingGuardianUseCase
 ) : MviViewModel<RecordingsState, RecordingsIntent, RecordingsEffect>(RecordingsState()) {
     private var handle: RecordingHandle? = null
     private var session: Job? = null
@@ -88,6 +90,8 @@ class RecordingsViewModel @Inject constructor(
             is RecordingsIntent.Play -> onPlay(intent.id)
             RecordingsIntent.StopPlayback -> stopPlayback()
             is RecordingsIntent.ToggleReviews -> onToggleReviews(intent.id)
+            is RecordingsIntent.SetGuardianEmail -> reduce(RecordingsMutation.GuardianEmail(intent.email))
+            RecordingsIntent.RequestGuardian -> onRequestGuardian()
         }
     }
 
@@ -107,6 +111,20 @@ class RecordingsViewModel @Inject constructor(
         }
     }
 
+    private suspend fun onRequestGuardian() {
+        val access = state.value.access as? RecordingAccess.NeedsConsent ?: return
+        if (access.selfGrant) return
+        busy {
+            requestGuardian(state.value.guardianEmail).fold(
+                onSuccess = { masked ->
+                    reduce(RecordingsMutation.GuardianSent(masked))
+                    refresh()
+                },
+                onFailure = { onConsentFailure(it) }
+            )
+        }
+    }
+
     private suspend fun onRevoke() {
         reduce(RecordingsMutation.RevokePrompt(false))
         onLeave()
@@ -118,10 +136,24 @@ class RecordingsViewModel @Inject constructor(
             ConsentFailure.GuardianRequired -> RecordingsMessage.GUARDIAN_REQUIRED
             ConsentFailure.TemporarilyUnavailable -> RecordingsMessage.TEMPORARILY_UNAVAILABLE
             ConsentFailure.Network -> RecordingsMessage.OFFLINE
+            ConsentFailure.GuardianEmailInvalid -> RecordingsMessage.GUARDIAN_EMAIL_INVALID
+            ConsentFailure.GuardianEmailMismatch -> RecordingsMessage.GUARDIAN_MISMATCH
+            ConsentFailure.GuardianLegacyConsent -> RecordingsMessage.GUARDIAN_LEGACY
+            is ConsentFailure.RateLimited -> RecordingsMessage.RATE_LIMITED
+            is ConsentFailure.InvalidArgument -> if (error.field == "guardianEmail") {
+                RecordingsMessage.GUARDIAN_EMAIL_INVALID
+            } else {
+                RecordingsMessage.CONSENT_FAILED
+            }
             else -> RecordingsMessage.CONSENT_FAILED
         }
         reduce(RecordingsMutation.Message(message))
-        if (error is ConsentFailure.RecordingDisabled || error is ConsentFailure.RecordingConsentOutdated) refresh()
+        // Lo que cambia el estado del servidor (flags, version, ya concedido) se vuelve a leer.
+        if (error is ConsentFailure.RecordingDisabled || error is ConsentFailure.RecordingConsentOutdated ||
+            error == ConsentFailure.AlreadyGranted
+        ) {
+            refresh()
+        }
     }
 
     private suspend fun onStart(granted: Boolean, rationale: Boolean) {

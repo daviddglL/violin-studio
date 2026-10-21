@@ -499,7 +499,7 @@
     <string name="recordings_consent_title">Permission to record</string>
     <string name="recordings_consent_body">Your audio recordings are uploaded to your account so that you and your linked teacher can listen to them. They are deleted automatically after 90 days, and you can delete them or withdraw this permission at any time: withdrawing it deletes everything you recorded.</string>
     <string name="recordings_consent_accept">I agree to record</string>
-    <string name="recordings_consent_guardian">To record you need permission from your parent or guardian. Ask them to grant it.</string>
+    <string name="recordings_consent_guardian">To record you need permission from your parent or guardian. Enter their email and we will send them a message to grant it.</string>
     <string name="recordings_record">Record</string>
     <string name="recordings_stop">Stop</string>
     <string name="recordings_elapsed">Recording %1$s of %2$s</string>
@@ -576,4 +576,14 @@
     <string name="student_recordings_msg_load_failed">Could not open the review.</string>
     <string name="student_recordings_dismiss">Close</string>
     <string name="student_recordings_back">Back</string>
+    <string name="recordings_guardian_email">Email of your parent or guardian</string>
+    <string name="recordings_guardian_hint">The same email they used to accept the privacy policy.</string>
+    <string name="recordings_guardian_send">Ask for permission</string>
+    <string name="recordings_guardian_resend">Send again</string>
+    <string name="recordings_guardian_pending">We asked your guardian for permission. You can record once they accept it from the email.</string>
+    <string name="recordings_guardian_sent">Email sent to %1$s.</string>
+    <string name="recordings_msg_guardian_invalid">Check your guardian\'s email.</string>
+    <string name="recordings_msg_guardian_mismatch">It must be the same guardian who accepted the privacy policy.</string>
+    <string name="recordings_msg_guardian_legacy">We can\'t verify which guardian accepted the policy, so this permission can\'t be requested from the app.</string>
+    <string name="recordings_msg_rate_limited">Too many requests. Try again later.</string>
 </resources>

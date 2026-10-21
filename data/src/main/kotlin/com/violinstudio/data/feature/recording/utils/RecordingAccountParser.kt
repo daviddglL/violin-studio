@@ -15,10 +15,12 @@ object RecordingAccountParser {
         recordingConsentGranted = data["recordingConsent"] == GRANTED,
         recordingConsentVersion = (data["recordingConsentVersion"] as? Number)?.whole()?.toInt() ?: 0,
         consentEpoch = (data["recordingConsentEpoch"] as? Number)?.whole() ?: 0,
-        liveCount = (data["recordingCount"] as? Number)?.whole()?.toInt() ?: 0
+        liveCount = (data["recordingCount"] as? Number)?.whole()?.toInt() ?: 0,
+        guardianPending = data["recordingConsent"] == PARENTAL_PENDING
     )
 
     private const val GRANTED = "granted"
+    private const val PARENTAL_PENDING = "parental_pending"
 
     private fun Number.whole(): Long? {
         val value = toDouble()

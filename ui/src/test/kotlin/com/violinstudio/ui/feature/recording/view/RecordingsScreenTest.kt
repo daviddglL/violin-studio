@@ -2,11 +2,13 @@ package com.violinstudio.ui.feature.recording.view
 
 import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.recording.model.FailReason
 import com.violinstudio.domain.feature.recording.model.PlaybackState
@@ -77,7 +79,8 @@ class RecordingsScreenTest {
     fun `un menor sin consentimiento no ve el boton de aceptar`() {
         show(RecordingsState(access = RecordingAccess.NeedsConsent(selfGrant = false, version = 1)))
         compose.onNodeWithText(
-            "Para grabar necesitas la autorización de tu madre, padre o tutor. Pídeles que la concedan."
+            "Para grabar necesitas la autorización de tu madre, padre o tutor. " +
+                "Escribe su email y le enviaremos un correo para que la conceda."
         ).assertIsDisplayed()
         assertTrue(compose.onAllNodesWithTagCount(RECORDINGS_GRANT_TAG) == 0)
     }
@@ -193,5 +196,37 @@ class RecordingsScreenTest {
         compose.onNodeWithText("Tu profesor aún no la ha valorado.").assertIsDisplayed()
         compose.onNodeWithTag(stopPlaybackTag("r0")).performClick()
         assertEquals(listOf<RecordingsIntent>(RecordingsIntent.StopPlayback), sent)
+    }
+
+    @Test
+    fun `un menor escribe el email del tutor y pide permiso`() {
+        show(
+            RecordingsState(
+                access = RecordingAccess.NeedsConsent(selfGrant = false, version = 1),
+                guardianEmail = "tutor@example.com"
+            )
+        )
+        compose.onNodeWithTag(RECORDINGS_GUARDIAN_EMAIL_TAG).performTextReplacement("otro@example.com")
+        compose.onNodeWithTag(RECORDINGS_GUARDIAN_SEND_TAG).performClick()
+        assertEquals(
+            listOf(RecordingsIntent.SetGuardianEmail("otro@example.com"), RecordingsIntent.RequestGuardian),
+            sent
+        )
+    }
+
+    @Test
+    fun `con la solicitud pendiente se dice y se puede reenviar`() {
+        show(
+            RecordingsState(
+                access = RecordingAccess.NeedsConsent(selfGrant = false, version = 1, guardianPending = true),
+                guardianSentTo = "t***@e***.com",
+                message = RecordingsMessage.GUARDIAN_MISMATCH
+            )
+        )
+        compose.onNodeWithText("Hemos pedido permiso a tu tutor. Podrás grabar cuando lo acepte desde el correo.")
+            .assertIsDisplayed()
+        compose.onNodeWithText("Correo enviado a t***@e***.com.").assertIsDisplayed()
+        compose.onNodeWithText("Tiene que ser el mismo tutor que aceptó la política de privacidad.").assertIsDisplayed()
+        compose.onNodeWithText("Volver a enviar").assertIsNotEnabled()
     }
 }

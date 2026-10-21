@@ -5,12 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,6 +25,8 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.violinstudio.domain.feature.recording.model.FailReason
 import com.violinstudio.domain.feature.recording.model.QueueState
@@ -45,6 +50,8 @@ const val RECORDINGS_GRANT_TAG = "recordings_grant"
 const val RECORDINGS_REVOKE_TAG = "recordings_revoke"
 const val RECORDINGS_MESSAGE_TAG = "recordings_message"
 const val RECORDINGS_REVIEWS_TAG = "recordings_reviews"
+const val RECORDINGS_GUARDIAN_EMAIL_TAG = "recordings_guardian_email"
+const val RECORDINGS_GUARDIAN_SEND_TAG = "recordings_guardian_send"
 
 fun pendingTag(id: String) = "recordings_pending_$id"
 
@@ -120,24 +127,55 @@ private fun Access(state: RecordingsState, onIntent: (RecordingsIntent) -> Unit,
             LoadingIndicator()
         }
         RecordingAccess.Disabled -> Text(stringResource(R.string.recordings_disabled))
-        is RecordingAccess.NeedsConsent -> Consent(access, state.busy, onIntent)
+        is RecordingAccess.NeedsConsent -> Consent(access, state, onIntent)
         is RecordingAccess.Allowed -> Recorder(state, access, onIntent, onRecord)
     }
 }
 
 @Composable
-private fun Consent(access: RecordingAccess.NeedsConsent, busy: Boolean, onIntent: (RecordingsIntent) -> Unit) {
+private fun Consent(
+    access: RecordingAccess.NeedsConsent,
+    state: RecordingsState,
+    onIntent: (RecordingsIntent) -> Unit
+) {
     SectionTitle(stringResource(R.string.recordings_consent_title))
     if (access.selfGrant) {
         Text(stringResource(R.string.recordings_consent_body), style = MaterialTheme.typography.bodyMedium)
         Button(
             onClick = { onIntent(RecordingsIntent.GrantConsent) },
-            enabled = !busy,
+            enabled = !state.busy,
             modifier = Modifier.testTag(RECORDINGS_GRANT_TAG)
         ) { Text(stringResource(R.string.recordings_consent_accept)) }
     } else {
-        Text(stringResource(R.string.recordings_consent_guardian), style = MaterialTheme.typography.bodyMedium)
+        GuardianRequest(access.guardianPending, state, onIntent)
     }
+}
+
+/** Un menor pide el permiso a su tutor por correo; el servidor exige el mismo tutor que acepto la politica. */
+@Composable
+private fun GuardianRequest(pending: Boolean, state: RecordingsState, onIntent: (RecordingsIntent) -> Unit) {
+    Text(
+        stringResource(if (pending) R.string.recordings_guardian_pending else R.string.recordings_consent_guardian),
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+    )
+    state.guardianSentTo?.let { Text(stringResource(R.string.recordings_guardian_sent, it)) }
+    OutlinedTextField(
+        value = state.guardianEmail,
+        onValueChange = { onIntent(RecordingsIntent.SetGuardianEmail(it)) },
+        label = { Text(stringResource(R.string.recordings_guardian_email)) },
+        supportingText = { Text(stringResource(R.string.recordings_guardian_hint)) },
+        singleLine = true,
+        enabled = !state.busy,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Send),
+        keyboardActions = KeyboardActions(onSend = { onIntent(RecordingsIntent.RequestGuardian) }),
+        modifier = Modifier.fillMaxWidth().testTag(RECORDINGS_GUARDIAN_EMAIL_TAG)
+    )
+    Button(
+        onClick = { onIntent(RecordingsIntent.RequestGuardian) },
+        enabled = !state.busy && state.guardianEmail.isNotBlank(),
+        modifier = Modifier.testTag(RECORDINGS_GUARDIAN_SEND_TAG)
+    ) { Text(stringResource(if (pending) R.string.recordings_guardian_resend else R.string.recordings_guardian_send)) }
 }
 
 @Composable
@@ -224,6 +262,10 @@ private fun messageText(message: RecordingsMessage): Int = when (message) {
     RecordingsMessage.SAVE_FAILED -> R.string.recordings_msg_save_failed
     RecordingsMessage.DELETE_FAILED -> R.string.recordings_msg_delete_failed
     RecordingsMessage.ACTION_FAILED -> R.string.recordings_msg_action_failed
+    RecordingsMessage.GUARDIAN_EMAIL_INVALID -> R.string.recordings_msg_guardian_invalid
+    RecordingsMessage.GUARDIAN_MISMATCH -> R.string.recordings_msg_guardian_mismatch
+    RecordingsMessage.GUARDIAN_LEGACY -> R.string.recordings_msg_guardian_legacy
+    RecordingsMessage.RATE_LIMITED -> R.string.recordings_msg_rate_limited
 }
 
 @Composable

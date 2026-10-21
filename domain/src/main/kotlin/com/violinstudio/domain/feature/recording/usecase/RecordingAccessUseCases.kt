@@ -1,6 +1,8 @@
 package com.violinstudio.domain.feature.recording.usecase
 
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
+import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
+import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.recording.failure.RecordingFailure
 import com.violinstudio.domain.feature.recording.model.RecordingAccess
@@ -30,7 +32,13 @@ class GetRecordingAccessUseCase @Inject constructor(
         val consented = account.baseConsentGranted && account.recordingConsentGranted &&
             account.recordingConsentVersion >= config.recordingConsentVersion
         if (!consented) {
-            return Result.success(RecordingAccess.NeedsConsent(!account.isMinor, config.recordingConsentVersion))
+            return Result.success(
+                RecordingAccess.NeedsConsent(
+                    selfGrant = !account.isMinor,
+                    version = config.recordingConsentVersion,
+                    guardianPending = account.isMinor && account.guardianPending
+                )
+            )
         }
         val used = account.liveCount + pending.count(uid)
         return Result.success(
@@ -39,6 +47,18 @@ class GetRecordingAccessUseCase @Inject constructor(
                 quotaFull = used >= RecordingLimits.MAX_RECORDINGS_PER_OWNER
             )
         )
+    }
+}
+
+/**
+ * Un menor pide a su tutor el permiso de grabacion (finalidad `recording_sharing`): debe ser el mismo tutor que acepto
+ * la politica, lo comprueba el servidor. Un email con mal formato ni sale del dispositivo. Devuelve el email enmascarado.
+ */
+class RequestRecordingGuardianUseCase @Inject constructor(private val repository: RecordingConsentRepository) {
+    suspend operator fun invoke(guardianEmail: String): Result<String> {
+        val email = guardianEmail.trim()
+        if (!isPlausibleEmail(email)) return Result.failure(ConsentFailure.GuardianEmailInvalid)
+        return repository.requestGuardian(email)
     }
 }
 

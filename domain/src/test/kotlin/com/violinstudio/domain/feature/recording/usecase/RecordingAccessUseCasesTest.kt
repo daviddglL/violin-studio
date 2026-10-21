@@ -83,6 +83,27 @@ class RecordingAccessUseCasesTest {
         )
         accounts.result = Result.success(account.copy(isMinor = true, baseConsentGranted = false))
         assertEquals(RecordingAccess.NeedsConsent(selfGrant = false, version = 2), access().getOrThrow())
+        accounts.result =
+            Result.success(account.copy(isMinor = true, recordingConsentGranted = false, guardianPending = true))
+        assertEquals(
+            RecordingAccess.NeedsConsent(selfGrant = false, version = 2, guardianPending = true),
+            access().getOrThrow()
+        )
+        // Un adulto no espera a ningun tutor aunque quede una marca antigua.
+        accounts.result = Result.success(account.copy(recordingConsentGranted = false, guardianPending = true))
+        assertEquals(RecordingAccess.NeedsConsent(selfGrant = true, version = 2), access().getOrThrow())
+    }
+
+    @Test
+    fun `pedir el permiso al tutor recorta el email y no envia uno con mal formato`() = runTest {
+        val repo = FakeRecordingConsentRepository()
+        val request = RequestRecordingGuardianUseCase(repo)
+        assertEquals(ConsentFailure.GuardianEmailInvalid, request("no-es-email").exceptionOrNull())
+        assertTrue(repo.calls.isEmpty())
+        assertEquals("t***@e***.com", request("  tutor@example.com ").getOrThrow())
+        assertEquals(listOf("guardian:tutor@example.com"), repo.calls)
+        repo.guardianResult = Result.failure(ConsentFailure.GuardianEmailMismatch)
+        assertEquals(ConsentFailure.GuardianEmailMismatch, request("otro@example.com").exceptionOrNull())
     }
 
     @Test
