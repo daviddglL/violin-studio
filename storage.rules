@@ -1,6 +1,7 @@
 rules_version = '2';
 // Fase 4b: grabaciones de practica en `users/{uid}/recordings/{id}.m4a` y demostraciones del profesor en
-// `users/{uid}/demos/{id}.m4a` (video llega en 4c). Todo lo demas, cerrado.
+// `users/{uid}/demos/{id}.m4a`. Fase 4c: mismas rutas con `{id}.mp4` para video ya difuminado en el movil (sello
+// `blurApplied`/`blurPolicyVersion`; `VIDEO_ENABLED` lo decide finalize). Todo lo demas, cerrado.
 // Reglas multi-servicio: leen Firestore. Tope de la plataforma: 2 `firestore.get/exists` EVALUADOS por peticion (A20),
 // sumando las ramas de `||` ya evaluadas (el cortocircuito solo ahorra las que nunca se evaluan). Por eso cada ruta
 // tiene UNA sola rama que gasta accesos: grabaciones -> teacherReads, demos -> demoReads (C1). El emulador no aplica el
@@ -48,15 +49,27 @@ service firebase.storage {
         && m.kind in ['audio', 'video'] && m.durationMs.matches('^[0-9]{1,6}$')
         && m.recordingConsentEpoch.matches('^(0|[1-9][0-9]{0,8})$')
         && (!('assignmentId' in m) || m.assignmentId.matches('^[A-Za-z0-9-]{1,64}$'))
-        && (!('sharedWith' in m) || m.sharedWith.matches('^[A-Za-z0-9]{1,128}$'));
+        && (!('sharedWith' in m) || m.sharedWith.matches('^[A-Za-z0-9]{1,128}$'))
+        && (!('blurApplied' in m) || m.blurApplied in ['true', 'false'])
+        && (!('blurPolicyVersion' in m) || m.blurPolicyVersion.matches('^[1-9][0-9]{0,2}$'));
     }
     function validAudio(r) {
       return r.contentType == 'audio/mp4' && r.size <= 25 * 1024 * 1024 && r.metadata.kind == 'audio';
     }
+    // Video (4c): solo si el movil ya lo difumino (BLUR_POLICY_VERSION = 1). El sello es una promesa del cliente; la
+    // autoridad (interruptor, duracion, tasa de bits) es finalize.
+    function validVideo(r) {
+      return r.contentType == 'video/mp4' && r.size <= 60 * 1024 * 1024 && r.metadata.kind == 'video'
+        && r.metadata.get('blurApplied', '') == 'true' && r.metadata.get('blurPolicyVersion', '') == '1';
+    }
+    // La extension decide el tipo: `.m4a` = audio, `.mp4` = video (ownerCreate ya limito el nombre a esas dos).
+    function validMedia(file, r) {
+      return (file.matches('.*[.]m4a$') && validAudio(r)) || (file.matches('.*[.]mp4$') && validVideo(r));
+    }
 
     function ownerCreate(uid, file) {
       return verified() && request.auth.uid == uid && request.auth.token.consentOk == true
-        && file.matches('^[A-Za-z0-9-]{1,64}\\.m4a$') && validMeta(request.resource.metadata);
+        && file.matches('^[A-Za-z0-9-]{1,64}\\.(m4a|mp4)$') && validMeta(request.resource.metadata);
     }
 
     match /users/{uid}/recordings/{file} {
@@ -65,7 +78,7 @@ service firebase.storage {
       allow create: if resource == null && ownerCreate(uid, file)
         && !('sharedWith' in request.resource.metadata)
         && canUpload(userDoc(uid), request.resource.metadata)
-        && validAudio(request.resource);
+        && validMedia(file, request.resource);
       // A12: borrar = borrar el doc Firestore; el trigger limpia el objeto. Nadie lista ni actualiza.
       allow update, delete: if false;
       // Sin comprobar `status` del doc para quedarse en <= 2 accesos (A20): los `rejected` se borran en finalize.
@@ -80,7 +93,7 @@ service firebase.storage {
       allow create: if resource == null && ownerCreate(uid, file)
         && 'sharedWith' in request.resource.metadata && 'assignmentId' in request.resource.metadata
         && canUploadDemo(userDoc(uid), request.resource.metadata)
-        && validAudio(request.resource);
+        && validMedia(file, request.resource);
       allow update, delete: if false;
       allow list: if false;
       // 2 accesos en el peor caso: solo demoReads gasta.

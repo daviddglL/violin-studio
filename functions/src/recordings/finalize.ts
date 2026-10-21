@@ -6,7 +6,7 @@ import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { RecordingFlags } from "../config/features";
 import { RECORDING_CONSENT_VERSION } from "../config/identity";
-import { DEMOS_DIR, MAX_RECORDINGS_PER_OWNER, RECORDINGS_DIR } from "../config/recordings";
+import { BLUR_POLICY_VERSION, DEMOS_DIR, MAX_RECORDINGS_PER_OWNER, RECORDINGS_DIR } from "../config/recordings";
 import { consentDocId, recordingEpochOf } from "../consent/consent-docs";
 import { deleteRecording } from "./delete-recording";
 import { Mp4Error, readMp4DurationSec } from "./mp4-duration";
@@ -328,6 +328,8 @@ async function finalizeCore(
     kind: str(info.metadata.kind),
     assignmentId: str(info.metadata.assignmentId),
     sharedWith: str(info.metadata.sharedWith),
+    blurApplied: str(info.metadata.blurApplied),
+    blurPolicyVersion: str(info.metadata.blurPolicyVersion),
   };
   const container = await probeContainer(deps.store, event.name, info.size);
 
@@ -376,6 +378,7 @@ async function finalizeCore(
       },
       {
         recordingsEnabled: deps.flags.recordingsEnabled,
+        videoEnabled: deps.flags.videoEnabled,
         minorRecordingEnabled: deps.flags.minorRecordingEnabled,
         requiredConsentVersion: deps.requiredConsentVersion ?? RECORDING_CONSENT_VERSION,
         // Demo: la tarea es del espacio del destinatario y debe ser de ESTE profesor (W8).
@@ -419,6 +422,8 @@ async function finalizeCore(
       objectPath: event.name,
       generation: event.generation,
       recordingConsentEpoch: result.consentEpoch,
+      // Video: version de las reglas de difuminado con las que el movil lo proceso (auditoria).
+      ...(result.kind === "video" ? { blurPolicyVersion: BLUR_POLICY_VERSION } : {}),
       ...(result.sharedWith !== undefined ? { sharedWith: result.sharedWith } : {}),
       ...(result.assignmentId !== undefined ? { assignmentId: result.assignmentId } : {}),
     });

@@ -104,6 +104,34 @@ describe("B4b.1 finalizeRecording: valido y rechazos", () => {
   });
 });
 
+describe("4c finalizeRecording: video difuminado (.mp4)", () => {
+  const video = { ext: "mp4", contentType: "video/mp4", meta: { kind: "video", blurApplied: "true", blurPolicyVersion: "1" } };
+  const on = { flags: { ...flags, videoEnabled: true } };
+
+  test("video sellado con VIDEO_ENABLED -> doc ready kind video con blurPolicyVersion", async () => {
+    const uid = rnd("s");
+    await seedUser(uid);
+    const ev = await upload(uid, video);
+    expect(await run(ev, on)).toBe("ready");
+    expect(await recDoc(uid, idOf(ev.name))).toMatchObject({ kind: "video", status: "ready", durationSec: 30, blurPolicyVersion: 1 });
+    expect(await exists(ev.name)).toBe(true);
+  });
+
+  test.each([
+    ["VIDEO_ENABLED apagado", video, undefined, "disabled"],
+    ["sin sello de difuminado", { ...video, meta: { kind: "video" } }, on, "blur"],
+    ["version de sello distinta", { ...video, meta: { ...video.meta, blurPolicyVersion: "2" } }, on, "blur"],
+    ["metadatos de audio en un .mp4", { ...video, meta: { kind: "audio" } }, on, "type"],
+  ])("%s -> rejected", async (_n, up, depsOver, reason) => {
+    const uid = rnd("s");
+    await seedUser(uid);
+    const ev = await upload(uid, up);
+    expect(await run(ev, depsOver)).toBe("rejected");
+    expect((await recDoc(uid, idOf(ev.name)))?.rejectReason).toBe(reason);
+    expect(await exists(ev.name)).toBe(false);
+  });
+});
+
 describe("B4b.1 demos del profesor (prefijo demos/, W8)", () => {
   async function demo(over: { linked?: boolean; assignment?: "own" | "other-teacher" | "other-student" | "none" } = {}) {
     const t = rnd("t");
