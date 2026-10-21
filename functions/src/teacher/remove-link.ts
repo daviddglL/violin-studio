@@ -104,8 +104,16 @@ export async function unlinkAllStudents(deps: RemoveLinkDeps, teacherUid: string
   for (const studentUid of students) {
     try {
       await removeLink(deps, teacherUid, studentUid);
-    } catch {
+    } catch (e) {
       failed += 1;
+      const code = (e as { code?: unknown } | null)?.code;
+      const log = deps.log ?? ((m, d) => logger.info(m, d));
+      // Solo hashes y codigo: el mensaje del error puede llevar rutas con uids.
+      log("unlinkAllStudents.failed", {
+        teacherUidHash: hash(teacherUid),
+        uidHash: hash(studentUid),
+        code: typeof code === "string" || typeof code === "number" ? code : "unknown",
+      });
     }
   }
   if (failed > 0) throw new Error(`unlinkAllStudents: ${failed} of ${students.size} students failed`);
