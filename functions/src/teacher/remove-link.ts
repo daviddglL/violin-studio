@@ -4,6 +4,7 @@ import { logger } from "firebase-functions/v2";
 import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
+import { linkId } from "./link-id";
 
 /** Paso idempotente posterior a la transaccion; se repite entero en cada llamada. */
 export type LinkCleanupStep = (teacherUid: string, studentUid: string) => Promise<void>;
@@ -40,7 +41,7 @@ const writable = (d: { exists: boolean; data(): Record<string, unknown> | undefi
  */
 export async function removeLink(deps: RemoveLinkDeps, teacherUid: string, studentUid: string): Promise<void> {
   const { db } = deps;
-  const linkRef = db.collection(COLLECTIONS.teacherLinks).doc(`${teacherUid}_${studentUid}`);
+  const linkRef = db.collection(COLLECTIONS.teacherLinks).doc(linkId(teacherUid, studentUid));
   const teacherRef = db.collection(COLLECTIONS.users).doc(teacherUid);
   const studentRef = db.collection(COLLECTIONS.users).doc(studentUid);
   const log = deps.log ?? ((m, d) => logger.info(m, d));

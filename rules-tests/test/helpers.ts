@@ -14,7 +14,7 @@ export async function createEnv(): Promise<RulesTestEnvironment> {
   });
 }
 
-export type Claims = { email_verified?: boolean; consentOk?: boolean };
+export type Claims = { email_verified?: boolean; consentOk?: boolean; role?: string };
 export const OK: Claims = { email_verified: true, consentOk: true };
 
 /** Perfil tal y como lo deja registerProfile + el flujo de consentimiento. */
