@@ -1,6 +1,8 @@
 package com.violinstudio
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
 import com.violinstudio.ui.commons.AuthDiagnostics
@@ -9,9 +11,18 @@ import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 @HiltAndroidApp
-class ViolinStudioApp : Application() {
+class ViolinStudioApp :
+    Application(),
+    Configuration.Provider {
     @Inject
     lateinit var foregroundSessionRefresh: ForegroundSessionRefresh
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    // WorkManager lo pide al primer uso (ya inyectado); el inicializador por defecto esta quitado del manifest.
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
         super.onCreate()

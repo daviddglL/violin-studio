@@ -70,6 +70,10 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    // WorkManager lo inicializa ViolinStudioApp (Configuration.Provider + HiltWorkerFactory), B7b.
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    testImplementation(libs.androidx.work.testing)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)

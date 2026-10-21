@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- work-runtime lo anade al fusionar (setForeground); no hay servicios en primer plano (REQ-AUD-04). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
 
     <application
         android:name=".ViolinStudioApp"
@@ -19,6 +21,18 @@
                 android:name="autoStoreLocales"
                 android:value="true" />
         </service>
+        <!-- WorkManager lo inicializa ViolinStudioApp (Configuration.Provider con HiltWorkerFactory): se quita el
+             inicializador por defecto para que no arranque antes con la fabrica por defecto. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
         <activity
             android:name="com.violinstudio.ui.MainActivity"
             android:exported="true">

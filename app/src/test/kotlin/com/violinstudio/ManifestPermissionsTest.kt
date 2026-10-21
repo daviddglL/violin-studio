@@ -72,12 +72,17 @@ class ManifestPermissionsTest {
         assertEquals(emptyList<String>(), captureManifestViolations(xml))
         val cameraPermission = "<uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\"/>"
         assertTrue(captureManifestViolations(cameraPermission).isNotEmpty())
+        // WorkManager (B7b) aporta FOREGROUND_SERVICE al fusionar: la app lo quita; declarar la QUITA no es una violacion.
+        val removal = "<uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" tools:node=\"remove\" />"
+        assertTrue(captureManifestViolations(removal).isEmpty())
+        assertTrue(captureManifestViolations(removal.replace("tools:node=\"remove\"", "")).isNotEmpty())
         assertTrue(captureManifestViolations("<service android:foregroundServiceType=\"microphone\" />").isNotEmpty())
         assertTrue(captureManifestViolations("<!-- foregroundServiceType --><application/>").isEmpty())
     }
 
     private fun captureManifestViolations(xml: String): List<String> {
         val code = xml.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("""<uses-permission[^>]*tools:node="remove"[^>]*>"""), "")
         return buildList {
             if (Regex("""android\.permission\.FOREGROUND_SERVICE""").containsMatchIn(code)) add("permiso de servicio")
             if ("foregroundServiceType" in code) add("foregroundServiceType")
