@@ -1,4 +1,5 @@
 import functionsTest from "firebase-functions-test";
+import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
@@ -37,6 +38,6 @@ test("token con email no verificado -> rechazo sin escrituras (A2)", async () =>
 test("token verificado (p. ej. Google) -> procesa igual y fija los claims (A7,P5)", async () => {
   const { uid } = await nuevoUsuario();
   const res = await llamar(req(uid, { email_verified: true, firebase: { sign_in_provider: "google.com" } }));
-  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: 1 });
+  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: CURRENT_POLICY_VERSION });
   expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
 });

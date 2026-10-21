@@ -1,4 +1,5 @@
 import { getApps, initializeApp } from "firebase-admin/app";
+import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
@@ -35,7 +36,7 @@ test("alta de adulto: rol independent, isMinor=false, consentStatus=pending, pol
   });
   expect(d.createdAt).toBeInstanceOf(Timestamp);
   expect(d.updatedAt).toBeInstanceOf(Timestamp);
-  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: 1 });
+  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: CURRENT_POLICY_VERSION });
 });
 
 test("alta de menor con flujo activo: isMinor=true, pending y sin consentOk", async () => {
@@ -62,7 +63,7 @@ test("idempotencia: la segunda llamada devuelve el perfil existente sin modifica
   const antes = (await leer(uid)).data()!;
   const res = await registerProfileHandler(deps(), uid, payload({ birthDate: "2015-01-01", displayName: "Otro", instrument: "cello" }));
   const despues = (await leer(uid)).data()!;
-  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: 1 });
+  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: CURRENT_POLICY_VERSION });
   expect(despues).toEqual(antes);
 });
 
@@ -115,7 +116,7 @@ test("recuperación: si la sincronización de claims falla tras crear el perfil,
   expect((await auth.getUser(uid)).customClaims ?? {}).toEqual({});
 
   const res = await registerProfileHandler(deps({ auth: authFlaky }), uid, payload());
-  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: 1 });
+  expect(res).toEqual({ isMinor: false, consentStatus: "pending", requiredPolicyVersion: CURRENT_POLICY_VERSION });
   expect((await auth.getUser(uid)).customClaims).toEqual({ role: "independent", consentOk: false });
 });
 

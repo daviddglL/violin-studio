@@ -6,6 +6,7 @@ import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.link.usecase.ObserveMyStudentsUseCase
 import com.violinstudio.domain.feature.link.usecase.ObserveStudentPracticeUseCase
 import com.violinstudio.domain.feature.practice.model.PracticeSession
+import com.violinstudio.domain.feature.practice.usecase.weeklyTotalFlow
 import com.violinstudio.domain.feature.practice.usecase.weeklyTotalSec
 import com.violinstudio.ui.commons.flow.SETTLE_MS
 import com.violinstudio.ui.commons.flow.collectSettled
@@ -18,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -48,6 +50,7 @@ class StudentDetailViewModel(
     private var practiceObserver: Job? = null
     private var seenLink = false
     private var pendingEmpty: Job? = null
+    private var weekRollover: Job? = null
     private var shownSessions: List<PracticeSession>? = null
     private var gone = false
 
@@ -59,6 +62,7 @@ class StudentDetailViewModel(
         linkObserver?.cancel()
         practiceObserver?.cancel()
         pendingEmpty?.cancel()
+        weekRollover?.cancel()
         shownSessions = null
         seenLink = false
         gone = false
@@ -126,10 +130,14 @@ class StudentDetailViewModel(
     private fun onSessions(sessions: List<PracticeSession>) {
         if (gone) return
         shownSessions = sessions
-        // El total se calcula solo al emitir (igual que WeeklyPracticeTotalUseCase): no se refresca al cambiar de
-        // semana sin nueva emisión. TODO(A11): recalcular el lunes a las 00:00.
         val total = sessions.weeklyTotalSec(clock.instant(), zone())
         setState { copy(isLoading = false, sessions = sessions, weeklyTotalSec = total) }
+        // El total vuelve a calcularse al cruzar el lunes a las 00:00 aunque no llegue otra emisión; la primera
+        // emisión del flujo es la que ya se acaba de aplicar.
+        weekRollover?.cancel()
+        weekRollover = viewModelScope.launch {
+            sessions.weeklyTotalFlow(clock, zone).drop(1).collect { setState { copy(weeklyTotalSec = it) } }
+        }
     }
 
     private fun onLinkLost() {
@@ -137,6 +145,7 @@ class StudentDetailViewModel(
         gone = true
         practiceObserver?.cancel()
         pendingEmpty?.cancel()
+        weekRollover?.cancel()
         setState {
             copy(isLoading = false, unavailable = true, link = null, sessions = emptyList(), weeklyTotalSec = 0)
         }
