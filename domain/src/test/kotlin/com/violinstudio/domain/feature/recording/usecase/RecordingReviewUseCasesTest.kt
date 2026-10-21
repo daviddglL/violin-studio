@@ -26,6 +26,12 @@ class RecordingReviewUseCasesTest {
 
     private class FakeReviews(private val review: Review) : RecordingReviews {
         val calls = mutableListOf<String>()
+        var demos: List<RecordingSummary> = emptyList()
+
+        override fun observeSharedDemos(teacherUid: String, studentUid: String): Flow<List<RecordingSummary>> {
+            calls += "demos:$teacherUid/$studentUid"
+            return flowOf(demos)
+        }
 
         override fun observeStudentRecordings(studentUid: String): Flow<List<RecordingSummary>> {
             calls += "list:$studentUid"
@@ -78,9 +84,27 @@ class RecordingReviewUseCasesTest {
     }
 
     @Test
+    fun `las demos de una tarea llegan solo listas, de esa tarea y mas recientes primero`() = runTest {
+        auth.user = verifiedUser
+        fun demo(id: String, at: Long?, assignment: String, ready: Boolean = true) =
+            RecordingSummary(id, at, 1_000, ready, isDemo = true, assignmentId = assignment, sharedWith = "u1")
+        reviews.demos = listOf(
+            demo("old", 1L, "a1"),
+            demo("other", 5L, "a2"),
+            demo("rejected", 6L, "a1", ready = false),
+            demo("undated", null, "a1"),
+            demo("new", 9L, "a1")
+        )
+        val demos = ObserveAssignmentDemosUseCase(auth, reviews)("t1", "a1").first()
+        assertEquals(listOf("new", "old", "undated"), demos.map { it.id })
+        assertEquals(listOf("demos:t1/u1"), reviews.calls)
+    }
+
+    @Test
     fun `sin sesion no se observa nada`() = runTest {
         assertNull(withTimeoutOrNull(1_000) { ObserveMyReviewUseCase(auth, reviews)("s1", "r1").first() })
         assertNull(withTimeoutOrNull(1_000) { ObserveRecordingReviewsUseCase(auth, reviews)("r1").first() })
+        assertNull(withTimeoutOrNull(1_000) { ObserveAssignmentDemosUseCase(auth, reviews)("t1", "a1").first() })
         assertTrue(reviews.calls.isEmpty())
     }
 

@@ -16,6 +16,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -114,6 +115,36 @@ class AssignmentScreensTest {
         assertEquals(1, created)
         assertEquals(listOf("a"), edited)
         assertEquals(1, back)
+    }
+
+    @Test
+    fun `con demos cada tarea confirmada ofrece grabar una demostracion`() {
+        val demos = mutableListOf<String>()
+        compose.setContent {
+            ViolinStudioTheme {
+                TeacherAssignmentsScreen(
+                    TeacherAssignmentsState(
+                        isLoading = false,
+                        assignments = listOf(task("a"), task("b", pending = true))
+                    ),
+                    { teacherIntents += it },
+                    onCreate = {},
+                    onEdit = {},
+                    onBack = {},
+                    zone = ZoneOffset.UTC,
+                    onDemo = { demos += it }
+                )
+            }
+        }
+        compose.onNodeWithTag(teacherTaskDemoTag("a")).performScrollTo().performClick()
+        compose.onAllNodesWithTag(teacherTaskDemoTag("b")).assertCountEquals(0)
+        assertEquals(listOf("a"), demos)
+    }
+
+    @Test
+    fun `sin demos no se ofrece grabar`() {
+        teacher(TeacherAssignmentsState(isLoading = false, assignments = listOf(task("a"))))
+        compose.onAllNodesWithTag(teacherTaskDemoTag("a")).assertCountEquals(0)
     }
 
     @Test
@@ -347,6 +378,31 @@ class AssignmentScreensTest {
         ViolinStudioTheme {
             StudentAssignmentsScreen(state, { studentIntents += it }, onBack = { back++ }, zone = ZoneOffset.UTC)
         }
+    }
+
+    @Test
+    fun `el alumno abre las demostraciones de una tarea`() {
+        val opened = mutableListOf<Assignment>()
+        compose.setContent {
+            ViolinStudioTheme {
+                StudentAssignmentsScreen(
+                    StudentAssignmentsState(isLoading = false, assignments = listOf(task("a"))),
+                    { studentIntents += it },
+                    onBack = {},
+                    zone = ZoneOffset.UTC,
+                    onOpenDemos = { opened += it }
+                )
+            }
+        }
+        compose.onNodeWithTag(studentTaskDemosTag("a")).performScrollTo().performClick()
+        assertEquals(listOf("a"), opened.map { it.id })
+        assertEquals(listOf("t1"), opened.map { it.teacherUid })
+    }
+
+    @Test
+    fun `sin demos el alumno no ve el boton`() {
+        student(StudentAssignmentsState(isLoading = false, assignments = listOf(task("a"))))
+        compose.onAllNodesWithTag(studentTaskDemosTag("a")).assertCountEquals(0)
     }
 
     @Test

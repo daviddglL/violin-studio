@@ -56,12 +56,15 @@ data class RecordingsState(
     val reviewsFailed: Boolean = false,
     /** Email del tutor que escribe un menor para pedir el permiso; [guardianSentTo] el enmascarado del ultimo envio. */
     val guardianEmail: String = "",
-    val guardianSentTo: String? = null
+    val guardianSentTo: String? = null,
+    /** Modo demo del profesor: lo grabado se comparte con un alumno, ligado a una tarea. */
+    val demo: Boolean = false
 ) : UiState {
     val isRecording: Boolean get() = elapsedMs != null
 
     override fun toString(): String =
-        "RecordingsState(access=$access, recording=$isRecording, pending=${pending.size}, message=$message)"
+        "RecordingsState(access=$access, recording=$isRecording, pending=${pending.size}, message=$message, " +
+            "demo=$demo)"
 }
 
 sealed interface RecordingsIntent : UiIntent {

@@ -52,6 +52,7 @@ const val RECORDINGS_MESSAGE_TAG = "recordings_message"
 const val RECORDINGS_REVIEWS_TAG = "recordings_reviews"
 const val RECORDINGS_GUARDIAN_EMAIL_TAG = "recordings_guardian_email"
 const val RECORDINGS_GUARDIAN_SEND_TAG = "recordings_guardian_send"
+const val RECORDINGS_DEMO_INTRO_TAG = "recordings_demo_intro"
 
 fun pendingTag(id: String) = "recordings_pending_$id"
 
@@ -66,8 +67,16 @@ fun RecordingsScreen(
     onRecord: () -> Unit,
     onBack: () -> Unit
 ) {
-    AuthScaffold(RECORDINGS_TAG, stringResource(R.string.recordings_title)) {
+    val title = if (state.demo) R.string.recordings_demo_title else R.string.recordings_title
+    AuthScaffold(RECORDINGS_TAG, stringResource(title)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            if (state.demo) {
+                Text(
+                    stringResource(R.string.recordings_demo_intro),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.testTag(RECORDINGS_DEMO_INTRO_TAG)
+                )
+            }
             Access(state, onIntent, onRecord)
             Mic(state.mic, onIntent)
             Message(state.message, onIntent)
@@ -75,12 +84,20 @@ fun RecordingsScreen(
                 SectionTitle(stringResource(R.string.recordings_pending_title))
                 state.pending.forEach { PendingItem(it, onIntent) }
             }
-            SectionTitle(stringResource(R.string.recordings_uploaded_title))
+            SectionTitle(
+                stringResource(
+                    if (state.demo) R.string.recordings_demo_uploaded_title else R.string.recordings_uploaded_title
+                )
+            )
             if (state.recordings.isEmpty()) {
-                Text(stringResource(R.string.recordings_empty), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(if (state.demo) R.string.recordings_demo_empty else R.string.recordings_empty),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
             state.recordings.forEach { RecordingItem(it, state, onIntent) }
-            if (state.access.isConsented()) {
+            // La revocacion vive en "Mis grabaciones"; aqui solo se graba para la tarea.
+            if (state.access.isConsented() && !state.demo) {
                 TextButton(
                     onClick = { onIntent(RecordingsIntent.AskRevoke) },
                     enabled = !state.busy && !state.isRecording,

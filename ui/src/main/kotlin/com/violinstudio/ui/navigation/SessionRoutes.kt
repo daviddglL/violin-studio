@@ -95,6 +95,18 @@ data class StudentRecordingsDestination(val studentUid: String) {
     override fun toString(): String = "StudentRecordingsDestination"
 }
 
+/** El profesor graba demostraciones de la tarea [assignmentId] para el alumno [studentUid]: solo `teacher`. */
+@Serializable
+data class TeacherDemoDestination(val studentUid: String, val assignmentId: String) {
+    override fun toString(): String = "TeacherDemoDestination"
+}
+
+/** El alumno escucha las demostraciones de su profesor [teacherUid] para la tarea [assignmentId]: solo `student`. */
+@Serializable
+data class AssignmentDemosDestination(val teacherUid: String, val assignmentId: String) {
+    override fun toString(): String = "AssignmentDemosDestination"
+}
+
 /** Crear (sin [assignmentId]) o editar una tarea del alumno [studentUid]: solo `teacher`. */
 @Serializable
 data class AssignmentEditDestination(val studentUid: String, val assignmentId: String? = null) {
@@ -119,7 +131,9 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         AssignmentsDestination::class,
         TeacherAssignmentsDestination::class,
         AssignmentEditDestination::class,
-        StudentRecordingsDestination::class
+        StudentRecordingsDestination::class,
+        TeacherDemoDestination::class,
+        AssignmentDemosDestination::class
     )
 
 /** Roles que pueden abrir cada ruta por rol; las ausentes son comunes a todos. Solo UX: la seguridad está en reglas. */
@@ -132,7 +146,9 @@ private val ROLE_ROUTES: Map<kotlin.reflect.KClass<*>, Set<Role>> = mapOf(
     AssignmentsDestination::class to setOf(Role.STUDENT),
     TeacherAssignmentsDestination::class to setOf(Role.TEACHER),
     AssignmentEditDestination::class to setOf(Role.TEACHER),
-    StudentRecordingsDestination::class to setOf(Role.TEACHER)
+    StudentRecordingsDestination::class to setOf(Role.TEACHER),
+    TeacherDemoDestination::class to setOf(Role.TEACHER),
+    AssignmentDemosDestination::class to setOf(Role.STUDENT)
 )
 
 fun Role.allows(route: kotlin.reflect.KClass<*>): Boolean = ROLE_ROUTES[route]?.contains(this) ?: true

@@ -15,6 +15,12 @@ interface RecordingReviews {
     /** Grabaciones `ready` del alumno, vistas por su profesor vinculado. El flujo falla si el listener falla. */
     fun observeStudentRecordings(studentUid: String): Flow<List<RecordingSummary>>
 
+    /**
+     * Demos `ready` que el profesor [teacherUid] comparte con [studentUid] (vista del alumno; las reglas exigen el
+     * vinculo). El flujo falla si el listener falla.
+     */
+    fun observeSharedDemos(teacherUid: String, studentUid: String): Flow<List<RecordingSummary>>
+
     /** La revision de [reviewerUid] (`null` si aun no hay). */
     fun observeReview(ownerUid: String, recordingId: String, reviewerUid: String): Flow<Review?>
 

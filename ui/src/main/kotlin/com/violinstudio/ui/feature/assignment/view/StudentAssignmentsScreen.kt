@@ -53,11 +53,17 @@ fun studentTaskDoneTag(id: String) = "student_task_done_$id"
 
 fun studentTaskPendingTag(id: String) = "student_task_pending_$id"
 
+fun studentTaskDemosTag(id: String) = "student_task_demos_$id"
+
 /** El rol lo comprueba la navegación antes de componer esta ruta. */
 @Composable
-fun StudentAssignmentsRoute(onBack: () -> Unit, viewModel: StudentAssignmentsViewModel = hiltViewModel()) {
+fun StudentAssignmentsRoute(
+    onBack: () -> Unit,
+    onOpenDemos: ((Assignment) -> Unit)? = null,
+    viewModel: StudentAssignmentsViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    StudentAssignmentsScreen(state, viewModel::onIntent, onBack)
+    StudentAssignmentsScreen(state, viewModel::onIntent, onBack, onOpenDemos = onOpenDemos)
 }
 
 @Composable
@@ -65,7 +71,9 @@ fun StudentAssignmentsScreen(
     state: StudentAssignmentsState,
     onIntent: (StudentAssignmentsIntent) -> Unit,
     onBack: () -> Unit,
-    zone: ZoneId = ZoneId.systemDefault()
+    zone: ZoneId = ZoneId.systemDefault(),
+    /** Escuchar las demostraciones del profesor para la tarea; nulo: sin ese boton. */
+    onOpenDemos: ((Assignment) -> Unit)? = null
 ) {
     Surface(Modifier.fillMaxSize()) {
         Column(
@@ -84,14 +92,19 @@ fun StudentAssignmentsScreen(
             when {
                 state.isLoading -> AssignmentLoading(STUDENT_TASKS_LOADING_TAG)
                 state.loadFailed -> LoadFailed(onIntent)
-                else -> Content(state, onIntent, zone)
+                else -> Content(state, onIntent, zone, onOpenDemos)
             }
         }
     }
 }
 
 @Composable
-private fun Content(state: StudentAssignmentsState, onIntent: (StudentAssignmentsIntent) -> Unit, zone: ZoneId) {
+private fun Content(
+    state: StudentAssignmentsState,
+    onIntent: (StudentAssignmentsIntent) -> Unit,
+    zone: ZoneId,
+    onOpenDemos: ((Assignment) -> Unit)?
+) {
     state.error?.let {
         DismissibleMessage(
             stringResource(
@@ -111,12 +124,18 @@ private fun Content(state: StudentAssignmentsState, onIntent: (StudentAssignment
     }
     state.assignments.forEach { task ->
         HorizontalDivider()
-        TaskRow(task, task.id in state.busyIds, onIntent, zone)
+        TaskRow(task, task.id in state.busyIds, onIntent, zone, onOpenDemos)
     }
 }
 
 @Composable
-private fun TaskRow(task: Assignment, busy: Boolean, onIntent: (StudentAssignmentsIntent) -> Unit, zone: ZoneId) {
+private fun TaskRow(
+    task: Assignment,
+    busy: Boolean,
+    onIntent: (StudentAssignmentsIntent) -> Unit,
+    zone: ZoneId,
+    onOpenDemos: ((Assignment) -> Unit)?
+) {
     val done = task.status == AssignmentStatus.DONE
     val description = stringResource(
         if (done) R.string.assignment_reopen_named else R.string.assignment_mark_done_named,
@@ -149,6 +168,13 @@ private fun TaskRow(task: Assignment, busy: Boolean, onIntent: (StudentAssignmen
             Button(onClick = { onIntent(intent) }, enabled = !busy, modifier = modifier) {
                 Text(stringResource(R.string.assignment_mark_done))
             }
+        }
+        if (onOpenDemos != null) {
+            val demosDesc = stringResource(R.string.assignment_listen_demo_named, task.title)
+            TextButton(
+                onClick = { onOpenDemos(task) },
+                modifier = Modifier.testTag(studentTaskDemosTag(task.id)).semantics { contentDescription = demosDesc }
+            ) { Text(stringResource(R.string.assignment_listen_demo)) }
         }
     }
 }

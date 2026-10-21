@@ -37,6 +37,7 @@ import com.violinstudio.ui.feature.link.view.RedeemCodeRoute
 import com.violinstudio.ui.feature.metronome.view.MetronomeRoute
 import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
 import com.violinstudio.ui.feature.practice.view.PracticeRoute
+import com.violinstudio.ui.feature.recording.view.AssignmentDemosRoute
 import com.violinstudio.ui.feature.recording.view.RecordingsRoute
 import com.violinstudio.ui.feature.recording.view.StudentRecordingsRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
@@ -63,6 +64,17 @@ fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
 /** Detalle del alumno: abrir sus tareas, abrir sus grabaciones y volver. */
 typealias StudentDetailSlot =
     @Composable (onOpenAssignments: () -> Unit, onOpenRecordings: () -> Unit, onBack: () -> Unit) -> Unit
+
+/** Tareas del profesor para un alumno: crear, editar, grabar una demostración de una tarea y volver. */
+typealias TeacherAssignmentsSlot = @Composable (
+    onCreate: () -> Unit,
+    onEdit: (String) -> Unit,
+    onDemo: (String) -> Unit,
+    onBack: () -> Unit
+) -> Unit
+
+/** Tareas del alumno: abrir las demostraciones de una tarea (`teacherUid`, `assignmentId`) y volver. */
+typealias StudentAssignmentsSlot = @Composable (onOpenDemos: (String, String) -> Unit, onBack: () -> Unit) -> Unit
 
 /**
  * Único sitio donde la sesión decide la navegación: las pantallas de negocio no la conocen. Los slots son los
@@ -92,14 +104,19 @@ fun SessionNavHost(
             StudentDetailRoute(onOpenAssignments = assignments, onOpenRecordings = recordings, onBack = back)
         },
     teacherCodes: @Composable (onBack: () -> Unit) -> Unit = { TeacherCodesRoute(onBack = it) },
-    assignments: @Composable (onBack: () -> Unit) -> Unit = { StudentAssignmentsRoute(onBack = it) },
-    teacherAssignments: @Composable (onCreate: () -> Unit, onEdit: (String) -> Unit, onBack: () -> Unit) -> Unit =
-        { create, edit, back -> TeacherAssignmentsRoute(onCreate = create, onEdit = edit, onBack = back) },
+    assignments: StudentAssignmentsSlot = { demos, back ->
+        StudentAssignmentsRoute(onBack = back, onOpenDemos = { demos(it.teacherUid, it.id) })
+    },
+    teacherAssignments: TeacherAssignmentsSlot = { create, edit, demo, back ->
+        TeacherAssignmentsRoute(onCreate = create, onEdit = edit, onBack = back, onDemo = demo)
+    },
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit = { AssignmentEditRoute(onBack = it) },
     stats: @Composable (onBack: () -> Unit) -> Unit = { StatsRoute(onBack = it) },
     curriculum: @Composable (CurriculumNavigation) -> Unit = { CurriculumRoute(it) },
     recordings: @Composable (onBack: () -> Unit) -> Unit = { RecordingsRoute(onBack = it) },
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit = { StudentRecordingsRoute(onBack = it) },
+    teacherDemo: @Composable (onBack: () -> Unit) -> Unit = { RecordingsRoute(onBack = it) },
+    assignmentDemos: @Composable (onBack: () -> Unit) -> Unit = { AssignmentDemosRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
 ) {
@@ -122,7 +139,7 @@ fun SessionNavHost(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
                 tuner, metronome, practice, redeemCode, myTeacher, students, studentDetail, teacherCodes,
                 assignments, teacherAssignments, assignmentEdit, stats, curriculum, recordings, studentRecordings,
-                deleteViewModel
+                teacherDemo, assignmentDemos, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -151,13 +168,15 @@ private fun SessionGraph(
     students: @Composable (onOpenCodes: () -> Unit, onOpenStudent: (String) -> Unit, onBack: () -> Unit) -> Unit,
     studentDetail: StudentDetailSlot,
     teacherCodes: @Composable (onBack: () -> Unit) -> Unit,
-    assignments: @Composable (onBack: () -> Unit) -> Unit,
-    teacherAssignments: @Composable (onCreate: () -> Unit, onEdit: (String) -> Unit, onBack: () -> Unit) -> Unit,
+    assignments: StudentAssignmentsSlot,
+    teacherAssignments: TeacherAssignmentsSlot,
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit,
     stats: @Composable (onBack: () -> Unit) -> Unit,
     curriculum: @Composable (CurriculumNavigation) -> Unit,
     recordings: @Composable (onBack: () -> Unit) -> Unit,
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit,
+    teacherDemo: @Composable (onBack: () -> Unit) -> Unit,
+    assignmentDemos: @Composable (onBack: () -> Unit) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
@@ -279,7 +298,12 @@ private fun SessionGraph(
         }
         composable<AssignmentsDestination> {
             if (session.allowsRoute(AssignmentsDestination::class)) {
-                assignments { navController.popIfPossible() }
+                assignments(
+                    { teacher, id ->
+                        navController.navigate(AssignmentDemosDestination(teacher, id)) { launchSingleTop = true }
+                    },
+                    { navController.popIfPossible() }
+                )
             } else {
                 SplashScreen()
             }
@@ -290,8 +314,23 @@ private fun SessionGraph(
                 teacherAssignments(
                     { navController.navigate(AssignmentEditDestination(uid)) { launchSingleTop = true } },
                     { id -> navController.navigate(AssignmentEditDestination(uid, id)) { launchSingleTop = true } },
+                    { id -> navController.navigate(TeacherDemoDestination(uid, id)) { launchSingleTop = true } },
                     { navController.popIfPossible() }
                 )
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<TeacherDemoDestination> {
+            if (session.allowsRoute(TeacherDemoDestination::class)) {
+                teacherDemo { navController.popIfPossible() }
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<AssignmentDemosDestination> {
+            if (session.allowsRoute(AssignmentDemosDestination::class)) {
+                assignmentDemos { navController.popIfPossible() }
             } else {
                 SplashScreen()
             }

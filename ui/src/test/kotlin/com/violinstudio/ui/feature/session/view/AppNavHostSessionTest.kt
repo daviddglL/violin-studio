@@ -27,6 +27,7 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.navigation.AssignmentDemosDestination
 import com.violinstudio.ui.navigation.AssignmentEditDestination
 import com.violinstudio.ui.navigation.AssignmentsDestination
 import com.violinstudio.ui.navigation.BUSINESS_ROUTES
@@ -46,6 +47,7 @@ import com.violinstudio.ui.navigation.StudentRecordingsDestination
 import com.violinstudio.ui.navigation.StudentsDestination
 import com.violinstudio.ui.navigation.TeacherAssignmentsDestination
 import com.violinstudio.ui.navigation.TeacherCodesDestination
+import com.violinstudio.ui.navigation.TeacherDemoDestination
 import com.violinstudio.ui.navigation.TunerDestination
 import com.violinstudio.ui.navigation.rootRoute
 import org.junit.Assert.assertEquals
@@ -311,7 +313,9 @@ class AppNavHostSessionTest {
                 AssignmentsDestination::class,
                 TeacherAssignmentsDestination::class,
                 AssignmentEditDestination::class,
-                StudentRecordingsDestination::class
+                StudentRecordingsDestination::class,
+                TeacherDemoDestination::class,
+                AssignmentDemosDestination::class
             ),
             BUSINESS_ROUTES.toSet()
         )

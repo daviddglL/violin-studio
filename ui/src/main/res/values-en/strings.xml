@@ -586,4 +586,15 @@
     <string name="recordings_msg_guardian_mismatch">It must be the same guardian who accepted the privacy policy.</string>
     <string name="recordings_msg_guardian_legacy">We can\'t verify which guardian accepted the policy, so this permission can\'t be requested from the app.</string>
     <string name="recordings_msg_rate_limited">Too many requests. Try again later.</string>
+    <string name="assignment_demo">Record demonstration</string>
+    <string name="assignment_demo_named">Record a demonstration of assignment %1$s</string>
+    <string name="assignment_listen_demo">Listen to your teacher</string>
+    <string name="assignment_listen_demo_named">Listen to your teacher\'s demonstrations for %1$s</string>
+    <string name="assignment_demos_title">Teacher demonstrations</string>
+    <string name="assignment_demos_empty">Your teacher has not recorded a demonstration for this assignment yet.</string>
+    <string name="assignment_demos_load_failed">The demonstrations could not be loaded.</string>
+    <string name="recordings_demo_title">Assignment demonstration</string>
+    <string name="recordings_demo_intro">Record how the assignment should sound. Only this student will hear it, alongside this assignment, and it is deleted if you stop being linked.</string>
+    <string name="recordings_demo_uploaded_title">Demonstrations for this assignment</string>
+    <string name="recordings_demo_empty">You have not recorded a demonstration for this assignment yet.</string>
 </resources>

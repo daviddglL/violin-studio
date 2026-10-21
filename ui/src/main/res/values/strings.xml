@@ -586,4 +586,15 @@
     <string name="recordings_msg_guardian_mismatch">Tiene que ser el mismo tutor que aceptó la política de privacidad.</string>
     <string name="recordings_msg_guardian_legacy">No podemos comprobar qué tutor aceptó la política, así que este permiso no se puede pedir desde la app.</string>
     <string name="recordings_msg_rate_limited">Has enviado demasiadas solicitudes. Inténtalo más tarde.</string>
+    <string name="assignment_demo">Grabar demostración</string>
+    <string name="assignment_demo_named">Grabar una demostración de la tarea %1$s</string>
+    <string name="assignment_listen_demo">Escuchar al profesor</string>
+    <string name="assignment_listen_demo_named">Escuchar las demostraciones del profesor para %1$s</string>
+    <string name="assignment_demos_title">Demostraciones del profesor</string>
+    <string name="assignment_demos_empty">Tu profesor aún no ha grabado ninguna demostración para esta tarea.</string>
+    <string name="assignment_demos_load_failed">No se pudieron cargar las demostraciones.</string>
+    <string name="recordings_demo_title">Demostración de la tarea</string>
+    <string name="recordings_demo_intro">Graba cómo debe sonar la tarea. Solo la escuchará este alumno, junto a esta tarea, y se borra si dejáis de estar vinculados.</string>
+    <string name="recordings_demo_uploaded_title">Demostraciones de esta tarea</string>
+    <string name="recordings_demo_empty">Aún no has grabado ninguna demostración para esta tarea.</string>
 </resources>
