@@ -1,7 +1,7 @@
 import { logger } from "firebase-functions/v2";
 import { HttpsError } from "firebase-functions/v2/https";
 import { ReevaluateDeps, reevaluateConsent } from "../consent/reevaluate";
-import { RecordingFlags, recordingFlags } from "../config/features";
+import { chatEnabled, RecordingFlags, recordingFlags } from "../config/features";
 import {
   CURRENT_POLICY_VERSION,
   DIGITAL_CONSENT_AGE,
@@ -15,6 +15,8 @@ export interface IdentityConfigDeps extends ReevaluateDeps {
   log?: (message: string, data: Record<string, unknown>) => void;
   /** Interruptores de grabación; solo se inyectan en tests, en producción salen del entorno (`recordingFlags`). */
   flags?: RecordingFlags;
+  /** Interruptor del chat; solo se inyecta en tests (en produccion, `chatEnabled()`). */
+  chatEnabled?: boolean;
 }
 
 export interface IdentityConfig {
@@ -28,6 +30,8 @@ export interface IdentityConfig {
   minorRecordingEnabled: boolean;
   /** Versión vigente del consentimiento de grabación (independiente de `policyVersion`). */
   recordingConsentVersion: number;
+  /** Chat profesor-alumno (4c): la UI lo muestra solo con este interruptor. */
+  chatEnabled: boolean;
 }
 
 /**
@@ -54,5 +58,6 @@ export async function identityConfigHandler(
     guardianFlowEnabled: GUARDIAN_FLOW_ENABLED,
     ...(deps.flags ?? recordingFlags()),
     recordingConsentVersion: deps.currentRecordingVersion ?? RECORDING_CONSENT_VERSION,
+    chatEnabled: deps.chatEnabled ?? chatEnabled(),
   };
 }

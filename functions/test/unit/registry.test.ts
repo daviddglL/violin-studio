@@ -29,6 +29,8 @@ test("el registro cubre todas las colecciones con la política prevista", () => 
   });
   // B5a (W2 de la revision fresca): marcas de idempotencia del decremento del cupo; caen con el usuario y tienen TTL.
   expect(ERASABLE_COLLECTIONS.recordingCountLedger).toEqual({ kind: "subcollectionOf", parent: "users" });
+  // Fase 4c: los mensajes del chat caen al borrar al profesor o al alumno.
+  expect(ERASABLE_COLLECTIONS.chatMessages).toEqual({ kind: "queryByFields", fields: ["teacherUid", "studentUid"] });
   // B5a (W1): cursores de los trabajos diarios; sin uid completo (prefijo truncado), exenta con motivo.
   const maint = ERASABLE_COLLECTIONS.maintenance;
   expect(maint.kind).toBe("exempt");
@@ -57,6 +59,7 @@ test("una colección sin política no compila", () => {
     reviews: { kind: "subcollectionOf", parent: "recordings" },
     recordingCountLedger: { kind: "subcollectionOf", parent: "users" },
     maintenance: { kind: "exempt", reason: "x" },
+    chatMessages: { kind: "queryByFields", fields: ["teacherUid", "studentUid"] },
   };
   expect(incompleto).toBeDefined();
 });

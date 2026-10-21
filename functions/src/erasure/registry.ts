@@ -47,6 +47,9 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   // Marcas de idempotencia del decremento de `recordingCount` (una por instancia de doc borrada): caen con el
   // `recursiveDelete` del usuario y, mientras tanto, las retira la politica TTL de `expireAt` (30 d).
   recordingCountLedger: { kind: "subcollectionOf", parent: "users" },
+  // Chat (fase 4c): los mensajes llevan los dos uids; caen al borrar a cualquiera de las partes (y antes, al desvincular,
+  // por el paso de `removeLink`, y a los 180 dias por TTL).
+  chatMessages: { kind: "queryByFields", fields: ["teacherUid", "studentUid"] },
   maintenance: {
     kind: "exempt",
     reason: "cursores de reanudacion de los trabajos diarios; solo un prefijo truncado de uid (no identifica a nadie), se sobrescribe en cada ejecucion",

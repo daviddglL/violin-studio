@@ -17,6 +17,7 @@ describe("COLLECTIONS", () => {
       reviews: "reviews",
       recordingCountLedger: "recordingCountLedger",
       maintenance: "maintenance",
+      chatMessages: "chatMessages",
     });
   });
   test("CollectionName admite los valores registrados", () => {

@@ -7,8 +7,8 @@ import { defaultLinkCleanupSteps } from "../../src/teacher/assignments-cleanup";
 const src = (f: string) => readFileSync(join(__dirname, "../../src/teacher", f), "utf8");
 
 describe("cableado de la limpieza de removeLink (A6)", () => {
-  test("los pasos por defecto incluyen la limpieza de tareas y la de demostraciones (B5b.4)", () => {
-    expect(defaultLinkCleanupSteps({} as Firestore, {} as ObjectStore)).toHaveLength(2);
+  test("los pasos por defecto incluyen la limpieza de tareas, la de demostraciones (B5b.4) y la del chat (4c)", () => {
+    expect(defaultLinkCleanupSteps({} as Firestore, {} as ObjectStore)).toHaveLength(3);
   });
   test("removeLink usa defaultLinkCleanupSteps cuando no se pasan pasos", () => {
     expect(src("remove-link.ts")).toMatch(/deps\.cleanupSteps \?\? defaultLinkCleanupSteps\(db, deps\.store\)/);

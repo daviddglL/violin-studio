@@ -19,6 +19,15 @@ function flag(env: NodeJS.ProcessEnv, name: string, localDefault: boolean): bool
   return raw.trim().toLowerCase() === "true";
 }
 
+/**
+ * Interruptor del chat profesor-alumno (fase 4c), con las mismas reglas que los de grabacion: `CHAT_ENABLED`, apagado en
+ * produccion sin variable. Solo oculta la UI: las reglas de Firestore ya limitan el chat a las partes de un vinculo vivo.
+ * Se enciende en produccion cuando la politica publicada describa el chat.
+ */
+export function chatEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return flag(env, "CHAT_ENABLED", env.FUNCTIONS_EMULATOR === "true" || env.NODE_ENV === "test");
+}
+
 export function recordingFlags(env: NodeJS.ProcessEnv = process.env): RecordingFlags {
   const local = env.FUNCTIONS_EMULATOR === "true" || env.NODE_ENV === "test";
   return {

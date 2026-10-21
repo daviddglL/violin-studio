@@ -1,4 +1,4 @@
-import { recordingFlags } from "../../src/config/features";
+import { chatEnabled, recordingFlags } from "../../src/config/features";
 import { RECORDING_CONSENT_VERSION } from "../../src/config/identity";
 
 describe("recordingFlags (A19)", () => {
@@ -20,6 +20,19 @@ describe("recordingFlags (A19)", () => {
     for (const v of ["1", "yes", "", "verdadero", "tru"]) {
       expect(recordingFlags({ NODE_ENV: "test", RECORDINGS_ENABLED: v }).recordingsEnabled).toBe(false);
     }
+  });
+});
+
+describe("chatEnabled (4c)", () => {
+  test("apagado en produccion sin variable y encendido en emulador o test", () => {
+    expect(chatEnabled({})).toBe(false);
+    expect(chatEnabled({ FUNCTIONS_EMULATOR: "true" })).toBe(true);
+    expect(chatEnabled({ NODE_ENV: "test" })).toBe(true);
+  });
+  test("la variable explicita manda y solo `true` enciende", () => {
+    expect(chatEnabled({ CHAT_ENABLED: " True " })).toBe(true);
+    expect(chatEnabled({ NODE_ENV: "test", CHAT_ENABLED: "false" })).toBe(false);
+    expect(chatEnabled({ CHAT_ENABLED: "1" })).toBe(false);
   });
 });
 

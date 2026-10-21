@@ -15,6 +15,8 @@ export const COLLECTIONS = {
   recordingCountLedger: "recordingCountLedger",
   /** Estado tecnico de los trabajos diarios (cursores de reanudacion); solo servidor. */
   maintenance: "maintenance",
+  /** `chatMessages/{id}`: mensajes del chat de un vinculo, con `teacherUid` y `studentUid` en el doc (fase 4c). */
+  chatMessages: "chatMessages",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
