@@ -57,6 +57,24 @@ service cloud.firestore {
         && d.reviewerUid is string && d.verdict in ['approved', 'needs_work']
         && d.text is string && d.text.size() <= 1000;
     }
+    // Chat profesor-alumno (fase 4c): solo las dos partes de un vinculo vivo, con email verificado, consentimiento y ambos
+    // docs activos. Mismo coste que isLinkedTeacher: 3 get (vinculo + 2 usuarios).
+    function isChatParty(t, s) {
+      return isSignedIn() && emailVerified() && hasConsent()
+        && (request.auth.uid == t || request.auth.uid == s)
+        && linkOk(t, s) && userDocActive(t) && userDocActive(s);
+    }
+    // Esquema cerrado del mensaje. `createdAt` es la hora del servidor. `expireAt` (politica TTL) lo calcula el cliente a
+    // 180 dias con su reloj: se admite entre 170 y 181 dias despues de la escritura, lo que cubre un reloj algo desviado
+    // y un mensaje que espero sin conexion hasta 10 dias, sin dejar que nadie lo conserve mas de lo previsto.
+    function validMessage(d) {
+      return d.keys().hasOnly(['teacherUid', 'studentUid', 'senderUid', 'text', 'createdAt', 'expireAt'])
+        && d.keys().hasAll(['teacherUid', 'studentUid', 'senderUid', 'text', 'createdAt', 'expireAt'])
+        && d.teacherUid is string && d.studentUid is string && d.senderUid == request.auth.uid
+        && d.text is string && d.text.size() >= 1 && d.text.size() <= 1000
+        && d.createdAt == request.time && d.expireAt is timestamp
+        && d.expireAt >= request.time + duration.value(170, 'd') && d.expireAt <= request.time + duration.value(181, 'd');
+    }
     // Titulo de tarea: misma lista blanca que el nombre (sin control/formato ni espacios en los extremos), 1..120.
     function validTitle(n) {
       return n is string && n == n.trim() && n.size() >= 1 && n.size() <= 120
@@ -192,6 +210,18 @@ service cloud.firestore {
       allow get, list: if isSignedIn() && emailVerified()
         && (resource.data.teacherUid == request.auth.uid || resource.data.studentUid == request.auth.uid);
       allow write: if false;
+    }
+
+    // Mensajes del chat de un vinculo (fase 4c). Coleccion de primer nivel con los dos uids en el doc: el `list` DEBE
+    // filtrar `teacherUid == t` y `studentUid == s` (la regla mira `resource.data`). Sin edicion; el autor puede borrar
+    // los suyos. Caen al desvincular (paso de removeLink), al borrar la cuenta de cualquiera de los dos y a los 180 dias
+    // (TTL de `expireAt`). Accesos por evaluacion: 3 get; borrar, 0.
+    match /chatMessages/{id} {
+      allow get, list: if isChatParty(resource.data.teacherUid, resource.data.studentUid);
+      allow create: if id.size() <= 64 && validMessage(request.resource.data)
+        && isChatParty(request.resource.data.teacherUid, request.resource.data.studentUid);
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.senderUid == request.auth.uid;
     }
 
     match /{document=**} {

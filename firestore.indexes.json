@@ -47,6 +47,15 @@
         { "fieldPath": "sharedWith", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "chatMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teacherUid", "order": "ASCENDING" },
+        { "fieldPath": "studentUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -59,6 +68,7 @@
     { "collectionGroup": "recordings", "fieldPath": "status", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
     { "collectionGroup": "reviews", "fieldPath": "reviewerUid", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
     { "collectionGroup": "recordingCountLedger", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] },
-    { "collectionGroup": "guardianEmailLimits", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] }
+    { "collectionGroup": "guardianEmailLimits", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] },
+    { "collectionGroup": "chatMessages", "fieldPath": "expireAt", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] }
   ]
 }
