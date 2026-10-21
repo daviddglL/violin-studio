@@ -6,6 +6,7 @@ export const COLLECTIONS = {
   guardianRequests: "guardianRequests",
   guardianEmailLimits: "guardianEmailLimits",
   mail: "mail",
+  teacherCodes: "teacherCodes",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

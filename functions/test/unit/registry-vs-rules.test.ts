@@ -101,6 +101,15 @@ test("todas las colecciones de las reglas están en COLLECTIONS y registradas", 
   expect(unregistered(topLevelMatches(rules))).toEqual([]);
 });
 
+test("toda colección registrada tiene un match explícito y teacherCodes es deny total (lección 6)", () => {
+  const names = new Set(topLevelMatches(rules));
+  const sinMatch = Object.values(COLLECTIONS).filter((c) => !names.has(c));
+  // Las subcolecciones viven bajo su padre; aquí solo se exigen las de primer nivel.
+  const topLevel = sinMatch.filter((c) => ERASABLE_COLLECTIONS[c].kind !== "subcollectionOf");
+  expect(topLevel).toEqual([]);
+  expect(rules).toMatch(/match \/teacherCodes\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
+});
+
 test("una colección nueva en las reglas sin registrar falla nombrándola", () => {
   const conNueva = rules.replace(
     "match /{document=**}",

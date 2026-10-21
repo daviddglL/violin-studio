@@ -10,6 +10,7 @@ describe("COLLECTIONS", () => {
       guardianRequests: "guardianRequests",
       guardianEmailLimits: "guardianEmailLimits",
       mail: "mail",
+      teacherCodes: "teacherCodes",
     });
   });
   test("CollectionName admite los valores registrados", () => {
