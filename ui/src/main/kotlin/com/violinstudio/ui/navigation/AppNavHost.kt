@@ -27,6 +27,8 @@ import com.violinstudio.ui.feature.assignment.view.TeacherAssignmentsRoute
 import com.violinstudio.ui.feature.auth.view.AuthRoute
 import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
 import com.violinstudio.ui.feature.consent.view.ConsentSlot
+import com.violinstudio.ui.feature.curriculum.view.CurriculumNavigation
+import com.violinstudio.ui.feature.curriculum.view.CurriculumRoute
 import com.violinstudio.ui.feature.guardian.view.GuardianWaitSlot
 import com.violinstudio.ui.feature.home.view.HomeNavigation
 import com.violinstudio.ui.feature.home.view.HomeRoute
@@ -40,6 +42,7 @@ import com.violinstudio.ui.feature.session.view.SplashScreen
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent
 import com.violinstudio.ui.feature.session.viewmodel.SessionViewModel
 import com.violinstudio.ui.feature.settings.view.SettingsRoute
+import com.violinstudio.ui.feature.stats.view.StatsRoute
 import com.violinstudio.ui.feature.teacher.view.StudentDetailRoute
 import com.violinstudio.ui.feature.teacher.view.StudentsRoute
 import com.violinstudio.ui.feature.teacher.view.TeacherCodesRoute
@@ -85,6 +88,8 @@ fun SessionNavHost(
     teacherAssignments: @Composable (onCreate: () -> Unit, onEdit: (String) -> Unit, onBack: () -> Unit) -> Unit =
         { create, edit, back -> TeacherAssignmentsRoute(onCreate = create, onEdit = edit, onBack = back) },
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit = { AssignmentEditRoute(onBack = it) },
+    stats: @Composable (onBack: () -> Unit) -> Unit = { StatsRoute(onBack = it) },
+    curriculum: @Composable (CurriculumNavigation) -> Unit = { CurriculumRoute(it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
 ) {
@@ -106,7 +111,7 @@ fun SessionNavHost(
             SessionGraph(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
                 tuner, metronome, practice, redeemCode, myTeacher, students, studentDetail, teacherCodes,
-                assignments, teacherAssignments, assignmentEdit, deleteViewModel
+                assignments, teacherAssignments, assignmentEdit, stats, curriculum, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -138,6 +143,8 @@ private fun SessionGraph(
     assignments: @Composable (onBack: () -> Unit) -> Unit,
     teacherAssignments: @Composable (onCreate: () -> Unit, onEdit: (String) -> Unit, onBack: () -> Unit) -> Unit,
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit,
+    stats: @Composable (onBack: () -> Unit) -> Unit,
+    curriculum: @Composable (CurriculumNavigation) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
@@ -167,6 +174,8 @@ private fun SessionGraph(
                         onOpenTuner = { navController.navigate(TunerDestination) { launchSingleTop = true } },
                         onOpenMetronome = { navController.navigate(MetronomeDestination) { launchSingleTop = true } },
                         onOpenPractice = { navController.navigate(PracticeLogDestination) { launchSingleTop = true } },
+                        onOpenStats = { navController.navigate(StatsDestination) { launchSingleTop = true } },
+                        onOpenCurriculum = { navController.navigate(CurriculumDestination) { launchSingleTop = true } },
                         onOpenRedeem = { navController.navigate(RedeemCodeDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(RedeemCodeDestination::class) },
                         onOpenMyTeacher = { navController.navigate(MyTeacherDestination) { launchSingleTop = true } }
@@ -190,6 +199,22 @@ private fun SessionGraph(
         }
         composable<PracticeLogDestination> {
             if (session is SessionState.Ready) practice { navController.popBackStack() } else SplashScreen()
+        }
+        composable<StatsDestination> {
+            if (session is SessionState.Ready) stats { navController.popBackStack() } else SplashScreen()
+        }
+        composable<CurriculumDestination> {
+            if (session is SessionState.Ready) {
+                curriculum(
+                    CurriculumNavigation(
+                        onOpenTuner = { navController.navigate(TunerDestination) { launchSingleTop = true } },
+                        onOpenMetronome = { navController.navigate(MetronomeDestination) { launchSingleTop = true } },
+                        onBack = { navController.popBackStack() }
+                    )
+                )
+            } else {
+                SplashScreen()
+            }
         }
         composable<RedeemCodeDestination> {
             if (session.allowsRoute(RedeemCodeDestination::class)) {
@@ -298,7 +323,7 @@ private fun SessionRedirect(session: SessionState, navController: NavHostControl
     val current by navController.currentBackStackEntryAsState()
     LaunchedEffect(session, current) {
         val target = session.rootRoute()
-        // Las rutas de negocio (Ajustes, Afinador, Metrónomo, Práctica) solo se mantienen con Ready.
+        // Las rutas de negocio (Ajustes, Afinador, Metrónomo, Práctica, Estadísticas, Lecciones) solo se mantienen con Ready.
         // Las de rol además exigen que el rol actual las permita (deep link, back stack restaurado o cambio de rol).
         val onBusiness = session is SessionState.Ready &&
             BUSINESS_ROUTES.any { current?.destination?.hasRoute(it) == true && session.allowsRoute(it) }

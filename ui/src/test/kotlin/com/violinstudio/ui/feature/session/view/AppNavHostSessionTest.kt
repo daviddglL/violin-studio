@@ -30,6 +30,7 @@ import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.navigation.AssignmentEditDestination
 import com.violinstudio.ui.navigation.AssignmentsDestination
 import com.violinstudio.ui.navigation.BUSINESS_ROUTES
+import com.violinstudio.ui.navigation.CurriculumDestination
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
 import com.violinstudio.ui.navigation.MetronomeDestination
@@ -38,6 +39,7 @@ import com.violinstudio.ui.navigation.PracticeLogDestination
 import com.violinstudio.ui.navigation.RedeemCodeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
+import com.violinstudio.ui.navigation.StatsDestination
 import com.violinstudio.ui.navigation.StudentDetailDestination
 import com.violinstudio.ui.navigation.StudentsDestination
 import com.violinstudio.ui.navigation.TeacherAssignmentsDestination
@@ -296,6 +298,8 @@ class AppNavHostSessionTest {
                 TunerDestination::class,
                 MetronomeDestination::class,
                 PracticeLogDestination::class,
+                StatsDestination::class,
+                CurriculumDestination::class,
                 RedeemCodeDestination::class,
                 MyTeacherDestination::class,
                 StudentsDestination::class,

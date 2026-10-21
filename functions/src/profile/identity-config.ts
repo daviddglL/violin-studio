@@ -6,7 +6,7 @@ import {
   CURRENT_POLICY_VERSION,
   DIGITAL_CONSENT_AGE,
   GUARDIAN_FLOW_ENABLED,
-  POLICY_URL,
+  policyUrl,
   RECORDING_CONSENT_VERSION,
 } from "../config/identity";
 
@@ -49,7 +49,7 @@ export async function identityConfigHandler(
   }
   return {
     policyVersion: deps.currentVersion ?? CURRENT_POLICY_VERSION,
-    policyUrl: POLICY_URL,
+    policyUrl: policyUrl(),
     digitalConsentAge: DIGITAL_CONSENT_AGE,
     guardianFlowEnabled: GUARDIAN_FLOW_ENABLED,
     ...(deps.flags ?? recordingFlags()),

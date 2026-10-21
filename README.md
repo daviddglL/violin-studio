@@ -5,14 +5,17 @@ alumnos que trabajan con un profesor.
 
 ## Qué ofrece
 
-- **Práctica diaria**: afinador, metrónomo, sesiones de estudio con estadísticas y un currículo de
-  lecciones por niveles.
-- **Profesor y alumno**: el alumno graba sus ejercicios, el profesor los revisa, deja comentarios y
-  asigna tareas, y ambos hablan por chat.
-- **Motivación**: logros, rachas y feedback sobre la práctica.
-- **Privacidad desde el diseño**: cuentas con email o Google, consentimiento versionado,
-  autorización del tutor para menores de 14 años y borrado completo de la cuenta y sus datos en
-  cualquier momento.
+- **Práctica diaria**: afinador, metrónomo, registro de sesiones con notas, estadísticas (rachas, semana, últimos
+  30 días y gráfico de los últimos 7 días) y un currículo de 12 lecciones en 3 niveles que enlaza con el afinador y el
+  metrónomo.
+- **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica y le asigna
+  tareas que el alumno marca como hechas.
+- **Privacidad desde el diseño**: cuentas con email o Google, consentimiento versionado, autorización del tutor para
+  menores de 14 años, borrado completo de la cuenta y sus datos en cualquier momento y sin analítica ni identificador
+  de publicidad.
+
+Próximamente: grabaciones de práctica con revisión del profesor (el servidor ya está listo; falta la parte de la app),
+vídeo con difuminado, chat profesor‑alumno, logros y feedback.
 
 ## Estado
 
@@ -23,7 +26,9 @@ El desarrollo va por fases:
 | 1. Base | Arquitectura, Firebase, CI/CD, pantalla de comprobación del servidor | ✅ |
 | 2. Identidad y privacidad | Registro, perfil, consentimiento, flujo del tutor, borrado de cuenta | ✅ |
 | 3. Práctica | Afinador, metrónomo, sesiones, estadísticas, currículo | ✅ |
-| 4. Profesor–alumno | Grabación, subida, tareas, revisión, chat | En curso |
+| 4a. Profesor–alumno | Vínculo por código, registro compartido, tareas | ✅ (sin desplegar) |
+| 4b. Grabaciones | Consentimiento, subida, revisión, purgas | Servidor ✅, app en curso |
+| 4c. Vídeo y chat | Vídeo con difuminado, chat | Pendiente |
 | 5. Extras | Gamificación, feedback inteligente, configuración remota | Pendiente |
 
 ## Tecnología
@@ -90,6 +95,10 @@ Para probar en un móvil físico contra los emuladores del PC:
 `0.0.0.0`, así que úsalo solo en una red de confianza.
 
 ## Despliegue
+
+Antes de abrir la app fuera del grupo de testers, sigue [`docs/runbooks/lanzamiento-produccion.md`](docs/runbooks/lanzamiento-produccion.md):
+cuenta de servicio de CI con permisos mínimos, proyecto de producción propio, remitente real para el correo del tutor y
+App Check.
 
 ### Primer despliegue de Functions
 

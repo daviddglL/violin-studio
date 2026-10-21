@@ -6,7 +6,7 @@ import { COLLECTIONS } from "../common/collections";
 import { safeErrorCode } from "../common/errors";
 import { sha256Hex } from "../common/hashing";
 import { RecordingFlags, recordingFlags } from "../config/features";
-import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, GUARDIAN_REVOKE_LINK_TTL_DAYS, POLICY_URL, RECORDING_CONSENT_VERSION } from "../config/identity";
+import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, GUARDIAN_REVOKE_LINK_TTL_DAYS, policyUrl, RECORDING_CONSENT_VERSION } from "../config/identity";
 import { buildConsentDoc, consentDocId, consentEpochOf, recordingEpochOf } from "../consent/consent-docs";
 import { isPurgePending, PurgeRecordingsHook, revokeRecordingByGuardian, runPurgeAfterRevocation } from "../consent/recording-consent";
 import { blurRequiredFor } from "../identity/age";
@@ -166,7 +166,7 @@ async function renderGet(deps: GuardianConsentDeps, requestId: string | undefine
       requestId,
       displayName: String(user?.displayName ?? ""),
       locale: String(user?.locale ?? "en"),
-      policyUrl: POLICY_URL,
+      policyUrl: policyUrl(),
       policyVersion: version,
       nonce,
       purpose,
