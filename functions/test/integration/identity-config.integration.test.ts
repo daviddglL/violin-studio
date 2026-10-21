@@ -1,5 +1,5 @@
 import functionsTest from "firebase-functions-test";
-import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
+import { CURRENT_POLICY_VERSION, RECORDING_CONSENT_VERSION } from "../../src/config/identity";
 import { identityConfig } from "../../src/index";
 
 const fft = functionsTest();
@@ -18,5 +18,10 @@ test("no exige email verificado y devuelve la política vigente concreta (C6)", 
     policyUrl: "https://violin-app-dev-f0b55.web.app/privacy",
     digitalConsentAge: 14,
     guardianFlowEnabled: true,
+    // Emulador/test: interruptores encendidos por defecto (en producción salen del .env y apagados).
+    recordingsEnabled: true,
+    videoEnabled: true,
+    minorRecordingEnabled: true,
+    recordingConsentVersion: RECORDING_CONSENT_VERSION,
   });
 });

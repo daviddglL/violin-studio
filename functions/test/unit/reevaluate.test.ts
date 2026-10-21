@@ -1,4 +1,4 @@
-import { reevaluatedStatus } from "../../src/consent/reevaluate";
+import { reevaluatedRecording, reevaluatedStatus } from "../../src/consent/reevaluate";
 
 describe("reevaluatedStatus (D3)", () => {
   test.each([
@@ -14,5 +14,22 @@ describe("reevaluatedStatus (D3)", () => {
     ["menor que cumple 14 con granted vigente (G8)", { isMinor: true, birthDate: "2012-01-01", consentStatus: "granted", policyVersion: 2 }, 2, null],
   ])("%s", (_n, doc, vigente, esperado) => {
     expect(reevaluatedStatus(doc, vigente)).toBe(esperado);
+  });
+});
+
+describe("reevaluatedRecording (REQ-CON-R03): versión propia, independiente de la política", () => {
+  test.each([
+    ["granted con versión antigua", { recordingConsent: "granted", recordingConsentVersion: 1 }, 2, "none"],
+    ["granted con versión nula (fail-closed)", { recordingConsent: "granted", recordingConsentVersion: null }, 2, "none"],
+    ["granted sin versión (fail-closed)", { recordingConsent: "granted" }, 2, "none"],
+    ["granted con versión no numérica", { recordingConsent: "granted", recordingConsentVersion: "1" }, 2, "none"],
+    ["granted vigente", { recordingConsent: "granted", recordingConsentVersion: 2 }, 2, null],
+    ["granted con versión futura (no se degrada)", { recordingConsent: "granted", recordingConsentVersion: 3 }, 2, null],
+    ["revoked", { recordingConsent: "revoked", recordingConsentVersion: 1 }, 2, null],
+    ["parental_pending", { recordingConsent: "parental_pending" }, 2, null],
+    ["ausente (none)", {}, 2, null],
+    ["la política antigua no influye", { consentStatus: "granted", policyVersion: 1, recordingConsent: "granted", recordingConsentVersion: 2 }, 2, null],
+  ])("%s", (_n, doc, vigente, esperado) => {
+    expect(reevaluatedRecording(doc, vigente)).toBe(esperado);
   });
 });

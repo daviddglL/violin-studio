@@ -6,7 +6,7 @@ import { COLLECTIONS } from "../common/collections";
 import { ErrorReason, fail } from "../common/errors";
 import { requireEnum, requireIsoDate, requireObject, requireString } from "../common/validation";
 import { CURRENT_POLICY_VERSION } from "../config/identity";
-import { isMinor, parseBirthDate } from "../identity/age";
+import { blurRequiredFor, isMinor, parseBirthDate } from "../identity/age";
 import { syncClaims } from "../identity/claims";
 
 export const INSTRUMENTS = ["violin", "viola", "cello", "double_bass", "other"] as const;
@@ -106,6 +106,8 @@ export async function registerProfileHandler(
       role: "independent",
       birthDate: input.birthDate,
       isMinor: minor,
+      // Solo servidor (REQ-BLR-01): menor de 18; se reevalúa en grant/finalize/purga. `recordingConsent` ausente = none.
+      blurRequired: blurRequiredFor(input.birthDate, now),
       consentStatus: "pending",
       policyVersion: null,
       createdAt: stamp,

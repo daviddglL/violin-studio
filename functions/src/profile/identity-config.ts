@@ -1,16 +1,20 @@
 import { logger } from "firebase-functions/v2";
 import { HttpsError } from "firebase-functions/v2/https";
 import { ReevaluateDeps, reevaluateConsent } from "../consent/reevaluate";
+import { RecordingFlags, recordingFlags } from "../config/features";
 import {
   CURRENT_POLICY_VERSION,
   DIGITAL_CONSENT_AGE,
   GUARDIAN_FLOW_ENABLED,
   POLICY_URL,
+  RECORDING_CONSENT_VERSION,
 } from "../config/identity";
 
 export interface IdentityConfigDeps extends ReevaluateDeps {
   /** Sumidero de logs sin PII; por defecto `logger.warn`. */
   log?: (message: string, data: Record<string, unknown>) => void;
+  /** Interruptores de grabación; solo se inyectan en tests, en producción salen del entorno (`recordingFlags`). */
+  flags?: RecordingFlags;
 }
 
 export interface IdentityConfig {
@@ -18,6 +22,12 @@ export interface IdentityConfig {
   policyUrl: string;
   digitalConsentAge: number;
   guardianFlowEnabled: boolean;
+  /** Interruptores de 4b/4c (A19): la UI se oculta con ellos, el servidor (grant y finalize) es quien hace cumplir. */
+  recordingsEnabled: boolean;
+  videoEnabled: boolean;
+  minorRecordingEnabled: boolean;
+  /** Versión vigente del consentimiento de grabación (independiente de `policyVersion`). */
+  recordingConsentVersion: number;
 }
 
 /**
@@ -42,5 +52,7 @@ export async function identityConfigHandler(
     policyUrl: POLICY_URL,
     digitalConsentAge: DIGITAL_CONSENT_AGE,
     guardianFlowEnabled: GUARDIAN_FLOW_ENABLED,
+    ...(deps.flags ?? recordingFlags()),
+    recordingConsentVersion: deps.currentRecordingVersion ?? RECORDING_CONSENT_VERSION,
   };
 }

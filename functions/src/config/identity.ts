@@ -22,3 +22,6 @@ export const TEACHER_CODE_TTL_DAYS = 7;
 export const MAX_ACTIVE_CODES = 5;
 export const MAX_CODES_PER_24H = 20;
 export const REDEEM_MAX_FAILURES_PER_HOUR = 5;
+
+/** Versión del consentimiento de grabación (REQ-CON-R03): independiente de CURRENT_POLICY_VERSION. */
+export const RECORDING_CONSENT_VERSION = 1;

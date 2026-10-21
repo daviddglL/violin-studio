@@ -67,3 +67,24 @@ export function isMinor(birth: unknown, today: Date, threshold: number = DIGITAL
 export function isAdult(birth: unknown, today: Date, threshold: number = ADULT_AGE): boolean {
   return !isMinor(birth, today, threshold);
 }
+
+const ISO_BIRTH = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function asBirthDate(birth: unknown): unknown {
+  if (typeof birth !== "string") return birth;
+  const m = ISO_BIRTH.exec(birth);
+  return m ? { year: +m[1], month: +m[2], day: +m[3] } : null;
+}
+
+/**
+ * Blur obligatorio (REQ-BLR-01) = menor de ADULT_AGE. Acepta la fecha ya parseada o la cadena `YYYY-MM-DD` tal y como
+ * se guarda en `users/{uid}`. Fail-closed: cualquier dato ilegible, futuro o un `today` inválido exige blur.
+ */
+export function blurRequiredFor(birth: unknown, today: Date): boolean {
+  return !isAdult(asBirthDate(birth), today);
+}
+
+/** Lectura del campo del servidor: solo un `false` explícito lo apaga (ausente = `true`, fail-closed). */
+export function blurRequiredOf(doc: Record<string, unknown>): boolean {
+  return doc.blurRequired !== false;
+}

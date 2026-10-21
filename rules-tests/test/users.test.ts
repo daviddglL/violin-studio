@@ -94,6 +94,13 @@ describe("users/{uid}: update del dueño", () => {
       ["deletion", { deletion: { state: "in_progress" } }],
       ["createdAt", { createdAt: new Date() }],
       ["updatedAt", { updatedAt: new Date() }],
+      ["recordingConsent", { recordingConsent: "granted" }],
+      ["recordingConsentVersion", { recordingConsentVersion: 1 }],
+      ["recordingConsentEpoch", { recordingConsentEpoch: 0 }],
+      ["blurRequired", { blurRequired: false }],
+      ["recordingPurge", { recordingPurge: { pending: false } }],
+      ["recordingCount", { recordingCount: 0 }],
+      ["recordingGuardian", { recordingGuardian: { requestId: "x" } }],
     ])("deniega modificar %s", async (_, data) => {
       await assertFails(update(data));
     });
@@ -105,6 +112,17 @@ describe("users/{uid}: update del dueño", () => {
       ["consentStatus", { consentStatus: "revoked" }],
     ])("deniega %s aunque vaya junto a un campo permitido", async (_, data) => {
       await assertFails(update({ displayName: "Alicia", ...data }));
+    });
+
+    test("deniega escribir recordingConsent y blurRequired aunque vayan junto a un campo permitido, o con ellos ya presentes", async () => {
+      await assertFails(update({ recordingConsent: "granted", displayName: "Alicia" }));
+      await assertFails(update({ blurRequired: false, displayName: "Alicia" }));
+      await seed(env, "users/alice", { ...userDoc(), recordingConsent: "revoked", blurRequired: true, recordingCount: 3 });
+      await assertFails(update({ recordingConsent: "granted" }));
+      await assertFails(update({ blurRequired: false }));
+      await assertFails(update({ recordingCount: 0 }));
+      await assertFails(update({ recordingConsent: deleteField() }));
+      await assertSucceeds(update({ displayName: "Alicia" }));
     });
 
     test("deniega escribir consentEpoch (solo Functions), solo o junto a un campo permitido", async () => {

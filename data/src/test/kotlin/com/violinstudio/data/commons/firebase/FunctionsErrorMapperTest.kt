@@ -58,6 +58,17 @@ class FunctionsErrorMapperTest {
     }
 
     @Test
+    fun `consentimiento de grabacion mapea RECORDING_DISABLED, OUTDATED con version y el reintento de purga`() {
+        assertSame(ConsentFailure.RecordingDisabled, consent(error("FAILED_PRECONDITION", "RECORDING_DISABLED")))
+        val outdated = consent(error("FAILED_PRECONDITION", "RECORDING_CONSENT_OUTDATED", "currentVersion" to 2.0))
+        assertEquals(2, (outdated as ConsentFailure.RecordingConsentOutdated).currentVersion)
+        val missing = consent(error("FAILED_PRECONDITION", "RECORDING_CONSENT_OUTDATED"))
+        assertNull((missing as ConsentFailure.RecordingConsentOutdated).currentVersion)
+        // `unavailable` comparte codigo con la caida de red, pero con reason es del servidor (reintentable).
+        assertSame(ConsentFailure.TemporarilyUnavailable, consent(error("UNAVAILABLE", "TEMPORARILY_UNAVAILABLE")))
+    }
+
+    @Test
     fun `POLICY_OUTDATED lleva la version vigente, venga como Int o Double`() {
         val int = consent(error("FAILED_PRECONDITION", "POLICY_OUTDATED", "currentVersion" to 3))
         assertEquals(3, (int as ConsentFailure.PolicyOutdated).currentVersion)

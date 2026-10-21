@@ -19,6 +19,9 @@ class ConsentShapeTest {
         ConsentFailure.AlreadyGranted -> "granted"
         ConsentFailure.EmailNotVerified -> "unverified"
         is ConsentFailure.InvalidArgument -> "invalid-argument"
+        ConsentFailure.RecordingDisabled -> "recording-disabled"
+        is ConsentFailure.RecordingConsentOutdated -> "recording-outdated"
+        ConsentFailure.TemporarilyUnavailable -> "unavailable"
         ConsentFailure.Network -> "network"
         is ConsentFailure.Unknown -> "unknown"
     }
@@ -36,6 +39,23 @@ class ConsentShapeTest {
         val config = IdentityConfig(1, "https://x/privacy", 14, true)
         assertEquals(14, config.digitalConsentAge)
         assertEquals(1, config.policyVersion)
+    }
+
+    @Test
+    fun `IdentityConfig lleva los interruptores de grabacion apagados por defecto y la version del consentimiento`() {
+        val off = IdentityConfig(1, "https://x/privacy", 14, true)
+        assertEquals(false, off.recordingsEnabled)
+        assertEquals(false, off.videoEnabled)
+        assertEquals(false, off.minorRecordingEnabled)
+        assertEquals(1, off.recordingConsentVersion)
+        val on = off.copy(
+            recordingsEnabled = true,
+            videoEnabled = true,
+            minorRecordingEnabled = true,
+            recordingConsentVersion = 3
+        )
+        assertEquals(true, on.recordingsEnabled)
+        assertEquals(3, on.recordingConsentVersion)
     }
 
     @Test
