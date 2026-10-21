@@ -70,6 +70,23 @@ class GatingIsolationTest {
     }
 
     @Test
+    fun `recording may use only recording consent failures and the take handle`() {
+        val allowed = RECORDING_ALLOWED
+        val ok = allowed.joinToString(NL) { "import $it" }
+        assertEquals(emptyList<String>(), violationsIn("${ok}${NL}class A", allowed))
+        val base = "com.violinstudio"
+        val forbidden = listOf(
+            "$base.domain.feature.consent.usecase.AcceptPolicyUseCase",
+            "$base.domain.feature.recording.repository.RecordingQueue",
+            "$base.domain.feature.session.SessionState"
+        )
+        for (import in forbidden) {
+            val found = violationsIn("${ok}${NL}import $import${NL}class A", allowed)
+            assertTrue(found.isNotEmpty(), "not caught: $import")
+        }
+    }
+
+    @Test
     fun `scanner flags session imports, including wildcards, and ignores comments`() {
         assertEquals(emptyList<String>(), violationsIn("// SessionState AuthRepository\n/* rootRoute */\nclass A"))
         assertTrue(violationsIn("import com.violinstudio.domain.feature.session.*\nclass A").isNotEmpty())
@@ -117,7 +134,17 @@ class GatingIsolationTest {
             "$BASE.auth.failure.AuthFailure",
             "$BASE.auth.model.GoogleIdToken"
         )
-        val ALLOWED_BY_FEATURE = mapOf("settings" to SETTINGS_ALLOWED, "account" to ACCOUNT_ALLOWED)
+
+        /**
+         * Grabaciones: los fallos de los callables de consentimiento DE GRABACION (no el de la politica ni la sesion) y
+         * el manejador de la toma en curso que devuelve `StartRecordingUseCase`. Nada mas de consentimiento ni sesion.
+         */
+        val RECORDING_ALLOWED = listOf(
+            "$BASE.consent.failure.ConsentFailure",
+            "$BASE.recording.repository.RecordingHandle"
+        )
+        val ALLOWED_BY_FEATURE =
+            mapOf("settings" to SETTINGS_ALLOWED, "account" to ACCOUNT_ALLOWED, "recording" to RECORDING_ALLOWED)
 
         private val forbiddenPackages = listOf(
             "com.violinstudio.domain.feature.session",

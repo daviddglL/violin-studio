@@ -36,11 +36,13 @@ import com.violinstudio.ui.navigation.HomeDestination
 import com.violinstudio.ui.navigation.MetronomeDestination
 import com.violinstudio.ui.navigation.MyTeacherDestination
 import com.violinstudio.ui.navigation.PracticeLogDestination
+import com.violinstudio.ui.navigation.RecordingsDestination
 import com.violinstudio.ui.navigation.RedeemCodeDestination
 import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
 import com.violinstudio.ui.navigation.StatsDestination
 import com.violinstudio.ui.navigation.StudentDetailDestination
+import com.violinstudio.ui.navigation.StudentRecordingsDestination
 import com.violinstudio.ui.navigation.StudentsDestination
 import com.violinstudio.ui.navigation.TeacherAssignmentsDestination
 import com.violinstudio.ui.navigation.TeacherCodesDestination
@@ -300,6 +302,7 @@ class AppNavHostSessionTest {
                 PracticeLogDestination::class,
                 StatsDestination::class,
                 CurriculumDestination::class,
+                RecordingsDestination::class,
                 RedeemCodeDestination::class,
                 MyTeacherDestination::class,
                 StudentsDestination::class,
@@ -307,7 +310,8 @@ class AppNavHostSessionTest {
                 TeacherCodesDestination::class,
                 AssignmentsDestination::class,
                 TeacherAssignmentsDestination::class,
-                AssignmentEditDestination::class
+                AssignmentEditDestination::class,
+                StudentRecordingsDestination::class
             ),
             BUSINESS_ROUTES.toSet()
         )

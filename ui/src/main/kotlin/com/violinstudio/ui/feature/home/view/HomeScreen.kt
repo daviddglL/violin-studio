@@ -124,6 +124,11 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
                     Text(stringResource(R.string.home_curriculum_card))
                 }
             }
+            it.onOpenRecordings?.let { open ->
+                OutlinedButton(onClick = open, modifier = Modifier.testTag("home_recordings")) {
+                    Text(stringResource(R.string.home_recordings_card))
+                }
+            }
             it.onOpenRedeem?.let { open ->
                 OutlinedButton(onClick = open, modifier = Modifier.testTag("home_redeem")) {
                     Text(stringResource(R.string.home_redeem_card))
@@ -170,5 +175,6 @@ data class HomeNavigation(
     val onOpenAssignments: (() -> Unit)? = null,
     /** Comunes a todos los roles; nulos solo en tests que no los usan. */
     val onOpenStats: (() -> Unit)? = null,
-    val onOpenCurriculum: (() -> Unit)? = null
+    val onOpenCurriculum: (() -> Unit)? = null,
+    val onOpenRecordings: (() -> Unit)? = null
 )

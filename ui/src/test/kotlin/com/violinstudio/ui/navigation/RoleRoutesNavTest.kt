@@ -48,6 +48,7 @@ class RoleRoutesNavTest {
     private var detailComposed = false
     private var assignmentsComposed = false
     private var teacherAssignmentsComposed = false
+    private var studentRecordingsComposed = false
     private var editComposed = false
     private lateinit var nav: NavHostController
 
@@ -60,6 +61,7 @@ class RoleRoutesNavTest {
         detailComposed = false
         assignmentsComposed = false
         teacherAssignmentsComposed = false
+        studentRecordingsComposed = false
         editComposed = false
         compose.setContent {
             ViolinStudioTheme {
@@ -107,14 +109,21 @@ class RoleRoutesNavTest {
                             Button(onClick = onBack, modifier = Modifier.testTag("students_back")) { Text("b") }
                         }
                     },
-                    studentDetail = { onOpenAssignments, onBack ->
+                    studentDetail = { onOpenAssignments, onOpenRecordings, onBack ->
                         detailComposed = true
                         Column {
                             Button(onClick = onBack, modifier = Modifier.testTag("detail_screen")) { Text("b") }
                             Button(onClick = onOpenAssignments, modifier = Modifier.testTag("detail_to_tasks")) {
                                 Text("t")
                             }
+                            Button(onClick = onOpenRecordings, modifier = Modifier.testTag("detail_to_recordings")) {
+                                Text("g")
+                            }
                         }
+                    },
+                    studentRecordings = { onBack ->
+                        studentRecordingsComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("recordings_screen")) { Text("b") }
                     },
                     assignments = { onBack ->
                         assignmentsComposed = true
@@ -174,7 +183,8 @@ class RoleRoutesNavTest {
         for (route in listOf(
             StudentsDestination::class,
             TeacherCodesDestination::class,
-            StudentDetailDestination::class
+            StudentDetailDestination::class,
+            StudentRecordingsDestination::class
         )) {
             assertTrue(Role.TEACHER.allows(route))
             assertFalse(Role.STUDENT.allows(route))
@@ -421,7 +431,28 @@ class RoleRoutesNavTest {
     }
 
     @Test
+    fun teacherOpensStudentRecordingsFromTheDetailAndBackReturnsThere() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_students").performClick()
+        compose.onNodeWithTag("students_to_detail").performClick()
+        compose.onNodeWithTag("detail_to_recordings").performClick()
+        assertAt(StudentRecordingsDestination("s1"))
+        assertEquals("s1", nav.currentBackStackEntry?.toRoute<StudentRecordingsDestination>()?.studentUid)
+        compose.onNodeWithTag("recordings_screen").performClick()
+        assertAt(StudentDetailDestination("s1"))
+    }
+
+    @Test
+    fun nonTeachersDeepLinkingToStudentRecordingsRedirectHomeWithoutComposing() {
+        start(ready(Role.STUDENT))
+        compose.runOnUiThread { nav.navigate(StudentRecordingsDestination("s1")) }
+        assertAt(HomeDestination)
+        assertFalse(studentRecordingsComposed)
+    }
+
+    @Test
     fun destinationsHideTheirUidsInToString() {
+        assertEquals("StudentRecordingsDestination", StudentRecordingsDestination("secret").toString())
         assertEquals("TeacherAssignmentsDestination", TeacherAssignmentsDestination("secret").toString())
         assertEquals("AssignmentEditDestination", AssignmentEditDestination("secret", "x").toString())
     }

@@ -7,18 +7,30 @@ import com.violinstudio.data.commons.firebase.EmulatorConfig
 import com.violinstudio.data.commons.firebase.EmulatorOnce
 import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseFinalizeStatusSource
 import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingAccountSource
+import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingBytesSource
+import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingConsentRepository
+import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingLibrary
+import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingReviews
 import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingUploader
 import com.violinstudio.data.feature.recording.datasource.local.RecordingQueueStore
+import com.violinstudio.data.feature.recording.datasource.media.AndroidAudioClipOutput
 import com.violinstudio.data.feature.recording.datasource.media.AndroidAudioRecorder
 import com.violinstudio.data.feature.recording.datasource.media.AndroidMediaRecorderFactory
+import com.violinstudio.data.feature.recording.datasource.media.AudioClipOutput
 import com.violinstudio.data.feature.recording.datasource.media.MediaRecorderFactory
 import com.violinstudio.data.feature.recording.datasource.media.NoBackupRecordingsDirectory
+import com.violinstudio.data.feature.recording.datasource.media.RecordingBytesSource
 import com.violinstudio.data.feature.recording.datasource.media.RecordingsDirectory
+import com.violinstudio.data.feature.recording.repository.MemoryRecordingPlayer
 import com.violinstudio.domain.feature.recording.repository.FinalizeStatusSource
 import com.violinstudio.domain.feature.recording.repository.PendingUploads
 import com.violinstudio.domain.feature.recording.repository.Recorder
 import com.violinstudio.domain.feature.recording.repository.RecordingAccountSource
+import com.violinstudio.domain.feature.recording.repository.RecordingConsentRepository
+import com.violinstudio.domain.feature.recording.repository.RecordingLibrary
+import com.violinstudio.domain.feature.recording.repository.RecordingPlayer
 import com.violinstudio.domain.feature.recording.repository.RecordingQueue
+import com.violinstudio.domain.feature.recording.repository.RecordingReviews
 import com.violinstudio.domain.feature.recording.repository.RecordingUploader
 import dagger.Binds
 import dagger.Module
@@ -56,6 +68,24 @@ abstract class RecordingModule {
 
     @Binds
     abstract fun bindFinalizeStatusSource(impl: FirebaseFinalizeStatusSource): FinalizeStatusSource
+
+    @Binds
+    abstract fun bindRecordingLibrary(impl: FirebaseRecordingLibrary): RecordingLibrary
+
+    @Binds
+    abstract fun bindRecordingConsentRepository(impl: FirebaseRecordingConsentRepository): RecordingConsentRepository
+
+    @Binds
+    abstract fun bindRecordingReviews(impl: FirebaseRecordingReviews): RecordingReviews
+
+    @Binds
+    abstract fun bindRecordingPlayer(impl: MemoryRecordingPlayer): RecordingPlayer
+
+    @Binds
+    abstract fun bindAudioClipOutput(impl: AndroidAudioClipOutput): AudioClipOutput
+
+    @Binds
+    abstract fun bindRecordingBytesSource(impl: FirebaseRecordingBytesSource): RecordingBytesSource
 
     @Binds
     abstract fun bindMediaRecorderFactory(impl: AndroidMediaRecorderFactory): MediaRecorderFactory
