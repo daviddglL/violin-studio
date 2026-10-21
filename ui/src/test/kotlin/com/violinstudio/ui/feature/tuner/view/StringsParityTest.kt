@@ -21,6 +21,15 @@ class StringsParityTest {
         assertTrue(es.size > 250, "se esperaban todas las claves, hay ${es.size}")
         assertTrue(es.keys.any { it.startsWith("consent_") }, "faltan las cadenas de consentimiento")
         assertEquals(es.keys, en.keys)
+        val link = listOf(
+            "link_redeem_notice_body",
+            "link_redeem_notice_checkbox",
+            "link_error_rate_limited",
+            "link_unlink_dialog_body",
+            "home_redeem_card",
+            "home_my_teacher_card"
+        )
+        assertEquals(emptyList<String>(), link.filterNot { it in es.keys }, "faltan cadenas de vinculo")
         for (key in es.keys) {
             assertEquals(
                 placeholders.findAll(es.getValue(key)).map { it.value }.toList(),

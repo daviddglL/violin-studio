@@ -1,5 +1,6 @@
 package com.violinstudio.ui.navigation
 
+import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.session.SessionState
 import kotlinx.serialization.Serializable
 
@@ -41,14 +42,32 @@ data object MetronomeDestination
 @Serializable
 data object PracticeLogDestination
 
+/** Canjear código: solo `independent`. */
+@Serializable
+data object RedeemCodeDestination
+
+/** Mi profesor: solo `student`. */
+@Serializable
+data object MyTeacherDestination
+
 /** Rutas de negocio: solo se mantienen con Ready; con otro estado SessionRedirect las lleva a la raíz. */
 val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
     listOf(
         SettingsDestination::class,
         TunerDestination::class,
         MetronomeDestination::class,
-        PracticeLogDestination::class
+        PracticeLogDestination::class,
+        RedeemCodeDestination::class,
+        MyTeacherDestination::class
     )
+
+/** Roles que pueden abrir cada ruta por rol; las ausentes son comunes a todos. Solo UX: la seguridad está en reglas. */
+private val ROLE_ROUTES: Map<kotlin.reflect.KClass<*>, Set<Role>> = mapOf(
+    RedeemCodeDestination::class to setOf(Role.INDEPENDENT),
+    MyTeacherDestination::class to setOf(Role.STUDENT)
+)
+
+fun Role.allows(route: kotlin.reflect.KClass<*>): Boolean = ROLE_ROUTES[route]?.contains(this) ?: true
 
 /** Ruta raíz que corresponde a cada estado de sesión: solo `Ready` llega a rutas de negocio. */
 fun SessionState.rootRoute(): Any = when (this) {
