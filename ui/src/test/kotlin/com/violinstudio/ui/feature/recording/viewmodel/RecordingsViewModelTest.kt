@@ -374,6 +374,9 @@ class RecordingsViewModelTest {
         vm.onIntent(RecordingsIntent.Start(granted = true, rationale = false))
         runCurrent()
         verify { playback.stop() }
+        // Sin cerrar la toma, el contador seguiria vivo y runTest no terminaria nunca.
+        vm.onIntent(RecordingsIntent.Leave)
+        runCurrent()
     }
 
     @Test
