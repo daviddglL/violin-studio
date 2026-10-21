@@ -22,6 +22,12 @@ class EmulatorConfigTest {
     }
 
     @Test
+    fun `Storage usa el puerto 9199 del emulador y desactivado no devuelve endpoint`() {
+        assertEquals(EmulatorEndpoint("10.0.2.2", 9199), EmulatorConfig(enabled = true, host = "10.0.2.2").storage())
+        assertNull(EmulatorConfig(enabled = false, host = "10.0.2.2").storage())
+    }
+
+    @Test
     fun `desactivado no devuelve endpoint aunque haya host`() {
         assertNull(EmulatorConfig(enabled = false, host = "10.0.2.2").functions())
         assertNull(EmulatorConfig(enabled = false, host = "").functions())

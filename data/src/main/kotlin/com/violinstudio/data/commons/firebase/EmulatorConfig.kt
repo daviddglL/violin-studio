@@ -17,7 +17,10 @@ data class EmulatorConfig(val enabled: Boolean, val host: String) {
 
     fun firestore(): EmulatorEndpoint? = if (enabled) EmulatorEndpoint(host, FIRESTORE_PORT) else null
 
+    fun storage(): EmulatorEndpoint? = if (enabled) EmulatorEndpoint(host, STORAGE_PORT) else null
+
     companion object {
+        const val STORAGE_PORT = 9199
         const val FUNCTIONS_PORT = 5001
         const val AUTH_PORT = 9099
         const val FIRESTORE_PORT = 8080

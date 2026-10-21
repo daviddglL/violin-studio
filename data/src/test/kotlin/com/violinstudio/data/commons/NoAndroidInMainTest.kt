@@ -42,7 +42,15 @@ class NoAndroidInMainTest {
     ).map { "com/violinstudio/data/feature/recording/datasource/media/AndroidMediaRecorderFactory.kt" to it } +
         listOf(
             "com/violinstudio/data/feature/recording/datasource/media/NoBackupRecordingsDirectory.kt" to
-                "android.content.Context"
+                "android.content.Context",
+            // Subida (B7b): el worker (logica en RecordingUploadEngine, sin Android) y el planificador de WorkManager
+            // reciben el Context; el adaptador de Storage necesita android.net.Uri para `putFile(uri, metadata, sesion)`.
+            "com/violinstudio/data/feature/recording/datasource/work/RecordingUploadWorker.kt" to
+                "android.content.Context",
+            "com/violinstudio/data/feature/recording/datasource/work/WorkManagerRecordingUploadScheduler.kt" to
+                "android.content.Context",
+            "com/violinstudio/data/feature/recording/datasource/firebase/FirebaseRecordingRemoteDataSource.kt" to
+                "android.net.Uri"
         )
 
     @Test

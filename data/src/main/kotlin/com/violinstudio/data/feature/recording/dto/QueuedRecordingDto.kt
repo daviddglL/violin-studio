@@ -20,7 +20,10 @@ data class QueuedRecordingDto(
     val assignmentId: String? = null,
     val sharedWith: String? = null,
     val sessionUri: String? = null,
-    val lastError: String? = null
+    val lastError: String? = null,
+    val uploadedAt: Long? = null,
+    val confirmRetried: Boolean = false,
+    val cancelled: Boolean = false
 ) {
     /** Sin ruta, ids ni `sessionUri` en logs o excepciones (REQ-AUD-03). */
     override fun toString(): String = "QueuedRecordingDto(state=$state, attempts=$attempts)"
@@ -34,7 +37,10 @@ data class QueuedRecordingDto(
             state = parsed,
             attempts = attempts,
             sessionUri = sessionUri,
-            lastError = lastError?.let { name -> FailReason.entries.firstOrNull { it.name == name } }
+            lastError = lastError?.let { name -> FailReason.entries.firstOrNull { it.name == name } },
+            uploadedAt = uploadedAt,
+            confirmRetried = confirmRetried,
+            cancelled = cancelled
         )
     }
 
@@ -51,7 +57,10 @@ data class QueuedRecordingDto(
             assignmentId = item.assignmentId,
             sharedWith = item.sharedWith,
             sessionUri = item.sessionUri,
-            lastError = item.lastError?.name
+            lastError = item.lastError?.name,
+            uploadedAt = item.uploadedAt,
+            confirmRetried = item.confirmRetried,
+            cancelled = item.cancelled
         )
     }
 }

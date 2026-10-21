@@ -23,6 +23,11 @@ dependencies {
     api(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+    // Subida en segundo plano (B7b): el worker se crea con HiltWorkerFactory (app) y el planificador usa WorkManager.
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
     api(libs.firebase.functions)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.datastore.preferences)
@@ -30,6 +35,7 @@ dependencies {
 
     // Tests que escriben en un DataStore real: Robolectric (SDK >= 26) + JUnit4 sobre la plataforma JUnit5 vía vintage.
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.work.testing)
     testImplementation(libs.junit4)
     testRuntimeOnly(libs.junit.vintage.engine)
 }
