@@ -1,6 +1,8 @@
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { bucketStore } from "../../src/recordings/finalize";
 import { CURRENT_POLICY_VERSION, LINK_NOTICE_VERSION } from "../../src/config/identity";
 import { hashCode } from "../../src/teacher/codes";
 import { createTeacherCodeHandler, revokeTeacherCodeHandler } from "../../src/teacher/code-handlers";
@@ -329,7 +331,7 @@ describe("redeemTeacherCode - revision fresca A3a", () => {
     const s = await alumno();
     const code = await nuevoCodigo(t);
     await canjear(s, code);
-    await removeLink(deps(), t, s);
+    await removeLink({ ...deps(), store: bucketStore(getStorage(app).bucket(`${project}.appspot.com`)) }, t, s);
     expect(await rechazo(canjear(s, code))).toMatchObject({ code: "not-found" });
     expect(await linkDoc(t, s)).toBeUndefined();
     expect(await userDoc(s)).toMatchObject({ teacherCount: 0, role: "independent" });

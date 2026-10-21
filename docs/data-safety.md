@@ -84,3 +84,13 @@ no se recopila ni se comparte, así que no altera el tratamiento de datos del me
   actual no incluye identidad y contacto del responsable del tratamiento, base jurídica ni derechos de los
   interesados (acceso, rectificación, supresión, etc.): esa revisión debe cubrirlos; no se ha inventado texto legal.
 - Declarar en Play Console las grabaciones de audio y vídeo cuando se publique la fase 4b/4c.
+- Para la revisión legal (residuales conocidos del borrado de cuenta y la revocación, fase 4b):
+  - Al borrar la cuenta de un profesor sus revisiones se **anonimizan** (sin uid en la ruta ni en los campos), pero el
+    texto libre se conserva tal cual y puede nombrar al profesor (o a terceros) hasta que caduque o se borre la grabación
+    del alumno (90 días como máximo). Una revisión cuya grabación ya no existe se borra, no se anonimiza.
+  - Un objeto de demostración huérfano (sin documento, p. ej. una subida interrumpida) conserva en sus metadatos de
+    Storage el uid del alumno destinatario (`sharedWith`) hasta que lo borra el barrido diario de huérfanos (objetos de
+    24 h o más) o la regla de ciclo de vida del bucket (100 días); las demos con documento se borran con él.
+  - Una revocación de grabación cuya purga no puede completarse (`revokePurge.stuck`, más de 3 días) requiere
+    intervención manual según el runbook del README; hasta entonces las grabaciones afectadas siguen almacenadas y
+    el usuario no puede volver a conceder la grabación.

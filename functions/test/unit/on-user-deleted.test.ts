@@ -22,7 +22,7 @@ test("error transitorio: se relanza para que la plataforma reintente", async () 
 });
 
 test("éxito: devuelve el resultado de la cascada con deleteAuth:false", async () => {
-  const spy = jest.spyOn(erase, "eraseUserData").mockResolvedValue({ deleted: {} });
-  await expect(onUserDeletedHandler({} as never, "u9")).resolves.toEqual({ deleted: {} });
+  const spy = jest.spyOn(erase, "eraseUserData").mockResolvedValue({ deleted: {}, anonymized: {} });
+  await expect(onUserDeletedHandler({} as never, "u9")).resolves.toEqual({ deleted: {}, anonymized: {} });
   expect(spy).toHaveBeenCalledWith(expect.anything(), "u9", { deleteAuth: false });
 });

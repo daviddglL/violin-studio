@@ -1,5 +1,7 @@
 import { Firestore } from "firebase-admin/firestore";
 import { COLLECTIONS } from "../common/collections";
+import type { ObjectStore } from "../recordings/finalize";
+import { deleteSharedDemos } from "./demos-cleanup";
 import { LinkCleanupStep } from "./remove-link";
 
 /** Limite de operaciones por lote de Firestore es 500; se deja margen. */
@@ -24,6 +26,6 @@ export function deleteOpenAssignments(db: Firestore): LinkCleanupStep {
 }
 
 /** Pasos por defecto de `removeLink` en produccion. Los pasos nuevos se COMPONEN con este array, no lo sustituyen. */
-export function defaultLinkCleanupSteps(db: Firestore): readonly LinkCleanupStep[] {
-  return [deleteOpenAssignments(db)];
+export function defaultLinkCleanupSteps(db: Firestore, store: ObjectStore): readonly LinkCleanupStep[] {
+  return [deleteOpenAssignments(db), deleteSharedDemos(db, store)];
 }

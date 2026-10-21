@@ -1,4 +1,7 @@
 import { Firestore, Query } from "firebase-admin/firestore";
+import { deleteRecording } from "../recordings/delete-recording";
+import { anonymizeReviews } from "../recordings/anonymize-reviews";
+import type { ObjectStore } from "../recordings/finalize";
 import { removeLink, RemoveLinkDeps, unlinkAllStudents } from "../teacher/remove-link";
 import { ERASABLE_COLLECTIONS } from "./registry";
 
@@ -26,13 +29,60 @@ export async function deleteInBatches(db: Firestore, query: Query, onDeleted: (n
 /**
  * Paso `shared`: documentos de subcolecciones AJENAS que llevan el uid (p. ej. las tareas de un profesor en el
  * espacio de cada alumno). Se barren con `collectionGroup(name).where(field, '==', uid)` en lotes hasta vaciar;
- * requiere el indice COLLECTION_GROUP del campo. Los contadores acumulan por coleccion.
+ * requiere el indice COLLECTION_GROUP del campo. Los contadores acumulan por coleccion (`anonymized` aparte de `deleted`).
  */
-export async function sweepShared(db: Firestore, uid: string, deleted: Record<string, number>): Promise<void> {
+export async function sweepShared(
+  deps: { db: Firestore; store: ObjectStore; log?: (message: string, data: Record<string, unknown>) => void },
+  uid: string,
+  deleted: Record<string, number>,
+  anonymized: Record<string, number> = {},
+): Promise<void> {
+  const { db } = deps;
   for (const [name, policy] of Object.entries(ERASABLE_COLLECTIONS)) {
     if (policy.kind !== "subcollectionOf" || !policy.foreign) continue;
     deleted[name] ??= 0;
-    await deleteInBatches(db, db.collectionGroup(name).where(policy.foreign.field, "==", uid), (n) => (deleted[name] += n));
+    if (policy.foreign.action === "anonymize") anonymized[name] ??= 0;
+    const query = db.collectionGroup(name).where(policy.foreign.field, "==", uid);
+    switch (policy.foreign.action) {
+      case "delete":
+        await deleteInBatches(db, query, (n) => (deleted[name] += n));
+        break;
+      case "deleteRecording":
+        await deleteRecordingsInBatches(deps, query, (n) => (deleted[name] += n));
+        break;
+      case "anonymize":
+        // S6: las anonimizadas no se cuentan como borradas; las huerfanas sin grabacion padre si se borran (W2).
+        await anonymizeReviews(db, uid, { onProgress: (n) => (anonymized[name] += n), onDeleted: (n) => (deleted[name] += n) });
+        break;
+    }
+  }
+}
+
+/**
+ * Borra con `deleteRecording` (objeto por su `objectPath` almacenado, doc y revisiones) todo lo que devuelva `query`, hasta
+ * vaciarla. Un fallo de un objeto se relanza tras terminar el lote (el doc sigue: reintentar lo completa). `skipped` (el doc cambio
+ * entre la lectura y el borrado) se vuelve a consultar; si una pasada entera no borra nada, falla en vez de girar sin fin.
+ */
+async function deleteRecordingsInBatches(
+  deps: { db: Firestore; store: ObjectStore; log?: (message: string, data: Record<string, unknown>) => void },
+  query: Query,
+  onDeleted: (n: number) => void,
+): Promise<void> {
+  for (;;) {
+    const snap = await query.limit(BATCH_SIZE).get();
+    if (snap.empty) return;
+    let done = 0;
+    let failure: { reason: unknown } | undefined;
+    for (const d of snap.docs) {
+      try {
+        if ((await deleteRecording({ db: deps.db, store: deps.store, log: deps.log }, d.ref)) !== "skipped") done++;
+      } catch (e) {
+        failure ??= { reason: e };
+      }
+    }
+    onDeleted(done);
+    if (failure) throw failure.reason;
+    if (done === 0) throw new Error("sweepShared: no se pudo borrar ninguna grabacion del lote");
   }
 }
 

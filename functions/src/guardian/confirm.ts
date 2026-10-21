@@ -8,7 +8,7 @@ import { sha256Hex } from "../common/hashing";
 import { RecordingFlags, recordingFlags } from "../config/features";
 import { CURRENT_POLICY_VERSION, GUARDIAN_MAX_CONFIRM_ATTEMPTS, GUARDIAN_REVOKE_LINK_TTL_DAYS, POLICY_URL, RECORDING_CONSENT_VERSION } from "../config/identity";
 import { buildConsentDoc, consentDocId, consentEpochOf, recordingEpochOf } from "../consent/consent-docs";
-import { revokeRecordingByGuardian } from "../consent/recording-consent";
+import { isPurgePending, PurgeRecordingsHook, revokeRecordingByGuardian, runPurgeAfterRevocation } from "../consent/recording-consent";
 import { blurRequiredFor } from "../identity/age";
 import { isPermanent } from "../erasure/erase-user-data";
 import { revokeConsentCore } from "../consent/revoke-consent";
@@ -41,6 +41,8 @@ export interface GuardianConsentDeps {
   linkBaseUrl?: string;
   /** Borrado completo del menor (cascada eraseUserData con deleteAuth:true); inyectado para probarlo y no acoplar el handler al bucket. */
   erase: (uid: string) => Promise<unknown>;
+  /** Borrado efectivo de las grabaciones tras revocar la finalidad de grabación o la base (B5b.3); su fallo no deshace la revocación. */
+  purgeRecordings?: PurgeRecordingsHook;
   /** Núcleo de revocación; inyectable solo para probar entrelazados y fallos transitorios. */
   revokeCore?: typeof revokeConsentCore;
   /** Sumidero de logs sin PII (solo uidHash y códigos); por defecto `logger.info`. */
@@ -349,7 +351,7 @@ async function renderRejectConfirm(deps: GuardianConsentDeps, requestId: string,
 async function revoke(deps: GuardianConsentDeps, requestId: string, token: string): Promise<GuardianHttpResponse> {
   const nowMs = (deps.clock ?? systemClock)().getTime();
   const requestRef = deps.db.collection(COLLECTIONS.guardianRequests).doc(requestId);
-  const target = await deps.db.runTransaction(async (tx): Promise<{ uid: string; purpose: GuardianPurpose } | null> => {
+  const target = await deps.db.runTransaction(async (tx): Promise<{ uid: string; purpose: GuardianPurpose; active: boolean; purgePending: boolean } | null> => {
     const r = (await tx.get(requestRef)).data();
     const tokenOk = verifyToken(token, typeof r?.revokeTokenHash === "string" ? r.revokeTokenHash : DUMMY_HASH);
     if (!isRevokeOpen(r, nowMs) || typeof r.uid !== "string") return null;
@@ -360,18 +362,24 @@ async function revoke(deps: GuardianConsentDeps, requestId: string, token: strin
     }
     const purpose = purposeOf(r);
     const active = purpose === "recording_sharing" ? recordingGrantedBy(user, requestId) : grantedBy(user, requestId);
-    return active ? { uid: r.uid, purpose } : null;
+    return { uid: r.uid, purpose, active, purgePending: !!user && !user.deletion && isPurgePending(user) };
   });
   if (!target) return invalid();
   const { uid, purpose } = target;
   const log = deps.log ?? ((m, d) => logger.info(m, d));
+  if (!target.active) {
+    // W1 (revision fresca B5b): reintento tras un 503 posterior al commit (la revocacion ya consta, el enlace sigue abierto
+    // porque `revokedAt` no llego a marcarse): quien demostro el token reanuda la purga de grabaciones que siga pendiente.
+    if (target.purgePending) await runPurgeAfterRevocation(deps.purgeRecordings, uid, log);
+    return invalid();
+  }
   const uidHash = sha256Hex(uid).slice(0, 12);
   try {
     if (purpose === "recording_sharing") {
       // Solo la grabación: el consentimiento base y la cuenta no se tocan (REQ-CON-R02).
-      await revokeRecordingByGuardian({ db: deps.db, log }, uid, requestId);
+      await revokeRecordingByGuardian({ db: deps.db, log, purgeRecordings: deps.purgeRecordings }, uid, requestId);
     } else {
-      await (deps.revokeCore ?? revokeConsentCore)({ db: deps.db, auth: deps.auth, currentVersion: deps.currentVersion, log }, uid, "guardian", { expectGuardianRequestId: requestId });
+      await (deps.revokeCore ?? revokeConsentCore)({ db: deps.db, auth: deps.auth, currentVersion: deps.currentVersion, log, purgeRecordings: deps.purgeRecordings }, uid, "guardian", { expectGuardianRequestId: requestId });
     }
   } catch (e) {
     log("guardianConsent.revokeFailed", { uidHash, code: safeErrorCode(e) });

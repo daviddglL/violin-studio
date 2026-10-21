@@ -1,6 +1,8 @@
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { bucketStore } from "../../src/recordings/finalize";
 import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { removeLink, RemoveLinkDeps, unlinkAllStudents } from "../../src/teacher/remove-link";
 import { unlinkTeacherHandler } from "../../src/teacher/unlink";
@@ -14,6 +16,7 @@ const logs: Array<{ message: string; data: Record<string, unknown> }> = [];
 const deps = (extra: Partial<RemoveLinkDeps> = {}): RemoveLinkDeps => ({
   db,
   auth,
+  store: bucketStore(getStorage(app).bucket(`${project}.appspot.com`)),
   log: (message, data) => logs.push({ message, data }),
   ...extra,
 });

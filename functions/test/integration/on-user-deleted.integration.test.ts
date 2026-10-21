@@ -5,6 +5,7 @@ import { getStorage } from "firebase-admin/storage";
 import { COLLECTIONS } from "../../src/common/collections";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
 import { onUserDeletedHandler } from "../../src/erasure/on-user-deleted";
+import { bucketStore } from "../../src/recordings/finalize";
 
 // El emulador de Auth dispara onDelete (v1); el trigger se carga desde la codebase default (lib/).
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
@@ -52,8 +53,8 @@ test("borrado externo con Admin: el trigger limpia perfil, subcolecciones, guard
 
 test("el disparo tras deleteAccount (eraseUserData con deleteAuth:true) es un no-op idempotente", async () => {
   const uid = await usuarioCompleto();
-  await eraseUserData({ db, auth, bucket }, uid, { deleteAuth: true }); // dispara además el trigger real
+  await eraseUserData({ db, auth, bucket, store: bucketStore(bucket) }, uid, { deleteAuth: true }); // dispara además el trigger real
   await new Promise((r) => setTimeout(r, 2_000));
   expect(await restos(uid)).toEqual(limpio);
-  await expect(onUserDeletedHandler({ db, auth, bucket }, uid)).resolves.toEqual({ deleted: { guardianRequests: 0, mail: 0, teacherCodes: 0, teacherLinks: 0, assignments: 0 } });
+  await expect(onUserDeletedHandler({ db, auth, bucket, store: bucketStore(bucket) }, uid)).resolves.toEqual({ deleted: { guardianRequests: 0, mail: 0, teacherCodes: 0, teacherLinks: 0, assignments: 0, recordings: 0, reviews: 0 }, anonymized: { reviews: 0 } });
 });

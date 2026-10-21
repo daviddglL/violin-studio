@@ -98,7 +98,25 @@ function sanitized(e: unknown): Error {
   return new Error(`finalize_transient:${safe ? String(c) : "unknown"}`);
 }
 
+/**
+ * W3 (revision fresca B5b): un 404 en `remove` solo cuenta como "ya borrado" si el BUCKET existe; con un bucket mal
+ * configurado (inexistente) todos los objetos darian 404 y una purga o desvinculacion se daria por completada sin borrar
+ * nada. Lanza `{code: "bucket-not-found"}` (sin nombre de bucket ni ruta). La existencia se cachea en positivo por store.
+ */
 export function bucketStore(bucket: Bucket): ObjectStore {
+  let bucketChecked = false;
+  const assertBucket = async () => {
+    if (bucketChecked) return;
+    // Sondeo por listado (mismo permiso que el barrido): en GCS un bucket inexistente da 404. `bucket.exists()` no sirve
+    // con el emulador de Storage (no implementa el GET de bucket); su listado de un bucket desconocido da 200 vacio.
+    try {
+      await bucket.getFiles({ maxResults: 1, autoPaginate: false });
+    } catch (e) {
+      if (isNotFound(e)) throw Object.assign(new Error("bucket_not_found"), { code: "bucket-not-found" });
+      throw e;
+    }
+    bucketChecked = true;
+  };
   return {
     async stat(name) {
       try {
@@ -130,7 +148,8 @@ export function bucketStore(bucket: Bucket): ObjectStore {
         if (String(m.generation) !== generation) return;
         await file.delete({ ifGenerationMatch: generation });
       } catch (e) {
-        if (isNotFound(e) || errorCode(e) === 412) return;
+        if (errorCode(e) === 412) return;
+        if (isNotFound(e)) return assertBucket();
         throw e;
       }
     },

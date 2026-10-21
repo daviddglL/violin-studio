@@ -7,6 +7,7 @@ import { deleteAccountHandler } from "../../src/erasure/delete-account";
 import { requestGuardianConsentHandler } from "../../src/guardian/request";
 import { hashToken } from "../../src/guardian/token";
 import { auth, authExists, bucket, db, deps, erased, get, PEPPER, perfil, post, req, resetState, setup, state } from "./guardian-helpers";
+import { bucketStore } from "../../src/recordings/finalize";
 
 const DAY = 24 * 3600_000;
 const revTokens: string[] = [];
@@ -281,7 +282,7 @@ describe("3c.6 tras revocar el tutor", () => {
     const s = await accepted();
     await revoke(s);
     const res = await deleteAccountHandler(
-      { erase: (uid) => eraseUserData({ db, auth, bucket }, uid, { deleteAuth: true }), clock: () => state.now, log: () => undefined },
+      { erase: (uid) => eraseUserData({ db, auth, bucket, store: bucketStore(bucket) }, uid, { deleteAuth: true }), clock: () => state.now, log: () => undefined },
       { auth: { uid: s.uid, token: { auth_time: Math.floor(state.now.getTime() / 1000) - 10 } } } as never,
     );
     expect(res).toEqual({ deleted: true });
@@ -294,7 +295,7 @@ describe("3c.7 borrado interno", () => {
     const s = await accepted();
     const otro = await accepted();
     expect((await req(s.r)).revokeTokenHash).toBeDefined();
-    const res = await eraseUserData({ db, auth, bucket }, s.uid, { deleteAuth: true });
+    const res = await eraseUserData({ db, auth, bucket, store: bucketStore(bucket) }, s.uid, { deleteAuth: true });
     expect(res.deleted).toMatchObject({ guardianRequests: 1, mail: 2 });
     expect((await db.collection("guardianRequests").where("uid", "==", s.uid).get()).size).toBe(0);
     expect((await db.collection("mail").where("uid", "==", s.uid).get()).size).toBe(0);
@@ -391,5 +392,36 @@ describe("revisión 3c-bis", () => {
     const revs = (await consents(a.uid)).filter((c) => c.startsWith("revocation"));
     expect(revs).toHaveLength(p.consentEpoch); // invariante: una época cerrada por cada revocación registrada
     expect(p.consentStatus).toBe("revoked");
+  });
+});
+
+describe("W1 (revision fresca B5b): la revocacion del tutor no pierde la purga de grabaciones", () => {
+  test("503 tras el commit (syncClaims caido) con la purga fallida: el reintento con el mismo enlace reanuda la purga pendiente", async () => {
+    const s = await accepted();
+    await db.collection("users").doc(s.uid).update({ recordingConsent: "granted", recordingConsentVersion: 1 });
+    const flaky = async (d: Parameters<typeof revokeConsentCore>[0], uid: string, by: "self" | "guardian", opts?: { expectGuardianRequestId?: string }) => {
+      await revokeConsentCore({ ...d, purgeRecordings: async () => { throw new Error("purga caida"); } }, uid, by, opts);
+      throw unavailable(); // p. ej. syncClaims caido justo despues del commit
+    };
+    const first = await withRevoke(flaky, { r: s.r, t: s.rev, action: "revoke" });
+    expect(first.status).toBe(503);
+    expect((await perfil(s.uid)).recordingPurge.pending).toBe(true);
+    const purged: string[] = [];
+    await guardianConsentHandler(
+      { ...deps(), purgeRecordings: async (uid: string) => void purged.push(uid) },
+      { method: "POST", query: {}, body: { r: s.r, t: s.rev, action: "revoke" } },
+    );
+    expect(purged).toEqual([s.uid]);
+  });
+
+  test("token erroneo: nunca reanuda la purga (solo quien demuestra el enlace)", async () => {
+    const s = await accepted();
+    await db.collection("users").doc(s.uid).update({ consentStatus: "revoked", recordingConsent: "revoked", recordingPurge: { pending: true, epoch: 0 } });
+    const purged: string[] = [];
+    await guardianConsentHandler(
+      { ...deps(), purgeRecordings: async (uid: string) => void purged.push(uid) },
+      { method: "POST", query: {}, body: { r: s.r, t: "mal", action: "revoke" } },
+    );
+    expect(purged).toEqual([]);
   });
 });

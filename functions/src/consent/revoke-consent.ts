@@ -6,7 +6,7 @@ import { ErrorReason, fail } from "../common/errors";
 import { CURRENT_POLICY_VERSION } from "../config/identity";
 import { syncClaims } from "../identity/claims";
 import { buildConsentDoc, consentDocId, consentEpochOf, GrantedBy } from "./consent-docs";
-import { clearRecordingRequest, writeRecordingRevocation } from "./recording-consent";
+import { clearRecordingRequest, isPurgePending, PurgeRecordingsHook, runPurgeAfterRevocation, writeRecordingRevocation } from "./recording-consent";
 
 export interface RevokeConsentDeps {
   db: Firestore;
@@ -15,6 +15,8 @@ export interface RevokeConsentDeps {
   currentVersion?: number;
   /** Sumidero de logs sin PII; por defecto `logger.info`. */
   log?: (message: string, data: Record<string, unknown>) => void;
+  /** Borrado efectivo de las grabaciones cuando la revocacion tambien revoco la de grabacion (REQ-CON-R03); fallo = solo log. */
+  purgeRecordings?: PurgeRecordingsHook;
 }
 
 export interface RevokeConsentResult {
@@ -37,7 +39,7 @@ export interface RevokeConsentResult {
  * como llega; el callable usa `"self"`, que es exacto porque quien revoca es el propio usuario.
  *
  * Si el consentimiento ya no está `granted` (p. ej. reintento tras un fallo de `syncClaims`), no se escribe nada,
- * pero se intenta curar los claims (best-effort) antes de rechazar con NO_ACTIVE_CONSENT.
+ * pero se reanuda una purga de grabaciones pendiente y se intenta curar los claims (best-effort) antes de rechazar con NO_ACTIVE_CONSENT.
  */
 export async function revokeConsentCore(
   deps: RevokeConsentDeps,
@@ -52,11 +54,11 @@ export async function revokeConsentCore(
     const snap = await tx.get(userRef);
     const doc = snap.data();
     if (!snap.exists || !doc || doc.deletion) throw fail("failed-precondition", ErrorReason.NO_PROFILE);
-    if (doc.consentStatus !== "granted") return { revoked: false as const };
+    if (doc.consentStatus !== "granted") return { revoked: false as const, purgePending: isPurgePending(doc) };
     // Precondición del tutor, DENTRO de la transacción: el consentimiento activo debe ser el de la solicitud cuyo enlace
     // se usa (si el menor revocó y otro tutor concedió por otra solicitud, un enlace viejo no puede revocarlo). Mismo rechazo sin escrituras.
     if (opts.expectGuardianRequestId !== undefined && (doc.guardian as { requestId?: unknown } | undefined)?.requestId !== opts.expectGuardianRequestId) {
-      return { revoked: false as const };
+      return { revoked: false as const, purgePending: isPurgePending(doc) };
     }
 
     const closing = consentEpochOf(doc);
@@ -82,6 +84,8 @@ export async function revokeConsentCore(
   });
 
   if (!outcome.revoked) {
+    // W1: reintento tras un fallo posterior al commit (p. ej. `syncClaims`): una purga que siga pendiente se reanuda aqui.
+    if (outcome.purgePending) await runPurgeAfterRevocation(deps.purgeRecordings, uid, log);
     try {
       await syncClaims(syncDeps, uid);
     } catch (e) {
@@ -91,7 +95,12 @@ export async function revokeConsentCore(
     throw fail("failed-precondition", ErrorReason.NO_ACTIVE_CONSENT);
   }
 
-  await syncClaims(syncDeps, uid);
+  // W1: la purga corre aunque `syncClaims` falle (finally): la revocacion ya consta y el borrado inmediato no se pierde.
+  try {
+    await syncClaims(syncDeps, uid);
+  } finally {
+    if (outcome.recordingRevoked) await runPurgeAfterRevocation(deps.purgeRecordings, uid, log);
+  }
   log("revokeConsent", { by, closedEpoch: outcome.closing, recordingRevoked: outcome.recordingRevoked, ...(outcome.anomaly ? { anomaly: "policyVersion" } : {}) });
   return { consentStatus: "revoked" };
 }

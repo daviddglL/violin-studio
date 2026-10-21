@@ -1,10 +1,11 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { bucketStore, ObjectStore } from "../../src/recordings/finalize";
-import { purgeRecordingsHandler } from "../../src/recordings/purge";
+import { readCursor, writeCursor } from "../../src/recordings/cursor";
+import { bucketSweepStore, SweepStore } from "../../src/recordings/orphan-sweep";
+import { purgeRecordingsHandler, STUCK_PURGE_AFTER_MS } from "../../src/recordings/purge";
 import { bucket, db, DAY, exists, idOf, NOW, recDoc, recRef, reviewCount, rnd, seedRecording, seedReview, seedUser, upload, userDoc, wipeFirestore } from "./helpers/finalize-fixtures";
 
 const MIN = 60_000;
-const store = bucketStore(bucket);
+const store = bucketSweepStore(bucket);
 let logs: { message: string; data: Record<string, unknown> }[];
 const deps = (over: Record<string, unknown> = {}) => ({ db, store, log: (message: string, data: Record<string, unknown>) => void logs.push({ message, data }), ...over });
 const at = (ms: number) => Timestamp.fromMillis(NOW.getTime() + ms);
@@ -70,7 +71,7 @@ describe("paso 1: grabaciones caducadas", () => {
     await seedUser(uid);
     const bad = await rec(uid, -MIN);
     const goods = [await rec(uid, -MIN), await rec(uid, -2 * MIN)];
-    const flaky: ObjectStore = {
+    const flaky: SweepStore = {
       ...store,
       remove: async (name, gen) => {
         if (name === bad.ev.name) throw Object.assign(new Error(`boom ${name}`), { code: 503 });
@@ -152,6 +153,199 @@ describe("paso 1: grabaciones caducadas", () => {
     const s = await purgeRecordingsHandler(deps({ db: broken }), NOW);
     expect(s.failedCategories).toEqual(["expired", "reconcile"]); // la consulta de duenos por docs ready tambien usa collectionGroup
     expect(await count(uid)).toBe(0); // pero la pasada por contador ya reparo a este dueno antes de fallar
+  });
+});
+
+describe("paso 2: revocaciones pendientes (REQ-REC-09, B5b.3)", () => {
+  const SINCE = Timestamp.fromMillis(1_700_000_000_000);
+  const pending = (uid: string, epoch = 0, over: Record<string, unknown> = {}) =>
+    seedUser(uid, { recordingConsent: "revoked", recordingConsentEpoch: epoch + 1, recordingPurge: { pending: true, since: SINCE, epoch }, ...over });
+  const recE = (uid: string, epoch: number, over: Record<string, unknown> = {}) =>
+    rec(uid, +DAY, { recordingConsentEpoch: epoch, ...over }, { meta: { recordingConsentEpoch: String(epoch) } });
+  const isPending = async (uid: string) => (await userDoc(uid))?.recordingPurge?.pending;
+
+  test("completa las revocaciones pendientes (docs, objetos, demos, revisiones, huerfanos) y baja pending; lo no pendiente no se toca", async () => {
+    const [a, b, ok] = [rnd("a"), rnd("b"), rnd("c")];
+    await pending(a);
+    await pending(b, 0, { role: "teacher" });
+    await seedUser(ok);
+    const ra = await recE(a, 0);
+    await seedReview(a, ra.id);
+    const demo = await rec(b, +DAY, { sharedWith: "sx", recordingConsentEpoch: 0 }, { dir: "demos", meta: { sharedWith: "sx", assignmentId: "a", recordingConsentEpoch: "0" } });
+    const orphan = await upload(a, { dir: "demos", meta: { sharedWith: "s", assignmentId: "a" } });
+    const keep = await recE(ok, 0);
+    const s = await purgeRecordingsHandler(deps({ reconcile: false }), NOW);
+    expect(s.revocations).toMatchObject({ found: 2, completed: 2, incomplete: 0, failed: 0 });
+    expect(await exists(ra.ev.name)).toBe(false);
+    expect(await recDoc(a, ra.id)).toBeUndefined();
+    expect(await reviewCount(a, ra.id)).toBe(0);
+    expect(await exists(demo.ev.name)).toBe(false);
+    expect(await recDoc(b, demo.id)).toBeUndefined();
+    expect(await exists(orphan.name)).toBe(false);
+    expect([await isPending(a), await isPending(b)]).toEqual([false, false]);
+    expect(await exists(keep.ev.name)).toBe(true);
+    expect(await recDoc(ok, keep.id)).toBeDefined();
+    expect(await readCursor(db, "recordingPurgePending")).toBe("");
+  });
+
+  test("acotada por epoca (purge.epoch): una grabacion de epoca posterior sobrevive", async () => {
+    const u = rnd("u");
+    await pending(u, 1, { recordingConsentEpoch: 3 });
+    const old = await recE(u, 1);
+    const newer = await recE(u, 2);
+    await purgeRecordingsHandler(deps({ reconcile: false }), NOW);
+    expect(await recDoc(u, old.id)).toBeUndefined();
+    expect(await recDoc(u, newer.id)).toBeDefined();
+    expect(await exists(newer.ev.name)).toBe(true);
+    expect(await isPending(u)).toBe(false);
+  });
+
+  test("fallo en un usuario: se cuenta, el resto sigue, sin PII en logs; al dia siguiente se completa", async () => {
+    const [bad, good] = [rnd("a"), rnd("b")];
+    await pending(bad);
+    await pending(good);
+    const rb = await recE(bad, 0);
+    const rg = await recE(good, 0);
+    const flaky: SweepStore = {
+      ...store,
+      remove: async (n, g) => {
+        if (n === rb.ev.name) throw Object.assign(new Error(`boom ${n}`), { code: 503 });
+        return store.remove(n, g);
+      },
+    };
+    const s = await purgeRecordingsHandler(deps({ store: flaky, reconcile: false }), NOW);
+    expect(s.revocations).toMatchObject({ found: 2, completed: 1, incomplete: 1 });
+    expect([await isPending(bad), await isPending(good)]).toEqual([true, false]);
+    expect(await recDoc(good, rg.id)).toBeUndefined();
+    const text = JSON.stringify(logs);
+    for (const secret of [bad, good, rb.id, rb.ev.name]) expect(text).not.toContain(secret);
+    const again = await purgeRecordingsHandler(deps({ reconcile: false }), NOW);
+    expect(again.revocations).toMatchObject({ found: 1, completed: 1 });
+    expect(await isPending(bad)).toBe(false);
+    expect(await exists(rb.ev.name)).toBe(false);
+  });
+
+  test("usuario en borrado (deletion): no se escribe en el, se cuenta gone y no es un fallo", async () => {
+    const u = rnd("u");
+    await pending(u, 0, { deletion: { state: "in_progress", startedAt: Timestamp.now() } });
+    const s = await purgeRecordingsHandler(deps({ reconcile: false }), NOW);
+    expect(s.revocations).toMatchObject({ found: 1, gone: 1, failed: 0 });
+    expect(await isPending(u)).toBe(true);
+  });
+
+  test("presupuesto: se deja de empezar usuarios, el cursor guarda donde se corto y la siguiente ejecucion sigue (sin repetir ni saltar)", async () => {
+    const users = [rnd("a"), rnd("b"), rnd("c")];
+    for (const u of users) {
+      await pending(u);
+      await recE(u, 0);
+    }
+    let t = 0;
+    const first = await purgeRecordingsHandler(deps({ budgetMs: 1500, nowMs: () => (t += 1000), reconcile: false }), NOW);
+    expect(first.budgetExhausted).toBe(true);
+    const doneFirst = first.revocations.completed;
+    expect(doneFirst).toBeLessThan(3);
+    expect(await readCursor(db, "recordingPurgePending")).not.toBe("");
+    const second = await purgeRecordingsHandler(deps({ reconcile: false }), NOW);
+    expect(doneFirst + second.revocations.completed).toBe(3);
+    for (const u of users) expect(await isPending(u)).toBe(false);
+    expect(await readCursor(db, "recordingPurgePending")).toBe("");
+  });
+
+  test("con un cursor mas alla de todos los pendientes, la pasada da la vuelta a la cabeza y los procesa", async () => {
+    const u = rnd("a");
+    await pending(u);
+    await recE(u, 0);
+    await writeCursor(db, "recordingPurgePending", "zzzzzzzz");
+    const s = await purgeRecordingsHandler(deps({ reconcile: false }), NOW);
+    expect(s.revocations.completed).toBe(1);
+    expect(await isPending(u)).toBe(false);
+    expect(await readCursor(db, "recordingPurgePending")).toBe("");
+  });
+
+  test("repetida sin pendientes: sin efectos", async () => {
+    const u = rnd("u");
+    await seedUser(u, { recordingPurge: { pending: false, since: SINCE, epoch: 0 } });
+    const r = await recE(u, 0);
+    const s = await purgeRecordingsHandler(deps({ reconcile: false }), NOW);
+    expect(s.revocations).toMatchObject({ found: 0, completed: 0, failed: 0 });
+    expect(await recDoc(u, r.id)).toBeDefined();
+  });
+
+  test("una consulta de pendientes que falla entera se registra y no impide el resto", async () => {
+    const broken = new Proxy(db, {
+      get: (t, p) => {
+        if (p === "collection") {
+          return (name: string) => {
+            if (name === "users") throw Object.assign(new Error("indice"), { code: 9 });
+            return t.collection(name);
+          };
+        }
+        const v = Reflect.get(t, p) as unknown;
+        return typeof v === "function" ? v.bind(t) : v;
+      },
+    });
+    const s = await purgeRecordingsHandler(deps({ db: broken, reconcile: false }), NOW);
+    expect(s.failedCategories).toContain("revocations");
+  });
+
+  test("los duenos cuya purga de revocacion borro docs no se reconcilian ese dia (su trigger baja el contador)", async () => {
+    const u = rnd("u");
+    await pending(u, 0, { recordingCount: 1 });
+    await recE(u, 0);
+    const seen: string[] = [];
+    await purgeRecordingsHandler(deps({ reconcileOwner: async (_d: unknown, x: string) => (seen.push(x), "ok" as const) }), NOW);
+    expect(seen).not.toContain(u);
+  });
+});
+
+describe("revision fresca B5b: W4/W5 del paso 2", () => {
+  const pendingSince = (uid: string, since: Timestamp) =>
+    seedUser(uid, { recordingConsent: "revoked", recordingConsentEpoch: 1, recordingPurge: { pending: true, since, epoch: 0 } });
+  const recE = (uid: string) => rec(uid, +DAY, { recordingConsentEpoch: 0 });
+
+  test("W4: purga pendiente que sigue fallando con since de hace mas de STUCK_PURGE_AFTER_MS -> revokePurge.stuck a ERROR, sin uid", async () => {
+    expect(STUCK_PURGE_AFTER_MS).toBe(3 * DAY);
+    const [old, fresh] = [rnd("a"), rnd("b")];
+    await pendingSince(old, at(-STUCK_PURGE_AFTER_MS - MIN));
+    await pendingSince(fresh, at(-STUCK_PURGE_AFTER_MS + MIN));
+    const ro = await recE(old);
+    const rf = await recE(fresh);
+    const failing: SweepStore = { ...store, remove: async (n, g) => (n === ro.ev.name || n === rf.ev.name ? Promise.reject(Object.assign(new Error("x"), { code: 503 })) : store.remove(n, g)) };
+    const errors: { message: string; data: Record<string, unknown> }[] = [];
+    const s = await purgeRecordingsHandler(deps({ store: failing, reconcile: false, error: (message: string, data: Record<string, unknown>) => void errors.push({ message, data }) }), NOW);
+    expect(s.revocations.incomplete).toBe(2);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ message: "revokePurge.stuck", data: { uidHash: expect.any(String) } });
+    expect(errors[0].data.ageDays).toBeGreaterThanOrEqual(3);
+    const text = JSON.stringify(errors);
+    for (const secret of [old, fresh, ro.ev.name]) expect(text).not.toContain(secret);
+  });
+
+  test("W4: una purga antigua que se completa hoy no se marca como atascada", async () => {
+    const u = rnd("a");
+    await pendingSince(u, at(-10 * DAY));
+    await recE(u);
+    const errors: string[] = [];
+    const s = await purgeRecordingsHandler(deps({ reconcile: false, error: (m: string) => void errors.push(m) }), NOW);
+    expect(s.revocations.completed).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
+  test("W5: las revocaciones pendientes van ANTES que la caducidad: un atasco de caducadas que agota el presupuesto no las deja sin hacer", async () => {
+    const owner = rnd("o");
+    await seedUser(owner);
+    for (let i = 0; i < 6; i++) await rec(owner, -MIN * (i + 1));
+    const u = rnd("u");
+    await pendingSince(u, at(-DAY));
+    const r = await recE(u);
+    let t = 0;
+    // El reloj solo avanza al borrar caducadas: el paso de caducidad agota el presupuesto por si solo.
+    const s = await purgeRecordingsHandler(deps({ reconcile: false, budgetMs: 2500, nowMs: () => t, beforeDelete: async () => void (t += 1000) }), NOW);
+    expect(s.budgetExhausted).toBe(true);
+    expect(s.expired.deleted).toBeLessThan(6);
+    expect(s.revocations.completed).toBe(1);
+    expect((await userDoc(u))?.recordingPurge.pending).toBe(false);
+    expect(await recDoc(u, r.id)).toBeUndefined();
   });
 });
 

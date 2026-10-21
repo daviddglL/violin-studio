@@ -6,6 +6,7 @@ import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
 import { revokeActiveCodes } from "../teacher/code-handlers";
+import type { ObjectStore } from "../recordings/finalize";
 import { unlinkAllStudents } from "../teacher/remove-link";
 import { canGrantTeacher, TeacherDenyReason } from "../teacher/eligibility";
 import { isAllowedRoleTransition, Role } from "../teacher/role-transitions";
@@ -28,6 +29,8 @@ export interface TeacherRoleDeps {
   db: Firestore;
   auth: Auth;
   clock: Clock;
+  /** Objetos de las demostraciones que se borran al desvincular (B5b.4). */
+  store: ObjectStore;
   /** Sumidero de logs sin PII; por defecto `logger.info` de Functions. */
   log?: (message: string, data: Record<string, unknown>) => void;
   /** Revoca los codigos de vinculo activos del profesor; devuelve cuantos. Por defecto, `revokeActiveCodes`. */
@@ -109,7 +112,7 @@ export async function revokeTeacher(deps: TeacherRoleDeps, uid: string): Promise
     return { changed: true };
   });
 
-  const linkDeps = { db: deps.db, auth: deps.auth, log: deps.log };
+  const linkDeps = { db: deps.db, auth: deps.auth, store: deps.store, log: deps.log };
   const codes = await (deps.revokeActiveCodes ?? ((t) => revokeActiveCodes({ db: deps.db }, t)))(uid);
   // Siempre: la fuente de verdad son los vinculos (consulta indexada, no-op si no hay), no el contador, que puede estar desfasado.
   const students = await (deps.unlinkAllStudents ?? ((t) => unlinkAllStudents(linkDeps, t)))(uid);

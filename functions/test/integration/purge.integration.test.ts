@@ -5,6 +5,7 @@ import { getStorage } from "firebase-admin/storage";
 import { COLLECTIONS } from "../../src/common/collections";
 import { eraseUserData } from "../../src/erasure/erase-user-data";
 import { purgeIdentityHandler } from "../../src/maintenance/purge";
+import { bucketStore } from "../../src/recordings/finalize";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project, storageBucket: `${project}.appspot.com` });
@@ -95,7 +96,7 @@ test("7b.2 integracion real: borra Auth, perfil, Storage, guardianRequests y mai
     await db.collection(COLLECTIONS.mail).doc(`m-${uid}`).set({ uid });
     await bucket.file(`users/${uid}/a.txt`).save("a");
   }
-  await purgeIdentityHandler({ db, auth, log, erase: (uid, o) => eraseUserData({ db, auth, bucket }, uid, o) }, now);
+  await purgeIdentityHandler({ db, auth, log, erase: (uid, o) => eraseUserData({ db, auth, bucket, store: bucketStore(bucket) }, uid, o) }, now);
   await expect(auth.getUser(viejo)).rejects.toMatchObject({ code: "auth/user-not-found" });
   expect((await users.doc(viejo).get()).exists).toBe(false);
   expect((await db.collection(COLLECTIONS.guardianRequests).doc(`r-${viejo}`).get()).exists).toBe(false);
