@@ -1,4 +1,4 @@
-package com.violinstudio.data.feature.tuner.utils
+package com.violinstudio.data.commons.datastore
 
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.doublePreferencesKey
@@ -30,6 +30,8 @@ object UserKeys {
     fun runningStartedAt(uid: String) = longPreferencesKey("${prefix(uid)}practice.running.started_at")
 
     fun runningInstrument(uid: String) = stringPreferencesKey("${prefix(uid)}practice.running.instrument")
+
+    fun recQueue(uid: String) = stringPreferencesKey("${prefix(uid)}rec.queue")
 
     fun belongsTo(key: Preferences.Key<*>, uid: String) = key.name.startsWith(prefix(uid))
 }

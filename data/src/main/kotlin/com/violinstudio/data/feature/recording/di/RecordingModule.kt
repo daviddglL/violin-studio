@@ -1,11 +1,14 @@
 package com.violinstudio.data.feature.recording.di
 
+import com.violinstudio.data.feature.recording.datasource.local.RecordingQueueStore
 import com.violinstudio.data.feature.recording.datasource.media.AndroidAudioRecorder
 import com.violinstudio.data.feature.recording.datasource.media.AndroidMediaRecorderFactory
 import com.violinstudio.data.feature.recording.datasource.media.MediaRecorderFactory
 import com.violinstudio.data.feature.recording.datasource.media.NoBackupRecordingsDirectory
 import com.violinstudio.data.feature.recording.datasource.media.RecordingsDirectory
+import com.violinstudio.domain.feature.recording.repository.PendingUploads
 import com.violinstudio.domain.feature.recording.repository.Recorder
+import com.violinstudio.domain.feature.recording.repository.RecordingQueue
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -27,6 +30,12 @@ abstract class RecordingModule {
     @Binds
     @Singleton
     abstract fun bindRecorder(impl: AndroidAudioRecorder): Recorder
+
+    @Binds
+    abstract fun bindRecordingQueue(impl: RecordingQueueStore): RecordingQueue
+
+    @Binds
+    abstract fun bindPendingUploads(impl: RecordingQueueStore): PendingUploads
 
     @Binds
     abstract fun bindMediaRecorderFactory(impl: AndroidMediaRecorderFactory): MediaRecorderFactory

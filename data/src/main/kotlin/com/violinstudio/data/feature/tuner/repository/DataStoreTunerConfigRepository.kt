@@ -5,7 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import com.violinstudio.data.feature.tuner.utils.TunerConfigParser
-import com.violinstudio.data.feature.tuner.utils.UserKeys
+import com.violinstudio.data.commons.datastore.UserKeys
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.feature.tuner.model.TunerConfig
 import com.violinstudio.domain.feature.tuner.repository.TunerConfigRepository
