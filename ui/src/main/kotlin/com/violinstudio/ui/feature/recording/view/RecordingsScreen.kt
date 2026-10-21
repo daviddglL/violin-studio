@@ -35,8 +35,6 @@ import com.violinstudio.ui.feature.recording.viewmodel.MicPrompt
 import com.violinstudio.ui.feature.recording.viewmodel.RecordingsIntent
 import com.violinstudio.ui.feature.recording.viewmodel.RecordingsMessage
 import com.violinstudio.ui.feature.recording.viewmodel.RecordingsState
-import java.text.DateFormat
-import java.util.Date
 import java.util.Locale
 
 const val RECORDINGS_TAG = "recordings"
@@ -46,10 +44,13 @@ const val RECORDINGS_STOP_TAG = "recordings_stop"
 const val RECORDINGS_GRANT_TAG = "recordings_grant"
 const val RECORDINGS_REVOKE_TAG = "recordings_revoke"
 const val RECORDINGS_MESSAGE_TAG = "recordings_message"
+const val RECORDINGS_REVIEWS_TAG = "recordings_reviews"
 
 fun pendingTag(id: String) = "recordings_pending_$id"
 
 fun recordingTag(id: String) = "recordings_item_$id"
+
+fun reviewsToggleTag(id: String) = "recordings_reviews_toggle_$id"
 
 @Composable
 fun RecordingsScreen(
@@ -71,7 +72,7 @@ fun RecordingsScreen(
             if (state.recordings.isEmpty()) {
                 Text(stringResource(R.string.recordings_empty), style = MaterialTheme.typography.bodyMedium)
             }
-            state.recordings.forEach { RecordingItem(it, onIntent) }
+            state.recordings.forEach { RecordingItem(it, state, onIntent) }
             if (state.access.isConsented()) {
                 TextButton(
                     onClick = { onIntent(RecordingsIntent.AskRevoke) },
@@ -261,16 +262,12 @@ private fun pendingText(item: QueuedRecording): Int = when (item.state) {
 }
 
 @Composable
-private fun RecordingItem(item: RecordingSummary, onIntent: (RecordingsIntent) -> Unit) {
+private fun RecordingItem(item: RecordingSummary, state: RecordingsState, onIntent: (RecordingsIntent) -> Unit) {
     Card(Modifier.fillMaxWidth().testTag(recordingTag(item.id))) {
         Column(Modifier.padding(12.dp)) {
-            val date = item.createdAtMs?.let {
-                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
-            }
             val status =
                 stringResource(if (item.ready) R.string.recordings_state_ready else R.string.recordings_state_rejected)
-            val duration = item.durationMs?.let(::clock)
-            val detail = listOfNotNull(date, duration).joinToString(" · ")
+            val detail = recordingDetail(item)
             Text(
                 if (item.isDemo) {
                     stringResource(R.string.recordings_item_demo, detail)
@@ -278,9 +275,52 @@ private fun RecordingItem(item: RecordingSummary, onIntent: (RecordingsIntent) -
                     stringResource(R.string.recordings_item, detail, status)
                 }
             )
-            TextButton(onClick = { onIntent(RecordingsIntent.AskDelete(item.id)) }) {
-                Text(stringResource(R.string.recordings_delete))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (item.ready && !state.isRecording) {
+                    PlaybackControl(
+                        item.id,
+                        state.playback,
+                        onPlay = { onIntent(RecordingsIntent.Play(item.id)) },
+                        onStop = { onIntent(RecordingsIntent.StopPlayback) }
+                    )
+                }
+                if (item.ready && !item.isDemo) {
+                    val open = state.reviewsFor == item.id
+                    TextButton(
+                        onClick = { onIntent(RecordingsIntent.ToggleReviews(item.id)) },
+                        modifier = Modifier.testTag(reviewsToggleTag(item.id))
+                    ) {
+                        Text(
+                            stringResource(
+                                if (open) R.string.recordings_reviews_hide else R.string.recordings_reviews_show
+                            )
+                        )
+                    }
+                }
+                TextButton(onClick = { onIntent(RecordingsIntent.AskDelete(item.id)) }) {
+                    Text(stringResource(R.string.recordings_delete))
+                }
             }
+            if (state.reviewsFor == item.id) Reviews(state)
+        }
+    }
+}
+
+@Composable
+private fun Reviews(state: RecordingsState) {
+    val reviews = state.reviews
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.testTag(RECORDINGS_REVIEWS_TAG).semantics { liveRegion = LiveRegionMode.Polite }
+    ) {
+        when {
+            state.reviewsFailed -> Text(
+                stringResource(R.string.recordings_reviews_failed),
+                color = MaterialTheme.colorScheme.error
+            )
+            reviews == null -> LoadingIndicator()
+            reviews.isEmpty() -> Text(stringResource(R.string.recordings_reviews_empty))
+            else -> reviews.forEach { ReviewView(it) }
         }
     }
 }

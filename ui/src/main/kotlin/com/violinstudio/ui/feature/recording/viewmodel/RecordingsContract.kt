@@ -1,9 +1,11 @@
 package com.violinstudio.ui.feature.recording.viewmodel
 
+import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
 import com.violinstudio.domain.feature.recording.model.RecordingAccess
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
 import com.violinstudio.domain.feature.recording.model.RecordingsOverview
+import com.violinstudio.domain.feature.recording.model.Review
 import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
@@ -29,7 +31,8 @@ enum class MicPrompt { RATIONALE, BLOCKED }
 
 /**
  * [access] `null` mientras se comprueba (y tras un fallo, con [accessFailed]). [elapsedMs] no nulo mientras se graba.
- * [confirmDeleteId]: grabacion del servidor pendiente de confirmar su borrado.
+ * [confirmDeleteId]: grabacion del servidor pendiente de confirmar su borrado. [reviewsFor]: grabacion cuyas
+ * valoraciones estan abiertas; [reviews] `null` mientras cargan.
  */
 data class RecordingsState(
     val access: RecordingAccess? = null,
@@ -42,7 +45,11 @@ data class RecordingsState(
     val recordings: List<RecordingSummary> = emptyList(),
     val confirmRevoke: Boolean = false,
     val confirmDeleteId: String? = null,
-    val message: RecordingsMessage? = null
+    val message: RecordingsMessage? = null,
+    val playback: PlaybackState = PlaybackState.Idle,
+    val reviewsFor: String? = null,
+    val reviews: List<Review>? = null,
+    val reviewsFailed: Boolean = false
 ) : UiState {
     val isRecording: Boolean get() = elapsedMs != null
 
@@ -89,6 +96,13 @@ sealed interface RecordingsIntent : UiIntent {
     data object CancelDelete : RecordingsIntent
 
     data object DismissMessage : RecordingsIntent
+
+    data class Play(val id: String) : RecordingsIntent
+
+    data object StopPlayback : RecordingsIntent
+
+    /** Abre las valoraciones de [id], o las cierra si ya estaban abiertas. */
+    data class ToggleReviews(val id: String) : RecordingsIntent
 }
 
 sealed interface RecordingsEffect : UiEffect {
@@ -121,4 +135,12 @@ sealed interface RecordingsMutation {
     data object RecordingEnded : RecordingsMutation
 
     data class Message(val message: RecordingsMessage?) : RecordingsMutation
+
+    data class Playback(val state: PlaybackState) : RecordingsMutation
+
+    data class ReviewsOpened(val id: String?) : RecordingsMutation
+
+    data class ReviewsLoaded(val id: String, val reviews: List<Review>) : RecordingsMutation
+
+    data class ReviewsFailed(val id: String) : RecordingsMutation
 }

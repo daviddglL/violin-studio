@@ -1,7 +1,11 @@
 package com.violinstudio.ui.feature.recording.viewmodel
 
+import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.RecordingAccess
+import com.violinstudio.domain.feature.recording.model.RecordingSummary
 import com.violinstudio.domain.feature.recording.model.RecordingsOverview
+import com.violinstudio.domain.feature.recording.model.Review
+import com.violinstudio.domain.feature.recording.model.Verdict
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -51,5 +55,32 @@ class RecordingsReducerTest {
         assertEquals("u1", state.uid)
         assertEquals(RecordingsMessage.OFFLINE, state.message)
         assertTrue("u1" !in state.toString())
+    }
+
+    @Test
+    fun `reproductor y valoraciones solo de la grabacion abierta`() {
+        val review = Review(Verdict.APPROVED, "", null)
+        val playing = RecordingsState().then(RecordingsMutation.Playback(PlaybackState.Loading("r0")))
+        assertEquals(PlaybackState.Loading("r0"), playing.playback)
+        val open = playing.then(RecordingsMutation.ReviewsOpened("r0"))
+        assertEquals("r0", open.reviewsFor)
+        assertNull(open.reviews)
+        assertEquals(open, open.then(RecordingsMutation.ReviewsLoaded("r9", listOf(review))))
+        assertEquals(open, open.then(RecordingsMutation.ReviewsFailed("r9")))
+        val loaded = open.then(RecordingsMutation.ReviewsLoaded("r0", listOf(review)))
+        assertEquals(listOf(review), loaded.reviews)
+        val failed = loaded.then(RecordingsMutation.ReviewsFailed("r0"))
+        assertTrue(failed.reviewsFailed)
+        assertNull(failed.reviews)
+        val kept = loaded.then(
+            RecordingsMutation.Overview(
+                RecordingsOverview("u1", emptyList(), listOf(RecordingSummary("r0", 1, 1, true, false)))
+            )
+        )
+        assertEquals(listOf(review), kept.reviews)
+        val gone = kept.then(RecordingsMutation.Overview(RecordingsOverview("u1", emptyList(), emptyList())))
+        assertNull(gone.reviewsFor)
+        assertNull(gone.reviews)
+        assertNull(loaded.then(RecordingsMutation.ReviewsOpened(null)).reviewsFor)
     }
 }

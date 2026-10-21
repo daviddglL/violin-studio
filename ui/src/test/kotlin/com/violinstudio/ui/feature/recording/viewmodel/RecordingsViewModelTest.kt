@@ -2,19 +2,24 @@ package com.violinstudio.ui.feature.recording.viewmodel
 
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.recording.failure.RecordingFailure
+import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
 import com.violinstudio.domain.feature.recording.model.RecordedTake
 import com.violinstudio.domain.feature.recording.model.RecordingAccess
 import com.violinstudio.domain.feature.recording.model.RecordingOutcome
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
 import com.violinstudio.domain.feature.recording.model.RecordingsOverview
+import com.violinstudio.domain.feature.recording.model.Review
+import com.violinstudio.domain.feature.recording.model.Verdict
 import com.violinstudio.domain.feature.recording.repository.RecordingHandle
 import com.violinstudio.domain.feature.recording.usecase.DeleteRecordingUseCase
 import com.violinstudio.domain.feature.recording.usecase.DiscardUploadUseCase
 import com.violinstudio.domain.feature.recording.usecase.FinishRecordingUseCase
 import com.violinstudio.domain.feature.recording.usecase.GetRecordingAccessUseCase
 import com.violinstudio.domain.feature.recording.usecase.GrantRecordingConsentUseCase
+import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingReviewsUseCase
 import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingsUseCase
+import com.violinstudio.domain.feature.recording.usecase.RecordingPlaybackUseCase
 import com.violinstudio.domain.feature.recording.usecase.RetryUploadUseCase
 import com.violinstudio.domain.feature.recording.usecase.RevokeRecordingConsentUseCase
 import com.violinstudio.domain.feature.recording.usecase.StartRecordingUseCase
@@ -23,6 +28,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -74,10 +80,16 @@ class RecordingsViewModelTest {
     private val retry = mockk<RetryUploadUseCase>()
     private val discard = mockk<DiscardUploadUseCase>()
     private val delete = mockk<DeleteRecordingUseCase>()
+    private val playbackState = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
+    private val playback = mockk<RecordingPlaybackUseCase>(relaxUnitFun = true) {
+        every { state } returns playbackState
+    }
+    private val reviews = mockk<ObserveRecordingReviewsUseCase>()
 
-    private fun TestScope.viewModel(): RecordingsViewModel =
-        RecordingsViewModel(getAccess, grant, revoke, start, finish, observe, retry, discard, delete)
-            .also { runCurrent() }
+    private fun TestScope.viewModel(): RecordingsViewModel = RecordingsViewModel(
+        getAccess, grant, revoke, start, finish, observe, retry, discard, delete, playback, reviews
+    )
+        .also { runCurrent() }
 
     private val RecordingsViewModel.now: RecordingsState get() = state.value
 
@@ -333,5 +345,61 @@ class RecordingsViewModelTest {
         runCurrent()
         assertEquals(RecordingsMessage.DELETE_FAILED, vm.now.message)
         coVerify { retry("u1", "q1") }
+    }
+
+    @Test
+    fun `escucha solo grabaciones listas, sigue el estado del reproductor y para al salir`() = runTest {
+        val ready = RecordingSummary("r0", 1, 1_000, ready = true, isDemo = false, objectPath = "p")
+        val rejected = RecordingSummary("r1", 1, 1_000, ready = false, isDemo = false)
+        overview.value = RecordingsOverview("u1", emptyList(), listOf(ready, rejected))
+        val vm = viewModel()
+        vm.onIntent(RecordingsIntent.Play("r1"))
+        vm.onIntent(RecordingsIntent.Play("r0"))
+        runCurrent()
+        coVerify(exactly = 1) { playback.play(any()) }
+        coVerify { playback.play(ready) }
+        playbackState.value = PlaybackState.Playing("r0")
+        runCurrent()
+        assertEquals(PlaybackState.Playing("r0"), vm.now.playback)
+        vm.onIntent(RecordingsIntent.StopPlayback)
+        vm.onIntent(RecordingsIntent.Leave)
+        runCurrent()
+        verify(exactly = 2) { playback.stop() }
+    }
+
+    @Test
+    fun `grabar para lo que suene`() = runTest {
+        coEvery { start() } returns Result.success(FakeHandle(Result.success(take)))
+        val vm = viewModel()
+        vm.onIntent(RecordingsIntent.Start(granted = true, rationale = false))
+        runCurrent()
+        verify { playback.stop() }
+    }
+
+    @Test
+    fun `las valoraciones se abren, se cierran y avisan si fallan`() = runTest {
+        val ready = RecordingSummary("r0", 1, 1_000, ready = true, isDemo = false, objectPath = "p")
+        overview.value = RecordingsOverview("u1", emptyList(), listOf(ready))
+        val review = Review(Verdict.NEEDS_WORK, "Afina el la", 1L)
+        every { reviews("r0") } returns MutableStateFlow(listOf(review))
+        val vm = viewModel()
+        vm.onIntent(RecordingsIntent.ToggleReviews("zz"))
+        runCurrent()
+        assertNull(vm.now.reviewsFor)
+        vm.onIntent(RecordingsIntent.ToggleReviews("r0"))
+        runCurrent()
+        assertEquals("r0", vm.now.reviewsFor)
+        assertEquals(listOf(review), vm.now.reviews)
+        vm.onIntent(RecordingsIntent.ToggleReviews("r0"))
+        runCurrent()
+        assertNull(vm.now.reviewsFor)
+        every { reviews("r0") } returns flow { throw IllegalStateException("x") }
+        vm.onIntent(RecordingsIntent.ToggleReviews("r0"))
+        runCurrent()
+        assertTrue(vm.now.reviewsFailed)
+        overview.value = RecordingsOverview("u1", emptyList(), emptyList())
+        runCurrent()
+        assertNull(vm.now.reviewsFor)
+        assertFalse(vm.now.reviewsFailed)
     }
 }

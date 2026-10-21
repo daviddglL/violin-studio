@@ -10,7 +10,9 @@ import com.violinstudio.domain.feature.recording.usecase.DiscardUploadUseCase
 import com.violinstudio.domain.feature.recording.usecase.FinishRecordingUseCase
 import com.violinstudio.domain.feature.recording.usecase.GetRecordingAccessUseCase
 import com.violinstudio.domain.feature.recording.usecase.GrantRecordingConsentUseCase
+import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingReviewsUseCase
 import com.violinstudio.domain.feature.recording.usecase.ObserveRecordingsUseCase
+import com.violinstudio.domain.feature.recording.usecase.RecordingPlaybackUseCase
 import com.violinstudio.domain.feature.recording.usecase.RetryUploadUseCase
 import com.violinstudio.domain.feature.recording.usecase.RevokeRecordingConsentUseCase
 import com.violinstudio.domain.feature.recording.usecase.StartRecordingUseCase
@@ -41,10 +43,14 @@ class RecordingsViewModel @Inject constructor(
     observeRecordings: ObserveRecordingsUseCase,
     private val retryUpload: RetryUploadUseCase,
     private val discardUpload: DiscardUploadUseCase,
-    private val deleteRecording: DeleteRecordingUseCase
+    private val deleteRecording: DeleteRecordingUseCase,
+    private val playback: RecordingPlaybackUseCase,
+    private val observeReviews: ObserveRecordingReviewsUseCase
 ) : MviViewModel<RecordingsState, RecordingsIntent, RecordingsEffect>(RecordingsState()) {
     private var handle: RecordingHandle? = null
     private var session: Job? = null
+    private var playJob: Job? = null
+    private var reviewsJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -52,6 +58,7 @@ class RecordingsViewModel @Inject constructor(
                 .catch { reduce(RecordingsMutation.Message(RecordingsMessage.LOAD_FAILED)) }
                 .collect { reduce(RecordingsMutation.Overview(it)) }
         }
+        viewModelScope.launch { playback.state.collect { reduce(RecordingsMutation.Playback(it)) } }
         onIntent(RecordingsIntent.Refresh)
     }
 
@@ -78,6 +85,9 @@ class RecordingsViewModel @Inject constructor(
             RecordingsIntent.CancelDelete -> reduce(RecordingsMutation.DeletePrompt(null))
             RecordingsIntent.ConfirmDelete -> onDelete()
             RecordingsIntent.DismissMessage -> reduce(RecordingsMutation.Message(null))
+            is RecordingsIntent.Play -> onPlay(intent.id)
+            RecordingsIntent.StopPlayback -> stopPlayback()
+            is RecordingsIntent.ToggleReviews -> onToggleReviews(intent.id)
         }
     }
 
@@ -135,6 +145,7 @@ class RecordingsViewModel @Inject constructor(
     }
 
     private suspend fun start() {
+        stopPlayback()
         val started = startRecording().getOrElse { return onStartFailure(it) }
         handle = started
         reduce(RecordingsMutation.RecordingStarted)
@@ -189,6 +200,7 @@ class RecordingsViewModel @Inject constructor(
     }
 
     private suspend fun onLeave() {
+        stopPlayback()
         val current = handle ?: return
         endSession()
         current.discard()
@@ -211,6 +223,31 @@ class RecordingsViewModel @Inject constructor(
         )
     }
 
+    private fun onPlay(id: String) {
+        if (state.value.isRecording) return
+        val recording = state.value.recordings.firstOrNull { it.id == id && it.ready } ?: return
+        playJob?.cancel()
+        playJob = viewModelScope.launch { playback.play(recording) }
+    }
+
+    private fun stopPlayback() {
+        playJob?.cancel()
+        playJob = null
+        playback.stop()
+    }
+
+    private fun onToggleReviews(id: String) {
+        reviewsJob?.cancel()
+        if (state.value.reviewsFor == id) return reduce(RecordingsMutation.ReviewsOpened(null))
+        if (state.value.recordings.none { it.id == id && it.ready }) return
+        reduce(RecordingsMutation.ReviewsOpened(id))
+        reviewsJob = viewModelScope.launch {
+            observeReviews(id)
+                .catch { reduce(RecordingsMutation.ReviewsFailed(id)) }
+                .collect { reduce(RecordingsMutation.ReviewsLoaded(id, it)) }
+        }
+    }
+
     private suspend fun withUid(action: suspend (String) -> Result<Unit>) {
         val uid = state.value.uid ?: return
         action(uid).onFailure { reduce(RecordingsMutation.Message(RecordingsMessage.ACTION_FAILED)) }
@@ -230,6 +267,7 @@ class RecordingsViewModel @Inject constructor(
     override fun onCleared() {
         handle?.let { current -> GlobalScope.launch { current.discard() } }
         handle = null
+        playback.stop()
         super.onCleared()
     }
 

@@ -9,11 +9,14 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.recording.model.FailReason
+import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.QueueState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
 import com.violinstudio.domain.feature.recording.model.RecordedTake
 import com.violinstudio.domain.feature.recording.model.RecordingAccess
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
+import com.violinstudio.domain.feature.recording.model.Review
+import com.violinstudio.domain.feature.recording.model.Verdict
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.recording.viewmodel.MicPrompt
 import com.violinstudio.ui.feature.recording.viewmodel.RecordingsIntent
@@ -152,4 +155,43 @@ class RecordingsScreenTest {
 
     private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.onAllNodesWithTagCount(tag: String) =
         onAllNodes(androidx.compose.ui.test.hasTestTag(tag)).fetchSemanticsNodes().size
+
+    @Test
+    fun `una grabacion lista se escucha y muestra sus valoraciones`() {
+        val ready = RecordingSummary("r0", null, 5_000, ready = true, isDemo = false, objectPath = "p")
+        val review = Review(Verdict.NEEDS_WORK, "Cuida la afinación", 1L)
+        show(
+            RecordingsState(
+                access = allowed,
+                recordings = listOf(ready),
+                playback = PlaybackState.Failed("r0"),
+                reviewsFor = "r0",
+                reviews = listOf(review, Review(Verdict.APPROVED, "", null, fromTeacher = false))
+            )
+        )
+        compose.onNodeWithText("No se pudo reproducir. Revisa la conexión.").assertIsDisplayed()
+        compose.onNodeWithText("Tu profesor: Hay que trabajarla").assertIsDisplayed()
+        compose.onNodeWithText("Cuida la afinación").assertIsDisplayed()
+        compose.onNodeWithText("Un antiguo profesor: Bien hecho").assertIsDisplayed()
+        compose.onNodeWithTag(playTag("r0")).performClick()
+        compose.onNodeWithTag(reviewsToggleTag("r0")).performClick()
+        assertEquals(listOf(RecordingsIntent.Play("r0"), RecordingsIntent.ToggleReviews("r0")), sent)
+    }
+
+    @Test
+    fun `sonando se puede parar y sin valoraciones se dice`() {
+        val ready = RecordingSummary("r0", null, 5_000, ready = true, isDemo = false, objectPath = "p")
+        show(
+            RecordingsState(
+                access = allowed,
+                recordings = listOf(ready),
+                playback = PlaybackState.Playing("r0"),
+                reviewsFor = "r0",
+                reviews = emptyList()
+            )
+        )
+        compose.onNodeWithText("Tu profesor aún no la ha valorado.").assertIsDisplayed()
+        compose.onNodeWithTag(stopPlaybackTag("r0")).performClick()
+        assertEquals(listOf<RecordingsIntent>(RecordingsIntent.StopPlayback), sent)
+    }
 }
