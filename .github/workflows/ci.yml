@@ -136,9 +136,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with: { name: emulators-log, path: emulators.log }
 
-  # PENDIENTE: el release está desactivado mientras no existan los secrets de firma
-  # (KEYSTORE_BASE64, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD). Cada push a main deja
-  # un aviso visible en el resumen del run hasta que se configuren.
+  # El release solo corre si existen los secrets de firma (KEYSTORE_BASE64, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD);
+  # si falta alguno, el push a main deja un aviso visible en el resumen del run en lugar de fallar.
   release-firma:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

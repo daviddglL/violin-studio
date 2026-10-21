@@ -40,6 +40,19 @@ describe("A11.2 politica v2 publicada (REQ-CON-R04)", () => {
     expect(text).not.toMatch(/20 (alumnos|students)/);
   });
 
+  test.each([
+    ["es", ["responsable", "base jurídica", "rgpd", "conserv", "transferencias", "derechos", "aepd", "@"]],
+    ["en", ["controller", "legal basis", "gdpr", "keep", "transfers", "rights", "data protection agency", "@"]],
+  ] as const)("el texto %s incluye la informacion del art. 13 RGPD (responsable, base, plazos, transferencias, derechos)", (lang, terms) => {
+    const text = section(lang);
+    for (const t of terms) expect(text).toContain(t);
+  });
+
+  test("no declara Google Analytics ni el identificador de publicidad como datos tratados", () => {
+    expect(section("es")).toContain("no usa google analytics");
+    expect(section("en")).toContain("does not use google analytics");
+  });
+
   test("ya no es un marcador provisional", () => {
     expect(html.toLowerCase()).not.toContain("marcador provisional");
     expect(html.toLowerCase()).not.toContain("placeholder");
