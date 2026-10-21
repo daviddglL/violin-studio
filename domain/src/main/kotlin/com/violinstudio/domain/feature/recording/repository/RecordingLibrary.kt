@@ -19,4 +19,7 @@ interface RecordingConsentRepository {
 
     /** Revoca solo la grabacion; el servidor borra todo lo grabado (REQ-REC-09). */
     suspend fun revoke(): Result<Unit>
+
+    /** Pide el permiso al tutor por correo (`requestGuardianConsent` con `recording_sharing`); el email enmascarado. */
+    suspend fun requestGuardian(guardianEmail: String): Result<String>
 }

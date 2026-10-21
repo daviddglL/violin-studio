@@ -23,9 +23,14 @@ sealed interface RecordingAccess {
 
     /**
      * Falta el consentimiento de grabacion vigente. [selfGrant] `false`: menor de la edad digital, solo su tutor puede
-     * concederlo. [version]: la que se acepta al conceder.
+     * concederlo (por correo). [version]: la que se acepta al conceder. [guardianPending]: ya se pidio al tutor y
+     * esta pendiente de su respuesta.
      */
-    data class NeedsConsent(val selfGrant: Boolean, val version: Int) : RecordingAccess
+    data class NeedsConsent(
+        val selfGrant: Boolean,
+        val version: Int,
+        val guardianPending: Boolean = false
+    ) : RecordingAccess
 
     /** Se puede grabar. [maxDurationMs] por rol; [quotaFull] con 20 grabaciones vivas o en cola. */
     data class Allowed(val maxDurationMs: Long, val quotaFull: Boolean) : RecordingAccess

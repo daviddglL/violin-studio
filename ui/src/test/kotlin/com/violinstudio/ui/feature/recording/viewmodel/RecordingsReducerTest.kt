@@ -83,4 +83,13 @@ class RecordingsReducerTest {
         assertNull(gone.reviews)
         assertNull(loaded.then(RecordingsMutation.ReviewsOpened(null)).reviewsFor)
     }
+
+    @Test
+    fun `email del tutor limitado y enviado lo limpia`() {
+        val typed = RecordingsState().then(RecordingsMutation.GuardianEmail("a".repeat(300)))
+        assertEquals(RecordingsReducer.MAX_EMAIL, typed.guardianEmail.length)
+        val sent = typed.then(RecordingsMutation.GuardianSent("t***@e***.com"))
+        assertEquals("", sent.guardianEmail)
+        assertEquals("t***@e***.com", sent.guardianSentTo)
+    }
 }

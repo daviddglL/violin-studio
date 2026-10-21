@@ -24,6 +24,7 @@ class FakeRecordingConsentRepository : RecordingConsentRepository {
     val calls = mutableListOf<String>()
     var grantResult: Result<Unit> = Result.success(Unit)
     var revokeResult: Result<Unit> = Result.success(Unit)
+    var guardianResult: Result<String> = Result.success("t***@e***.com")
 
     override suspend fun grant(version: Int): Result<Unit> {
         calls += "grant:$version"
@@ -33,5 +34,10 @@ class FakeRecordingConsentRepository : RecordingConsentRepository {
     override suspend fun revoke(): Result<Unit> {
         calls += "revoke"
         return revokeResult
+    }
+
+    override suspend fun requestGuardian(guardianEmail: String): Result<String> {
+        calls += "guardian:$guardianEmail"
+        return guardianResult
     }
 }

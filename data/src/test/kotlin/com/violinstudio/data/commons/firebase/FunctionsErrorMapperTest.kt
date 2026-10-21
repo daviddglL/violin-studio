@@ -50,6 +50,8 @@ class FunctionsErrorMapperTest {
             "CONSENT_ALREADY_GRANTED" to ConsentFailure.AlreadyGranted,
             "NOT_MINOR" to ConsentFailure.NotMinor,
             "GUARDIAN_EMAIL_INVALID" to ConsentFailure.GuardianEmailInvalid,
+            "GUARDIAN_EMAIL_MISMATCH" to ConsentFailure.GuardianEmailMismatch,
+            "GUARDIAN_LEGACY_CONSENT" to ConsentFailure.GuardianLegacyConsent,
             "UNDERAGE_NOT_ALLOWED" to ConsentFailure.UnderageNotAllowed
         )
         cases.forEach { (reason, expected) ->

@@ -39,5 +39,15 @@ class RecordingAccountParserTest {
         )
         assertEquals(false, account.baseConsentGranted)
         assertEquals(false, account.recordingConsentGranted)
+        assertEquals(false, account.guardianPending)
+    }
+
+    @Test
+    fun `una solicitud al tutor pendiente se ve sin conceder la grabacion`() {
+        val account = RecordingAccountParser.parse(
+            mapOf("consentStatus" to "granted", "recordingConsent" to "parental_pending")
+        )
+        assertEquals(true, account.guardianPending)
+        assertEquals(false, account.recordingConsentGranted)
     }
 }

@@ -48,6 +48,8 @@ object FunctionsErrorMapper {
             "CONSENT_ALREADY_GRANTED" -> ConsentFailure.AlreadyGranted
             "NOT_MINOR" -> ConsentFailure.NotMinor
             "GUARDIAN_EMAIL_INVALID" -> ConsentFailure.GuardianEmailInvalid
+            "GUARDIAN_EMAIL_MISMATCH" -> ConsentFailure.GuardianEmailMismatch
+            "GUARDIAN_LEGACY_CONSENT" -> ConsentFailure.GuardianLegacyConsent
             "RATE_LIMITED" -> ConsentFailure.RateLimited(details.retryAfterSeconds)
             "UNDERAGE_NOT_ALLOWED" -> ConsentFailure.UnderageNotAllowed
             "INVALID_ARGUMENT" -> ConsentFailure.InvalidArgument(details.field)

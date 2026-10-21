@@ -499,7 +499,7 @@
     <string name="recordings_consent_title">Permiso para grabar</string>
     <string name="recordings_consent_body">Tus grabaciones de audio se suben a tu cuenta para que tú y tu profesor vinculado podáis escucharlas. Se borran solas a los 90 días y puedes borrarlas, o retirar este permiso, cuando quieras: al retirarlo se borra todo lo grabado.</string>
     <string name="recordings_consent_accept">Acepto grabar</string>
-    <string name="recordings_consent_guardian">Para grabar necesitas la autorización de tu madre, padre o tutor. Pídeles que la concedan.</string>
+    <string name="recordings_consent_guardian">Para grabar necesitas la autorización de tu madre, padre o tutor. Escribe su email y le enviaremos un correo para que la conceda.</string>
     <string name="recordings_record">Grabar</string>
     <string name="recordings_stop">Parar</string>
     <string name="recordings_elapsed">Grabando %1$s de %2$s</string>
@@ -576,4 +576,14 @@
     <string name="student_recordings_msg_load_failed">No se pudo abrir la valoración.</string>
     <string name="student_recordings_dismiss">Cerrar</string>
     <string name="student_recordings_back">Volver</string>
+    <string name="recordings_guardian_email">Email de tu madre, padre o tutor</string>
+    <string name="recordings_guardian_hint">El mismo email con el que aceptó la política de privacidad.</string>
+    <string name="recordings_guardian_send">Pedir permiso</string>
+    <string name="recordings_guardian_resend">Volver a enviar</string>
+    <string name="recordings_guardian_pending">Hemos pedido permiso a tu tutor. Podrás grabar cuando lo acepte desde el correo.</string>
+    <string name="recordings_guardian_sent">Correo enviado a %1$s.</string>
+    <string name="recordings_msg_guardian_invalid">Revisa el email de tu tutor.</string>
+    <string name="recordings_msg_guardian_mismatch">Tiene que ser el mismo tutor que aceptó la política de privacidad.</string>
+    <string name="recordings_msg_guardian_legacy">No podemos comprobar qué tutor aceptó la política, así que este permiso no se puede pedir desde la app.</string>
+    <string name="recordings_msg_rate_limited">Has enviado demasiadas solicitudes. Inténtalo más tarde.</string>
 </resources>

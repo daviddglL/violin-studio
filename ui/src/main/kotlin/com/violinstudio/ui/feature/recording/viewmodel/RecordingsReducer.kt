@@ -37,7 +37,12 @@ object RecordingsReducer {
             } else {
                 state
             }
+        is RecordingsMutation.GuardianEmail -> state.copy(guardianEmail = mutation.email.take(MAX_EMAIL))
+        is RecordingsMutation.GuardianSent -> state.copy(guardianEmail = "", guardianSentTo = mutation.emailMasked)
         is RecordingsMutation.ReviewsFailed ->
             if (state.reviewsFor == mutation.id) state.copy(reviews = null, reviewsFailed = true) else state
     }
+
+    /** Limite de un email (RFC 5321) y de `requestGuardianConsent`. */
+    const val MAX_EMAIL = 254
 }

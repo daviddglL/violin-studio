@@ -15,7 +15,9 @@ data class RecordingAccount(
     val recordingConsentGranted: Boolean,
     val recordingConsentVersion: Int,
     val consentEpoch: Long,
-    val liveCount: Int
+    val liveCount: Int,
+    /** `recordingConsent == parental_pending`: se pidió permiso al tutor y aún no ha respondido. */
+    val guardianPending: Boolean = false
 ) {
     override fun toString(): String = "RecordingAccount(role=$role, isMinor=$isMinor)"
 }
