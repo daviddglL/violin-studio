@@ -26,6 +26,7 @@ import com.violinstudio.ui.feature.assignment.view.StudentAssignmentsRoute
 import com.violinstudio.ui.feature.assignment.view.TeacherAssignmentsRoute
 import com.violinstudio.ui.feature.auth.view.AuthRoute
 import com.violinstudio.ui.feature.auth.view.VerifyEmailRoute
+import com.violinstudio.ui.feature.chat.view.ChatRoute
 import com.violinstudio.ui.feature.consent.view.ConsentSlot
 import com.violinstudio.ui.feature.curriculum.view.CurriculumNavigation
 import com.violinstudio.ui.feature.curriculum.view.CurriculumRoute
@@ -61,9 +62,16 @@ fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
     )
 }
 
-/** Detalle del alumno: abrir sus tareas, abrir sus grabaciones y volver. */
-typealias StudentDetailSlot =
-    @Composable (onOpenAssignments: () -> Unit, onOpenRecordings: () -> Unit, onBack: () -> Unit) -> Unit
+/** Detalle del alumno: abrir sus tareas, abrir sus grabaciones, abrir el chat con él y volver. */
+typealias StudentDetailSlot = @Composable (
+    onOpenAssignments: () -> Unit,
+    onOpenRecordings: () -> Unit,
+    onOpenChat: () -> Unit,
+    onBack: () -> Unit
+) -> Unit
+
+/** Mi profesor: abrir el chat con el profesor (`teacherUid`) y volver. */
+typealias MyTeacherSlot = @Composable (onOpenChat: (String) -> Unit, onBack: () -> Unit) -> Unit
 
 /** Tareas del profesor para un alumno: crear, editar, grabar una demostración de una tarea y volver. */
 typealias TeacherAssignmentsSlot = @Composable (
@@ -96,12 +104,17 @@ fun SessionNavHost(
     metronome: @Composable (onBack: () -> Unit) -> Unit = { MetronomeRoute(onBack = it) },
     practice: @Composable (onBack: () -> Unit) -> Unit = { PracticeRoute(onBack = it) },
     redeemCode: @Composable (onBack: () -> Unit) -> Unit = { RedeemCodeRoute(onBack = it) },
-    myTeacher: @Composable (onBack: () -> Unit) -> Unit = { MyTeacherRoute(onBack = it) },
+    myTeacher: MyTeacherSlot = { chat, back -> MyTeacherRoute(onBack = back, onOpenChat = chat) },
     students: @Composable (onOpenCodes: () -> Unit, onOpenStudent: (String) -> Unit, onBack: () -> Unit) -> Unit =
         { codes, open, back -> StudentsRoute(onOpenCodes = codes, onOpenStudent = open, onBack = back) },
     studentDetail: StudentDetailSlot =
-        { assignments, recordings, back ->
-            StudentDetailRoute(onOpenAssignments = assignments, onOpenRecordings = recordings, onBack = back)
+        { assignments, recordings, chat, back ->
+            StudentDetailRoute(
+                onOpenAssignments = assignments,
+                onOpenRecordings = recordings,
+                onBack = back,
+                onOpenChat = chat
+            )
         },
     teacherCodes: @Composable (onBack: () -> Unit) -> Unit = { TeacherCodesRoute(onBack = it) },
     assignments: StudentAssignmentsSlot = { demos, back ->
@@ -117,6 +130,7 @@ fun SessionNavHost(
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit = { StudentRecordingsRoute(onBack = it) },
     teacherDemo: @Composable (onBack: () -> Unit) -> Unit = { RecordingsRoute(onBack = it) },
     assignmentDemos: @Composable (onBack: () -> Unit) -> Unit = { AssignmentDemosRoute(onBack = it) },
+    chat: @Composable (onBack: () -> Unit) -> Unit = { ChatRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
 ) {
@@ -139,7 +153,7 @@ fun SessionNavHost(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
                 tuner, metronome, practice, redeemCode, myTeacher, students, studentDetail, teacherCodes,
                 assignments, teacherAssignments, assignmentEdit, stats, curriculum, recordings, studentRecordings,
-                teacherDemo, assignmentDemos, deleteViewModel
+                teacherDemo, assignmentDemos, chat, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -164,7 +178,7 @@ private fun SessionGraph(
     metronome: @Composable (onBack: () -> Unit) -> Unit,
     practice: @Composable (onBack: () -> Unit) -> Unit,
     redeemCode: @Composable (onBack: () -> Unit) -> Unit,
-    myTeacher: @Composable (onBack: () -> Unit) -> Unit,
+    myTeacher: MyTeacherSlot,
     students: @Composable (onOpenCodes: () -> Unit, onOpenStudent: (String) -> Unit, onBack: () -> Unit) -> Unit,
     studentDetail: StudentDetailSlot,
     teacherCodes: @Composable (onBack: () -> Unit) -> Unit,
@@ -177,6 +191,7 @@ private fun SessionGraph(
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit,
     teacherDemo: @Composable (onBack: () -> Unit) -> Unit,
     assignmentDemos: @Composable (onBack: () -> Unit) -> Unit,
+    chat: @Composable (onBack: () -> Unit) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
     // El email es el del último EmailUnverified: durante la transición de salida la sesión ya es otra y el slot no
@@ -260,8 +275,12 @@ private fun SessionGraph(
             }
         }
         composable<MyTeacherDestination> {
-            if (session.allowsRoute(MyTeacherDestination::class)) {
-                myTeacher { navController.popIfPossible() }
+            if (session is SessionState.Ready && session.allowsRoute(MyTeacherDestination::class)) {
+                val me = session.profile.uid
+                myTeacher(
+                    { teacher -> navController.navigate(ChatDestination(teacher, me)) { launchSingleTop = true } },
+                    { navController.popIfPossible() }
+                )
             } else {
                 SplashScreen()
             }
@@ -278,11 +297,13 @@ private fun SessionGraph(
             }
         }
         composable<StudentDetailDestination> { entry ->
-            if (session.allowsRoute(StudentDetailDestination::class)) {
+            if (session is SessionState.Ready && session.allowsRoute(StudentDetailDestination::class)) {
                 val uid = entry.toRoute<StudentDetailDestination>().studentUid
+                val me = session.profile.uid
                 studentDetail(
                     { navController.navigate(TeacherAssignmentsDestination(uid)) { launchSingleTop = true } },
                     { navController.navigate(StudentRecordingsDestination(uid)) { launchSingleTop = true } },
+                    { navController.navigate(ChatDestination(me, uid)) { launchSingleTop = true } },
                     { navController.popIfPossible() }
                 )
             } else {
@@ -331,6 +352,13 @@ private fun SessionGraph(
         composable<AssignmentDemosDestination> {
             if (session.allowsRoute(AssignmentDemosDestination::class)) {
                 assignmentDemos { navController.popIfPossible() }
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<ChatDestination> {
+            if (session.allowsRoute(ChatDestination::class)) {
+                chat { navController.popIfPossible() }
             } else {
                 SplashScreen()
             }

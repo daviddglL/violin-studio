@@ -107,6 +107,12 @@ data class AssignmentDemosDestination(val teacherUid: String, val assignmentId: 
     override fun toString(): String = "AssignmentDemosDestination"
 }
 
+/** Chat del par profesor [teacherUid] y alumno [studentUid]: solo `teacher` y `student` (uno de los dos es el usuario). */
+@Serializable
+data class ChatDestination(val teacherUid: String, val studentUid: String) {
+    override fun toString(): String = "ChatDestination"
+}
+
 /** Crear (sin [assignmentId]) o editar una tarea del alumno [studentUid]: solo `teacher`. */
 @Serializable
 data class AssignmentEditDestination(val studentUid: String, val assignmentId: String? = null) {
@@ -133,7 +139,8 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         AssignmentEditDestination::class,
         StudentRecordingsDestination::class,
         TeacherDemoDestination::class,
-        AssignmentDemosDestination::class
+        AssignmentDemosDestination::class,
+        ChatDestination::class
     )
 
 /** Roles que pueden abrir cada ruta por rol; las ausentes son comunes a todos. Solo UX: la seguridad está en reglas. */
@@ -148,7 +155,8 @@ private val ROLE_ROUTES: Map<kotlin.reflect.KClass<*>, Set<Role>> = mapOf(
     AssignmentEditDestination::class to setOf(Role.TEACHER),
     StudentRecordingsDestination::class to setOf(Role.TEACHER),
     TeacherDemoDestination::class to setOf(Role.TEACHER),
-    AssignmentDemosDestination::class to setOf(Role.STUDENT)
+    AssignmentDemosDestination::class to setOf(Role.STUDENT),
+    ChatDestination::class to setOf(Role.TEACHER, Role.STUDENT)
 )
 
 fun Role.allows(route: kotlin.reflect.KClass<*>): Boolean = ROLE_ROUTES[route]?.contains(this) ?: true

@@ -53,6 +53,7 @@ const val STUDENT_DETAIL_LOAD_FAILED_TAG = "student_detail_load_failed"
 const val STUDENT_DETAIL_ASSIGNMENTS_TAG = "student_detail_assignments"
 const val STUDENT_DETAIL_RETRY_TAG = "student_detail_retry"
 const val STUDENT_DETAIL_RECORDINGS_TAG = "student_detail_recordings"
+const val STUDENT_DETAIL_CHAT_TAG = "student_detail_chat"
 
 /**
  * El rol lo comprueba la navegación antes de componer esta ruta. Si el vínculo se pierde, el ViewModel vacía la vista y
@@ -63,6 +64,7 @@ fun StudentDetailRoute(
     onOpenAssignments: () -> Unit,
     onOpenRecordings: () -> Unit,
     onBack: () -> Unit,
+    onOpenChat: (() -> Unit)? = null,
     viewModel: StudentDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -71,7 +73,14 @@ fun StudentDetailRoute(
             StudentDetailEffect.NavigateBack -> onBack()
         }
     }
-    StudentDetailScreen(state, viewModel::onIntent, onBack, onOpenAssignments, onOpenRecordings)
+    StudentDetailScreen(
+        state,
+        viewModel::onIntent,
+        onBack,
+        onOpenAssignments,
+        onOpenRecordings,
+        onOpenChat = onOpenChat
+    )
 }
 
 /** Solo lectura (REQ-TVW-04): ni editar, ni borrar, ni crear sesiones; la zona se inyecta para fechas deterministas. */
@@ -83,7 +92,9 @@ fun StudentDetailScreen(
     onOpenAssignments: () -> Unit = {},
     /** Nulo: sin el boton de grabaciones (las capturas de esta pantalla son anteriores a la fase 4b). */
     onOpenRecordings: (() -> Unit)? = null,
-    zone: ZoneId = ZoneId.systemDefault()
+    zone: ZoneId = ZoneId.systemDefault(),
+    /** Nulo: sin el boton del chat (las capturas de esta pantalla son anteriores a la fase 4c). */
+    onOpenChat: (() -> Unit)? = null
 ) {
     val resources = LocalContext.current.resources
     val configuration = LocalConfiguration.current
@@ -109,7 +120,7 @@ fun StudentDetailScreen(
                     )
                 }
                 state.loadFailed -> item { LoadFailed(onIntent) }
-                else -> content(state, weekly, zone, onOpenAssignments, onOpenRecordings)
+                else -> content(state, weekly, zone, onOpenAssignments, onOpenRecordings, onOpenChat)
             }
         }
     }
@@ -120,7 +131,8 @@ private fun LazyListScope.content(
     weekly: String,
     zone: ZoneId,
     onOpenAssignments: () -> Unit,
-    onOpenRecordings: (() -> Unit)?
+    onOpenRecordings: (() -> Unit)?,
+    onOpenChat: (() -> Unit)?
 ) {
     state.link?.let { link ->
         item {
@@ -149,6 +161,14 @@ private fun LazyListScope.content(
                 onClick = open,
                 modifier = Modifier.fillMaxWidth().testTag(STUDENT_DETAIL_RECORDINGS_TAG)
             ) { Text(stringResource(R.string.student_recordings_open)) }
+        }
+    }
+    onOpenChat?.let { open ->
+        item {
+            OutlinedButton(
+                onClick = open,
+                modifier = Modifier.fillMaxWidth().testTag(STUDENT_DETAIL_CHAT_TAG)
+            ) { Text(stringResource(R.string.chat_open)) }
         }
     }
     item {

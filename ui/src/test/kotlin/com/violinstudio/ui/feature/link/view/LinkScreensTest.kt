@@ -91,6 +91,24 @@ class LinkScreensTest {
     }
 
     @Test
+    fun `el chat se ofrece solo con el callback y abre el del profesor`() {
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            ViolinStudioTheme {
+                MyTeacherScreen(MyTeacherState(isLoading = false, teacher = link), {}, onBack = {}) { opened += it }
+            }
+        }
+        compose.onNodeWithTag(MY_TEACHER_CHAT_TAG).performScrollTo().performClick()
+        assertEquals(listOf("t1"), opened)
+    }
+
+    @Test
+    fun `sin callback no hay boton de chat`() {
+        showTeacher(MyTeacherState(isLoading = false, teacher = link))
+        compose.onAllNodesWithTag(MY_TEACHER_CHAT_TAG).assertCountEquals(0)
+    }
+
+    @Test
     fun `sin profesor no hay aviso`() {
         showTeacher(MyTeacherState(isLoading = false, teacher = null))
         compose.onAllNodesWithTag(MY_TEACHER_SEES_TAG).assertCountEquals(0)

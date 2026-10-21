@@ -12,6 +12,9 @@ import com.violinstudio.data.feature.assignment.repository.AssignmentRepositoryI
 import com.violinstudio.data.feature.auth.datasource.AuthRemoteDataSource
 import com.violinstudio.data.feature.auth.datasource.firebase.FirebaseAuthRemoteDataSource
 import com.violinstudio.data.feature.auth.repository.AuthRepositoryImpl
+import com.violinstudio.data.feature.chat.datasource.ChatRemoteDataSource
+import com.violinstudio.data.feature.chat.datasource.firebase.FirebaseChatRemoteDataSource
+import com.violinstudio.data.feature.chat.repository.ChatRepositoryImpl
 import com.violinstudio.data.feature.consent.repository.ConsentRepositoryImpl
 import com.violinstudio.data.feature.curriculum.repository.DataStoreLessonProgressRepository
 import com.violinstudio.data.feature.health.datasource.HealthRemoteDataSource
@@ -40,6 +43,7 @@ import com.violinstudio.data.feature.tuner.repository.DataStoreTunerConfigReposi
 import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.assignment.repository.AssignmentRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
+import com.violinstudio.domain.feature.chat.repository.ChatRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.curriculum.repository.LessonProgressRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
@@ -132,4 +136,10 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindAssignmentRepository(impl: AssignmentRepositoryImpl): AssignmentRepository
+
+    @Binds
+    abstract fun bindChatRemoteDataSource(impl: FirebaseChatRemoteDataSource): ChatRemoteDataSource
+
+    @Binds
+    abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
 }

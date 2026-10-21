@@ -597,4 +597,21 @@
     <string name="recordings_demo_intro">Graba cómo debe sonar la tarea. Solo la escuchará este alumno, junto a esta tarea, y se borra si dejáis de estar vinculados.</string>
     <string name="recordings_demo_uploaded_title">Demostraciones de esta tarea</string>
     <string name="recordings_demo_empty">Aún no has grabado ninguna demostración para esta tarea.</string>
+    <string name="chat_open">Mensajes</string>
+    <string name="chat_title">Mensajes</string>
+    <string name="chat_retention">Solo lo veis vosotros dos. Cada mensaje se borra solo a los 180 días, y todos se borran si dejáis de estar vinculados.</string>
+    <string name="chat_disabled">Los mensajes aún no están disponibles.</string>
+    <string name="chat_load_failed">No se han podido cargar los mensajes.</string>
+    <string name="chat_empty">Aún no hay mensajes.</string>
+    <string name="chat_input_label">Escribe un mensaje</string>
+    <string name="chat_send">Enviar</string>
+    <string name="chat_from_me">Tú</string>
+    <string name="chat_from_other">Mensaje recibido</string>
+    <string name="chat_pending">Enviando…</string>
+    <string name="chat_delete">Borrar</string>
+    <string name="chat_delete_title">¿Borrar el mensaje?</string>
+    <string name="chat_delete_body">Se borra para los dos y no se puede recuperar.</string>
+    <string name="chat_error_too_long">El mensaje es demasiado largo (máximo 1000 caracteres).</string>
+    <string name="chat_error_denied">Ahora mismo no puedes enviar mensajes en este chat.</string>
+    <string name="chat_error_unknown">No se ha podido completar. Inténtalo de nuevo.</string>
 </resources>

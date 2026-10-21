@@ -31,6 +31,7 @@ import com.violinstudio.ui.navigation.AssignmentDemosDestination
 import com.violinstudio.ui.navigation.AssignmentEditDestination
 import com.violinstudio.ui.navigation.AssignmentsDestination
 import com.violinstudio.ui.navigation.BUSINESS_ROUTES
+import com.violinstudio.ui.navigation.ChatDestination
 import com.violinstudio.ui.navigation.CurriculumDestination
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
@@ -315,7 +316,8 @@ class AppNavHostSessionTest {
                 AssignmentEditDestination::class,
                 StudentRecordingsDestination::class,
                 TeacherDemoDestination::class,
-                AssignmentDemosDestination::class
+                AssignmentDemosDestination::class,
+                ChatDestination::class
             ),
             BUSINESS_ROUTES.toSet()
         )
