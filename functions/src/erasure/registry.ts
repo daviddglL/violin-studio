@@ -38,6 +38,13 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   recordings: { kind: "subcollectionOf", parent: "users" },
   // Cuelgan de `recordings`: caen con su `recursiveDelete`. Las del profesor borrado en espacios ajenos se anonimizan en B5b.
   reviews: { kind: "subcollectionOf", parent: "recordings" },
+  // Marcas de idempotencia del decremento de `recordingCount` (una por instancia de doc borrada): caen con el
+  // `recursiveDelete` del usuario y, mientras tanto, las retira la politica TTL de `expireAt` (30 d).
+  recordingCountLedger: { kind: "subcollectionOf", parent: "users" },
+  maintenance: {
+    kind: "exempt",
+    reason: "cursores de reanudacion de los trabajos diarios; solo un prefijo truncado de uid (no identifica a nadie), se sobrescribe en cada ejecucion",
+  },
 };
 
 /**

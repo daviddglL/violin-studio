@@ -40,17 +40,48 @@ interface BoxHeader {
   size: number;
 }
 
+/** Envuelve un fallo del LECTOR para distinguirlo de los errores del parser (se desenvuelve al salir). */
+class ReadFailure extends Error {
+  constructor(readonly original: unknown) {
+    super("mp4_read_failure");
+  }
+}
+
+/**
+ * Un `RangeError`/`TypeError` del PARSER (p. ej. un tamano de caja manipulado que llevara a leer fuera del buffer) es un
+ * contenedor defectuoso: `Mp4Error("inconsistent")`, rechazo inmediato y no un fallo transitorio que finalize reintentaria
+ * hasta el corte de 6 h. Los fallos del lector (Storage) se propagan tal cual para que se reintenten.
+ */
 export async function readMp4DurationSec(
   read: RangeReader,
   totalSize: number,
   opts: { maxReads?: number } = {},
+): Promise<Mp4Duration> {
+  try {
+    return await parseMp4(read, totalSize, opts);
+  } catch (e) {
+    if (e instanceof ReadFailure) throw e.original;
+    if (e instanceof RangeError || e instanceof TypeError) throw new Mp4Error("inconsistent");
+    throw e;
+  }
+}
+
+async function parseMp4(
+  read: RangeReader,
+  totalSize: number,
+  opts: { maxReads?: number },
 ): Promise<Mp4Duration> {
   const maxReads = opts.maxReads ?? DEFAULT_MAX_READS;
   let reads = 0;
   const readAt = async (offset: number, length: number): Promise<Buffer> => {
     if (reads >= maxReads) throw new Mp4Error("too_many_reads");
     reads += 1;
-    const buf = await read(offset, length);
+    let buf: Buffer;
+    try {
+      buf = await read(offset, length);
+    } catch (e) {
+      throw new ReadFailure(e);
+    }
     // Menos bytes de los pedidos dentro del fichero: el objeto cambio o esta cortado.
     if (buf.length < length) throw new Mp4Error("truncated");
     return buf;

@@ -19,6 +19,12 @@ test("el registro cubre todas las colecciones con la política prevista", () => 
   // B3b: politica simple; las cascadas `foreign` (demos dirigidas al alumno, anonimizar revisiones) llegan en B5b.
   expect(ERASABLE_COLLECTIONS.recordings).toEqual({ kind: "subcollectionOf", parent: "users" });
   expect(ERASABLE_COLLECTIONS.reviews).toEqual({ kind: "subcollectionOf", parent: "recordings" });
+  // B5a (W2 de la revision fresca): marcas de idempotencia del decremento del cupo; caen con el usuario y tienen TTL.
+  expect(ERASABLE_COLLECTIONS.recordingCountLedger).toEqual({ kind: "subcollectionOf", parent: "users" });
+  // B5a (W1): cursores de los trabajos diarios; sin uid completo (prefijo truncado), exenta con motivo.
+  const maint = ERASABLE_COLLECTIONS.maintenance;
+  expect(maint.kind).toBe("exempt");
+  expect(maint.kind === "exempt" && maint.reason.length).toBeGreaterThan(10);
   const exempt = ERASABLE_COLLECTIONS.guardianEmailLimits;
   expect(exempt.kind).toBe("exempt");
   expect(exempt.kind === "exempt" && exempt.reason.length).toBeGreaterThan(10);
@@ -41,6 +47,8 @@ test("una colección sin política no compila", () => {
     assignments: { kind: "subcollectionOf", parent: "users" },
     recordings: { kind: "subcollectionOf", parent: "users" },
     reviews: { kind: "subcollectionOf", parent: "recordings" },
+    recordingCountLedger: { kind: "subcollectionOf", parent: "users" },
+    maintenance: { kind: "exempt", reason: "x" },
   };
   expect(incompleto).toBeDefined();
 });

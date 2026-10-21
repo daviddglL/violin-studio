@@ -80,6 +80,7 @@ describe("firestore.indexes.json", () => {
   test.each([
     ["recordings", "expiresAt"],
     ["recordings", "sharedWith"],
+    ["recordings", "status"],
     ["reviews", "reviewerUid"],
   ])("%s.%s: indice COLLECTION_GROUP ascendente (purga diaria y cascadas de borrado, B3b)", (coleccion, campo) => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === campo);
@@ -96,6 +97,12 @@ describe("firestore.indexes.json", () => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === coleccion && f.fieldPath === "expireAt");
     expect(o.ttl).toBe(true);
     expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION" });
+  });
+
+  test("recordingCountLedger.expireAt: TTL (marcas de idempotencia del decremento del cupo, B5a W2)", () => {
+    const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === "recordingCountLedger" && f.fieldPath === "expireAt");
+    expect(o).toBeDefined();
+    expect(o.ttl).toBe(true);
   });
 
   test("ningun fieldOverride con indexes vacios deshabilita un campo que purge.ts consulta con rango", () => {

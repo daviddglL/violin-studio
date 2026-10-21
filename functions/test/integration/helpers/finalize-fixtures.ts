@@ -88,3 +88,25 @@ export const recRef = (uid: string, id: string) => db.collection("users").doc(ui
 export const recDoc = async (uid: string, id: string) => (await recRef(uid, id).get()).data();
 export const idOf = (name: string) => name.split("/").pop()!.replace(/\.(m4a|mp4)$/, "");
 export const userDoc = async (uid: string) => (await db.collection("users").doc(uid).get()).data();
+
+/** Doc `ready` como lo deja finalize para ese evento (sembrado directo: no dispara ningun trigger de borrado). */
+export async function seedRecording(uid: string, ev: FinalizeEvent, over: Record<string, unknown> = {}) {
+  const id = idOf(ev.name);
+  await recRef(uid, id).set({
+    kind: "audio",
+    status: "ready",
+    durationSec: 30,
+    sizeBytes: 100,
+    createdAt: Timestamp.fromDate(NOW),
+    expiresAt: Timestamp.fromMillis(NOW.getTime() + 90 * DAY),
+    objectPath: ev.name,
+    generation: ev.generation,
+    recordingConsentEpoch: 0,
+    ...over,
+  });
+  return id;
+}
+
+export const seedReview = (uid: string, id: string, reviewer = "t1") =>
+  recRef(uid, id).collection("reviews").doc(reviewer).set({ reviewerUid: reviewer, verdict: "approved", text: "bien" });
+export const reviewCount = async (uid: string, id: string) => (await recRef(uid, id).collection("reviews").get()).size;

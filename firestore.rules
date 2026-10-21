@@ -173,6 +173,9 @@ service cloud.firestore {
           allow delete: if isLinkedTeacher(uid) && reviewId == request.auth.uid;
         }
       }
+
+      // Marcas de idempotencia del decremento del cupo (onRecordingDeleted): solo Admin SDK, ni el dueno las ve.
+      match /recordingCountLedger/{id} { allow read, write: if false; }
     }
 
     // Colecciones del servidor (solo Admin SDK): deny explícito para que el test de registro las detecte.
@@ -181,6 +184,8 @@ service cloud.firestore {
     match /mail/{id} { allow read, write: if false; }
     // Codigos de vinculo: ids HMAC, solo Functions (el profesor los lista via callable).
     match /teacherCodes/{id} { allow read, write: if false; }
+    // Cursores de los trabajos diarios (purga/barrido de grabaciones): solo Functions.
+    match /maintenance/{id} { allow read, write: if false; }
     // Vinculos profesor-alumno: solo Functions escribe. Lectura por las partes; el `list` exige filtrar por el propio
     // uid (teacherUid o studentUid) para que la consulta quede acotada. Accesos por evaluacion: 0.
     match /teacherLinks/{id} {

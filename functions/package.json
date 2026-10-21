@@ -12,6 +12,8 @@
     "preadmin:grant-teacher": "npm run build",
     "preadmin:revoke-teacher": "npm run build",
     "preadmin:reevaluate-consents": "npm run build",
+    "preadmin:recount-recordings": "npm run build",
+    "admin:recount-recordings": "node scripts/recount-recordings.js",
     "admin:reevaluate-consents": "node scripts/reevaluate-consents.js",
     "admin:grant-teacher": "node scripts/grant-teacher.js",
     "admin:revoke-teacher": "node scripts/revoke-teacher.js",
