@@ -1,5 +1,6 @@
-import * as entrypoint from "../../src/index";
+process.env.GCLOUD_PROJECT ??= "demo-violin-studio"; // el trigger de Storage resuelve el bucket por defecto al cargar
+const entrypoint = require("../../src/index"); // eslint-disable-line @typescript-eslint/no-require-imports
 
 test("el entrypoint desplegable solo exporta las funciones previstas", () => {
-  expect(Object.keys(entrypoint).sort()).toEqual(["REGION", "createTeacherCode", "deleteAccount", "grantRecordingConsent", "guardianConsent", "health", "identityConfig", "listTeacherCodes", "onUserDeleted", "purgeIdentity", "recordConsent", "redeemTeacherCode", "registerProfile", "requestGuardianConsent", "revokeConsent", "revokeRecordingConsent", "revokeTeacherCode", "syncLinkNames", "unlinkTeacher"]);
+  expect(Object.keys(entrypoint).sort()).toEqual(["REGION", "createTeacherCode", "deleteAccount", "finalizeRecording", "grantRecordingConsent", "guardianConsent", "health", "identityConfig", "listTeacherCodes", "onUserDeleted", "purgeIdentity", "recordConsent", "redeemTeacherCode", "registerProfile", "requestGuardianConsent", "revokeConsent", "revokeRecordingConsent", "revokeTeacherCode", "syncLinkNames", "unlinkTeacher"]);
 });

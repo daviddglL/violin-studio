@@ -1,3 +1,4 @@
+process.env.GCLOUD_PROJECT ??= "demo-violin-studio"; // el trigger de Storage resuelve el bucket por defecto al cargar el entrypoint
 import functionsTest from "firebase-functions-test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

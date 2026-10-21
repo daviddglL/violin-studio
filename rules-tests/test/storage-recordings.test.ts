@@ -5,7 +5,8 @@ import { Claims, createEnv, OK, recordingUserDoc, seed } from "./helpers";
 
 let env: RulesTestEnvironment;
 const MIB = 1024 * 1024;
-const AUDIO = { contentType: "audio/mp4", customMetadata: { kind: "audio", durationMs: "30000" } };
+/** `recordingConsentEpoch` = epoca de `recordingUserDoc()` (1): sello de la epoca de captura (W3 de B4b). */
+const AUDIO = { contentType: "audio/mp4", customMetadata: { kind: "audio", durationMs: "30000", recordingConsentEpoch: "1" } };
 
 beforeAll(async () => {
   env = await createEnv();
@@ -23,7 +24,11 @@ const demoPath = (uid: string, file: string) => `users/${uid}/demos/${file}`;
 const bytes = (n: number) => new Uint8Array(n);
 const upload = (ctx: RulesTestContext, uid: string, file: string, n = 1024, meta: object = AUDIO) =>
   uploadBytes(ref(ctx.storage(), path(uid, file)), bytes(n), meta);
-const audioMeta = (m: Record<string, string>) => ({ contentType: "audio/mp4", customMetadata: m });
+/** Anade el sello de epoca vigente (1) salvo que `m` lo cambie; `undefined` quita la clave. */
+const audioMeta = (m: Record<string, string | undefined>) => ({
+  contentType: "audio/mp4",
+  customMetadata: Object.fromEntries(Object.entries({ recordingConsentEpoch: "1", ...m }).filter(([, v]) => v !== undefined)) as Record<string, string>,
+});
 
 describe("Storage recordings: create audio (REQ-SEC-R03, REQ-REC-01)", () => {
   test("el dueño verificado con consentimiento sube un audio/mp4 válido", async () => {
@@ -346,5 +351,35 @@ describe("Storage demos del profesor: create (REQ-REC-10, C1)", () => {
     await assertFails(deleteObject(r));
     await assertFails(updateMetadata(r, { customMetadata: { kind: "audio", durationMs: "2" } }));
     await assertFails(listAll(ref(asCtx("tea").storage(), "users/tea/demos")));
+  });
+});
+
+describe("Storage: sello de la epoca de captura recordingConsentEpoch (W3 de B4b)", () => {
+  const meta = (epoch: string | undefined, extra: Record<string, string> = {}) =>
+    audioMeta({ kind: "audio", durationMs: "1000", recordingConsentEpoch: epoch, ...extra });
+
+  test("debe ser la epoca vigente del doc del dueno (sin acceso extra: mismo get de userDoc)", async () => {
+    const ctx = asCtx("alice");
+    await assertSucceeds(upload(ctx, "alice", "ok.m4a", 10, meta("1")));
+    await assertFails(upload(ctx, "alice", "old.m4a", 10, meta("0"))); // capturada antes de revocar y reconceder
+    await assertFails(upload(ctx, "alice", "future.m4a", 10, meta("2")));
+  });
+  test("obligatorio y canonico: ausente, vacio, no numerico, con ceros a la izquierda o enorme se deniega", async () => {
+    const ctx = asCtx("alice");
+    for (const [i, bad] of [undefined, "", "uno", "01", "1.0", "-1", "1234567890"].entries()) {
+      await assertFails(upload(ctx, "alice", `bad-${i}.m4a`, 10, meta(bad)));
+    }
+  });
+  test("epoca ausente en el doc del dueno = 0", async () => {
+    await seed(env, "users/bob", Object.fromEntries(Object.entries(recordingUserDoc()).filter(([k]) => k !== "recordingConsentEpoch")));
+    await assertSucceeds(upload(asCtx("bob"), "bob", "zero.m4a", 10, meta("0")));
+    await assertFails(upload(asCtx("bob"), "bob", "one.m4a", 10, meta("1")));
+  });
+  test("demos: el sello es la epoca del profesor (dueno del objeto)", async () => {
+    await seed(env, "users/tea", recordingUserDoc({ role: "teacher", recordingConsentEpoch: 3 }));
+    const demo = (file: string, epoch: string) =>
+      uploadBytes(ref(asCtx("tea").storage(), demoPath("tea", file)), bytes(10), meta(epoch, { assignmentId: "as-1", sharedWith: "stu" }));
+    await assertSucceeds(demo("d3.m4a", "3"));
+    await assertFails(demo("d1.m4a", "1"));
   });
 });
