@@ -30,9 +30,15 @@ class RecordingSummaryParserTest {
 
     @Test
     fun `una demo rechazada sin fecha ni duracion legibles`() {
-        val data = mapOf("status" to "rejected", "createdAt" to "ayer", "durationSec" to -1, "sharedWith" to "s1")
+        val data = mapOf(
+            "status" to "rejected",
+            "createdAt" to "ayer",
+            "durationSec" to -1,
+            "sharedWith" to "s1",
+            "assignmentId" to "a1"
+        )
         assertEquals(
-            RecordingSummary("r2", null, null, ready = false, isDemo = true),
+            RecordingSummary("r2", null, null, ready = false, isDemo = true, assignmentId = "a1", sharedWith = "s1"),
             RecordingSummaryParser.parse("r2", data)
         )
     }

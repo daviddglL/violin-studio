@@ -25,7 +25,9 @@ object RecordingSummaryParser {
                 ?.let { (it * MS_PER_SEC).toLong() },
             ready = ready,
             isDemo = data["sharedWith"] is String,
-            objectPath = data["objectPath"] as? String
+            objectPath = data["objectPath"] as? String,
+            assignmentId = data["assignmentId"] as? String,
+            sharedWith = data["sharedWith"] as? String
         )
     }
 }

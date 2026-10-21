@@ -19,6 +19,9 @@ class SaveReviewUseCaseTest {
 
         override fun observeStudentRecordings(studentUid: String): Flow<List<RecordingSummary>> = emptyFlow()
 
+        override fun observeSharedDemos(teacherUid: String, studentUid: String): Flow<List<RecordingSummary>> =
+            emptyFlow()
+
         override fun observeReview(ownerUid: String, recordingId: String, reviewerUid: String): Flow<Review?> =
             emptyFlow()
 

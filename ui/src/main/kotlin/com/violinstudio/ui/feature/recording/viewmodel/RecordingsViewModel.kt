@@ -1,9 +1,11 @@
 package com.violinstudio.ui.feature.recording.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.recording.failure.RecordingFailure
 import com.violinstudio.domain.feature.recording.model.RecordingAccess
+import com.violinstudio.domain.feature.recording.model.RecordingsOverview
 import com.violinstudio.domain.feature.recording.repository.RecordingHandle
 import com.violinstudio.domain.feature.recording.usecase.DeleteRecordingUseCase
 import com.violinstudio.domain.feature.recording.usecase.DiscardUploadUseCase
@@ -33,6 +35,9 @@ import kotlinx.coroutines.launch
  * Pantalla de grabaciones (REQ-REC-02/04/09): consentimiento, grabar con la pantalla visible, cola de subida y
  * grabaciones del servidor. El micro solo se abre con [StartRecordingUseCase], que repite todas las comprobaciones; al
  * salir de la pantalla la toma en curso se descarta. La parada automatica llega como un "Parar" mas.
+ *
+ * Con `studentUid` y `assignmentId` en la ruta (`TeacherDemoDestination`) es el modo demo del profesor: cada toma se
+ * comparte con ese alumno ligada a esa tarea y la lista muestra solo esas demos.
  */
 @HiltViewModel
 class RecordingsViewModel @Inject constructor(
@@ -47,8 +52,12 @@ class RecordingsViewModel @Inject constructor(
     private val deleteRecording: DeleteRecordingUseCase,
     private val playback: RecordingPlaybackUseCase,
     private val observeReviews: ObserveRecordingReviewsUseCase,
-    private val requestGuardian: RequestRecordingGuardianUseCase
-) : MviViewModel<RecordingsState, RecordingsIntent, RecordingsEffect>(RecordingsState()) {
+    private val requestGuardian: RequestRecordingGuardianUseCase,
+    savedStateHandle: SavedStateHandle
+) : MviViewModel<RecordingsState, RecordingsIntent, RecordingsEffect>(
+    RecordingsState(demo = DemoTarget.from(savedStateHandle) != null)
+) {
+    private val demo: DemoTarget? = DemoTarget.from(savedStateHandle)
     private var handle: RecordingHandle? = null
     private var session: Job? = null
     private var playJob: Job? = null
@@ -58,7 +67,7 @@ class RecordingsViewModel @Inject constructor(
         viewModelScope.launch {
             observeRecordings()
                 .catch { reduce(RecordingsMutation.Message(RecordingsMessage.LOAD_FAILED)) }
-                .collect { reduce(RecordingsMutation.Overview(it)) }
+                .collect { reduce(RecordingsMutation.Overview(it.onlyDemo())) }
         }
         viewModelScope.launch { playback.state.collect { reduce(RecordingsMutation.Playback(it)) } }
         onIntent(RecordingsIntent.Refresh)
@@ -222,7 +231,7 @@ class RecordingsViewModel @Inject constructor(
             }
             return reduce(RecordingsMutation.Message(message))
         }
-        finishRecording(take).fold(
+        finishRecording(take, demo?.assignmentId, demo?.studentUid).fold(
             onSuccess = {
                 reduce(RecordingsMutation.Message(RecordingsMessage.SAVED))
                 refresh()
@@ -280,6 +289,16 @@ class RecordingsViewModel @Inject constructor(
         }
     }
 
+    private fun RecordingsOverview.onlyDemo(): RecordingsOverview {
+        val target = demo ?: return this
+        return copy(
+            pending = pending.filter { it.assignmentId == target.assignmentId && it.sharedWith == target.studentUid },
+            recordings = recordings.filter {
+                it.assignmentId == target.assignmentId && it.sharedWith == target.studentUid
+            }
+        )
+    }
+
     private suspend fun withUid(action: suspend (String) -> Result<Unit>) {
         val uid = state.value.uid ?: return
         action(uid).onFailure { reduce(RecordingsMutation.Message(RecordingsMessage.ACTION_FAILED)) }
@@ -307,5 +326,20 @@ class RecordingsViewModel @Inject constructor(
 
     companion object {
         const val TICK_MS = 250L
+        const val STUDENT_UID_KEY = "studentUid"
+        const val ASSIGNMENT_ID_KEY = "assignmentId"
+    }
+}
+
+/** Alumno y tarea de una demo; los nombres son los argumentos de `TeacherDemoDestination`. */
+private data class DemoTarget(val studentUid: String, val assignmentId: String) {
+    override fun toString(): String = "DemoTarget"
+
+    companion object {
+        fun from(handle: SavedStateHandle): DemoTarget? {
+            val student = handle.get<String>(RecordingsViewModel.STUDENT_UID_KEY) ?: return null
+            val assignment = handle.get<String>(RecordingsViewModel.ASSIGNMENT_ID_KEY) ?: return null
+            return DemoTarget(student, assignment)
+        }
     }
 }

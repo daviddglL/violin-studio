@@ -49,6 +49,18 @@ class RecordingsScreenTest {
     }
 
     @Test
+    fun `en modo demo cambia el titulo, explica a quien llega y no ofrece revocar`() {
+        show(RecordingsState(access = allowed, demo = true))
+        compose.onNodeWithText("Demostración de la tarea").assertIsDisplayed()
+        compose.onNodeWithTag(RECORDINGS_DEMO_INTRO_TAG).assertIsDisplayed()
+        compose.onNodeWithText("Aún no has grabado ninguna demostración para esta tarea.").performScrollTo()
+            .assertIsDisplayed()
+        compose.onNodeWithTag(RECORDINGS_REVOKE_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(RECORDINGS_RECORD_TAG).performClick()
+        assertEquals(1, records)
+    }
+
+    @Test
     fun `con acceso se puede grabar y volver`() {
         show(RecordingsState(access = allowed))
         compose.onNodeWithText("Puedes grabar hasta 1:00 por toma. Mantén la pantalla abierta mientras grabas.")

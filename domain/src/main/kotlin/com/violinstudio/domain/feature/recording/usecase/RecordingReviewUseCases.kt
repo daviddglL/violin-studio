@@ -20,6 +20,28 @@ class ObserveStudentRecordingsUseCase @Inject constructor(private val reviews: R
     operator fun invoke(studentUid: String): Flow<List<RecordingSummary>> = reviews.observeStudentRecordings(studentUid)
 }
 
+/**
+ * Demos de su profesor [teacherUid] para la tarea [assignmentId] (vista del alumno), mas recientes primero; sin sesion
+ * no emite. El flujo falla si las reglas deniegan (sin vinculo o sin consentimiento).
+ */
+class ObserveAssignmentDemosUseCase @Inject constructor(
+    private val auth: AuthRepository,
+    private val reviews: RecordingReviews
+) {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    operator fun invoke(teacherUid: String, assignmentId: String): Flow<List<RecordingSummary>> =
+        auth.authUser.map { it?.uid }.distinctUntilChanged().flatMapLatest { uid ->
+            if (uid == null) {
+                emptyFlow()
+            } else {
+                reviews.observeSharedDemos(teacherUid, uid).map { demos ->
+                    demos.filter { it.ready && it.assignmentId == assignmentId }
+                        .sortedByDescending { it.createdAtMs ?: Long.MIN_VALUE }
+                }
+            }
+        }
+}
+
 /** La revision del usuario actual (profesor) sobre una grabacion del alumno; sin sesion no emite. */
 class ObserveMyReviewUseCase @Inject constructor(
     private val auth: AuthRepository,

@@ -49,6 +49,8 @@ class RoleRoutesNavTest {
     private var assignmentsComposed = false
     private var teacherAssignmentsComposed = false
     private var studentRecordingsComposed = false
+    private var teacherDemoComposed = false
+    private var assignmentDemosComposed = false
     private var editComposed = false
     private lateinit var nav: NavHostController
 
@@ -62,6 +64,8 @@ class RoleRoutesNavTest {
         assignmentsComposed = false
         teacherAssignmentsComposed = false
         studentRecordingsComposed = false
+        teacherDemoComposed = false
+        assignmentDemosComposed = false
         editComposed = false
         compose.setContent {
             ViolinStudioTheme {
@@ -125,17 +129,32 @@ class RoleRoutesNavTest {
                         studentRecordingsComposed = true
                         Button(onClick = onBack, modifier = Modifier.testTag("recordings_screen")) { Text("b") }
                     },
-                    assignments = { onBack ->
+                    assignments = { onOpenDemos, onBack ->
                         assignmentsComposed = true
-                        Button(onClick = onBack, modifier = Modifier.testTag("assignments_screen")) { Text("b") }
+                        Column {
+                            Button(onClick = onBack, modifier = Modifier.testTag("assignments_screen")) { Text("b") }
+                            Button(
+                                onClick = { onOpenDemos("t1", "a1") },
+                                modifier = Modifier.testTag("assignments_demos")
+                            ) { Text("d") }
+                        }
                     },
-                    teacherAssignments = { onCreate, onEdit, onBack ->
+                    teacherAssignments = { onCreate, onEdit, onDemo, onBack ->
                         teacherAssignmentsComposed = true
                         Column {
                             Button(onClick = onBack, modifier = Modifier.testTag("tasks_screen")) { Text("b") }
                             Button(onClick = onCreate, modifier = Modifier.testTag("tasks_create")) { Text("c") }
                             Button(onClick = { onEdit("a1") }, modifier = Modifier.testTag("tasks_edit")) { Text("e") }
+                            Button(onClick = { onDemo("a1") }, modifier = Modifier.testTag("tasks_demo")) { Text("d") }
                         }
+                    },
+                    teacherDemo = { onBack ->
+                        teacherDemoComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("teacher_demo_screen")) { Text("b") }
+                    },
+                    assignmentDemos = { onBack ->
+                        assignmentDemosComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("assignment_demos_screen")) { Text("b") }
                     },
                     assignmentEdit = { onBack ->
                         editComposed = true
@@ -451,7 +470,55 @@ class RoleRoutesNavTest {
     }
 
     @Test
+    fun teacherRecordsADemoFromTheTaskListAndBackReturnsThere() {
+        start(ready(Role.TEACHER))
+        compose.runOnUiThread { nav.navigate(TeacherAssignmentsDestination("s1")) }
+        compose.onNodeWithTag("tasks_demo").performClick()
+        assertAt(TeacherDemoDestination("s1", "a1"))
+        val demo = nav.currentBackStackEntry?.toRoute<TeacherDemoDestination>()
+        assertEquals("s1", demo?.studentUid)
+        assertEquals("a1", demo?.assignmentId)
+        compose.onNodeWithTag("teacher_demo_screen").performClick()
+        assertAt(TeacherAssignmentsDestination("s1"))
+    }
+
+    @Test
+    fun studentOpensTheTeacherDemosOfATaskAndBackReturnsThere() {
+        start(ready(Role.STUDENT))
+        compose.onNodeWithTag("open_assignments").performClick()
+        compose.onNodeWithTag("assignments_demos").performClick()
+        assertAt(AssignmentDemosDestination("t1", "a1"))
+        val demos = nav.currentBackStackEntry?.toRoute<AssignmentDemosDestination>()
+        assertEquals("t1", demos?.teacherUid)
+        assertEquals("a1", demos?.assignmentId)
+        compose.onNodeWithTag("assignment_demos_screen").performClick()
+        assertAt(AssignmentsDestination)
+    }
+
+    @Test
+    fun demoRoutesOnlyComposeForTheirRole() {
+        assertTrue(TeacherDemoDestination::class in BUSINESS_ROUTES)
+        assertTrue(AssignmentDemosDestination::class in BUSINESS_ROUTES)
+        assertTrue(Role.TEACHER.allows(TeacherDemoDestination::class))
+        assertFalse(Role.STUDENT.allows(TeacherDemoDestination::class))
+        assertFalse(Role.INDEPENDENT.allows(TeacherDemoDestination::class))
+        assertTrue(Role.STUDENT.allows(AssignmentDemosDestination::class))
+        assertFalse(Role.TEACHER.allows(AssignmentDemosDestination::class))
+        assertFalse(Role.INDEPENDENT.allows(AssignmentDemosDestination::class))
+        start(ready(Role.STUDENT))
+        compose.runOnUiThread { nav.navigate(TeacherDemoDestination("s1", "a1")) }
+        assertAt(HomeDestination)
+        session.value = ready(Role.TEACHER)
+        compose.waitForIdle()
+        compose.runOnUiThread { nav.navigate(AssignmentDemosDestination("t1", "a1")) }
+        assertAt(HomeDestination)
+        assertFalse(teacherDemoComposed || assignmentDemosComposed)
+    }
+
+    @Test
     fun destinationsHideTheirUidsInToString() {
+        assertEquals("TeacherDemoDestination", TeacherDemoDestination("secret", "x").toString())
+        assertEquals("AssignmentDemosDestination", AssignmentDemosDestination("secret", "x").toString())
         assertEquals("StudentRecordingsDestination", StudentRecordingsDestination("secret").toString())
         assertEquals("TeacherAssignmentsDestination", TeacherAssignmentsDestination("secret").toString())
         assertEquals("AssignmentEditDestination", AssignmentEditDestination("secret", "x").toString())

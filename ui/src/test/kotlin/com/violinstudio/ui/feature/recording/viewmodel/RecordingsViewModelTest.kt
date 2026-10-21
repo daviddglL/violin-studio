@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.recording.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import com.violinstudio.domain.feature.consent.failure.ConsentFailure
 import com.violinstudio.domain.feature.recording.failure.RecordingFailure
 import com.violinstudio.domain.feature.recording.model.PlaybackState
@@ -88,8 +89,9 @@ class RecordingsViewModelTest {
     private val reviews = mockk<ObserveRecordingReviewsUseCase>()
     private val guardian = mockk<RequestRecordingGuardianUseCase>()
 
-    private fun TestScope.viewModel(): RecordingsViewModel = RecordingsViewModel(
-        getAccess, grant, revoke, start, finish, observe, retry, discard, delete, playback, reviews, guardian
+    private fun TestScope.viewModel(args: Map<String, String> = emptyMap()): RecordingsViewModel = RecordingsViewModel(
+        getAccess, grant, revoke, start, finish, observe, retry, discard, delete, playback, reviews, guardian,
+        SavedStateHandle(args)
     )
         .also { runCurrent() }
 
@@ -379,6 +381,39 @@ class RecordingsViewModelTest {
         // Sin cerrar la toma, el contador seguiria vivo y runTest no terminaria nunca.
         vm.onIntent(RecordingsIntent.Leave)
         runCurrent()
+    }
+
+    @Test
+    fun `en modo demo la toma se comparte con el alumno y la lista solo muestra esa tarea`() = runTest {
+        val mine = RecordingSummary("r0", 1, 1_000, ready = true, isDemo = false)
+        val demo = RecordingSummary("d1", 2, 1_000, ready = true, isDemo = true, assignmentId = "a1", sharedWith = "s1")
+        val otherTask = demo.copy(id = "d2", assignmentId = "a2")
+        val otherStudent = demo.copy(id = "d3", sharedWith = "s2")
+        val queued = QueuedRecording(take, assignmentId = "a1", sharedWith = "s1")
+        val queuedOther = QueuedRecording(take.copy(id = "r2"), assignmentId = "a2", sharedWith = "s1")
+        overview.value =
+            RecordingsOverview("u1", listOf(queued, queuedOther), listOf(mine, demo, otherTask, otherStudent))
+        coEvery { start() } returns Result.success(FakeHandle(Result.success(take)))
+        val vm = viewModel(
+            mapOf(RecordingsViewModel.STUDENT_UID_KEY to "s1", RecordingsViewModel.ASSIGNMENT_ID_KEY to "a1")
+        )
+        assertTrue(vm.now.demo)
+        assertEquals(listOf(queued), vm.now.pending)
+        assertEquals(listOf(demo), vm.now.recordings)
+        vm.onIntent(RecordingsIntent.Start(granted = true, rationale = false))
+        runCurrent()
+        vm.onIntent(RecordingsIntent.Stop)
+        runCurrent()
+        coVerify { finish(take, "a1", "s1") }
+    }
+
+    @Test
+    fun `sin los dos argumentos no hay modo demo`() = runTest {
+        val summary = RecordingSummary("r0", 1, 1_000, ready = true, isDemo = false)
+        overview.value = RecordingsOverview("u1", emptyList(), listOf(summary))
+        val vm = viewModel(mapOf(RecordingsViewModel.STUDENT_UID_KEY to "s1"))
+        assertFalse(vm.now.demo)
+        assertEquals(listOf(summary), vm.now.recordings)
     }
 
     @Test

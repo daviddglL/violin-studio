@@ -11,7 +11,11 @@ data class RecordingSummary(
     val ready: Boolean,
     val isDemo: Boolean,
     /** Ruta del objeto en Storage que guarda finalize (`recordings/` o `demos/`); nula en un doc sin ella. */
-    val objectPath: String? = null
+    val objectPath: String? = null,
+    /** Tarea a la que va ligada (las demos siempre llevan una). */
+    val assignmentId: String? = null,
+    /** Alumno con quien se comparte una demo. */
+    val sharedWith: String? = null
 ) {
     override fun toString(): String = "RecordingSummary(ready=$ready, isDemo=$isDemo)"
 }

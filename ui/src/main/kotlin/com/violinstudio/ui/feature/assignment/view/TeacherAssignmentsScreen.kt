@@ -64,12 +64,15 @@ fun teacherTaskEditTag(id: String) = "teacher_task_edit_$id"
 
 fun teacherTaskDeleteTag(id: String) = "teacher_task_delete_$id"
 
+fun teacherTaskDemoTag(id: String) = "teacher_task_demo_$id"
+
 /** El rol lo comprueba la navegación. Si el vínculo se pierde, el ViewModel vacía la lista y pide volver. */
 @Composable
 fun TeacherAssignmentsRoute(
     onCreate: () -> Unit,
     onEdit: (String) -> Unit,
     onBack: () -> Unit,
+    onDemo: ((String) -> Unit)? = null,
     viewModel: TeacherAssignmentsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -78,7 +81,7 @@ fun TeacherAssignmentsRoute(
             TeacherAssignmentsEffect.NavigateBack -> onBack()
         }
     }
-    TeacherAssignmentsScreen(state, viewModel::onIntent, onCreate, onEdit, onBack)
+    TeacherAssignmentsScreen(state, viewModel::onIntent, onCreate, onEdit, onBack, onDemo = onDemo)
 }
 
 @Composable
@@ -88,7 +91,9 @@ fun TeacherAssignmentsScreen(
     onCreate: () -> Unit,
     onEdit: (String) -> Unit,
     onBack: () -> Unit,
-    zone: ZoneId = ZoneId.systemDefault()
+    zone: ZoneId = ZoneId.systemDefault(),
+    /** Grabar una demostracion para la tarea; nulo: sin ese boton. */
+    onDemo: ((String) -> Unit)? = null
 ) {
     Surface(Modifier.fillMaxSize()) {
         Column(
@@ -112,7 +117,7 @@ fun TeacherAssignmentsScreen(
                         .semantics { liveRegion = LiveRegionMode.Polite }
                 )
                 state.loadFailed -> LoadFailed(onIntent)
-                else -> Content(state, onIntent, onCreate, onEdit, zone)
+                else -> Content(state, onIntent, onCreate, onEdit, zone, onDemo)
             }
         }
     }
@@ -125,7 +130,8 @@ private fun Content(
     onIntent: (TeacherAssignmentsIntent) -> Unit,
     onCreate: () -> Unit,
     onEdit: (String) -> Unit,
-    zone: ZoneId
+    zone: ZoneId,
+    onDemo: ((String) -> Unit)?
 ) {
     Button(onClick = onCreate, modifier = Modifier.fillMaxWidth().testTag(TEACHER_TASKS_CREATE_TAG)) {
         Text(stringResource(R.string.assignment_teacher_new))
@@ -157,7 +163,7 @@ private fun Content(
     }
     state.assignments.forEach { task ->
         HorizontalDivider()
-        TaskRow(task, state.isDeleting, onIntent, onEdit, zone)
+        TaskRow(task, state.isDeleting, onIntent, onEdit, zone, onDemo)
     }
 }
 
@@ -167,7 +173,8 @@ private fun TaskRow(
     busy: Boolean,
     onIntent: (TeacherAssignmentsIntent) -> Unit,
     onEdit: (String) -> Unit,
-    zone: ZoneId
+    zone: ZoneId,
+    onDemo: ((String) -> Unit)?
 ) {
     val editDesc = stringResource(R.string.assignment_edit_named, task.title)
     val deleteDesc = stringResource(R.string.assignment_delete_named, task.title)
@@ -190,6 +197,14 @@ private fun TaskRow(
                 modifier = Modifier.testTag(teacherTaskDeleteTag(task.id))
                     .semantics { contentDescription = deleteDesc }
             ) { Text(stringResource(R.string.assignment_delete)) }
+        }
+        // Una tarea aun sin confirmar no existe en el servidor: la demo se rechazaria al subir.
+        if (onDemo != null && !task.pendingSync) {
+            val demoDesc = stringResource(R.string.assignment_demo_named, task.title)
+            TextButton(
+                onClick = { onDemo(task.id) },
+                modifier = Modifier.testTag(teacherTaskDemoTag(task.id)).semantics { contentDescription = demoDesc }
+            ) { Text(stringResource(R.string.assignment_demo)) }
         }
     }
 }

@@ -34,6 +34,11 @@ class FirebaseRecordingReviews @Inject constructor(private val db: FirebaseFires
             .observeDocs()
             .map { docs -> docs.mapNotNull { RecordingSummaryParser.parse(it.id, it.data) } }
 
+    // Solo igualdades (las reglas exigen `sharedWith` y `status`): bastan los indices de un campo; ordena el dominio.
+    override fun observeSharedDemos(teacherUid: String, studentUid: String): Flow<List<RecordingSummary>> =
+        recordings(teacherUid).whereEqualTo("sharedWith", studentUid).whereEqualTo("status", "ready").observeDocs()
+            .map { docs -> docs.mapNotNull { RecordingSummaryParser.parse(it.id, it.data) } }
+
     override fun observeReview(ownerUid: String, recordingId: String, reviewerUid: String): Flow<Review?> =
         callbackFlow {
             val registration = reviews(ownerUid, recordingId).document(reviewerUid)
