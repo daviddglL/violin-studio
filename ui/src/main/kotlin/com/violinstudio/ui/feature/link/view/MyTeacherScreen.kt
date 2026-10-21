@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,19 +50,30 @@ const val MY_TEACHER_NONE_TAG = "my_teacher_none"
 const val MY_TEACHER_UNLINK_TAG = "my_teacher_unlink"
 const val MY_TEACHER_ERROR_TAG = "my_teacher_error"
 const val MY_TEACHER_BACK_TAG = "my_teacher_back"
+const val MY_TEACHER_CHAT_TAG = "my_teacher_chat"
 const val UNLINK_DIALOG_TAG = "unlink_dialog"
 const val UNLINK_CONFIRM_TAG = "unlink_confirm"
 const val UNLINK_CANCEL_TAG = "unlink_cancel"
 
 /** El rol lo comprueba la navegación; al desvincular el rol cambia y la navegación saca al usuario de aquí. */
 @Composable
-fun MyTeacherRoute(onBack: () -> Unit, viewModel: MyTeacherViewModel = hiltViewModel()) {
+fun MyTeacherRoute(
+    onBack: () -> Unit,
+    onOpenChat: ((String) -> Unit)? = null,
+    viewModel: MyTeacherViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    MyTeacherScreen(state, viewModel::onIntent, onBack)
+    MyTeacherScreen(state, viewModel::onIntent, onBack, onOpenChat)
 }
 
 @Composable
-fun MyTeacherScreen(state: MyTeacherState, onIntent: (MyTeacherIntent) -> Unit, onBack: () -> Unit) {
+fun MyTeacherScreen(
+    state: MyTeacherState,
+    onIntent: (MyTeacherIntent) -> Unit,
+    onBack: () -> Unit,
+    /** Abre el chat con el profesor (`teacherUid`). Nulo: sin el botón (las capturas son anteriores a la fase 4c). */
+    onOpenChat: ((String) -> Unit)? = null
+) {
     Surface(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
@@ -92,7 +104,7 @@ fun MyTeacherScreen(state: MyTeacherState, onIntent: (MyTeacherIntent) -> Unit, 
                     stringResource(R.string.link_my_teacher_none),
                     modifier = Modifier.testTag(MY_TEACHER_NONE_TAG)
                 )
-                else -> TeacherContent(teacher, state, onIntent)
+                else -> TeacherContent(teacher, state, onIntent, onOpenChat)
             }
         }
     }
@@ -100,7 +112,12 @@ fun MyTeacherScreen(state: MyTeacherState, onIntent: (MyTeacherIntent) -> Unit, 
 }
 
 @Composable
-private fun TeacherContent(teacher: TeacherLink, state: MyTeacherState, onIntent: (MyTeacherIntent) -> Unit) {
+private fun TeacherContent(
+    teacher: TeacherLink,
+    state: MyTeacherState,
+    onIntent: (MyTeacherIntent) -> Unit,
+    onOpenChat: ((String) -> Unit)?
+) {
     Text(
         stringResource(R.string.link_my_teacher_name, teacher.teacherDisplayName),
         style = MaterialTheme.typography.titleLarge,
@@ -112,6 +129,12 @@ private fun TeacherContent(teacher: TeacherLink, state: MyTeacherState, onIntent
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.testTag(MY_TEACHER_SEES_TAG)
     )
+    onOpenChat?.let { open ->
+        OutlinedButton(
+            onClick = { open(teacher.teacherUid) },
+            modifier = Modifier.fillMaxWidth().testTag(MY_TEACHER_CHAT_TAG)
+        ) { Text(stringResource(R.string.chat_open)) }
+    }
     state.error?.let {
         Text(
             it.message(),

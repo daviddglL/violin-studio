@@ -11,7 +11,9 @@ data class IdentityConfig(
     val videoEnabled: Boolean = false,
     val minorRecordingEnabled: Boolean = false,
     /** Versión vigente del consentimiento de grabación, independiente de `policyVersion`. */
-    val recordingConsentVersion: Int = 1
+    val recordingConsentVersion: Int = 1,
+    /** Chat profesor-alumno (4c): apagado por defecto. */
+    val chatEnabled: Boolean = false
 )
 
 /** Acuse de `requestGuardianConsent`: solo el email enmascarado. */

@@ -81,6 +81,29 @@ class StudentDetailScreenTest {
     }
 
     @Test
+    fun `ofrece el chat solo con el callback`() {
+        var opened = 0
+        compose.setContent {
+            ViolinStudioTheme {
+                StudentDetailScreen(
+                    StudentDetailState(isLoading = false, link = ana),
+                    {},
+                    {},
+                    onOpenChat = { opened++ }
+                )
+            }
+        }
+        compose.onNodeWithTag(STUDENT_DETAIL_CHAT_TAG).performClick()
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `sin callback no hay boton de chat`() {
+        show(StudentDetailState(isLoading = false, link = ana))
+        compose.onAllNodesWithTag(STUDENT_DETAIL_CHAT_TAG).assertCountEquals(0)
+    }
+
+    @Test
     fun `no ofrece las tareas si el alumno no esta disponible`() {
         show(StudentDetailState(isLoading = false, unavailable = true))
         compose.onAllNodesWithTag(STUDENT_DETAIL_ASSIGNMENTS_TAG).assertCountEquals(0)

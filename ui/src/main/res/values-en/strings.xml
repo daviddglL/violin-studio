@@ -597,4 +597,21 @@
     <string name="recordings_demo_intro">Record how the assignment should sound. Only this student will hear it, alongside this assignment, and it is deleted if you stop being linked.</string>
     <string name="recordings_demo_uploaded_title">Demonstrations for this assignment</string>
     <string name="recordings_demo_empty">You have not recorded a demonstration for this assignment yet.</string>
+    <string name="chat_open">Messages</string>
+    <string name="chat_title">Messages</string>
+    <string name="chat_retention">Only the two of you can see this. Each message is deleted automatically after 180 days, and all of them are deleted if you stop being linked.</string>
+    <string name="chat_disabled">Messages are not available yet.</string>
+    <string name="chat_load_failed">The messages could not be loaded.</string>
+    <string name="chat_empty">No messages yet.</string>
+    <string name="chat_input_label">Write a message</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_from_me">You</string>
+    <string name="chat_from_other">Received message</string>
+    <string name="chat_pending">Sending…</string>
+    <string name="chat_delete">Delete</string>
+    <string name="chat_delete_title">Delete the message?</string>
+    <string name="chat_delete_body">It is deleted for both of you and cannot be recovered.</string>
+    <string name="chat_error_too_long">The message is too long (1000 characters maximum).</string>
+    <string name="chat_error_denied">You can\'t send messages in this chat right now.</string>
+    <string name="chat_error_unknown">That didn\'t work. Please try again.</string>
 </resources>

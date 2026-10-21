@@ -52,6 +52,7 @@ class RoleRoutesNavTest {
     private var teacherDemoComposed = false
     private var assignmentDemosComposed = false
     private var editComposed = false
+    private var chatComposed = false
     private lateinit var nav: NavHostController
 
     private fun start(initial: SessionState) {
@@ -67,6 +68,7 @@ class RoleRoutesNavTest {
         teacherDemoComposed = false
         assignmentDemosComposed = false
         editComposed = false
+        chatComposed = false
         compose.setContent {
             ViolinStudioTheme {
                 nav = rememberNavController()
@@ -113,7 +115,7 @@ class RoleRoutesNavTest {
                             Button(onClick = onBack, modifier = Modifier.testTag("students_back")) { Text("b") }
                         }
                     },
-                    studentDetail = { onOpenAssignments, onOpenRecordings, onBack ->
+                    studentDetail = { onOpenAssignments, onOpenRecordings, onOpenChat, onBack ->
                         detailComposed = true
                         Column {
                             Button(onClick = onBack, modifier = Modifier.testTag("detail_screen")) { Text("b") }
@@ -123,6 +125,7 @@ class RoleRoutesNavTest {
                             Button(onClick = onOpenRecordings, modifier = Modifier.testTag("detail_to_recordings")) {
                                 Text("g")
                             }
+                            Button(onClick = onOpenChat, modifier = Modifier.testTag("detail_to_chat")) { Text("m") }
                         }
                     },
                     studentRecordings = { onBack ->
@@ -164,9 +167,19 @@ class RoleRoutesNavTest {
                         codesComposed = true
                         Button(onClick = onBack, modifier = Modifier.testTag("codes_screen")) { Text("b") }
                     },
-                    myTeacher = { onBack ->
+                    myTeacher = { onOpenChat, onBack ->
                         myTeacherComposed = true
-                        Button(onClick = onBack, modifier = Modifier.testTag("my_teacher_screen")) { Text("b") }
+                        Column {
+                            Button(onClick = onBack, modifier = Modifier.testTag("my_teacher_screen")) { Text("b") }
+                            Button(
+                                onClick = { onOpenChat("t9") },
+                                modifier = Modifier.testTag("my_teacher_chat")
+                            ) { Text("m") }
+                        }
+                    },
+                    chat = { onBack ->
+                        chatComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("chat_screen")) { Text("b") }
                     }
                 )
             }
@@ -513,6 +526,46 @@ class RoleRoutesNavTest {
         compose.runOnUiThread { nav.navigate(AssignmentDemosDestination("t1", "a1")) }
         assertAt(HomeDestination)
         assertFalse(teacherDemoComposed || assignmentDemosComposed)
+    }
+
+    @Test
+    fun teacherOpensTheChatFromTheDetailWithBothUidsAndBackReturnsThere() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_students").performClick()
+        compose.onNodeWithTag("students_to_detail").performClick()
+        compose.onNodeWithTag("detail_to_chat").performClick()
+        assertAt(ChatDestination("u1", "s1"))
+        val chat = nav.currentBackStackEntry?.toRoute<ChatDestination>()
+        assertEquals("u1", chat?.teacherUid)
+        assertEquals("s1", chat?.studentUid)
+        compose.onNodeWithTag("chat_screen").performClick()
+        assertAt(StudentDetailDestination("s1"))
+    }
+
+    @Test
+    fun studentOpensTheChatFromMyTeacherWithBothUidsAndBackReturnsThere() {
+        start(ready(Role.STUDENT))
+        compose.onNodeWithTag("open_my_teacher").performClick()
+        compose.onNodeWithTag("my_teacher_chat").performClick()
+        assertAt(ChatDestination("t9", "u1"))
+        val chat = nav.currentBackStackEntry?.toRoute<ChatDestination>()
+        assertEquals("t9", chat?.teacherUid)
+        assertEquals("u1", chat?.studentUid)
+        compose.onNodeWithTag("chat_screen").performClick()
+        assertAt(MyTeacherDestination)
+    }
+
+    @Test
+    fun chatIsForTeachersAndStudentsOnly() {
+        assertTrue(ChatDestination::class in BUSINESS_ROUTES)
+        assertTrue(Role.TEACHER.allows(ChatDestination::class))
+        assertTrue(Role.STUDENT.allows(ChatDestination::class))
+        assertFalse(Role.INDEPENDENT.allows(ChatDestination::class))
+        assertEquals("ChatDestination", ChatDestination("secret", "x").toString())
+        start(ready(Role.INDEPENDENT))
+        compose.runOnUiThread { nav.navigate(ChatDestination("t1", "u1")) }
+        assertAt(HomeDestination)
+        assertFalse(chatComposed)
     }
 
     @Test

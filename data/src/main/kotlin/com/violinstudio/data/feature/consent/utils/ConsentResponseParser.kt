@@ -17,6 +17,7 @@ object ConsentResponseParser {
             recordingsEnabled = map.flag("recordingsEnabled"),
             videoEnabled = map.flag("videoEnabled"),
             minorRecordingEnabled = map.flag("minorRecordingEnabled"),
+            chatEnabled = map.flag("chatEnabled"),
             recordingConsentVersion = if ("recordingConsentVersion" in map) {
                 map.int("identityConfig", "recordingConsentVersion").also {
                     if (it < 1) {
