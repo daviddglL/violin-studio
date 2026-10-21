@@ -1,4 +1,4 @@
-import { CURRENT_POLICY_VERSION } from "../config/identity";
+import { CURRENT_POLICY_VERSION, LINK_NOTICE_VERSION, MAX_STUDENTS_PER_TEACHER } from "../config/identity";
 import { isAdult, parseBirthDate } from "../identity/age";
 
 export type TeacherDenyReason =
@@ -62,4 +62,74 @@ export function canGrantTeacher({
     return deny("HAS_TEACHER_LINKS");
   }
   return { eligible: true, alreadyTeacher: false };
+}
+
+export type RedeemDenyReason =
+  | "NOTICE_OUTDATED"
+  | "STUDENT_INACTIVE"
+  | "NO_CONSENT"
+  | "STUDENT_IS_TEACHER"
+  | "ALREADY_LINKED"
+  | "TEACHER_UNAVAILABLE"
+  | "TEACHER_FULL";
+
+export type RedeemEligibility = { ok: true } | { ok: false; reason: RedeemDenyReason };
+
+export interface RedeemInput {
+  /** Contenido de `users/{s}` / `users/{t}`; `undefined` si no existe. */
+  student: Record<string, unknown> | undefined;
+  teacher: Record<string, unknown> | undefined;
+  ackVersion: unknown;
+  now: Date;
+  /** Solo se inyecta en tests. */
+  policyVersion?: number;
+}
+
+const consentCurrent = (p: Record<string, unknown>, v: number): boolean =>
+  p.consentStatus === "granted" && p.policyVersion === v;
+
+/** Profesor utilizable por un canje: doc leido (no el claim), rol vigente, adulto, consentimiento al dia, sin borrado. */
+export function teacherUsable(p: Record<string, unknown> | undefined, now: Date, policyVersion: number): boolean {
+  return (
+    !!p && !p.deletion && p.role === "teacher" && adultFromProfile(p.birthDate, now) && consentCurrent(p, policyVersion)
+  );
+}
+
+export interface StudentCheckInput {
+  student: Record<string, unknown> | undefined;
+  ackVersion: unknown;
+  /** Solo se inyecta en tests. */
+  policyVersion?: number;
+}
+
+/** Parte del canje que depende solo del alumno y del aviso (no del codigo): se evalua ANTES de mirar el codigo. */
+export function studentDenial({
+  student,
+  ackVersion,
+  policyVersion = CURRENT_POLICY_VERSION,
+}: StudentCheckInput): RedeemDenyReason | null {
+  if (ackVersion !== LINK_NOTICE_VERSION) return "NOTICE_OUTDATED";
+  if (!student || student.deletion) return "STUDENT_INACTIVE";
+  if (!consentCurrent(student, policyVersion)) return "NO_CONSENT";
+  if (student.role === "teacher") return "STUDENT_IS_TEACHER";
+  const tc = student.teacherCount ?? 0;
+  if (student.role === "student" || typeof tc !== "number" || tc >= 1) return "ALREADY_LINKED";
+  return null;
+}
+
+/** Funcion pura (REQ-LNK-03/05/06/07). Los contadores ausentes valen 0; uno corrupto falla cerrado. */
+export function canRedeem({
+  student,
+  teacher,
+  ackVersion,
+  now,
+  policyVersion = CURRENT_POLICY_VERSION,
+}: RedeemInput): RedeemEligibility {
+  const no = (reason: RedeemDenyReason): RedeemEligibility => ({ ok: false, reason });
+  const denied = studentDenial({ student, ackVersion, policyVersion });
+  if (denied) return no(denied);
+  if (!teacherUsable(teacher, now, policyVersion)) return no("TEACHER_UNAVAILABLE");
+  const sc = teacher?.studentCount ?? 0;
+  if (typeof sc !== "number" || sc >= MAX_STUDENTS_PER_TEACHER) return no("TEACHER_FULL");
+  return { ok: true };
 }

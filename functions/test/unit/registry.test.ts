@@ -12,6 +12,10 @@ test("el registro cubre todas las colecciones con la política prevista", () => 
   // Provisional hasta A5 (queryByFields [teacherUid, usedBy]); debe documentar la razon.
   expect(codes.kind).toBe("exempt");
   expect(codes.kind === "exempt" && codes.reason).toMatch(/A5/);
+  const links = ERASABLE_COLLECTIONS.teacherLinks;
+  // Provisional hasta A5 (borrado por teacherUid/studentUid); debe documentar la razon.
+  expect(links.kind).toBe("exempt");
+  expect(links.kind === "exempt" && links.reason).toMatch(/A5/);
   const exempt = ERASABLE_COLLECTIONS.guardianEmailLimits;
   expect(exempt.kind).toBe("exempt");
   expect(exempt.kind === "exempt" && exempt.reason.length).toBeGreaterThan(10);
@@ -30,6 +34,7 @@ test("una colección sin política no compila", () => {
     guardianRequests: { kind: "queryByField", field: "uid" },
     mail: { kind: "queryByField", field: "uid" },
     teacherCodes: { kind: "exempt", reason: "x" },
+    teacherLinks: { kind: "exempt", reason: "x" },
   };
   expect(incompleto).toBeDefined();
 });

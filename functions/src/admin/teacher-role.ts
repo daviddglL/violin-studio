@@ -2,7 +2,7 @@ import { Auth } from "firebase-admin/auth";
 import { FieldValue, Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions/v2";
 import { Clock } from "../common/clock";
-import { COLLECTIONS, TEACHER_LINKS_COLLECTION } from "../common/collections";
+import { COLLECTIONS } from "../common/collections";
 import { sha256Hex } from "../common/hashing";
 import { syncClaims } from "../identity/claims";
 import { canGrantTeacher, TeacherDenyReason } from "../teacher/eligibility";
@@ -75,7 +75,7 @@ export async function grantTeacher(deps: TeacherRoleDeps, uid: string): Promise<
     const profile = snap.exists ? (snap.data() ?? {}) : undefined;
     // Fuente de verdad frente al contador `teacherCount`; una coleccion inexistente devuelve vacio.
     const links = await tx.get(
-      deps.db.collection(TEACHER_LINKS_COLLECTION).where("studentUid", "==", uid).limit(1),
+      deps.db.collection(COLLECTIONS.teacherLinks).where("studentUid", "==", uid).limit(1),
     );
     const verdict = canGrantTeacher({ profile, emailVerified, now: deps.clock(), hasStudentLinks: !links.empty });
     if (!verdict.eligible) return reject(verdict.reason);

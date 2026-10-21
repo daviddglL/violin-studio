@@ -52,9 +52,9 @@ export interface CodeSummary {
   expiresAt: number;
 }
 
-const nowOf = (deps: { clock?: Clock }): Date => (deps.clock ?? (() => new Date()))();
+export const nowOf = (deps: { clock?: Clock }): Date => (deps.clock ?? (() => new Date()))();
 
-function makeLog(deps: { log?: CodeDeps["log"] }, uid: string) {
+export function makeLog(deps: { log?: CodeDeps["log"] }, uid: string) {
   const uidHash = sha256Hex(uid).slice(0, 12);
   const sink = deps.log ?? ((m, d) => logger.info(m, d));
   return (message: string, data: Record<string, unknown> = {}) => sink(message, { uidHash, ...data });
