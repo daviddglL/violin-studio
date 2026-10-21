@@ -36,6 +36,7 @@ sealed interface UploadDecision {
 /** Distingue transitorios (reintento) de permanentes (REQ-REC-04, REQ-REC-14, R1). Puro. */
 object UploadFailureClassifier {
     private const val PRECONDITION_FAILED = 412
+    private const val PAYLOAD_TOO_LARGE = 413
     private const val REQUEST_TIMEOUT = 408
     private const val TOO_MANY_REQUESTS = 429
     private val SERVER_ERRORS = 500..599
@@ -51,6 +52,7 @@ object UploadFailureClassifier {
         is UploadError.Http -> when (error.code) {
             PRECONDITION_FAILED -> UploadDecision.AlreadyUploaded
             REQUEST_TIMEOUT, TOO_MANY_REQUESTS, in SERVER_ERRORS -> UploadDecision.Retry
+            PAYLOAD_TOO_LARGE -> UploadDecision.Fail(FailReason.SIZE)
             401, 403 -> UploadDecision.Fail(FailReason.PERMISSION)
             else -> UploadDecision.Fail(FailReason.UNKNOWN)
         }

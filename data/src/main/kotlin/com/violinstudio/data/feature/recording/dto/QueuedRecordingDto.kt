@@ -22,6 +22,9 @@ data class QueuedRecordingDto(
     val sessionUri: String? = null,
     val lastError: String? = null
 ) {
+    /** Sin ruta, ids ni `sessionUri` en logs o excepciones (REQ-AUD-03). */
+    override fun toString(): String = "QueuedRecordingDto(state=$state, attempts=$attempts)"
+
     fun toDomain(): QueuedRecording? {
         val parsed = QueueState.entries.firstOrNull { it.name == state } ?: return null
         return QueuedRecording(

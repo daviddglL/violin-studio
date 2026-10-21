@@ -5,6 +5,7 @@ import com.violinstudio.domain.feature.recording.model.RecordedTake
 import com.violinstudio.domain.feature.recording.repository.Recorder
 import com.violinstudio.domain.feature.recording.repository.RecordingQueue
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Encola una toma terminada (REQ-REC-04). La toma ya es del receptor (ver `RecordingHandle`): si encolar falla el
@@ -28,6 +29,15 @@ class ClearRecordingQueueUseCase @Inject constructor(
     private val recorder: Recorder
 ) {
     suspend operator fun invoke(uid: String): Result<Unit> = queue.clear(uid).map { removed ->
-        removed.forEach { recorder.deleteTake(it.take) }
+        // Un fichero que no se borra no detiene al resto (la cola ya esta vacia); la cancelacion si se propaga.
+        removed.forEach { item ->
+            try {
+                recorder.deleteTake(item.take)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Queda huerfano para el barrido de arranque.
+            }
+        }
     }
 }

@@ -44,11 +44,13 @@ class FinishRecordingUseCaseTest {
 
     private class FakeRecorder : Recorder {
         val deleted = mutableListOf<RecordedTake>()
+        var throwOn: String? = null
 
         override suspend fun start(spec: RecordingSpec): Result<RecordingHandle> =
             Result.failure(IllegalStateException())
 
         override suspend fun deleteTake(take: RecordedTake) {
+            if (take.id == throwOn) throw IOException("disco")
             deleted += take
         }
     }
@@ -95,5 +97,14 @@ class FinishRecordingUseCaseTest {
         queue.fail = IOException()
         assertTrue(ClearRecordingQueueUseCase(queue, recorder)("A").isFailure)
         assertTrue(recorder.deleted.isEmpty())
+    }
+
+    @Test
+    fun `un fichero que no se borra no impide borrar el resto`() = runTest {
+        listOf("r1", "r2", "r3").forEach { FinishRecordingUseCase(queue)(take(it)) }
+        recorder.throwOn = "r2"
+        assertTrue(ClearRecordingQueueUseCase(queue, recorder)("A").isSuccess)
+        assertEquals(listOf("r1", "r3"), recorder.deleted.map { it.id })
+        assertTrue(queue.items.isEmpty())
     }
 }

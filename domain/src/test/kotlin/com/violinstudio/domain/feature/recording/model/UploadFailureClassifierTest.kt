@@ -42,6 +42,9 @@ class UploadFailureClassifierTest {
         assertEquals(UploadDecision.Fail(FailReason.QUOTA), classify(UploadError.QuotaExceeded))
         assertEquals(UploadDecision.Fail(FailReason.SIZE), classify(UploadError.TooLarge))
         assertEquals(UploadDecision.Fail(FailReason.UNKNOWN), classify(UploadError.Http(400)))
+        assertEquals(UploadDecision.Fail(FailReason.UNKNOWN), classify(UploadError.Http(404)))
+        assertEquals(UploadDecision.Fail(FailReason.SIZE), classify(UploadError.Http(413)))
+        assertEquals(UploadDecision.Fail(FailReason.PERMISSION), classify(UploadError.Http(401)))
         assertEquals(UploadDecision.Fail(FailReason.UNKNOWN), classify(UploadError.Other))
     }
 }

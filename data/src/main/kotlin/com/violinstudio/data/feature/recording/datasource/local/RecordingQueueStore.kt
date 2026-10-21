@@ -4,8 +4,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
-import com.violinstudio.data.feature.recording.dto.QueuedRecordingDto
 import com.violinstudio.data.commons.datastore.UserKeys
+import com.violinstudio.data.feature.recording.dto.QueuedRecordingDto
+import com.violinstudio.domain.feature.recording.model.QueueState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
 import com.violinstudio.domain.feature.recording.repository.PendingUploads
 import com.violinstudio.domain.feature.recording.repository.RecordingQueue
@@ -37,9 +38,13 @@ class RecordingQueueStore @Inject constructor(private val store: DataStore<Prefe
 
     override suspend fun count(uid: String): Int = observe(uid).first().size
 
+    /** Reencolar un id ya presente solo lo reemplaza mientras siga `RECORDED`; si avanzo, conserva su progreso. */
     override suspend fun enqueue(item: QueuedRecording): Result<Unit> = mutate(item.take.uid) { list ->
         val at = list.indexOfFirst { it.id == item.id }
-        if (at >= 0) list[at] = item else list += item
+        when {
+            at < 0 -> list += item
+            list[at].state == QueueState.RECORDED -> list[at] = item
+        }
     }
 
     override suspend fun update(
@@ -48,7 +53,13 @@ class RecordingQueueStore @Inject constructor(private val store: DataStore<Prefe
         transform: (QueuedRecording) -> QueuedRecording
     ): Result<QueuedRecording?> = mutate(uid) { list ->
         val at = list.indexOfFirst { it.id == id }
-        if (at < 0) null else transform(list[at]).also { list[at] = it }
+        if (at < 0) {
+            null
+        } else {
+            val updated = transform(list[at])
+            require(updated.take.uid == uid && updated.id == id) { "transform no puede cambiar id ni uid" }
+            updated.also { list[at] = it }
+        }
     }
 
     override suspend fun remove(uid: String, id: String): Result<Unit> = mutate(uid) { list ->
@@ -71,6 +82,8 @@ class RecordingQueueStore @Inject constructor(private val store: DataStore<Prefe
         @Suppress("UNCHECKED_CAST")
         Result.success(result as T)
     } catch (e: IOException) {
+        Result.failure(e)
+    } catch (e: IllegalArgumentException) {
         Result.failure(e)
     }
 

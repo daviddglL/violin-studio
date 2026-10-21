@@ -6,8 +6,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.violinstudio.data.commons.datastore.createUserLocalDataStore
 import com.violinstudio.data.commons.datastore.UserKeys
+import com.violinstudio.data.commons.datastore.createUserLocalDataStore
+import com.violinstudio.data.feature.recording.dto.QueuedRecordingDto
 import com.violinstudio.domain.feature.recording.model.FailReason
 import com.violinstudio.domain.feature.recording.model.QueueState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
@@ -18,6 +19,8 @@ import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -146,5 +149,66 @@ class RecordingQueueStoreTest {
         assertTrue(store.update("A", "r1") { it }.isFailure)
         assertTrue(store.remove("A", "r1").isFailure)
         assertTrue(store.clear("A").isFailure)
+    }
+
+    @Test
+    fun `update no puede cambiar el id ni el uid de la toma y no escribe nada`() = runBlocking<Unit> {
+        val store = RecordingQueueStore(open())
+        store.enqueue(item("r1")).getOrThrow()
+        val newId = store.update("A", "r1") { it.copy(take = it.take.copy(id = "otro")) }
+        val newUid = store.update("A", "r1") { it.copy(take = it.take.copy(uid = "B")) }
+        assertTrue(newId.isFailure)
+        assertTrue(newUid.isFailure)
+        assertEquals(listOf(item("r1")), store.observe("A").first())
+        assertTrue(store.observe("B").first().isEmpty())
+    }
+
+    @Test
+    fun `reencolar un id que ya avanzo es un no-op que conserva el progreso`() = runBlocking<Unit> {
+        val store = RecordingQueueStore(open())
+        store.enqueue(item("r1")).getOrThrow()
+        store.update("A", "r1") { it.copy(state = QueueState.UPLOADING, attempts = 2, sessionUri = "s") }.getOrThrow()
+        store.enqueue(item("r1")).getOrThrow()
+        val kept = store.observe("A").first().single()
+        assertEquals(QueueState.UPLOADING, kept.state)
+        assertEquals(2, kept.attempts)
+        assertEquals("s", kept.sessionUri)
+    }
+
+    @Test
+    fun `un elemento de otro uid dentro de la clave de A se filtra`() = runBlocking<Unit> {
+        val ds = open()
+        val store = RecordingQueueStore(ds)
+        store.enqueue(item("r1", uid = "B")).getOrThrow()
+        val foreign = ds.data.first()[stringPreferencesKey("u.B.rec.queue")]!!
+        ds.edit { it[queueKey] = foreign }
+        assertTrue(store.observe("A").first().isEmpty())
+        assertEquals(0, store.count("A"))
+    }
+
+    @Test
+    fun `remove y clear sobre una cola corrupta no fallan y la limpian`() = runBlocking<Unit> {
+        val ds = open()
+        val store = RecordingQueueStore(ds)
+        ds.edit { it[queueKey] = "{roto" }
+        assertTrue(store.remove("A", "r1").isSuccess)
+        ds.edit { it[queueKey] = "{roto" }
+        assertTrue(store.clear("A").getOrThrow().isEmpty())
+        assertNull(ds.data.first()[queueKey])
+    }
+
+    @Test
+    fun `veinte update concurrentes no pierden ninguna actualizacion`() = runBlocking<Unit> {
+        val store = RecordingQueueStore(open())
+        store.enqueue(item("r1")).getOrThrow()
+        (1..20).map { async(Dispatchers.Default) { store.update("A", "r1") { it.copy(attempts = it.attempts + 1) } } }
+            .awaitAll().forEach { it.getOrThrow() }
+        assertEquals(20, store.observe("A").first().single().attempts)
+    }
+
+    @Test
+    fun `el toString del DTO no expone ruta, id ni sessionUri`() {
+        val text = QueuedRecordingDto.from(item("r1").copy(sessionUri = "https://secreto")).toString()
+        assertTrue(text, "m4a" !in text && "secreto" !in text && "r1" !in text)
     }
 }
