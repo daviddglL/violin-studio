@@ -147,14 +147,35 @@ test("profundidad arbitraria: cada nivel exige el padre inmediato", () => {
 });
 
 test("un match plano de varios niveles declara su cadena de subcolecciones y se valida como las anidadas", () => {
-  const plano = wrap("match /users/{u}/recordings/{r}/reviews/{x} { }");
+  const plano = wrap("match /users/{u}/fantasma/{r}/espectro/{x} { }");
   expect(nestedCollections(plano)).toEqual([
-    { name: "recordings", parent: "users" },
-    { name: "reviews", parent: "recordings" },
+    { name: "fantasma", parent: "users" },
+    { name: "espectro", parent: "fantasma" },
   ]);
-  expect(unregisteredSubs(nestedCollections(plano))).toEqual(["recordings", "reviews"]);
+  expect(unregisteredSubs(nestedCollections(plano))).toEqual(["fantasma", "espectro"]);
   const conReglas = rules.replace("match /guardianRequests/{id}", "match /users/{u}/fantasma/{id} { allow read: if false; }\n    match /guardianRequests/{id}");
   expect(unregisteredSubs(nestedCollections(conReglas))).toEqual(["fantasma"]);
+});
+
+test("toda subcoleccion registrada tiene su match explicito bajo su padre inmediato (B3b.3)", () => {
+  const declared = nestedCollections(rules);
+  for (const [name, p] of Object.entries(ERASABLE_COLLECTIONS)) {
+    if (p.kind === "subcollectionOf") expect(declared).toContainEqual({ name, parent: p.parent });
+  }
+  expect(declared).toContainEqual({ name: "recordings", parent: "users" });
+  expect(declared).toContainEqual({ name: "reviews", parent: "recordings" });
+});
+
+test("reviews cuelga de recordings y no de users: otro padre falla (negativo)", () => {
+  const mal = wrap("match /users/{u} { match /reviews/{id} { } }");
+  expect(unregisteredSubs(nestedCollections(mal))).toEqual(["reviews"]);
+});
+
+test("quitar el match de una subcoleccion registrada se detecta (negativo)", () => {
+  const sin = rules.replace("match /recordings/{r} {", "match /otraCosa/{r} {");
+  expect(nestedCollections(sin)).not.toContainEqual({ name: "recordings", parent: "users" });
+  // `reviews` queda bajo otro padre: tambien se detecta.
+  expect(unregisteredSubs(nestedCollections(sin))).toEqual(["otraCosa", "reviews"]);
 });
 
 test("un match plano mal formado falla en voz alta", () => {
