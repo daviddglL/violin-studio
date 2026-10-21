@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RECORDING_CONSENT_VERSION } from "../../src/config/identity";
-import { DEMOS_DIR, MAX_AUDIO_BYTES, MAX_RECORDINGS_PER_OWNER, RECORDINGS_DIR } from "../../src/config/recordings";
+import {
+  BLUR_POLICY_VERSION,
+  DEMOS_DIR,
+  MAX_AUDIO_BYTES,
+  MAX_RECORDINGS_PER_OWNER,
+  MAX_VIDEO_BYTES,
+  RECORDINGS_DIR,
+} from "../../src/config/recordings";
 
 /**
  * Tripwire, no prueba de comportamiento: busca literales de `storage.rules` para que cambiar una constante de Functions
@@ -21,6 +28,16 @@ describe("tripwire de literales: storage.rules <-> functions/src/config", () => 
   test("el tamano maximo de audio de la regla es MAX_AUDIO_BYTES (25 MiB)", () => {
     expect(MAX_AUDIO_BYTES).toBe(25 * 1024 * 1024);
     expect(rules).toContain("r.size <= 25 * 1024 * 1024");
+  });
+
+  test("el tamano maximo de video de la regla es MAX_VIDEO_BYTES (60 MiB)", () => {
+    expect(MAX_VIDEO_BYTES).toBe(60 * 1024 * 1024);
+    expect(rules).toContain("r.size <= 60 * 1024 * 1024");
+  });
+
+  test("el sello de difuminado de la regla es BLUR_POLICY_VERSION (4c)", () => {
+    expect(rules).toContain("r.metadata.get('blurApplied', '') == 'true'");
+    expect(rules).toContain(`r.metadata.get('blurPolicyVersion', '') == '${BLUR_POLICY_VERSION}'`);
   });
 
   test("la regla exige recordingConsentVersion >= RECORDING_CONSENT_VERSION", () => {

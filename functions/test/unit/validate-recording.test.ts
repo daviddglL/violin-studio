@@ -1,6 +1,7 @@
 import {
   MAX_AUDIO_BYTES,
   MAX_BITRATE_BPS,
+  MAX_VIDEO_BYTES,
   MIN_DURATION_SEC,
 } from "../../src/config/recordings";
 import {
@@ -357,7 +358,6 @@ describe("validateRecording (REQ-REC-01, REQ-REC-05, REQ-REC-10)", () => {
       ["octet-stream", { contentType: "application/octet-stream" }],
       ["sin contentType", { contentType: undefined }],
       ["video/mp4 (4c)", { contentType: "video/mp4" }],
-      ["extension mp4 en audio", { path: `users/u1/recordings/${ID}.mp4` }],
       ["extension wav", { path: `users/u1/recordings/${ID}.wav` }],
       ["nombre invalido", { path: "users/u1/recordings/bad_name.m4a" }],
     ] as Array<[string, Partial<RecordingObject>]>)("type: %s", (_n, over) => {
@@ -578,6 +578,103 @@ describe("validateRecording (REQ-REC-01, REQ-REC-05, REQ-REC-10)", () => {
     ).toEqual({
       ok: false,
       reason: "type",
+    });
+  });
+
+  describe("video difuminado (4c)", () => {
+    const vctx: ValidationContext = { ...ctx, videoEnabled: true };
+    const sealed: RecordingMeta = {
+      kind: "video",
+      blurApplied: "true",
+      blurPolicyVersion: "1",
+    };
+    const video = (over: Partial<RecordingObject> = {}): RecordingObject =>
+      own({
+        path: `users/u1/recordings/${ID}.mp4`,
+        contentType: "video/mp4",
+        size: 8_000_000,
+        ...over,
+      });
+    const reason = (
+      meta: RecordingMeta,
+      object: RecordingObject,
+      owner: RecordingOwner = student,
+      c: ValidationContext = vctx,
+    ): string => {
+      const r = validateRecording(meta, object, owner, c);
+      return r.ok ? "ok" : r.reason;
+    };
+
+    test("sellado y con el interruptor encendido: ready como video", () => {
+      expect(validateRecording(sealed, video(), student, vctx)).toEqual({
+        ok: true,
+        kind: "video",
+        dir: "recordings",
+        durationSec: 20,
+        sizeBytes: 8_000_000,
+        consentEpoch: 3,
+      });
+    });
+
+    test("demo de video del profesor", () => {
+      const r = validateRecording(
+        { ...sealed, ...demoMeta },
+        video({ path: `users/t1/demos/${ID}.mp4` }),
+        teacher,
+        vctx,
+      );
+      expect(r).toMatchObject({ ok: true, kind: "video", dir: "demos" });
+    });
+
+    test("disabled: VIDEO_ENABLED apagado o ausente; el audio sigue igual", () => {
+      expect(reason(sealed, video(), student, { ...vctx, videoEnabled: false })).toBe("disabled");
+      expect(reason(sealed, video(), student, ctx)).toBe("disabled");
+      expect(reason({}, own(), student, ctx)).toBe("ok");
+    });
+
+    test("blur: sin sello, sello falso o version distinta", () => {
+      expect(reason({ kind: "video" }, video())).toBe("blur");
+      expect(reason({ ...sealed, blurApplied: "false" }, video())).toBe("blur");
+      expect(reason({ ...sealed, blurPolicyVersion: "2" }, video())).toBe("blur");
+      expect(reason({ ...sealed, blurPolicyVersion: undefined }, video())).toBe("blur");
+    });
+
+    test.each([
+      ["contentType de audio", {}, { contentType: "audio/mp4" }],
+      ["kind ausente", { kind: undefined }, {}],
+      ["kind audio", { kind: "audio" }, {}],
+    ] as Array<[string, Partial<RecordingMeta>, Partial<RecordingObject>]>)(
+      "type: %s en un .mp4",
+      (_n, meta, over) => {
+        expect(reason({ ...sealed, ...meta }, video(over))).toBe("type");
+      },
+    );
+
+    test("type: un .m4a con contentType de video sigue siendo type", () => {
+      expect(reason(sealed, own({ contentType: "video/mp4" }))).toBe("type");
+    });
+
+    test("size: hasta 60 MiB; un video no cabe en el tope de audio pero si en el suyo", () => {
+      expect(reason(sealed, video({ size: MAX_VIDEO_BYTES + 1 }))).toBe("size");
+      expect(
+        reason(sealed, video({ size: MAX_AUDIO_BYTES + 1, container: okContainer(60) })),
+      ).toBe("ok");
+    });
+
+    test("duration: la tasa de bits de video es 10 Mbps", () => {
+      // 60 MiB en 30 s ~ 16.8 Mbps: demasiado; en 60 s ~ 8.4 Mbps: vale.
+      expect(
+        reason(sealed, video({ size: MAX_VIDEO_BYTES, container: okContainer(30) })),
+      ).toBe("duration");
+      expect(
+        reason(sealed, video({ size: MAX_VIDEO_BYTES, container: okContainer(60) })),
+      ).toBe("ok");
+      expect(reason(sealed, video({ container: okContainer(61) }))).toBe("duration");
+    });
+
+    test("container: las marcas de audio de iTunes no valen para video", () => {
+      expect(reason(sealed, video({ container: okContainer(20, "M4A ") }))).toBe("container");
+      expect(reason(sealed, video({ container: okContainer(20, "mp42") }))).toBe("ok");
     });
   });
 });

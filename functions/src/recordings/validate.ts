@@ -1,17 +1,21 @@
 import {
   ALLOWED_BRANDS,
+  ALLOWED_VIDEO_BRANDS,
+  BLUR_POLICY_VERSION,
   DEMOS_DIR,
   DURATION_TOLERANCE_SEC,
   MAX_AUDIO_BYTES,
   MAX_BITRATE_BPS,
   MAX_STUDENT_DURATION_SEC,
   MAX_TEACHER_DURATION_SEC,
+  MAX_VIDEO_BITRATE_BPS,
+  MAX_VIDEO_BYTES,
   MIN_DURATION_SEC,
   RECORDINGS_DIR,
 } from "../config/recordings";
 import { Mp4ErrorCode } from "./mp4-duration";
 
-/** Causas de rechazo con efecto en B4b; `quota` y `blur` las decide el trigger (transaccion / 4c), no esta funcion. */
+/** Causas de rechazo de esta funcion; `quota` la decide la transaccion del trigger. */
 export type RejectReason =
   | "consent"
   | "owner"
@@ -21,7 +25,8 @@ export type RejectReason =
   | "duration"
   | "container"
   | "assignment"
-  | "sharedWith";
+  | "sharedWith"
+  | "blur";
 
 export interface ParsedObjectPath {
   uid: string;
@@ -51,6 +56,9 @@ export interface RecordingMeta {
   kind?: string;
   assignmentId?: string;
   sharedWith?: string;
+  /** Video (4c): sello del movil, `"true"` y la version de `BLUR_POLICY_VERSION`. */
+  blurApplied?: string;
+  blurPolicyVersion?: string;
 }
 
 export type ContainerProbe =
@@ -81,6 +89,8 @@ export interface RecordingOwner {
 
 export interface ValidationContext {
   recordingsEnabled: boolean;
+  /** `VIDEO_ENABLED` (4c): sin el, un `.mp4` se rechaza como `disabled`. Ausente = apagado. */
+  videoEnabled?: boolean;
   minorRecordingEnabled: boolean;
   /** `RECORDING_CONSENT_VERSION` vigente; el consentimiento del usuario debe ser >= (nota B1/W4). */
   requiredConsentVersion: number;
@@ -98,7 +108,7 @@ export interface ValidationContext {
 export type ValidationResult =
   | {
       ok: true;
-      kind: "audio";
+      kind: "audio" | "video";
       dir: ParsedObjectPath["dir"];
       durationSec: number;
       sizeBytes: number;
@@ -115,10 +125,11 @@ const reject = (reason: RejectReason): ValidationResult => ({
 });
 
 /**
- * Decision pura de `finalizeRecording` sobre un objeto de audio (REQ-REC-01, REQ-REC-05, REQ-REC-10). Orden de causas:
- * disabled, consent, type, owner, size, container (parser o marca), duration (minima, maxima, tasa de bits), sharedWith,
- * assignment. La duracion es del `mvhd`, que el cliente puede falsificar: es defensa en profundidad acotada por el tope de
- * tamano y la tasa de bits maxima, no una garantia. En 4b solo existe audio `.m4a`.
+ * Decision pura de `finalizeRecording` sobre un objeto de audio (`.m4a`) o de video (`.mp4`, 4c) (REQ-REC-01, REQ-REC-05,
+ * REQ-REC-10). Orden de causas: disabled, consent, type, blur (solo video), owner, size, container (parser o marca),
+ * duration (minima, maxima, tasa de bits), sharedWith, assignment. La duracion es del `mvhd`, que el cliente puede
+ * falsificar: es defensa en profundidad acotada por el tope de tamano y la tasa de bits maxima, no una garantia. El
+ * difuminado tampoco se puede comprobar sin mirar las caras: el sello es una promesa del movil.
  */
 export function validateRecording(
   meta: RecordingMeta,
@@ -126,7 +137,13 @@ export function validateRecording(
   owner: RecordingOwner,
   ctx: ValidationContext,
 ): ValidationResult {
-  if (!ctx.recordingsEnabled || (owner.isMinor && !ctx.minorRecordingEnabled))
+  const path = parseObjectPath(object.path);
+  const isVideo = path?.ext === "mp4";
+  if (
+    !ctx.recordingsEnabled ||
+    (owner.isMinor && !ctx.minorRecordingEnabled) ||
+    (isVideo && ctx.videoEnabled !== true)
+  )
     return reject("disabled");
 
   if (
@@ -139,22 +156,29 @@ export function validateRecording(
     return reject("consent");
   }
 
-  const path = parseObjectPath(object.path);
+  const typeOk = isVideo
+    ? object.contentType === "video/mp4" && meta.kind === "video"
+    : object.contentType === "audio/mp4" &&
+      (meta.kind === undefined || meta.kind === "audio");
+  if (!path || !typeOk) return reject("type");
+
   if (
-    !path ||
-    path.ext !== "m4a" ||
-    object.contentType !== "audio/mp4" ||
-    (meta.kind !== undefined && meta.kind !== "audio")
-  ) {
-    return reject("type");
-  }
+    isVideo &&
+    (meta.blurApplied !== "true" ||
+      meta.blurPolicyVersion !== String(BLUR_POLICY_VERSION))
+  )
+    return reject("blur");
 
   if (path.uid !== owner.ownerUid) return reject("owner");
 
-  if (!(object.size > 0) || object.size > MAX_AUDIO_BYTES)
+  if (
+    !(object.size > 0) ||
+    object.size > (isVideo ? MAX_VIDEO_BYTES : MAX_AUDIO_BYTES)
+  )
     return reject("size");
 
-  if (!object.container.ok || !ALLOWED_BRANDS.includes(object.container.brand))
+  const brands = isVideo ? ALLOWED_VIDEO_BRANDS : ALLOWED_BRANDS;
+  if (!object.container.ok || !brands.includes(object.container.brand))
     return reject("container");
   const isTeacher = owner.role === "teacher";
   const limit = isTeacher ? MAX_TEACHER_DURATION_SEC : MAX_STUDENT_DURATION_SEC;
@@ -165,7 +189,8 @@ export function validateRecording(
     !(durationSec <= limit + DURATION_TOLERANCE_SEC)
   )
     return reject("duration");
-  if (!((object.size * 8) / Math.max(durationSec, 1) <= MAX_BITRATE_BPS))
+  const maxBitrate = isVideo ? MAX_VIDEO_BITRATE_BPS : MAX_BITRATE_BPS;
+  if (!((object.size * 8) / Math.max(durationSec, 1) <= maxBitrate))
     return reject("duration");
 
   const { sharedWith, assignmentId } = meta;
@@ -186,7 +211,7 @@ export function validateRecording(
 
   return {
     ok: true,
-    kind: "audio",
+    kind: isVideo ? "video" : "audio",
     dir: path.dir,
     durationSec: Math.min(Math.round(durationSec), limit),
     sizeBytes: object.size,

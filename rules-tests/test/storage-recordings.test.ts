@@ -29,6 +29,11 @@ const audioMeta = (m: Record<string, string | undefined>) => ({
   contentType: "audio/mp4",
   customMetadata: Object.fromEntries(Object.entries({ recordingConsentEpoch: "1", ...m }).filter(([, v]) => v !== undefined)) as Record<string, string>,
 });
+/** Video (4c) ya difuminado: sello `blurApplied`/`blurPolicyVersion` vigente salvo que `m` lo cambie. */
+const videoMeta = (m: Record<string, string | undefined> = {}) => ({
+  ...audioMeta({ kind: "video", durationMs: "30000", blurApplied: "true", blurPolicyVersion: "1", ...m }),
+  contentType: "video/mp4",
+});
 
 describe("Storage recordings: create audio (REQ-SEC-R03, REQ-REC-01)", () => {
   test("el dueño verificado con consentimiento sube un audio/mp4 válido", async () => {
@@ -44,7 +49,7 @@ describe("Storage recordings: create audio (REQ-SEC-R03, REQ-REC-01)", () => {
     await assertFails(upload(ctx, "alice", "b.m4a", 10, { ...AUDIO, contentType: "video/mp4" }));
     await assertFails(upload(ctx, "alice", "c.m4a", 10, { ...AUDIO, contentType: "application/octet-stream" }));
   });
-  test("extension: .mp4 aun no se admite en 4b (aunque contentType y metadatos sean de audio validos)", async () => {
+  test("extension: un .mp4 con metadatos de audio se deniega (la extension decide el tipo)", async () => {
     await assertFails(upload(asCtx("alice"), "alice", "v.mp4", 10, AUDIO));
   });
   test("nombre: solo [A-Za-z0-9-]{1,64}.m4a", async () => {
@@ -308,8 +313,43 @@ describe("Storage recordings: lectura (REQ-SEC-R03)", () => {
   });
 });
 
+describe("Storage recordings: create video difuminado (4c)", () => {
+  test("un .mp4 video/mp4 con el sello de difuminado vigente se permite", async () => {
+    await assertSucceeds(upload(asCtx("alice"), "alice", "v-1.mp4", 1024, videoMeta()));
+  });
+  test("60 MiB exactos se permiten; +1 byte se deniega", async () => {
+    await assertSucceeds(upload(asCtx("alice"), "alice", "max.mp4", 60 * MIB, videoMeta()));
+    await assertFails(upload(asCtx("alice"), "alice", "over.mp4", 60 * MIB + 1, videoMeta()));
+  });
+  test("sin sello, sello falso o version distinta se deniega", async () => {
+    const ctx = asCtx("alice");
+    await assertFails(upload(ctx, "alice", "a.mp4", 10, videoMeta({ blurApplied: undefined })));
+    await assertFails(upload(ctx, "alice", "b.mp4", 10, videoMeta({ blurPolicyVersion: undefined })));
+    await assertFails(upload(ctx, "alice", "c.mp4", 10, videoMeta({ blurApplied: "false" })));
+    await assertFails(upload(ctx, "alice", "d.mp4", 10, videoMeta({ blurPolicyVersion: "2" })));
+    await assertFails(upload(ctx, "alice", "e.mp4", 10, videoMeta({ blurPolicyVersion: "01" })));
+  });
+  test("tipo y extension deben casar: video solo en .mp4, audio solo en .m4a", async () => {
+    const ctx = asCtx("alice");
+    await assertFails(upload(ctx, "alice", "a.m4a", 10, videoMeta()));
+    await assertFails(upload(ctx, "alice", "b.mp4", 10, { ...videoMeta(), contentType: "audio/mp4" }));
+    await assertFails(upload(ctx, "alice", "c.mp4", 10, videoMeta({ kind: "audio" })));
+    await assertFails(upload(ctx, "alice", "d.MP4", 10, videoMeta()));
+  });
+  test("un audio .m4a con sello de difuminado valido sigue permitido y con sello falso se deniega", async () => {
+    const ctx = asCtx("alice");
+    await assertSucceeds(upload(ctx, "alice", "a.m4a", 10, audioMeta({ kind: "audio", durationMs: "1", blurApplied: "true", blurPolicyVersion: "1" })));
+    await assertFails(upload(ctx, "alice", "b.m4a", 10, audioMeta({ kind: "audio", durationMs: "1", blurApplied: "yes" })));
+  });
+  test("sin consentimiento de grabacion tampoco se sube video", async () => {
+    await seed(env, "users/alice", recordingUserDoc({ recordingConsent: "revoked" }));
+    await assertFails(upload(asCtx("alice"), "alice", "v.mp4", 10, videoMeta()));
+  });
+});
+
 describe("Storage demos del profesor: create (REQ-REC-10, C1)", () => {
   const DEMO_META = audioMeta({ kind: "audio", durationMs: "90000", assignmentId: "as-1", sharedWith: "stu" });
+  const VIDEO_DEMO = videoMeta({ durationMs: "90000", assignmentId: "as-1", sharedWith: "stu" });
   const uploadDemo = (uid: string, owner: string, file: string, meta: object = DEMO_META, claims: Claims = OK, n = 1024) =>
     uploadBytes(ref(asCtx(uid, claims).storage(), demoPath(owner, file)), bytes(n), meta);
 
@@ -319,6 +359,10 @@ describe("Storage demos del profesor: create (REQ-REC-10, C1)", () => {
 
   test("el profesor (role del doc = teacher) con consentimiento sube su demo con sharedWith y assignmentId", async () => {
     await assertSucceeds(uploadDemo("tea", "tea", "d-1.m4a"));
+  });
+  test("demo de video (4c): con sello se permite, sin sello se deniega", async () => {
+    await assertSucceeds(uploadDemo("tea", "tea", "d-2.mp4", VIDEO_DEMO));
+    await assertFails(uploadDemo("tea", "tea", "d-3.mp4", { ...VIDEO_DEMO, customMetadata: { ...VIDEO_DEMO.customMetadata, blurApplied: "false" } }));
   });
   test("un no profesor (role del doc) no sube demos aunque el claim diga teacher", async () => {
     await assertFails(uploadDemo("alice", "alice", "d.m4a", DEMO_META, { ...OK, role: "teacher" }));
@@ -341,6 +385,7 @@ describe("Storage demos del profesor: create (REQ-REC-10, C1)", () => {
     await assertFails(uploadDemo("tea", "tea", "t.m4a", { ...DEMO_META, contentType: "audio/wav" }));
     await assertFails(uploadDemo("tea", "tea", "big.m4a", DEMO_META, OK, 25 * MIB + 1));
     await assertFails(uploadDemo("tea", "tea", "v.mp4"));
+    await assertFails(uploadDemo("tea", "tea", "big.mp4", VIDEO_DEMO, OK, 60 * MIB + 1));
     await assertFails(uploadDemo("tea", "tea", "a_b.m4a"));
     await assertSucceeds(uploadDemo("tea", "tea", "once.m4a"));
     await assertFails(uploadDemo("tea", "tea", "once.m4a"));

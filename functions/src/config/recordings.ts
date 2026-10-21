@@ -3,6 +3,13 @@
  * la version de consentimiento como literales y `test/unit/storage-rules-parity.test.ts` vigila que coincidan.
  */
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+/** Video difuminado en el movil (4c): 720p, hasta 120 s. `storage.rules` repite 60 MiB. */
+export const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
+/**
+ * Version de las reglas de difuminado del movil (caras con margen, fotograma sin cara entero). Un video solo se acepta
+ * con `blurApplied=true` y esta version; `storage.rules` la repite como literal.
+ */
+export const BLUR_POLICY_VERSION = 1;
 export const MAX_RECORDINGS_PER_OWNER = 20;
 /**
  * Carpetas de objeto bajo `users/{uid}/`: grabaciones propias y demostraciones del profesor (C1: rutas disjuntas para
@@ -27,6 +34,10 @@ export const MIN_DURATION_SEC = 0.5;
  * 1 Mbps deja ~8x de margen (VBR, metadatos) y rechaza 25 MB declarando 1 s (200 Mbps).
  */
 export const MAX_BITRATE_BPS = 1_000_000;
+/**
+ * Lo mismo para video (W1): 720p H.264 ronda 2-5 Mbps; 10 Mbps deja margen y rechaza 60 MB declarando 1 s (480 Mbps).
+ */
+export const MAX_VIDEO_BITRATE_BPS = 10_000_000;
 /** Marcas mayores de `ftyp` aceptadas para audio MP4 (W5): ISO base, MP4 v1/v2 y M4A/M4B de iTunes. */
 export const ALLOWED_BRANDS: readonly string[] = [
   "isom",
@@ -36,3 +47,5 @@ export const ALLOWED_BRANDS: readonly string[] = [
   "M4A ",
   "M4B ",
 ];
+/** Marcas mayores de `ftyp` aceptadas para video MP4 (sin las de audio de iTunes). */
+export const ALLOWED_VIDEO_BRANDS: readonly string[] = ["isom", "iso2", "mp41", "mp42"];
