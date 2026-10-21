@@ -9,10 +9,21 @@ import org.junit.jupiter.api.Test
 class RecordingSummaryParserTest {
     @Test
     fun `un doc ready de finalize se lee entero`() {
-        val data =
-            mapOf("status" to "ready", "createdAt" to Timestamp(1_700_000_000, 250_000_000), "durationSec" to 12.5)
+        val data = mapOf(
+            "status" to "ready",
+            "createdAt" to Timestamp(1_700_000_000, 250_000_000),
+            "durationSec" to 12.5,
+            "objectPath" to "users/u/recordings/r1.m4a"
+        )
         assertEquals(
-            RecordingSummary("r1", 1_700_000_000_250, 12_500, ready = true, isDemo = false),
+            RecordingSummary(
+                "r1",
+                1_700_000_000_250,
+                12_500,
+                ready = true,
+                isDemo = false,
+                objectPath = "users/u/recordings/r1.m4a"
+            ),
             RecordingSummaryParser.parse("r1", data)
         )
     }

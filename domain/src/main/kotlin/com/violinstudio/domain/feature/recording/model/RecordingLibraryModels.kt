@@ -2,14 +2,16 @@ package com.violinstudio.domain.feature.recording.model
 
 /**
  * Grabacion ya procesada por el servidor (`users/{uid}/recordings/{id}`). [isDemo]: demostracion del profesor para un
- * alumno. Las `rejected` caducan solas en el servidor; aqui se muestran para que el usuario sepa que no llego.
+ * alumno. Ni ids ni rutas salen en `toString`. Las `rejected` caducan solas en el servidor; aqui se muestran para que el usuario sepa que no llego.
  */
 data class RecordingSummary(
     val id: String,
     val createdAtMs: Long?,
     val durationMs: Long?,
     val ready: Boolean,
-    val isDemo: Boolean
+    val isDemo: Boolean,
+    /** Ruta del objeto en Storage que guarda finalize (`recordings/` o `demos/`); nula en un doc sin ella. */
+    val objectPath: String? = null
 ) {
     override fun toString(): String = "RecordingSummary(ready=$ready, isDemo=$isDemo)"
 }

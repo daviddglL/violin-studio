@@ -24,7 +24,8 @@ object RecordingSummaryParser {
             durationMs = (data["durationSec"] as? Number)?.toDouble()?.takeIf { it >= 0 }
                 ?.let { (it * MS_PER_SEC).toLong() },
             ready = ready,
-            isDemo = data["sharedWith"] is String
+            isDemo = data["sharedWith"] is String,
+            objectPath = data["objectPath"] as? String
         )
     }
 }

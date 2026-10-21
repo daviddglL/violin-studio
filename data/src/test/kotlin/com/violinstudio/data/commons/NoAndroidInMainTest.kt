@@ -46,7 +46,12 @@ class NoAndroidInMainTest {
             // `putFile` solo reanuda una subida a partir de una Uri (B7b); el adaptador se prueba en el E2E.
             "com/violinstudio/data/feature/recording/datasource/firebase/FirebaseRecordingUploader.kt" to
                 "android.net.Uri"
-        )
+        ) + listOf(
+            // Reproduccion desde memoria de una grabacion (revision del profesor y del alumno).
+            "android.media.AudioAttributes",
+            "android.media.MediaDataSource",
+            "android.media.MediaPlayer"
+        ).map { "com/violinstudio/data/feature/recording/datasource/media/AndroidAudioClipOutput.kt" to it }
 
     @Test
     fun `el codigo principal de data no importa android`() {
