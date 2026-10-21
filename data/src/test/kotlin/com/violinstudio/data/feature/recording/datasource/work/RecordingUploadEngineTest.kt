@@ -109,8 +109,12 @@ class RecordingUploadEngineTest {
         var exists: Result<Boolean> = Result.success(false)
         val deletedDocs = mutableListOf<String>()
         var deleteDocFailure: Throwable? = null
+        var refreshCalls = 0
+        var refresh: Result<Unit> = Result.success(Unit)
 
         override fun currentUid(): String? = uid
+
+        override suspend fun refreshAuth(): Result<Unit> = refresh.also { refreshCalls++ }
 
         override suspend fun upload(request: UploadRequest, onSession: (String) -> Unit): UploadResult {
             requests += request
@@ -394,11 +398,11 @@ class RecordingUploadEngineTest {
     }
 
     @Test
-    fun `cancelado subiendo y sin objeto en Storage se borra sin mas`() = runTest {
+    fun `cancelado subiendo y sin objeto en Storage no se borra el elemento hasta pasar la gracia`() = runTest {
         queued(QueueState.UPLOADING) { it.copy(cancelled = true) }
         remote.exists = Result.success(false)
-        assertEquals(EngineResult.DONE, engine.run("A", "r1"))
-        assertTrue(queue.items.isEmpty())
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        assertEquals(1, queue.items.size)
         assertTrue(remote.deletedDocs.isEmpty())
     }
 
@@ -439,14 +443,141 @@ class RecordingUploadEngineTest {
     }
 
     @Test
-    fun `si se cancela justo al pasar a uploading no se sube y se limpia`() = runTest {
+    fun `si se cancela justo al pasar a uploading no se sube y la subida en vuelo se vigila`() = runTest {
         queued()
         queue.afterUpdate = {
             queue.items[0] = queue.items[0].copy(cancelled = true)
             queue.afterUpdate = null
         }
-        assertEquals(EngineResult.DONE, engine.run("A", "r1"))
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
         assertTrue(remote.requests.isEmpty())
+        assertEquals(1, queue.items.size)
+        assertEquals(listOf("r1"), recorder.deleted)
+    }
+
+    // --- revision de B7b ---
+
+    @Test
+    fun `C1 un 403 con el objeto ya en Storage (reglas create-only) cuenta como subido`() = runTest {
+        queued()
+        remote.uploadBlock = { _, _ -> UploadResult.Failed(UploadError.Unauthorized(false)) }
+        remote.exists = Result.success(true)
+        remote.status.value = RemoteRecordingStatus.READY
+        assertEquals(EngineResult.DONE, engine.run("A", "r1"))
+        assertTrue(queue.items.isEmpty())
+        assertEquals(0, remote.refreshCalls, "no hace falta refrescar el token si el objeto ya esta")
+    }
+
+    @Test
+    fun `C1 un 403 con el objeto subido pasa a uploaded aunque aun no haya doc`() = runTest {
+        queued()
+        remote.uploadBlock = { _, _ -> UploadResult.Failed(UploadError.Http(403)) }
+        remote.exists = Result.success(true)
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        assertEquals(QueueState.UPLOADED, only().state)
+    }
+
+    @Test
+    fun `C1 un 403 sin poder comprobar si el objeto existe reintenta y no marca failed`() = runTest {
+        queued()
+        remote.uploadBlock = { _, _ -> UploadResult.Failed(UploadError.Unauthorized(false)) }
+        remote.exists = Result.failure(IOException("red"))
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        assertEquals(QueueState.UPLOADING, only().state)
+    }
+
+    @Test
+    fun `C1 un 403 con el consentimiento revocado sigue borrando aunque el objeto exista`() = runTest {
+        queued()
+        remote.uploadBlock = { _, _ -> UploadResult.Failed(UploadError.Unauthorized(false)) }
+        remote.consent = Result.success(ConsentSnapshot(granted = false, epoch = 7))
+        remote.exists = Result.success(true)
+        assertEquals(EngineResult.FAILED, engine.run("A", "r1"))
+        assertTrue(queue.items.isEmpty())
+    }
+
+    @Test
+    fun `W2 un 403 con consentimiento vigente y sin objeto refresca el token y reintenta una vez`() = runTest {
+        queued()
+        var calls = 0
+        remote.uploadBlock = { _, _ ->
+            if (calls++ == 0) UploadResult.Failed(UploadError.Unauthorized(false)) else UploadResult.Uploaded
+        }
+        remote.status.value = RemoteRecordingStatus.READY
+        assertEquals(EngineResult.DONE, engine.run("A", "r1"))
+        assertEquals(1, remote.refreshCalls)
+        assertEquals(2, remote.requests.size)
+    }
+
+    @Test
+    fun `W2 si el segundo intento tambien da 403 es failed de permiso y si el refresco falla se reintenta`() = runTest {
+        queued()
+        remote.uploadBlock = { _, _ -> UploadResult.Failed(UploadError.Unauthorized(false)) }
+        assertEquals(EngineResult.FAILED, engine.run("A", "r1"))
+        assertEquals(FailReason.PERMISSION, only().lastError)
+        assertEquals(1, remote.refreshCalls)
+        assertEquals(2, remote.requests.size)
+        queue.items.clear()
+        queued()
+        remote.refresh = Result.failure(IOException("auth"))
+        remote.requests.clear()
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        assertEquals(1, remote.requests.size)
+    }
+
+    @Test
+    fun `W2 sin sesion de Auth reintenta en vez de fallar para siempre`() = runTest {
+        queued()
+        remote.uploadBlock = { _, _ -> UploadResult.Failed(UploadError.Unauthenticated) }
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        assertEquals(QueueState.UPLOADING, only().state)
+    }
+
+    @Test
+    fun `W3 el assignmentId de la toma viaja en los metadatos`() = runTest {
+        queued { it.copy(assignmentId = "as-1") }
+        remote.status.value = RemoteRecordingStatus.READY
+        engine.run("A", "r1")
+        assertEquals("as-1", remote.requests.single().customMetadata["assignmentId"])
+        queue.items.clear()
+        remote.requests.clear()
+        queued()
+        engine.run("A", "r1")
+        assertNull(remote.requests.single().customMetadata["assignmentId"])
+    }
+
+    @Test
+    fun `W4 un 410 sobre una sesion guardada durante esta misma ejecucion la descarta y reintenta`() = runTest {
+        queued()
+        remote.uploadBlock = { _, onSession ->
+            onSession("recien")
+            UploadResult.Failed(UploadError.Http(410))
+        }
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        assertNull(only().sessionUri)
+        assertEquals(QueueState.UPLOADING, only().state)
+    }
+
+    @Test
+    fun `W1 cancelado subiendo y sin objeto espera la gracia por si la subida en vuelo aterriza`() = runTest {
+        queued(QueueState.UPLOADING) { it.copy(cancelled = true) }
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        assertEquals(listOf("r1"), recorder.deleted)
+        assertEquals(1, queue.items.size)
+        clock.now += RecordingUploadEngine.CANCEL_GRACE_MS
+        assertEquals(EngineResult.DONE, engine.run("A", "r1"))
+        assertTrue(queue.items.isEmpty())
+        assertTrue(remote.deletedDocs.isEmpty())
+    }
+
+    @Test
+    fun `W1 la subida en vuelo que aterriza tras cancelar deja objeto y doc que se borran`() = runTest {
+        queued(QueueState.UPLOADING) { it.copy(cancelled = true) }
+        assertEquals(EngineResult.RETRY, engine.run("A", "r1"))
+        remote.exists = Result.success(true)
+        remote.status.value = RemoteRecordingStatus.READY
+        assertEquals(EngineResult.DONE, engine.run("A", "r1"))
+        assertEquals(listOf("r1"), remote.deletedDocs)
         assertTrue(queue.items.isEmpty())
     }
 

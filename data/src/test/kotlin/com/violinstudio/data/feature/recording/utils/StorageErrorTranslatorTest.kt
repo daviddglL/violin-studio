@@ -16,7 +16,7 @@ class StorageErrorTranslatorTest {
     @Test
     fun `un 403 y un 401 reales del SDK son Unauthorized sin consentimiento resuelto`() {
         assertEquals(UploadError.Unauthorized(false), StorageErrorTranslator.translate(real(403)))
-        assertEquals(UploadError.Unauthorized(false), StorageErrorTranslator.translate(real(401)))
+        assertEquals(UploadError.Unauthenticated, StorageErrorTranslator.translate(real(401)))
     }
 
     @Test
@@ -42,7 +42,7 @@ class StorageErrorTranslatorTest {
             StorageErrorTranslator.translate(StorageException.ERROR_NOT_AUTHORIZED, 0, null)
         )
         assertEquals(
-            UploadError.Unauthorized(false),
+            UploadError.Unauthenticated,
             StorageErrorTranslator.translate(StorageException.ERROR_NOT_AUTHENTICATED, 0, null)
         )
     }
@@ -56,6 +56,18 @@ class StorageErrorTranslatorTest {
         )
         assertEquals(UploadError.Other, StorageErrorTranslator.translate(IllegalStateException("x")))
         assertEquals(UploadError.Other, StorageErrorTranslator.translate(StorageException.ERROR_UNKNOWN, 0, null))
+    }
+
+    @Test
+    fun `sin sesion de Auth es Unauthenticated (transitorio) y un checksum invalido es transitorio`() {
+        assertEquals(
+            UploadError.Unauthenticated,
+            StorageErrorTranslator.translate(StorageException.ERROR_NOT_AUTHENTICATED, 401, null)
+        )
+        assertEquals(
+            UploadError.Network,
+            StorageErrorTranslator.translate(StorageException.ERROR_INVALID_CHECKSUM, 0, null)
+        )
     }
 
     @Test

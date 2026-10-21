@@ -48,4 +48,7 @@ interface RecordingRemoteDataSource {
     suspend fun deleteDoc(uid: String, id: String): Result<Unit>
 
     suspend fun consent(uid: String): Result<ConsentSnapshot>
+
+    /** Fuerza un token de Auth nuevo (`getIdToken(true)`): refresca los claims, p. ej. `consentOk` obsoleto. */
+    suspend fun refreshAuth(): Result<Unit>
 }

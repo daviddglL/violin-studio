@@ -62,7 +62,7 @@ class RecordingUploadEngine @Inject constructor(
         if (started.cancelled) return cancelled(started)
         return when (val result = uploadPersistingSession(started)) {
             UploadResult.Uploaded -> markUploaded(started)
-            is UploadResult.Failed -> onFailure(started, result.error)
+            is UploadResult.Failed -> onFailure(started, result.error, canRefresh = true)
         }
     }
 
@@ -86,11 +86,13 @@ class RecordingUploadEngine @Inject constructor(
         filePath = item.take.path,
         objectPath = RecordingUploadContract.objectPath(item.take),
         contentType = RecordingUploadContract.CONTENT_TYPE,
-        customMetadata = RecordingUploadContract.customMetadata(item.take),
+        customMetadata = RecordingUploadContract.customMetadata(item.take, item.assignmentId),
         sessionUri = item.sessionUri
     )
 
-    private suspend fun onFailure(item: QueuedRecording, error: UploadError): EngineResult {
+    private suspend fun onFailure(started: QueuedRecording, error: UploadError, canRefresh: Boolean): EngineResult {
+        // Estado ACTUAL de la cola: el `sessionUri` pudo guardarse durante esta misma ejecucion (W4).
+        val item = queue.observe(started.take.uid).first().firstOrNull { it.id == started.id } ?: return EngineResult.DONE
         if (error is UploadError.Http && error.code in SESSION_GONE && item.sessionUri != null) {
             // La sesion reanudable caduco: se descarta y se empieza de cero en el siguiente intento.
             queue.update(item.take.uid, item.id) { it.copy(sessionUri = null) }
@@ -104,7 +106,26 @@ class RecordingUploadEngine @Inject constructor(
                 finish(item)
                 EngineResult.FAILED
             }
-            is UploadDecision.Fail -> fail(item, decision.reason)
+            is UploadDecision.Fail ->
+                if (decision.reason == FailReason.PERMISSION) denied(item, canRefresh) else fail(item, decision.reason)
+        }
+    }
+
+    /**
+     * 403 con el consentimiento vigente. Las reglas son create-only: re-subir un objeto que ya existe (caida entre los
+     * ultimos bytes y `uploaded`, o reintento del usuario) da 403, no 412, asi que primero se mira si el objeto esta.
+     * Si no, un solo reintento con token refrescado (claim `consentOk` obsoleto) antes de `failed(PERMISSION)`.
+     */
+    private suspend fun denied(item: QueuedRecording, canRefresh: Boolean): EngineResult {
+        val exists = remote.objectExists(RecordingUploadContract.objectPath(item.take)).getOrElse {
+            return EngineResult.RETRY
+        }
+        if (exists) return markUploaded(item)
+        if (!canRefresh) return fail(item, FailReason.PERMISSION)
+        remote.refreshAuth().getOrElse { return EngineResult.RETRY }
+        return when (val again = uploadPersistingSession(item)) {
+            UploadResult.Uploaded -> markUploaded(item)
+            is UploadResult.Failed -> onFailure(item, again.error, canRefresh = false)
         }
     }
 
@@ -164,7 +185,7 @@ class RecordingUploadEngine @Inject constructor(
         if (item.state != QueueState.UPLOADING && item.state != QueueState.UPLOADED) return finish(item)
         val uploaded = item.state == QueueState.UPLOADED ||
             remote.objectExists(RecordingUploadContract.objectPath(item.take)).getOrElse { return EngineResult.RETRY }
-        if (!uploaded) return finish(item)
+        if (!uploaded) return awaitInFlight(item)
         deleteFile(item)
         val since = stampUploadedAt(item) ?: return EngineResult.RETRY
         if (awaitDoc(item) != null) {
@@ -172,6 +193,16 @@ class RecordingUploadEngine @Inject constructor(
             return removeItem(item)
         }
         return if (timedOut(since)) removeItem(item) else EngineResult.RETRY
+    }
+
+    /**
+     * Descartado con la subida posiblemente en vuelo (el trabajo se cancela, pero una tarea puede aterrizar a la vez):
+     * el fichero se borra ya y el elemento espera [CANCEL_GRACE_MS] por si aparece el objeto (entonces, R3).
+     */
+    private suspend fun awaitInFlight(item: QueuedRecording): EngineResult {
+        deleteFile(item)
+        val since = stampUploadedAt(item) ?: return EngineResult.RETRY
+        return if (clock.millis() - since >= CANCEL_GRACE_MS) removeItem(item) else EngineResult.RETRY
     }
 
     private suspend fun finish(item: QueuedRecording): EngineResult {
@@ -201,6 +232,8 @@ class RecordingUploadEngine @Inject constructor(
 
     companion object {
         const val MAX_ATTEMPTS = 10
+        /** Tras descartar con la subida en vuelo, cuanto se espera a que aterrice antes de dar el elemento por limpio. */
+        const val CANCEL_GRACE_MS = 10L * 60 * 1000
 
         /** Cuanto espera una ejecucion al listener antes de ceder el hilo al reintento de WorkManager. */
         const val CONFIRM_WINDOW_MS = 30_000L

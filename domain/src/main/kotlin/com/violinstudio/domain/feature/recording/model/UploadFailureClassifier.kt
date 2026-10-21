@@ -14,6 +14,9 @@ sealed interface UploadError {
 
     data object Other : UploadError
 
+    /** Sin sesion de Auth valida (token caducado/usuario saliendo): transitorio, no un fallo permanente. */
+    data object Unauthenticated : UploadError
+
     data class Http(val code: Int) : UploadError
 
     /** 401/403. [consentRevoked]: las reglas denegaron porque `recordingConsent` != granted o la epoca no es la vigente. */
@@ -42,7 +45,7 @@ object UploadFailureClassifier {
     private val SERVER_ERRORS = 500..599
 
     fun classify(error: UploadError): UploadDecision = when (error) {
-        UploadError.Network, UploadError.RetryLimitExceeded -> UploadDecision.Retry
+        UploadError.Network, UploadError.RetryLimitExceeded, UploadError.Unauthenticated -> UploadDecision.Retry
         UploadError.ObjectAlreadyExists -> UploadDecision.AlreadyUploaded
         UploadError.QuotaExceeded -> UploadDecision.Fail(FailReason.QUOTA)
         UploadError.TooLarge -> UploadDecision.Fail(FailReason.SIZE)

@@ -109,6 +109,11 @@ class FirebaseRecordingRemoteDataSource @Inject constructor(
         )
     }
 
+    override suspend fun refreshAuth(): Result<Unit> = guarded {
+        auth.currentUser?.getIdToken(true)?.await()
+        Unit
+    }
+
     private inline fun <T> guarded(block: () -> T): Result<T> = try {
         Result.success(block())
     } catch (e: CancellationException) {

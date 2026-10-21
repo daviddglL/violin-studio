@@ -79,6 +79,8 @@ class RecordingUploadWorkerTest {
         override suspend fun deleteDoc(uid: String, id: String) = Result.success(Unit)
 
         override suspend fun consent(uid: String) = Result.success(ConsentSnapshot(true, 0))
+
+        override suspend fun refreshAuth() = Result.success(Unit)
     }
 
     private fun worker(remote: StubRemote, queue: OneItemQueue, uid: String?, id: String?): RecordingUploadWorker {

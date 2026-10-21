@@ -17,8 +17,9 @@ object StorageErrorTranslator {
     fun translate(errorCode: Int, httpCode: Int, cause: Throwable?): UploadError = when {
         errorCode == StorageException.ERROR_RETRY_LIMIT_EXCEEDED -> UploadError.RetryLimitExceeded
         errorCode == StorageException.ERROR_QUOTA_EXCEEDED -> UploadError.QuotaExceeded
-        errorCode == StorageException.ERROR_NOT_AUTHORIZED ||
-            errorCode == StorageException.ERROR_NOT_AUTHENTICATED -> UploadError.Unauthorized(consentRevoked = false)
+        errorCode == StorageException.ERROR_NOT_AUTHENTICATED -> UploadError.Unauthenticated
+        errorCode == StorageException.ERROR_INVALID_CHECKSUM -> UploadError.Network
+        errorCode == StorageException.ERROR_NOT_AUTHORIZED -> UploadError.Unauthorized(consentRevoked = false)
         httpCode in HTTP_ERRORS -> UploadError.Http(httpCode)
         cause is IOException -> UploadError.Network
         else -> UploadError.Other

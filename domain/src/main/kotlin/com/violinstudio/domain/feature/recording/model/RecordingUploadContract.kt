@@ -15,19 +15,24 @@ object RecordingUploadContract {
     const val KIND_KEY = "kind"
     const val DURATION_KEY = "durationMs"
     const val KIND_AUDIO = "audio"
+    const val ASSIGNMENT_KEY = "assignmentId"
 
     private const val MAX_EPOCH = 999_999_999L
     private const val MAX_DURATION_MS = 999_999L
+    private val ASSIGNMENT_ID = Regex("^[A-Za-z0-9-]{1,64}$")
 
     fun objectPath(take: RecordedTake): String = "users/${take.uid}/$RECORDINGS_DIR/${take.id}.m4a"
 
-    fun customMetadata(take: RecordedTake): Map<String, String> {
+    /** [assignmentId] solo viaja si las reglas lo aceptarian (patron de `validMeta`); si no, la toma es libre. */
+    fun customMetadata(take: RecordedTake, assignmentId: String? = null): Map<String, String> {
         require(take.consentEpoch in 0..MAX_EPOCH) { "epoca fuera del rango de las reglas" }
         require(take.durationMs in 0..MAX_DURATION_MS) { "duracion fuera del rango de las reglas" }
-        return mapOf(
+        val base = mapOf(
             KIND_KEY to KIND_AUDIO,
             DURATION_KEY to take.durationMs.toString(),
             EPOCH_KEY to take.consentEpoch.toString()
         )
+        val valid = assignmentId != null && ASSIGNMENT_ID.matches(assignmentId)
+        return if (valid) base + (ASSIGNMENT_KEY to assignmentId!!) else base
     }
 }
