@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 
 /** Claves del fichero único: todo lo de un usuario cuelga de `u.{uid}.` (los uid de Firebase no contienen puntos). */
 object UserKeys {
@@ -30,6 +31,8 @@ object UserKeys {
     fun runningStartedAt(uid: String) = longPreferencesKey("${prefix(uid)}practice.running.started_at")
 
     fun runningInstrument(uid: String) = stringPreferencesKey("${prefix(uid)}practice.running.instrument")
+
+    fun completedLessons(uid: String) = stringSetPreferencesKey("${prefix(uid)}curriculum.completed")
 
     fun belongsTo(key: Preferences.Key<*>, uid: String) = key.name.startsWith(prefix(uid))
 }

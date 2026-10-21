@@ -128,4 +128,27 @@ class HomeScreenTest {
         compose.onNodeWithTag("home_practice").performScrollTo().performClick()
         assertEquals(1, opened)
     }
+
+    @Test
+    fun lasTarjetasDeEstadisticasYLeccionesNavegan() {
+        var stats = 0
+        var lessons = 0
+        compose.setContent {
+            ViolinStudioTheme {
+                val navigation = HomeNavigation(
+                    onOpenSettings = {},
+                    onOpenTuner = {},
+                    onOpenMetronome = {},
+                    onOpenPractice = {},
+                    onOpenStats = { stats++ },
+                    onOpenCurriculum = { lessons++ }
+                )
+                HomeScreen(HomeState(), {}, navigation = navigation)
+            }
+        }
+        compose.onNodeWithTag("home_stats").performScrollTo().performClick()
+        compose.onNodeWithTag("home_curriculum").performScrollTo().performClick()
+        assertEquals(1, stats)
+        assertEquals(1, lessons)
+    }
 }

@@ -13,6 +13,7 @@ import com.violinstudio.data.feature.auth.datasource.AuthRemoteDataSource
 import com.violinstudio.data.feature.auth.datasource.firebase.FirebaseAuthRemoteDataSource
 import com.violinstudio.data.feature.auth.repository.AuthRepositoryImpl
 import com.violinstudio.data.feature.consent.repository.ConsentRepositoryImpl
+import com.violinstudio.data.feature.curriculum.repository.DataStoreLessonProgressRepository
 import com.violinstudio.data.feature.health.datasource.HealthRemoteDataSource
 import com.violinstudio.data.feature.health.datasource.firebase.FirebaseHealthRemoteDataSource
 import com.violinstudio.data.feature.health.repository.HealthRepositoryImpl
@@ -40,6 +41,7 @@ import com.violinstudio.domain.feature.account.repository.AccountRepository
 import com.violinstudio.domain.feature.assignment.repository.AssignmentRepository
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
+import com.violinstudio.domain.feature.curriculum.repository.LessonProgressRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
 import com.violinstudio.domain.feature.link.repository.LinkRepository
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
@@ -112,6 +114,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindRunningSessionStore(impl: DataStoreRunningSessionStore): RunningSessionStore
+
+    @Binds
+    abstract fun bindLessonProgressRepository(impl: DataStoreLessonProgressRepository): LessonProgressRepository
 
     @Binds
     abstract fun bindLinkRemoteDataSource(impl: FirebaseLinkRemoteDataSource): LinkRemoteDataSource
