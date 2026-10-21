@@ -45,6 +45,24 @@ service cloud.firestore {
       return isSignedIn() && emailVerified() && hasConsent()
         && linkOk(request.auth.uid, s) && userDocActive(s) && userDocActive(request.auth.uid);
     }
+    // Titulo de tarea: misma lista blanca que el nombre (sin control/formato ni espacios en los extremos), 1..120.
+    function validTitle(n) {
+      return n is string && n == n.trim() && n.size() >= 1 && n.size() <= 120
+        && n.matches('^[\\p{L}\\p{M}\\p{N}\\p{P}\\p{S} ]+$');
+    }
+    // Esquema cerrado de la tarea (espeja AssignmentRules en dominio). `doneAt` lo gobierna validDone.
+    function validAssignment(d) {
+      return d.keys().hasOnly(['teacherUid', 'title', 'description', 'dueAt', 'status', 'doneAt', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['teacherUid', 'title', 'status', 'createdAt', 'updatedAt'])
+        && d.teacherUid is string && validTitle(d.title)
+        && (!('description' in d) || (d.description is string && d.description.size() <= 1000))
+        && (!('dueAt' in d) || d.dueAt is timestamp)
+        && d.status in ['open', 'done'];
+    }
+    // Completar: doneAt == request.time; reabrir: sin doneAt.
+    function validDone(d) {
+      return (d.status == 'done' && d.doneAt == request.time) || (d.status == 'open' && !('doneAt' in d));
+    }
     function validNotes(d) { return !('notes' in d) || (d.notes is string && d.notes.size() <= 500); }
     // Sin campos de audio posibles: hasOnly cierra el esquema.
     function validSession(d) {
@@ -90,9 +108,24 @@ service cloud.firestore {
         allow delete: if isOwner(uid); // supresión siempre disponible, sin consentimiento
       }
 
-      // Provisional (A5): deny total hasta que A6 defina las reglas de tareas. Existe para que el
-      // registro de borrado (`assignments`, subcolección de users) tenga su `match` explícito.
-      match /assignments/{id} { allow read, write: if false; }
+      // Tareas del profesor al alumno (REQ-ASG-01..04). El profesor opera solo mientras exista el vinculo (nunca por
+      // claim) y solo sobre las que creo; el `list` del profesor DEBE filtrar `teacherUid == uid` (la regla mira
+      // `resource.data`, que en una consulta exige la restriccion). Sin reglas de collectionGroup.
+      // Accesos: profesor 3 get (isLinkedTeacher); alumno 0 en lectura, 1 get (userDocActive) al actualizar.
+      match /assignments/{id} {
+        allow get, list: if isOwner(uid) || (isLinkedTeacher(uid) && resource.data.teacherUid == request.auth.uid);
+        allow create: if id.size() <= 64 && isLinkedTeacher(uid) && validAssignment(request.resource.data)
+          && request.resource.data.teacherUid == request.auth.uid && request.resource.data.status == 'open'
+          && !('doneAt' in request.resource.data)
+          && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+        allow update: if (isLinkedTeacher(uid) && resource.data.teacherUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'dueAt', 'updatedAt'])
+            && validAssignment(request.resource.data) && request.resource.data.updatedAt == request.time)
+          || (isOwner(uid) && emailVerified() && hasConsent() && userDocActive(uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'doneAt'])
+            && validDone(request.resource.data));
+        allow delete: if isLinkedTeacher(uid) && resource.data.teacherUid == request.auth.uid;
+      }
     }
 
     // Colecciones del servidor (solo Admin SDK): deny explícito para que el test de registro las detecte.
