@@ -27,7 +27,11 @@ class StringsParityTest {
             "link_error_rate_limited",
             "link_unlink_dialog_body",
             "home_redeem_card",
-            "home_my_teacher_card"
+            "home_my_teacher_card",
+            "home_students_card",
+            "home_codes_card",
+            "teacher_unlink_dialog_body",
+            "teacher_code_created_warning"
         )
         assertEquals(emptyList<String>(), link.filterNot { it in es.keys }, "faltan cadenas de vinculo")
         for (key in es.keys) {

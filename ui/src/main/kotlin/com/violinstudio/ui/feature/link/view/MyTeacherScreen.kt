@@ -169,7 +169,7 @@ private fun MyTeacherError.message(): String = when (this) {
 }
 
 @Composable
-private fun java.time.Instant.formatted(): String {
+internal fun java.time.Instant.formatted(): String {
     val locale = LocalConfiguration.current.locales[0]
     return DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
         .format(atZone(ZoneId.systemDefault()))
