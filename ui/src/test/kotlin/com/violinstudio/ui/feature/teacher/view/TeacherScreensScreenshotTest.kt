@@ -16,6 +16,9 @@ import com.violinstudio.ui.feature.teacher.viewmodel.StudentsState
 import com.violinstudio.ui.feature.teacher.viewmodel.TeacherCodesState
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.TimeZone
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +31,13 @@ import org.robolectric.annotation.GraphicsMode
 class TeacherScreensScreenshotTest {
     @get:Rule
     val compose = createComposeRule()
+
+    private val originalZone: TimeZone = TimeZone.getDefault()
+
+    // TeacherCodesScreen formatea con la zona del sistema: sin fijarla, el baseline depende de la maquina (Madrid vs UTC en CI).
+    @Before fun pinZone() = TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+
+    @After fun restoreZone() = TimeZone.setDefault(originalZone)
 
     private fun link(uid: String, name: String, instrument: Instrument?) =
         TeacherLink("t1", uid, "Marta", name, instrument, 1, Instant.parse("2026-10-01T12:00:00Z"))

@@ -34,7 +34,16 @@ class NoAndroidInMainTest {
         "android.media.AudioAttributes",
         "android.media.AudioFocusRequest",
         "android.media.AudioManager"
-    ).map { "com/violinstudio/data/commons/audio/AndroidAudioFocus.kt" to it }
+    ).map { "com/violinstudio/data/commons/audio/AndroidAudioFocus.kt" to it } + listOf(
+        // Grabacion consentida (B6): MediaRecorder solo en datasource/media (PracticeAudioSourcesTest lo vigila).
+        "android.content.Context",
+        "android.media.MediaRecorder",
+        "android.os.Build"
+    ).map { "com/violinstudio/data/feature/recording/datasource/media/AndroidMediaRecorderFactory.kt" to it } +
+        listOf(
+            "com/violinstudio/data/feature/recording/datasource/media/NoBackupRecordingsDirectory.kt" to
+                "android.content.Context"
+        )
 
     @Test
     fun `el codigo principal de data no importa android`() {

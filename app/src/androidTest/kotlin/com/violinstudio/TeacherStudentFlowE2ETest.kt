@@ -148,6 +148,14 @@ class TeacherStudentFlowE2ETest : E2eTest() {
         }
         delay(2_000)
         assertTrue(links.unlink(teacher, student).isSuccess)
+        // Firestore solo revalida las reglas de un oyente activo cuando cambia un doc de su resultado (no al borrar el
+        // vinculo que consultan con get()): se toca un doc escuchado de cada coleccion para forzar la revalidacion.
+        Emulators.patchField(
+            "users/$student/practiceSessions/$sessionId",
+            "notes",
+            Emulators.stringValue("Escalas lentas (editada)")
+        )
+        Emulators.patchField("users/$student/assignments/$doneId", "title", Emulators.stringValue("Escalas (editada)"))
         val historyError = withTimeout(E2E_TIMEOUT_MS) { historyEnds.await() }.exceptionOrNull()
         assertTrue("historial: $historyError", historyError is PracticeFailure.PermissionDenied)
         val listError = withTimeout(E2E_TIMEOUT_MS) { assignmentsEnd.await() }.exceptionOrNull()
@@ -160,11 +168,14 @@ class TeacherStudentFlowE2ETest : E2eTest() {
         assertTrue(Emulators.docExists("users/$student/assignments/$doneId"))
 
         // Una lectura nueva del profesor ya no se permite.
-        val failure = runCatching { practice.observeHistory(student).first() }.exceptionOrNull()
+        // Se espera al error terminal del oyente: Firestore puede emitir antes un snapshot de la cache local.
+        val failure = withTimeout(E2E_TIMEOUT_MS) {
+            runCatching { practice.observeHistory(student).collect { } }.exceptionOrNull()
+        }
         assertTrue("lectura tras desvincular: $failure", failure is PracticeFailure.PermissionDenied)
-        val assignmentsFailure = runCatching {
-            assignments.observeByTeacher(teacher, student).first()
-        }.exceptionOrNull()
+        val assignmentsFailure = withTimeout(E2E_TIMEOUT_MS) {
+            runCatching { assignments.observeByTeacher(teacher, student).collect { } }.exceptionOrNull()
+        }
         assertTrue(assignmentsFailure is AssignmentFailure.PermissionDenied)
     }
 }

@@ -53,6 +53,38 @@ class ManifestPermissionsTest {
     }
 
     @Test
+    fun `4b no declara permisos ni servicios de camara y las copias de seguridad siguen apagadas`() {
+        val requested = info.requestedPermissions.orEmpty().toList()
+        assertFalse(requested.contains("android.permission.FOREGROUND_SERVICE_CAMERA"))
+        assertFalse(requested.contains(Manifest.permission.CAMERA))
+        val camera = info.services.orEmpty().filter {
+            it.foregroundServiceType and ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA != 0
+        }
+        assertTrue(camera.isEmpty())
+    }
+
+    @Test
+    fun `el manifest fuente no declara servicios de captura ni foregroundServiceType`() {
+        val manifest = File("src/main/AndroidManifest.xml")
+        assertTrue(manifest.isFile)
+        val xml = manifest.readText()
+        assertTrue("android:allowBackup=\"false\"" in xml)
+        assertEquals(emptyList<String>(), captureManifestViolations(xml))
+        val cameraPermission = "<uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_CAMERA\"/>"
+        assertTrue(captureManifestViolations(cameraPermission).isNotEmpty())
+        assertTrue(captureManifestViolations("<service android:foregroundServiceType=\"microphone\" />").isNotEmpty())
+        assertTrue(captureManifestViolations("<!-- foregroundServiceType --><application/>").isEmpty())
+    }
+
+    private fun captureManifestViolations(xml: String): List<String> {
+        val code = xml.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
+        return buildList {
+            if (Regex("""android\.permission\.FOREGROUND_SERVICE""").containsMatchIn(code)) add("permiso de servicio")
+            if ("foregroundServiceType" in code) add("foregroundServiceType")
+        }
+    }
+
+    @Test
     fun `RECORD_AUDIO solo se solicita desde la ruta del afinador, nunca al arrancar`() {
         val roots = listOf("../ui/src/main", "../app/src/main", "../data/src/main").map { File(it) }
         assertTrue(roots.all { it.isDirectory })
