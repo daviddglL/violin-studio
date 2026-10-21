@@ -5,10 +5,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.violinstudio.data.commons.datastore.UserKeys
 import com.violinstudio.data.commons.datastore.createUserLocalDataStore
 import com.violinstudio.data.commons.erasure.DataStoreUserDataEraser
 import com.violinstudio.data.feature.tuner.repository.DataStoreTunerConfigRepository
-import com.violinstudio.data.feature.tuner.utils.UserKeys
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope

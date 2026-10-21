@@ -4,8 +4,8 @@ import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import com.violinstudio.data.commons.datastore.UserKeys
 import com.violinstudio.data.commons.datastore.createUserLocalDataStore
-import com.violinstudio.data.feature.tuner.utils.UserKeys
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.feature.tuner.model.MaxCents
 import com.violinstudio.domain.feature.tuner.model.ReferencePitch

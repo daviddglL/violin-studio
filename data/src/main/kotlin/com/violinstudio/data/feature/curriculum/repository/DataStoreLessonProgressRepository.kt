@@ -4,7 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
-import com.violinstudio.data.feature.tuner.utils.UserKeys
+import com.violinstudio.data.commons.datastore.UserKeys
 import com.violinstudio.domain.feature.curriculum.failure.CurriculumFailure
 import com.violinstudio.domain.feature.curriculum.repository.LessonProgressRepository
 import java.io.IOException

@@ -7,10 +7,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.violinstudio.data.commons.datastore.UserKeys
 import com.violinstudio.data.commons.datastore.createUserLocalDataStore
 import com.violinstudio.data.commons.erasure.DataStoreUserDataEraser
 import com.violinstudio.data.feature.tuner.repository.DataStoreTunerConfigRepository
-import com.violinstudio.data.feature.tuner.utils.UserKeys
 import com.violinstudio.domain.feature.practice.model.RunningSession
 import com.violinstudio.domain.feature.profile.model.Instrument
 import java.io.File
