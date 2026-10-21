@@ -50,6 +50,10 @@ data object StatsDestination
 @Serializable
 data object CurriculumDestination
 
+/** Grabaciones de práctica (consentimiento, grabar, cola de subida): común a todos los roles. */
+@Serializable
+data object RecordingsDestination
+
 /** Canjear código: solo `independent`. */
 @Serializable
 data object RedeemCodeDestination
@@ -99,6 +103,7 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         PracticeLogDestination::class,
         StatsDestination::class,
         CurriculumDestination::class,
+        RecordingsDestination::class,
         RedeemCodeDestination::class,
         MyTeacherDestination::class,
         StudentsDestination::class,

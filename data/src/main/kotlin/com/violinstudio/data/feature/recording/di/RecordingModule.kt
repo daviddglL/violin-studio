@@ -7,6 +7,8 @@ import com.violinstudio.data.commons.firebase.EmulatorConfig
 import com.violinstudio.data.commons.firebase.EmulatorOnce
 import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseFinalizeStatusSource
 import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingAccountSource
+import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingConsentRepository
+import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingLibrary
 import com.violinstudio.data.feature.recording.datasource.firebase.FirebaseRecordingUploader
 import com.violinstudio.data.feature.recording.datasource.local.RecordingQueueStore
 import com.violinstudio.data.feature.recording.datasource.media.AndroidAudioRecorder
@@ -18,6 +20,8 @@ import com.violinstudio.domain.feature.recording.repository.FinalizeStatusSource
 import com.violinstudio.domain.feature.recording.repository.PendingUploads
 import com.violinstudio.domain.feature.recording.repository.Recorder
 import com.violinstudio.domain.feature.recording.repository.RecordingAccountSource
+import com.violinstudio.domain.feature.recording.repository.RecordingConsentRepository
+import com.violinstudio.domain.feature.recording.repository.RecordingLibrary
 import com.violinstudio.domain.feature.recording.repository.RecordingQueue
 import com.violinstudio.domain.feature.recording.repository.RecordingUploader
 import dagger.Binds
@@ -56,6 +60,12 @@ abstract class RecordingModule {
 
     @Binds
     abstract fun bindFinalizeStatusSource(impl: FirebaseFinalizeStatusSource): FinalizeStatusSource
+
+    @Binds
+    abstract fun bindRecordingLibrary(impl: FirebaseRecordingLibrary): RecordingLibrary
+
+    @Binds
+    abstract fun bindRecordingConsentRepository(impl: FirebaseRecordingConsentRepository): RecordingConsentRepository
 
     @Binds
     abstract fun bindMediaRecorderFactory(impl: AndroidMediaRecorderFactory): MediaRecorderFactory
