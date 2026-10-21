@@ -78,7 +78,10 @@ class RecordingQueueStoreTest {
     fun `los estados avanzan recorded uploading uploaded done y failed guarda el motivo`() = runBlocking<Unit> {
         val store = RecordingQueueStore(open())
         store.enqueue(item("r1")).getOrThrow()
-        val uploading = store.update("A", "r1") { it.copy(state = QueueState.UPLOADING, attempts = 1, sessionUri = "s") }
+        val uploading = store.update(
+            "A",
+            "r1"
+        ) { it.copy(state = QueueState.UPLOADING, attempts = 1, sessionUri = "s") }
         assertEquals(QueueState.UPLOADING, uploading.getOrThrow()?.state)
         store.update("A", "r1") { it.copy(state = QueueState.UPLOADED) }.getOrThrow()
         assertEquals(QueueState.UPLOADED, store.observe("A").first().single().state)
@@ -103,6 +106,16 @@ class RecordingQueueStoreTest {
     }
 
     @Test
+    fun `count no incluye los DONE, que ya cuenta el servidor`() = runBlocking<Unit> {
+        val store = RecordingQueueStore(open())
+        store.enqueue(item("r1")).getOrThrow()
+        store.enqueue(item("r2").copy(state = QueueState.UPLOADED)).getOrThrow()
+        store.enqueue(item("r3").copy(state = QueueState.FAILED, lastError = FailReason.QUOTA)).getOrThrow()
+        store.enqueue(item("r4").copy(state = QueueState.DONE)).getOrThrow()
+        assertEquals(3, store.count("A"))
+    }
+
+    @Test
     fun `cada uid ve y vacia solo su cola, y clear devuelve lo que habia`() = runBlocking<Unit> {
         val ds = open()
         val store = RecordingQueueStore(ds)
@@ -117,22 +130,23 @@ class RecordingQueueStoreTest {
     }
 
     @Test
-    fun `un elemento corrupto no tira la lista y un valor de otro tipo o no array da lista vacia`() = runBlocking<Unit> {
-        val ds = open()
-        val store = RecordingQueueStore(ds)
-        store.enqueue(item("r1")).getOrThrow()
-        val good = ds.data.first()[queueKey]!!.removeSurrounding("[", "]")
-        ds.edit { it[queueKey] = "[$good,{\"id\":3},\"x\",{\"id\":\"r9\",\"state\":\"bogus\"},null]" }
-        assertEquals(listOf("r1"), store.observe("A").first().map { it.id })
-        ds.edit { it[queueKey] = "{no es un array" }
-        assertTrue(store.observe("A").first().isEmpty())
-        ds.edit { it[queueKey] = "{}" }
-        assertTrue(store.observe("A").first().isEmpty())
-        ds.edit { it.remove(queueKey) }
-        ds.edit { it[longPreferencesKey("u.A.rec.queue")] = 5L }
-        assertTrue(store.observe("A").first().isEmpty())
-        assertEquals(0, store.count("A"))
-    }
+    fun `un elemento corrupto no tira la lista y un valor de otro tipo o no array da lista vacia`() =
+        runBlocking<Unit> {
+            val ds = open()
+            val store = RecordingQueueStore(ds)
+            store.enqueue(item("r1")).getOrThrow()
+            val good = ds.data.first()[queueKey]!!.removeSurrounding("[", "]")
+            ds.edit { it[queueKey] = "[$good,{\"id\":3},\"x\",{\"id\":\"r9\",\"state\":\"bogus\"},null]" }
+            assertEquals(listOf("r1"), store.observe("A").first().map { it.id })
+            ds.edit { it[queueKey] = "{no es un array" }
+            assertTrue(store.observe("A").first().isEmpty())
+            ds.edit { it[queueKey] = "{}" }
+            assertTrue(store.observe("A").first().isEmpty())
+            ds.edit { it.remove(queueKey) }
+            ds.edit { it[longPreferencesKey("u.A.rec.queue")] = 5L }
+            assertTrue(store.observe("A").first().isEmpty())
+            assertEquals(0, store.count("A"))
+        }
 
     @Test
     fun `una IOException de lectura no mata el flujo y una de escritura es un Result failure`() = runBlocking<Unit> {

@@ -36,7 +36,8 @@ class RecordingQueueStore @Inject constructor(private val store: DataStore<Prefe
         .map { read(it, uid) }
         .distinctUntilChanged()
 
-    override suspend fun count(uid: String): Int = observe(uid).first().size
+    /** Los `DONE` ya estan finalizados y los cuenta el servidor (`liveCount`): contarlos aqui los contaria dos veces. */
+    override suspend fun count(uid: String): Int = observe(uid).first().count { it.state != QueueState.DONE }
 
     /** Reencolar un id ya presente solo lo reemplaza mientras siga `RECORDED`; si avanzo, conserva su progreso. */
     override suspend fun enqueue(item: QueuedRecording): Result<Unit> = mutate(item.take.uid) { list ->
@@ -77,7 +78,11 @@ class RecordingQueueStore @Inject constructor(private val store: DataStore<Prefe
             val list = read(prefs, uid).toMutableList()
             result = block(list)
             val key = UserKeys.recQueue(uid)
-            if (list.isEmpty()) prefs.remove(key) else prefs[key] = json.encodeToString(list.map(QueuedRecordingDto::from))
+            if (list.isEmpty()) {
+                prefs.remove(key)
+            } else {
+                prefs[key] = json.encodeToString(list.map(QueuedRecordingDto::from))
+            }
         }
         @Suppress("UNCHECKED_CAST")
         Result.success(result as T)
