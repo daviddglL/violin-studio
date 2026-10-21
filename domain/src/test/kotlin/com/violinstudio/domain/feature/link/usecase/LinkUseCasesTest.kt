@@ -48,6 +48,12 @@ class LinkUseCasesTest {
     }
 
     @Test
+    fun `ObserveMyTeacher con PermissionDenied al desvincular vacia el flujo en vez de fallar`() = runTest {
+        repo.observeFailure = LinkFailure.PermissionDenied
+        assertNull(ObserveMyTeacherUseCase(auth, repo)().first())
+    }
+
+    @Test
     fun `sin sesion los observadores emiten vacio sin tocar el repositorio`() = runTest {
         auth.user = null
         assertNull(ObserveMyTeacherUseCase(auth, repo)().first())
