@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.teacher.view
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -54,9 +56,14 @@ const val STUDENT_UNLINK_CANCEL_TAG = "student_unlink_cancel"
 
 /** El rol lo comprueba la navegación antes de componer esta ruta; aquí no hay lógica de sesión. */
 @Composable
-fun StudentsRoute(onOpenCodes: () -> Unit, onBack: () -> Unit, viewModel: StudentsViewModel = hiltViewModel()) {
+fun StudentsRoute(
+    onOpenCodes: () -> Unit,
+    onOpenStudent: (String) -> Unit,
+    onBack: () -> Unit,
+    viewModel: StudentsViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    StudentsScreen(state, viewModel::onIntent, onOpenCodes, onBack)
+    StudentsScreen(state, viewModel::onIntent, onOpenCodes, onOpenStudent, onBack)
 }
 
 @Composable
@@ -64,6 +71,7 @@ fun StudentsScreen(
     state: StudentsState,
     onIntent: (StudentsIntent) -> Unit,
     onOpenCodes: () -> Unit,
+    onOpenStudent: (String) -> Unit,
     onBack: () -> Unit
 ) {
     Surface(Modifier.fillMaxSize()) {
@@ -92,7 +100,7 @@ fun StudentsScreen(
                 }
                 state.loadFailed -> LoadFailed(onIntent)
                 state.students.isEmpty() -> Empty(state.error, onOpenCodes)
-                else -> StudentList(state, onIntent)
+                else -> StudentList(state, onIntent, onOpenStudent)
             }
         }
     }
@@ -100,7 +108,7 @@ fun StudentsScreen(
 }
 
 @Composable
-private fun StudentList(state: StudentsState, onIntent: (StudentsIntent) -> Unit) {
+private fun StudentList(state: StudentsState, onIntent: (StudentsIntent) -> Unit, onOpenStudent: (String) -> Unit) {
     Text(
         stringResource(R.string.teacher_students_count, state.students.size, StudentsState.MAX_STUDENTS),
         modifier = Modifier.testTag(STUDENTS_COUNT_TAG)
@@ -108,8 +116,13 @@ private fun StudentList(state: StudentsState, onIntent: (StudentsIntent) -> Unit
     state.error?.let { ErrorText(it) }
     state.students.forEach { link ->
         val unlinkDesc = stringResource(R.string.teacher_student_unlink_desc, link.studentDisplayName)
+        val openDesc = stringResource(R.string.teacher_student_open_desc, link.studentDisplayName)
         HorizontalDivider()
-        Column(Modifier.fillMaxWidth().testTag(STUDENT_ROW_TAG), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            Modifier.fillMaxWidth().testTag(STUDENT_ROW_TAG)
+                .clickable(onClickLabel = openDesc, role = Role.Button) { onOpenStudent(link.studentUid) },
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Text(link.studentDisplayName, style = MaterialTheme.typography.titleMedium)
             link.studentInstrument?.let { Text(stringResource(it.labelRes())) }
             Text(

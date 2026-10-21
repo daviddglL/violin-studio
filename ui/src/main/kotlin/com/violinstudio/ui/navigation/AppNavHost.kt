@@ -36,6 +36,7 @@ import com.violinstudio.ui.feature.session.view.SplashScreen
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent
 import com.violinstudio.ui.feature.session.viewmodel.SessionViewModel
 import com.violinstudio.ui.feature.settings.view.SettingsRoute
+import com.violinstudio.ui.feature.teacher.view.StudentDetailRoute
 import com.violinstudio.ui.feature.teacher.view.StudentsRoute
 import com.violinstudio.ui.feature.teacher.view.TeacherCodesRoute
 import com.violinstudio.ui.feature.tuner.view.TunerRoute
@@ -71,9 +72,9 @@ fun SessionNavHost(
     practice: @Composable (onBack: () -> Unit) -> Unit = { PracticeRoute(onBack = it) },
     redeemCode: @Composable (onBack: () -> Unit) -> Unit = { RedeemCodeRoute(onBack = it) },
     myTeacher: @Composable (onBack: () -> Unit) -> Unit = { MyTeacherRoute(onBack = it) },
-    students: @Composable (onOpenCodes: () -> Unit, onBack: () -> Unit) -> Unit = { codes, back ->
-        StudentsRoute(onOpenCodes = codes, onBack = back)
-    },
+    students: @Composable (onOpenCodes: () -> Unit, onOpenStudent: (String) -> Unit, onBack: () -> Unit) -> Unit =
+        { codes, open, back -> StudentsRoute(onOpenCodes = codes, onOpenStudent = open, onBack = back) },
+    studentDetail: @Composable (onBack: () -> Unit) -> Unit = { StudentDetailRoute(onBack = it) },
     teacherCodes: @Composable (onBack: () -> Unit) -> Unit = { TeacherCodesRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
@@ -95,7 +96,8 @@ fun SessionNavHost(
         Box {
             SessionGraph(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
-                tuner, metronome, practice, redeemCode, myTeacher, students, teacherCodes, deleteViewModel
+                tuner, metronome, practice, redeemCode, myTeacher, students, studentDetail, teacherCodes,
+                deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -121,7 +123,8 @@ private fun SessionGraph(
     practice: @Composable (onBack: () -> Unit) -> Unit,
     redeemCode: @Composable (onBack: () -> Unit) -> Unit,
     myTeacher: @Composable (onBack: () -> Unit) -> Unit,
-    students: @Composable (onOpenCodes: () -> Unit, onBack: () -> Unit) -> Unit,
+    students: @Composable (onOpenCodes: () -> Unit, onOpenStudent: (String) -> Unit, onBack: () -> Unit) -> Unit,
+    studentDetail: @Composable (onBack: () -> Unit) -> Unit,
     teacherCodes: @Composable (onBack: () -> Unit) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
 ) {
@@ -190,8 +193,16 @@ private fun SessionGraph(
             if (session.allowsRoute(StudentsDestination::class)) {
                 students(
                     { navController.navigate(TeacherCodesDestination) { launchSingleTop = true } },
+                    { uid -> navController.navigate(StudentDetailDestination(uid)) { launchSingleTop = true } },
                     { navController.popIfPossible() }
                 )
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<StudentDetailDestination> {
+            if (session.allowsRoute(StudentDetailDestination::class)) {
+                studentDetail { navController.popIfPossible() }
             } else {
                 SplashScreen()
             }
