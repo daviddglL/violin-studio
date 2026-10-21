@@ -24,6 +24,7 @@ export enum ErrorReason {
   ALREADY_LINKED = "ALREADY_LINKED",
   NOT_ELIGIBLE = "NOT_ELIGIBLE",
   TEMPORARILY_UNAVAILABLE = "TEMPORARILY_UNAVAILABLE",
+  NOT_LINK_PARTY = "NOT_LINK_PARTY",
 }
 
 /** Error de callable con `details.reason` estable para que el cliente lo mapee sin parsear texto. */

@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { grantTeacher, revokeTeacher, TeacherRoleDeps, TeacherRoleError } from "../../src/admin/teacher-role";
+import { createTeacherCodeHandler } from "../../src/teacher/code-handlers";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project });
@@ -172,13 +173,32 @@ describe("revokeTeacher", () => {
     expect(await claims(uid)).toEqual({ role: "independent", consentOk: true });
   });
 
-  test("W2: con studentCount>0 y limpieza por defecto falla cerrado (HAS_LINKS) y el rol no cambia", async () => {
+  async function conAlumnos(n: number) {
     const { uid } = await nuevoUsuario();
     await grantTeacher(deps(), uid);
-    await poner(uid, { studentCount: 2 });
-    const e = await rechazo(revokeTeacher(deps(), uid));
-    expect(e?.reason).toBe("HAS_LINKS");
-    expect(await perfil(uid)).toMatchObject({ role: "teacher", studentCount: 2 });
+    await poner(uid, { studentCount: n });
+    const alumnos: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = await nuevoUsuario({ perfil: { role: "student", teacherCount: 1 } });
+      await auth.setCustomUserClaims(a.uid, { role: "student", consentOk: true });
+      await db.collection("teacherLinks").doc(`${uid}_${a.uid}`).set({ teacherUid: uid, studentUid: a.uid });
+      alumnos.push(a.uid);
+    }
+    return { uid, alumnos };
+  }
+
+  test("A3b.4: desvincula a todos los alumnos (por defecto), revoca codigos y deja claims sincronizados", async () => {
+    const { uid, alumnos } = await conAlumnos(2);
+    const { id } = await createTeacherCodeHandler({ db, pepper: "ci-fixed-non-secret-pepper-0123456789abcdef" }, uid);
+    await revokeTeacher(deps(), uid);
+    expect(await perfil(uid)).toMatchObject({ role: "independent", studentCount: 0 });
+    expect((await db.collection("teacherCodes").doc(id).get()).data()?.revokedAt).not.toBeNull();
+    for (const a of alumnos) {
+      expect((await db.collection("teacherLinks").doc(`${uid}_${a}`).get()).exists).toBe(false);
+      expect(await perfil(a)).toMatchObject({ role: "independent", teacherCount: 0 });
+      expect(await claims(a)).toMatchObject({ role: "independent" });
+    }
+    expect(await claims(uid)).toEqual({ role: "independent", consentOk: true });
   });
 
   test("sin alumnos la limpieza por defecto es tolerante", async () => {
@@ -196,9 +216,7 @@ describe("revokeTeacher", () => {
   });
 
   test("W1: reanudable: si falla la limpieza el rol ya es independent y el reintento la repite", async () => {
-    const { uid } = await nuevoUsuario();
-    await grantTeacher(deps(), uid);
-    await poner(uid, { studentCount: 2 });
+    const { uid, alumnos } = await conAlumnos(2);
     await expect(
       revokeTeacher(
         deps({
@@ -210,25 +228,28 @@ describe("revokeTeacher", () => {
       ),
     ).rejects.toThrow("parcial");
     expect(await perfil(uid)).toMatchObject({ role: "independent", studentCount: 2 });
-    // Con la limpieza por defecto sigue fallando cerrado.
-    expect((await rechazo(revokeTeacher(deps(), uid)))?.reason).toBe("HAS_LINKS");
-    const unlink = jest.fn(async () => {
-      await poner(uid, { studentCount: 0 });
-      return 2;
-    });
-    await revokeTeacher(deps({ unlinkAllStudents: unlink }), uid);
-    expect(unlink).toHaveBeenCalledTimes(1);
+    // El reintento (limpieza por defecto) completa el trabajo.
+    await revokeTeacher(deps(), uid);
     expect(await perfil(uid)).toMatchObject({ role: "independent", studentCount: 0 });
+    expect(await perfil(alumnos[0])).toMatchObject({ role: "independent", teacherCount: 0 });
     expect(await claims(uid)).toEqual({ role: "independent", consentOk: true });
   });
 
-  test("W1: reanudable: independent sin restos tras revocar no vuelve a limpiar alumnos", async () => {
+  test("contador desfasado a 0 pero con vinculos vivos: revocar tambien los elimina", async () => {
+    const { uid, alumnos } = await conAlumnos(1);
+    await poner(uid, { studentCount: 0, role: "independent" }); // reanudacion con contador desfasado
+    await revokeTeacher(deps(), uid);
+    expect((await db.collection("teacherLinks").doc(`${uid}_${alumnos[0]}`).get()).exists).toBe(false);
+    expect(await perfil(alumnos[0])).toMatchObject({ role: "independent", teacherCount: 0 });
+  });
+
+  test("independent sin restos: revocar de nuevo consulta los vinculos (no-op) en vez de fiarse del contador", async () => {
     const { uid } = await nuevoUsuario();
     await grantTeacher(deps(), uid);
     await revokeTeacher(deps(), uid);
     const unlink = jest.fn(async () => 0);
     await revokeTeacher(deps({ unlinkAllStudents: unlink }), uid);
-    expect(unlink).not.toHaveBeenCalled();
+    expect(unlink).toHaveBeenCalledTimes(1);
   });
 
   test("reanudable: fallo al sincronizar claims tras cambiar el rol, el reintento los sincroniza", async () => {

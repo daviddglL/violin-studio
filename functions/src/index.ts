@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import * as functionsV1 from "firebase-functions/v1";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { requireVerifiedUser } from "./common/auth-guard";
@@ -30,6 +31,8 @@ import {
 } from "./teacher/code-handlers";
 import { TEACHER_CODE_PEPPER } from "./teacher/pepper";
 import { redeemTeacherCodeHandler } from "./teacher/redeem";
+import { syncLinkNamesHandler } from "./teacher/sync-names";
+import { unlinkTeacherHandler } from "./teacher/unlink";
 import { VERSION } from "./version";
 
 export { REGION };
@@ -119,6 +122,23 @@ export const redeemTeacherCode = onCall({ ...callableOptions(), secrets: [TEACHE
     request.data,
   );
 });
+
+/** Desvinculacion inmediata por cualquiera de las partes (REQ-LNK-08); idempotente y reanudable. */
+export const unlinkTeacher = onCall(callableOptions(), (request) => {
+  const { uid } = requireVerifiedUser(request);
+  const app = admin();
+  return unlinkTeacherHandler({ db: getFirestore(app), auth: getAuth(app) }, uid, request.data);
+});
+
+/** Copia de nombre/instrumento en los vinculos (REQ-LNK-09); el handler descarta cualquier otro cambio sin leer. */
+export const syncLinkNames = onDocumentUpdated({ document: "users/{uid}", region: REGION, maxInstances: 5, retry: true }, (event) =>
+  syncLinkNamesHandler(
+    { db: getFirestore(admin()) },
+    event.params.uid,
+    event.data?.before.data(),
+    event.data?.after.data(),
+  ),
+);
 
 export const deleteAccount = onCall({ ...callableOptions(), timeoutSeconds: 300 }, (request) =>
   deleteAccountHandler({ erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, request),

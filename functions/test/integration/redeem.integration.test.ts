@@ -5,6 +5,7 @@ import { CURRENT_POLICY_VERSION, LINK_NOTICE_VERSION } from "../../src/config/id
 import { hashCode } from "../../src/teacher/codes";
 import { createTeacherCodeHandler, revokeTeacherCodeHandler } from "../../src/teacher/code-handlers";
 import { redeemTeacherCodeHandler, RedeemDeps } from "../../src/teacher/redeem";
+import { removeLink } from "../../src/teacher/remove-link";
 
 const project = process.env.GCLOUD_PROJECT ?? "demo-violin-studio";
 const app = getApps()[0] ?? initializeApp({ projectId: project });
@@ -321,6 +322,18 @@ describe("redeemTeacherCode - revision fresca A3a", () => {
     await db.collection("users").doc(t).update({ studentCount: 0 });
     await db.collection("users").doc(s).update({ teacherCount: 0, role: "independent" });
     expect(await rechazo(canjear(s, code))).toMatchObject({ code: "not-found" });
+  });
+
+  test("repetir el codigo tras desvincular de verdad (removeLink): NOT_FOUND y no revincula", async () => {
+    const t = await profesor();
+    const s = await alumno();
+    const code = await nuevoCodigo(t);
+    await canjear(s, code);
+    await removeLink(deps(), t, s);
+    expect(await rechazo(canjear(s, code))).toMatchObject({ code: "not-found" });
+    expect(await linkDoc(t, s)).toBeUndefined();
+    expect(await userDoc(s)).toMatchObject({ teacherCount: 0, role: "independent" });
+    expect((await userDoc(t)).studentCount).toBe(0);
   });
 
   test("repetir el codigo tras perder el profesor su rol (vinculo vigente): sigue siendo exito", async () => {
