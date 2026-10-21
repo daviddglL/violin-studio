@@ -168,11 +168,14 @@ class TeacherStudentFlowE2ETest : E2eTest() {
         assertTrue(Emulators.docExists("users/$student/assignments/$doneId"))
 
         // Una lectura nueva del profesor ya no se permite.
-        val failure = runCatching { practice.observeHistory(student).first() }.exceptionOrNull()
+        // Se espera al error terminal del oyente: Firestore puede emitir antes un snapshot de la cache local.
+        val failure = withTimeout(E2E_TIMEOUT_MS) {
+            runCatching { practice.observeHistory(student).collect { } }.exceptionOrNull()
+        }
         assertTrue("lectura tras desvincular: $failure", failure is PracticeFailure.PermissionDenied)
-        val assignmentsFailure = runCatching {
-            assignments.observeByTeacher(teacher, student).first()
-        }.exceptionOrNull()
+        val assignmentsFailure = withTimeout(E2E_TIMEOUT_MS) {
+            runCatching { assignments.observeByTeacher(teacher, student).collect { } }.exceptionOrNull()
+        }
         assertTrue(assignmentsFailure is AssignmentFailure.PermissionDenied)
     }
 }
