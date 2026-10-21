@@ -42,6 +42,14 @@ data object MetronomeDestination
 @Serializable
 data object PracticeLogDestination
 
+/** Estadisticas de practica: comun a todos los roles. */
+@Serializable
+data object StatsDestination
+
+/** Curriculo de lecciones por niveles: comun a todos los roles. */
+@Serializable
+data object CurriculumDestination
+
 /** Canjear código: solo `independent`. */
 @Serializable
 data object RedeemCodeDestination
@@ -89,6 +97,8 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         TunerDestination::class,
         MetronomeDestination::class,
         PracticeLogDestination::class,
+        StatsDestination::class,
+        CurriculumDestination::class,
         RedeemCodeDestination::class,
         MyTeacherDestination::class,
         StudentsDestination::class,

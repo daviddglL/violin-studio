@@ -1,7 +1,7 @@
 # Declaración de Data safety y política: micrófono (`RECORD_AUDIO`)
 
 Estado: borrador de la fase 3 (slice C1), ampliado en la fase 4a (A11) para Google Play Console > Contenido de la app > Seguridad de los datos y para
-el texto definitivo de la política de privacidad (`hosting/public/politica/index.html`, hoy marcador provisional).
+el texto de la política de privacidad (`hosting/public/politica/index.html`, versión 2, pendiente de revisión legal).
 Cubre REQ-AUD-05 de `practice-audio`.
 
 ## Resumen
@@ -20,8 +20,8 @@ dispositivo, se descarta al terminar cada ventana de análisis y NUNCA se guarda
 | Servicios en primer plano de micrófono | Ninguno | Sin captura en segundo plano |
 | Registros de fallos (crash logs) | Recopilados, vinculados a la app (no a datos de audio) | Crashlytics en el flavor prod |
 | Diagnósticos y rendimiento de la app | Recopilados | Firebase Performance y Crashlytics |
-| Identificadores de dispositivo u otros | Recopilados | Instalación de Firebase (Analytics, Crashlytics, Performance) |
-| Actividad en la app (analytics) | Recopilada | Firebase Analytics; nunca recibe frecuencias, notas ni cents (REQ-AUD-03) |
+| Identificadores de dispositivo u otros | Recopilados | Id de instalación de Firebase (Crashlytics, Performance); sin `AD_ID` (el manifiesto lo elimina) |
+| Actividad en la app (analytics) | **No recopilada** | La app no incluye Google Analytics (retirado: no había consentimiento y hay menores de 14) |
 
 Datos que sí trata la app (fase 2 y registro de práctica; ya cubiertos por el consentimiento): correo, nombre, fecha de
 nacimiento (edad), instrumento, historial de práctica (fecha, duración, instrumento y notas opcionales) y registros de
@@ -78,11 +78,11 @@ no se recopila ni se comparte, así que no altera el tratamiento de datos del me
 ## Pendiente antes de publicar
 
 - Confirmar en Play Console el propósito (análisis, estabilidad) y el cifrado en tránsito de cada fila de diagnósticos.
-- La política v2 (`hosting/public/politica/index.html`, `CURRENT_POLICY_VERSION = 2`) está publicada como borrador de
-  la fase 4 completa (vínculo, tareas, grabaciones de audio y vídeo, difuminado, retención de 90 días, cupo de 20).
-  **Falta la revisión legal** antes de publicar en Play (riesgo Q1 abierto, puerta bloqueante en README). El texto
-  actual no incluye identidad y contacto del responsable del tratamiento, base jurídica ni derechos de los
-  interesados (acceso, rectificación, supresión, etc.): esa revisión debe cubrirlos; no se ha inventado texto legal.
+- La política v2 (`hosting/public/politica/index.html`, `CURRENT_POLICY_VERSION = 2`) es el borrador de la fase 4
+  completa (vínculo, tareas, grabaciones de audio y vídeo, difuminado, retención de 90 días, cupo de 20) e incluye ya
+  responsable y contacto, base jurídica, plazos de conservación, transferencias internacionales y derechos (art. 13
+  RGPD). **Falta la revisión legal** de ese texto antes de publicar en Play (riesgo Q1 abierto, puerta bloqueante en
+  README).
 - Declarar en Play Console las grabaciones de audio y vídeo cuando se publique la fase 4b/4c.
 - Para la revisión legal (residuales conocidos del borrado de cuenta y la revocación, fase 4b):
   - Al borrar la cuenta de un profesor sus revisiones se **anonimizan** (sin uid en la ruta ni en los campos), pero el

@@ -114,6 +114,16 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
             OutlinedButton(onClick = it.onOpenPractice, modifier = Modifier.testTag("home_practice")) {
                 Text(stringResource(R.string.practice_home_card))
             }
+            it.onOpenStats?.let { open ->
+                OutlinedButton(onClick = open, modifier = Modifier.testTag("home_stats")) {
+                    Text(stringResource(R.string.home_stats_card))
+                }
+            }
+            it.onOpenCurriculum?.let { open ->
+                OutlinedButton(onClick = open, modifier = Modifier.testTag("home_curriculum")) {
+                    Text(stringResource(R.string.home_curriculum_card))
+                }
+            }
             it.onOpenRedeem?.let { open ->
                 OutlinedButton(onClick = open, modifier = Modifier.testTag("home_redeem")) {
                     Text(stringResource(R.string.home_redeem_card))
@@ -157,5 +167,8 @@ data class HomeNavigation(
     val onOpenStudents: (() -> Unit)? = null,
     val onOpenCodes: (() -> Unit)? = null,
     /** Solo para `student`. */
-    val onOpenAssignments: (() -> Unit)? = null
+    val onOpenAssignments: (() -> Unit)? = null,
+    /** Comunes a todos los roles; nulos solo en tests que no los usan. */
+    val onOpenStats: (() -> Unit)? = null,
+    val onOpenCurriculum: (() -> Unit)? = null
 )

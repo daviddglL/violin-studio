@@ -2,7 +2,18 @@
 export const DIGITAL_CONSENT_AGE = 14;
 export const MAX_PLAUSIBLE_AGE = 120;
 export const CURRENT_POLICY_VERSION = 2;
+/** URL de la politica del proyecto de desarrollo; en otro proyecto manda `policyUrl()` (sale de `GUARDIAN_LINK_BASE_URL`). */
 export const POLICY_URL = "https://violin-app-dev-f0b55.web.app/privacy";
+
+/**
+ * URL publica de la politica para el proyecto desplegado: la misma base de Hosting que el enlace del tutor
+ * (`GUARDIAN_LINK_BASE_URL` en `functions/.env.<project>`) mas la ruta de [POLICY_URL]. Sin esa variable (o con un valor
+ * que no es https) se usa [POLICY_URL]: un proyecto de produccion DEBE definirla o mostraria la politica de desarrollo.
+ */
+export function policyUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const base = env.GUARDIAN_LINK_BASE_URL?.trim().replace(/\/+$/, "");
+  return base && base.startsWith("https://") ? base + new URL(POLICY_URL).pathname : POLICY_URL;
+}
 export const GUARDIAN_FLOW_ENABLED = true;
 export const GUARDIAN_LINK_TTL_HOURS = 72;
 export const PENDING_ACCOUNT_TTL_DAYS = 7;

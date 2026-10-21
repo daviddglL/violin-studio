@@ -18,4 +18,9 @@ describe("config/identity", () => {
   test("la URL de la política es https", () => {
     expect(identity.POLICY_URL).toMatch(/^https:\/\//);
   });
+  test("policyUrl sigue la base de Hosting del proyecto y cae a la de desarrollo sin ella", () => {
+    expect(identity.policyUrl({ GUARDIAN_LINK_BASE_URL: "https://violin-prod.web.app/" })).toBe("https://violin-prod.web.app/privacy");
+    expect(identity.policyUrl({})).toBe(identity.POLICY_URL);
+    expect(identity.policyUrl({ GUARDIAN_LINK_BASE_URL: "http://127.0.0.1:5000" })).toBe(identity.POLICY_URL);
+  });
 });
