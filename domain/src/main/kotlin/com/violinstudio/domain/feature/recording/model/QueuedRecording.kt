@@ -17,7 +17,13 @@ data class QueuedRecording(
     val state: QueueState = QueueState.RECORDED,
     val attempts: Int = 0,
     val sessionUri: String? = null,
-    val lastError: FailReason? = null
+    val lastError: FailReason? = null,
+    /** Instante (ms) en que el objeto quedo subido: arranca la espera de 24 h por el doc `ready`/`rejected`. */
+    val uploadedAt: Long? = null,
+    /** Ya se reintento una vez tras 24 h sin doc; el siguiente vencimiento pasa a `failed`. */
+    val confirmRetried: Boolean = false,
+    /** El dueno descarto la toma mientras subia: el worker limpia (fichero y, si el objeto llego, el doc, R3). */
+    val cancelled: Boolean = false
 ) {
     val id: String get() = take.id
 
