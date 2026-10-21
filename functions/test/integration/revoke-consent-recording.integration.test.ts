@@ -48,10 +48,27 @@ describe("revokeConsentCore revoca también la grabación (REQ-CON-R03, 'Revocac
     expect(await consents(uid)).toHaveProperty(`recording_revocation_v${RV}_guardian_e0`);
   });
 
+  test("S2: recordingConsent parental_pending se restablece a none (sin campo) y se limpia la solicitud, conservando el contador", async () => {
+    const uid = await usuario({ recordingConsent: "parental_pending", recordingGuardian: { requestId: "r", sends: [Timestamp.now()] } });
+    await revokeConsentCore(deps, uid, "self");
+    const p = await perfil(uid);
+    expect(p.consentStatus).toBe("revoked");
+    expect(p).not.toHaveProperty("recordingConsent");
+    expect(p.recordingGuardian.requestId).toBeUndefined();
+    expect(p.recordingGuardian.sends).toHaveLength(1);
+    expect(p.recordingPurge).toBeUndefined();
+    expect(Object.keys(await consents(uid))).toEqual(["revocation_v2_self_e0"]);
+  });
+
+  test("S2: sin recordingGuardian no se crea ningún mapa vacío", async () => {
+    const uid = await usuario({ recordingConsent: "parental_pending" });
+    await revokeConsentCore(deps, uid, "self");
+    expect(await perfil(uid)).not.toHaveProperty("recordingGuardian");
+  });
+
   test.each([
     ["ausente", {}],
     ["revoked", { recordingConsent: "revoked", recordingConsentEpoch: 3 }],
-    ["parental_pending", { recordingConsent: "parental_pending" }],
   ])("recordingConsent %s: la revocación de política no escribe nada de grabación", async (_n, extra) => {
     const uid = await usuario(extra);
     const antes = await perfil(uid);

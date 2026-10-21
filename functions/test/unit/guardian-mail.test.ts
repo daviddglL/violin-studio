@@ -30,6 +30,23 @@ describe("buildGuardianMail", () => {
   });
 });
 
+describe("buildGuardianMail purpose=recording_sharing", () => {
+  test("kind y texto propios de la finalidad (grabaciones, voz, 90 días), mismo enlace y misma validez", () => {
+    const es = buildGuardianMail({ ...base, locale: "es", purpose: "recording_sharing" });
+    expect(es).toMatchObject({ to: "tutor@example.com", uid: "u1", kind: "guardian_recording" });
+    expect(es.expireAt.getTime()).toBe(now.getTime() + 72 * 3600_000);
+    for (const part of [es.message.text, es.message.html]) expect(part).toContain(base.link);
+    expect(es.message.text).toContain("grabaciones");
+    expect(es.message.text).toContain("90");
+    expect(es.message.subject).toContain("Ana");
+    expect(buildGuardianMail({ ...base, locale: "en", purpose: "recording_sharing" }).message.text).toContain("recordings");
+  });
+  test("sin finalidad sigue siendo el correo de política", () => {
+    expect(buildGuardianMail({ ...base, locale: "es" }).kind).toBe("guardian_consent");
+    expect(buildGuardianMail({ ...base, locale: "es", purpose: "privacy_policy" }).kind).toBe("guardian_consent");
+  });
+});
+
 describe("maskEmail", () => {
   test.each([
     ["pepe@gmail.com", "p***@g***.com"],
@@ -40,6 +57,13 @@ describe("maskEmail", () => {
 
 describe("buildGuardianRevokeMail", () => {
   const link = "https://x.app/tutor?r=abc#t=rev&a=revoke";
+  test("finalidad de grabación: texto propio, no menciona la cuenta del menor", () => {
+    const m = buildGuardianRevokeMail({ ...base, link, locale: "es", purpose: "recording_sharing" });
+    expect(m.kind).toBe("guardian_revoke");
+    expect(m.message.text).toContain("grabaciones");
+    expect(m.message.text).not.toContain("dejará de tener acceso");
+    expect(m.message.text).toContain(link);
+  });
   test("doc mail/ con uid, kind guardian_revoke, enlace de revocación y expireAt = now + 72 h (ventana de entrega, no validez del enlace)", () => {
     const m = buildGuardianRevokeMail({ ...base, link, locale: "es" });
     expect(m).toMatchObject({ to: "tutor@example.com", uid: "u1", kind: "guardian_revoke" });

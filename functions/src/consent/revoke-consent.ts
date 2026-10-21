@@ -6,7 +6,7 @@ import { ErrorReason, fail } from "../common/errors";
 import { CURRENT_POLICY_VERSION } from "../config/identity";
 import { syncClaims } from "../identity/claims";
 import { buildConsentDoc, consentDocId, consentEpochOf, GrantedBy } from "./consent-docs";
-import { writeRecordingRevocation } from "./recording-consent";
+import { clearRecordingRequest, writeRecordingRevocation } from "./recording-consent";
 
 export interface RevokeConsentDeps {
   db: Firestore;
@@ -65,9 +65,13 @@ export async function revokeConsentCore(
     const version = validVersion ? (doc.policyVersion as number) : 0;
     const ref = userRef.collection(COLLECTIONS.consents).doc(consentDocId("revocation", version, by, closing));
     tx.create(ref, buildConsentDoc("revocation", version, by));
+    // Una solicitud de grabación del tutor pendiente deja de tener base: se restablece a "none" (sin campo) para que el cliente no
+    // muestre un estado de espera obsoleto y el menor pueda volver a pedirla limpiamente.
+    const pendingReset = doc.recordingConsent === "parental_pending" ? { recordingConsent: FieldValue.delete(), ...clearRecordingRequest(doc) } : {};
     tx.update(userRef, {
       consentStatus: "revoked",
       consentEpoch: closing + 1,
+      ...pendingReset,
       updatedAt: FieldValue.serverTimestamp(),
     });
     // REQ-CON-R03: revocar la política revoca también la grabación, en la MISMA transacción (el borrado efectivo lo

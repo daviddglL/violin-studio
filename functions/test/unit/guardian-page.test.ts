@@ -1,6 +1,6 @@
 import vm from "node:vm";
 import { generateToken } from "../../src/guardian/token";
-import { makeNonce, renderDonePage, renderRejectConfirmPage, renderInvalidPage, renderRetryPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "../../src/guardian/page";
+import { makeNonce, renderDonePage, renderRecordingRejectedPage, renderRecordingRevokedPage, renderRejectConfirmPage, renderInvalidPage, renderRetryPage, renderRevokedPage, renderRevokePage, renderValidPage, securityHeaders } from "../../src/guardian/page";
 
 const input = (over: Partial<Parameters<typeof renderValidPage>[0]> = {}) => ({
   requestId: "req123",
@@ -189,5 +189,51 @@ describe("variantes de las páginas finales (W2, W3, transitorio)", () => {
   test("la página genérica sigue siendo estática y añade la alternativa (el menor puede revocar desde la app) sin revelar nada del enlace", () => {
     expect(renderInvalidPage()).toMatch(/app/);
     expect(renderInvalidPage()).not.toMatch(/Ana|req123/);
+  });
+});
+
+describe("páginas de la finalidad recording_sharing (REQ-GRD-R02/R03)", () => {
+  const valid = (over: Record<string, unknown> = {}) => renderValidPage(input({ purpose: "recording_sharing", ...over }));
+
+  test("muestra la finalidad concreta: voz y entorno, profesor vinculado, 90 días y revocación", () => {
+    const es = valid();
+    for (const t of ["grabaciones", "profesor", "voz", "90", "revocar"]) expect(es.toLowerCase()).toContain(t);
+    const en = valid({ locale: "en" });
+    for (const t of ["recordings", "teacher", "voice", "90", "revoke"]) expect(en.toLowerCase()).toContain(t);
+  });
+
+  test("no habla de borrar la cuenta y el rechazo va directo (confirm oculto) con declaración y token", () => {
+    const html = valid();
+    expect(html).not.toMatch(/eliminar la cuenta|eliminarán de forma definitiva/i);
+    expect(valid({ locale: "en" })).not.toMatch(/delete the account|permanently deleted/i);
+    expect(html).toContain('name="confirm" value="yes"');
+    expect(html).toContain('name="declaration"');
+    expect(html).toMatch(/<input type="hidden" name="t" id="t" value="">/);
+    expect(html).toContain('name="action" value="accept"');
+    expect(html).toContain('name="action" value="reject"');
+    expect(html).toContain("Ana");
+  });
+
+  test("la página de política no cambia: sigue avisando del borrado y sin confirm oculto", () => {
+    const html = renderValidPage(input());
+    expect(html).toMatch(/elimin/i);
+    expect(html).not.toContain('name="confirm"');
+  });
+
+  test("revocar: texto de grabaciones, sin hablar de perder el acceso a la app", () => {
+    const html = renderRevokePage({ requestId: "req123", displayName: "Ana", locale: "es", nonce: "N", purpose: "recording_sharing" });
+    expect(html).toContain("grabaciones");
+    expect(html).not.toContain("perderá el acceso");
+    expect(html).toContain('name="action" value="revoke"');
+  });
+
+  test("rechazado y revocado: la cuenta no se borra; sin datos del menor ni scripts", () => {
+    const rejected = renderRecordingRejectedPage();
+    expect(rejected).toMatch(/no se elimina/i);
+    expect(rejected).toMatch(/not (be )?deleted/i);
+    const revoked = renderRecordingRevokedPage();
+    expect(revoked).toContain("grabaciones");
+    expect(revoked).toContain("recordings");
+    for (const h of [rejected, revoked]) expect(h).not.toContain("<script");
   });
 });

@@ -33,6 +33,17 @@ function isPurgePending(doc: Record<string, unknown>): boolean {
   return purgeOf(doc)?.pending === true;
 }
 
+/**
+ * Desvincula la concesión/solicitud de grabación del tutor (`recordingGuardian.requestId`) conservando `sends` (límite de
+ * reenvíos). Sin ese vínculo un enlace viejo del tutor no puede revocar una concesión posterior ni reanimar una solicitud.
+ * Solo si el mapa existe: un borrado anidado sobre un mapa ausente no debe crear uno vacío.
+ */
+export function clearRecordingRequest(doc: Record<string, unknown>): Record<string, unknown> {
+  return typeof doc.recordingGuardian === "object" && doc.recordingGuardian !== null
+    ? { "recordingGuardian.requestId": FieldValue.delete() }
+    : {};
+}
+
 function parseVersion(data: unknown, current: number): number {
   const version = requireObject(data).version;
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1 || version > current) {
@@ -83,6 +94,8 @@ export async function grantRecordingConsentHandler(
       recordingConsent: "granted",
       recordingConsentVersion: version,
       blurRequired: blur,
+      // La concesión es del propio usuario: ningún enlace del tutor (de una solicitud anterior) puede revocarla.
+      ...clearRecordingRequest(doc),
       updatedAt: FieldValue.serverTimestamp(),
     });
     return true;
@@ -116,6 +129,7 @@ export function writeRecordingRevocation(
   tx.update(userRef, {
     recordingConsent: "revoked",
     recordingConsentEpoch: closing + 1,
+    ...clearRecordingRequest(doc),
     recordingPurge: {
       pending: true,
       since: prev?.since ?? FieldValue.serverTimestamp(),
@@ -158,4 +172,22 @@ export async function revokeRecordingConsentHandler(
   });
   (deps.log ?? ((m, d) => logger.info(m, d)))("revokeRecordingConsent", { revoked: outcome.revoked });
   return { recordingConsent: outcome.state };
+}
+
+/**
+ * Revocación de la grabación por el tutor desde su enlace (REQ-GRD-R02): en una transacción exige que la concesión activa
+ * sea la de ESA solicitud (`recordingGuardian.requestId`) y la revoca con `writeRecordingRevocation(..., "guardian")`.
+ * No exige `isMinor` (la revocación protege datos aunque el menor ya haya cumplido 14) ni toca el consentimiento base.
+ * Sin concesión activa de esa solicitud falla con `NO_ACTIVE_CONSENT` sin escrituras.
+ */
+export async function revokeRecordingByGuardian(deps: RevokeRecordingConsentDeps, uid: string, requestId: string): Promise<void> {
+  const userRef = deps.db.collection(COLLECTIONS.users).doc(uid);
+  await deps.db.runTransaction(async (tx) => {
+    const doc = (await tx.get(userRef)).data();
+    if (!doc || doc.deletion) throw fail("failed-precondition", ErrorReason.NO_PROFILE);
+    const owner = (doc.recordingGuardian as { requestId?: unknown } | undefined)?.requestId;
+    if (doc.recordingConsent !== "granted" || owner !== requestId) throw fail("failed-precondition", ErrorReason.NO_ACTIVE_CONSENT);
+    writeRecordingRevocation(tx, userRef, doc, "guardian");
+  });
+  (deps.log ?? ((m, d) => logger.info(m, d)))("revokeRecordingConsent", { revoked: true, by: "guardian" });
 }
