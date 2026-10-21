@@ -105,6 +105,18 @@ object Emulators {
 
     fun docExists(path: String): Boolean = request("GET", docsUrl(path)).code == 200
 
+    /** Campos de un documento (`fields` de la API REST) o `null` si no existe. */
+    fun docFields(path: String): JSONObject? {
+        val r = request("GET", docsUrl(path))
+        return if (r.code == 200) JSONObject(r.body).optJSONObject("fields") else null
+    }
+
+    /** Crea/reemplaza un documento saltando las reglas (token `owner`): siembra lo que solo escribe el backend. */
+    fun seedDoc(path: String, fields: JSONObject) {
+        val response = request("PATCH", docsUrl(path), JSONObject().put("fields", fields).toString())
+        check(response.code == 200) { "seedDoc fallo en $path: ${response.code}" }
+    }
+
     /** Documentos de `users/{uid}/practiceSessions` (vacia -> lista vacia). */
     fun practiceSessions(uid: String): List<JSONObject> = docs("users/$uid/practiceSessions")
 

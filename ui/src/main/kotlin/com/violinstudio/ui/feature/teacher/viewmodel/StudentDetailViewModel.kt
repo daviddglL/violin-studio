@@ -137,7 +137,9 @@ class StudentDetailViewModel(
         gone = true
         practiceObserver?.cancel()
         pendingEmpty?.cancel()
-        setState { copy(isLoading = false, unavailable = true, link = null, sessions = emptyList(), weeklyTotalSec = 0) }
+        setState {
+            copy(isLoading = false, unavailable = true, link = null, sessions = emptyList(), weeklyTotalSec = 0)
+        }
         sendEffect(StudentDetailEffect.NavigateBack)
     }
 
