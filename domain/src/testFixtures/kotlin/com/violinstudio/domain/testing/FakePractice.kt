@@ -8,6 +8,7 @@ import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
 import com.violinstudio.domain.feature.practice.repository.RunningSessionStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
@@ -19,6 +20,9 @@ class FakePracticeLogRepository : PracticeLogRepository {
     var createFailure: PracticeFailure? = null
     var lastLimit: Int? = null
 
+    /** Si no es `null`, `observeHistory` falla con esto al recoger. */
+    var observeFailure: PracticeFailure? = null
+
     /** Se ejecuta dentro de `create`, antes de escribir: permite forzar intercalado de corrutinas. */
     var onCreate: suspend () -> Unit = {}
 
@@ -29,7 +33,10 @@ class FakePracticeLogRepository : PracticeLogRepository {
     override fun observeHistory(uid: String, limit: Int): Flow<List<PracticeSession>> {
         calls += "observe:$uid"
         lastLimit = limit
-        return store.map { it[uid].orEmpty() }
+        return flow {
+            observeFailure?.let { throw it }
+            emitAll(store.map { it[uid].orEmpty() })
+        }
     }
 
     override suspend fun create(uid: String, draft: PracticeDraft): Result<Unit> {
