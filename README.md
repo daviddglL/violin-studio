@@ -21,9 +21,9 @@ El desarrollo va por fases:
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1. Base | Arquitectura, Firebase, CI/CD, pantalla de comprobación del servidor | ✅ |
-| 2. Identidad y privacidad | Registro, perfil, consentimiento, flujo del tutor, borrado de cuenta | En curso |
-| 3. Práctica | Afinador, metrónomo, sesiones, estadísticas, currículo | Pendiente |
-| 4. Profesor–alumno | Grabación, subida, tareas, revisión, chat | Pendiente |
+| 2. Identidad y privacidad | Registro, perfil, consentimiento, flujo del tutor, borrado de cuenta | ✅ |
+| 3. Práctica | Afinador, metrónomo, sesiones, estadísticas, currículo | ✅ |
+| 4. Profesor–alumno | Grabación, subida, tareas, revisión, chat | En curso |
 | 5. Extras | Gamificación, feedback inteligente, configuración remota | Pendiente |
 
 ## Tecnología
