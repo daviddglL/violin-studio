@@ -6,12 +6,14 @@ import com.violinstudio.domain.feature.assignment.model.AssignmentStatus
 import com.violinstudio.domain.feature.assignment.usecase.CompleteAssignmentUseCase
 import com.violinstudio.domain.feature.assignment.usecase.ObserveMyAssignmentsUseCase
 import com.violinstudio.domain.feature.assignment.usecase.ReopenAssignmentUseCase
+import com.violinstudio.ui.commons.flow.SETTLE_MS
 import com.violinstudio.ui.commons.flow.collectSettled
 import com.violinstudio.ui.commons.mvi.MviViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -32,6 +34,16 @@ class StudentAssignmentsViewModel @Inject constructor(
     // Tareas con una escritura en cola o en curso; se rellena en onIntent (síncrono) para cortar el doble toque.
     private val inFlight = mutableSetOf<String>()
 
+    // Escrituras hechas con éxito cuya lista aún no refleja el cambio (id -> estado de partida): siguen en `inFlight`
+    // para que un toque sobre la lista vieja no repita la escritura; se liberan al ver el cambio o pasado un margen
+    // (una escritura rechazada después por las reglas vuelve al estado de partida sin avisar).
+    private val awaiting = mutableMapOf<String, AssignmentStatus>()
+
+    private fun release(id: String) {
+        awaiting -= id
+        inFlight -= id
+    }
+
     init {
         startObserving()
     }
@@ -45,6 +57,9 @@ class StudentAssignmentsViewModel @Inject constructor(
         try {
             // La primera lista vacía puede ser solo la caché: se espera al servidor antes de mostrar el vacío.
             observeAssignments().collectSettled(isEmpty = { it.isEmpty() }) { list ->
+                awaiting.keys.toList().forEach { id ->
+                    if (list.none { it.id == id && it.status == awaiting[id] }) release(id)
+                }
                 setState { copy(isLoading = false, assignments = list) }
             }
         } catch (e: CancellationException) {
@@ -79,6 +94,7 @@ class StudentAssignmentsViewModel @Inject constructor(
 
     /** Solo escribe si la tarea existe y está en el estado de partida esperado ([from]). */
     private suspend fun write(id: String, from: AssignmentStatus, call: suspend (String) -> Result<Unit>) {
+        var keepGuard = false
         try {
             if (state.value.assignments.none { it.id == id && it.status == from }) return
             setState { copy(busyIds = busyIds + id, error = null) }
@@ -90,6 +106,20 @@ class StudentAssignmentsViewModel @Inject constructor(
                 Result.failure(AssignmentFailure.Unknown)
             }
             val failure = result.exceptionOrNull()
+            if (failure == null) {
+                keepGuard = true
+                awaiting[id] = from
+                // La lista pudo reflejar el cambio antes de fijar la guarda (la reemisión llegó durante la
+                // escritura): ya no habrá otra emisión que la libere.
+                if (state.value.assignments.none { it.id == id && it.status == from }) {
+                    release(id)
+                } else {
+                    viewModelScope.launch {
+                        delay(SETTLE_MS)
+                        if (awaiting[id] == from) release(id)
+                    }
+                }
+            }
             setState {
                 copy(
                     busyIds = busyIds - id,
@@ -103,7 +133,7 @@ class StudentAssignmentsViewModel @Inject constructor(
                 )
             }
         } finally {
-            inFlight -= id
+            if (!keepGuard) inFlight -= id
             if (id in state.value.busyIds) setState { copy(busyIds = busyIds - id) }
         }
     }

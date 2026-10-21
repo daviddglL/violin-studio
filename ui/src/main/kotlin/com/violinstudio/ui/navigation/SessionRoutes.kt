@@ -65,6 +65,23 @@ data class StudentDetailDestination(val studentUid: String) {
 @Serializable
 data object TeacherCodesDestination
 
+/** Tareas del alumno (marcar hecha / reabrir): solo `student`. */
+@Serializable
+data object AssignmentsDestination
+
+/** Tareas que el profesor creó para el alumno [studentUid]: solo `teacher`. */
+@Serializable
+data class TeacherAssignmentsDestination(val studentUid: String) {
+    // El uid del alumno no debe acabar en logs ni volcados de la pila.
+    override fun toString(): String = "TeacherAssignmentsDestination"
+}
+
+/** Crear (sin [assignmentId]) o editar una tarea del alumno [studentUid]: solo `teacher`. */
+@Serializable
+data class AssignmentEditDestination(val studentUid: String, val assignmentId: String? = null) {
+    override fun toString(): String = "AssignmentEditDestination"
+}
+
 /** Rutas de negocio: solo se mantienen con Ready; con otro estado SessionRedirect las lleva a la raíz. */
 val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
     listOf(
@@ -76,7 +93,10 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         MyTeacherDestination::class,
         StudentsDestination::class,
         StudentDetailDestination::class,
-        TeacherCodesDestination::class
+        TeacherCodesDestination::class,
+        AssignmentsDestination::class,
+        TeacherAssignmentsDestination::class,
+        AssignmentEditDestination::class
     )
 
 /** Roles que pueden abrir cada ruta por rol; las ausentes son comunes a todos. Solo UX: la seguridad está en reglas. */
@@ -85,7 +105,10 @@ private val ROLE_ROUTES: Map<kotlin.reflect.KClass<*>, Set<Role>> = mapOf(
     MyTeacherDestination::class to setOf(Role.STUDENT),
     StudentsDestination::class to setOf(Role.TEACHER),
     StudentDetailDestination::class to setOf(Role.TEACHER),
-    TeacherCodesDestination::class to setOf(Role.TEACHER)
+    TeacherCodesDestination::class to setOf(Role.TEACHER),
+    AssignmentsDestination::class to setOf(Role.STUDENT),
+    TeacherAssignmentsDestination::class to setOf(Role.TEACHER),
+    AssignmentEditDestination::class to setOf(Role.TEACHER)
 )
 
 fun Role.allows(route: kotlin.reflect.KClass<*>): Boolean = ROLE_ROUTES[route]?.contains(this) ?: true

@@ -27,6 +27,8 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
+import com.violinstudio.ui.navigation.AssignmentEditDestination
+import com.violinstudio.ui.navigation.AssignmentsDestination
 import com.violinstudio.ui.navigation.BUSINESS_ROUTES
 import com.violinstudio.ui.navigation.GuardianWaitDestination
 import com.violinstudio.ui.navigation.HomeDestination
@@ -38,6 +40,7 @@ import com.violinstudio.ui.navigation.SessionNavHost
 import com.violinstudio.ui.navigation.SettingsDestination
 import com.violinstudio.ui.navigation.StudentDetailDestination
 import com.violinstudio.ui.navigation.StudentsDestination
+import com.violinstudio.ui.navigation.TeacherAssignmentsDestination
 import com.violinstudio.ui.navigation.TeacherCodesDestination
 import com.violinstudio.ui.navigation.TunerDestination
 import com.violinstudio.ui.navigation.rootRoute
@@ -297,7 +300,10 @@ class AppNavHostSessionTest {
                 MyTeacherDestination::class,
                 StudentsDestination::class,
                 StudentDetailDestination::class,
-                TeacherCodesDestination::class
+                TeacherCodesDestination::class,
+                AssignmentsDestination::class,
+                TeacherAssignmentsDestination::class,
+                AssignmentEditDestination::class
             ),
             BUSINESS_ROUTES.toSet()
         )

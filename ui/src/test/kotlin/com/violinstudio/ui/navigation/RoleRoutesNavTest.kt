@@ -46,6 +46,9 @@ class RoleRoutesNavTest {
     private var studentsComposed = false
     private var codesComposed = false
     private var detailComposed = false
+    private var assignmentsComposed = false
+    private var teacherAssignmentsComposed = false
+    private var editComposed = false
     private lateinit var nav: NavHostController
 
     private fun start(initial: SessionState) {
@@ -55,6 +58,9 @@ class RoleRoutesNavTest {
         studentsComposed = false
         codesComposed = false
         detailComposed = false
+        assignmentsComposed = false
+        teacherAssignmentsComposed = false
+        editComposed = false
         compose.setContent {
             ViolinStudioTheme {
                 nav = rememberNavController()
@@ -73,6 +79,9 @@ class RoleRoutesNavTest {
                             }
                             navigation.onOpenCodes?.let {
                                 Button(onClick = it, modifier = Modifier.testTag("open_codes")) { Text("c") }
+                            }
+                            navigation.onOpenAssignments?.let {
+                                Button(onClick = it, modifier = Modifier.testTag("open_assignments")) { Text("a") }
                             }
                             navigation.onOpenMyTeacher?.let {
                                 Button(onClick = it, modifier = Modifier.testTag("open_my_teacher")) { Text("t") }
@@ -98,9 +107,30 @@ class RoleRoutesNavTest {
                             Button(onClick = onBack, modifier = Modifier.testTag("students_back")) { Text("b") }
                         }
                     },
-                    studentDetail = { onBack ->
+                    studentDetail = { onOpenAssignments, onBack ->
                         detailComposed = true
-                        Button(onClick = onBack, modifier = Modifier.testTag("detail_screen")) { Text("b") }
+                        Column {
+                            Button(onClick = onBack, modifier = Modifier.testTag("detail_screen")) { Text("b") }
+                            Button(onClick = onOpenAssignments, modifier = Modifier.testTag("detail_to_tasks")) {
+                                Text("t")
+                            }
+                        }
+                    },
+                    assignments = { onBack ->
+                        assignmentsComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("assignments_screen")) { Text("b") }
+                    },
+                    teacherAssignments = { onCreate, onEdit, onBack ->
+                        teacherAssignmentsComposed = true
+                        Column {
+                            Button(onClick = onBack, modifier = Modifier.testTag("tasks_screen")) { Text("b") }
+                            Button(onClick = onCreate, modifier = Modifier.testTag("tasks_create")) { Text("c") }
+                            Button(onClick = { onEdit("a1") }, modifier = Modifier.testTag("tasks_edit")) { Text("e") }
+                        }
+                    },
+                    assignmentEdit = { onBack ->
+                        editComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("edit_screen")) { Text("b") }
                     },
                     teacherCodes = { onBack ->
                         codesComposed = true
@@ -327,5 +357,107 @@ class RoleRoutesNavTest {
         compose.runOnUiThread { nav.navigate(MyTeacherDestination) }
         assertAt(AuthDestination)
         assertFalse(redeemComposed || myTeacherComposed)
+    }
+
+    @Test
+    fun assignmentRoutesAreBusinessRoutesWithTheRightRoles() {
+        for (route in listOf(
+            AssignmentsDestination::class,
+            TeacherAssignmentsDestination::class,
+            AssignmentEditDestination::class
+        )) {
+            assertTrue(route in BUSINESS_ROUTES)
+        }
+        assertTrue(Role.STUDENT.allows(AssignmentsDestination::class))
+        assertFalse(Role.TEACHER.allows(AssignmentsDestination::class))
+        assertFalse(Role.INDEPENDENT.allows(AssignmentsDestination::class))
+        for (route in listOf(TeacherAssignmentsDestination::class, AssignmentEditDestination::class)) {
+            assertTrue(Role.TEACHER.allows(route))
+            assertFalse(Role.STUDENT.allows(route))
+            assertFalse(Role.INDEPENDENT.allows(route))
+        }
+    }
+
+    @Test
+    fun homeOffersAssignmentsToStudentOnly() {
+        start(ready(Role.STUDENT))
+        compose.onNodeWithTag("open_assignments").assertIsDisplayed()
+        compose.onNodeWithTag("open_assignments").performClick()
+        assertAt(AssignmentsDestination)
+        compose.onNodeWithTag("assignments_screen").performClick()
+        assertAt(HomeDestination)
+    }
+
+    @Test
+    fun homeHidesAssignmentsFromTeacherAndIndependent() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_assignments").assertDoesNotExist()
+        session.value = ready(Role.INDEPENDENT)
+        compose.waitForIdle()
+        compose.onNodeWithTag("open_assignments").assertDoesNotExist()
+    }
+
+    @Test
+    fun teacherEditsFromTheDetailListAndBackReturnsStepByStep() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_students").performClick()
+        compose.onNodeWithTag("students_to_detail").performClick()
+        compose.onNodeWithTag("detail_to_tasks").performClick()
+        assertAt(TeacherAssignmentsDestination("s1"))
+        assertEquals("s1", nav.currentBackStackEntry?.toRoute<TeacherAssignmentsDestination>()?.studentUid)
+        compose.onNodeWithTag("tasks_edit").performClick()
+        assertAt(AssignmentEditDestination("s1", "a1"))
+        val edit = nav.currentBackStackEntry?.toRoute<AssignmentEditDestination>()
+        assertEquals("s1", edit?.studentUid)
+        assertEquals("a1", edit?.assignmentId)
+        compose.onNodeWithTag("edit_screen").performClick()
+        assertAt(TeacherAssignmentsDestination("s1"))
+        compose.onNodeWithTag("tasks_create").performClick()
+        assertAt(AssignmentEditDestination("s1", null))
+        assertEquals(null, nav.currentBackStackEntry?.toRoute<AssignmentEditDestination>()?.assignmentId)
+        compose.onNodeWithTag("edit_screen").performClick()
+        compose.onNodeWithTag("tasks_screen").performClick()
+        assertAt(StudentDetailDestination("s1"))
+    }
+
+    @Test
+    fun destinationsHideTheirUidsInToString() {
+        assertEquals("TeacherAssignmentsDestination", TeacherAssignmentsDestination("secret").toString())
+        assertEquals("AssignmentEditDestination", AssignmentEditDestination("secret", "x").toString())
+    }
+
+    @Test
+    fun nonRolesDeepLinkingToAssignmentRoutesRedirectHomeWithoutComposing() {
+        start(ready(Role.STUDENT))
+        compose.runOnUiThread { nav.navigate(TeacherAssignmentsDestination("s1")) }
+        assertAt(HomeDestination)
+        compose.runOnUiThread { nav.navigate(AssignmentEditDestination("s1", null)) }
+        assertAt(HomeDestination)
+        session.value = ready(Role.TEACHER)
+        compose.waitForIdle()
+        compose.runOnUiThread { nav.navigate(AssignmentsDestination) }
+        assertAt(HomeDestination)
+        assertFalse(assignmentsComposed || teacherAssignmentsComposed || editComposed)
+    }
+
+    @Test
+    fun withoutReadyAssignmentRoutesRedirectToTheStateRoot() {
+        start(SessionState.LoggedOut)
+        compose.runOnUiThread { nav.navigate(AssignmentsDestination) }
+        assertAt(AuthDestination)
+        compose.runOnUiThread { nav.navigate(TeacherAssignmentsDestination("s1")) }
+        assertAt(AuthDestination)
+        compose.runOnUiThread { nav.navigate(AssignmentEditDestination("s1", "a1")) }
+        assertAt(AuthDestination)
+        assertFalse(assignmentsComposed || teacherAssignmentsComposed || editComposed)
+    }
+
+    @Test
+    fun losingTheRoleWhileOnAnEditRouteRedirectsHome() {
+        start(ready(Role.TEACHER))
+        compose.runOnUiThread { nav.navigate(AssignmentEditDestination("s1", null)) }
+        assertAt(AssignmentEditDestination("s1", null))
+        session.value = ready(Role.INDEPENDENT)
+        assertAt(HomeDestination)
     }
 }

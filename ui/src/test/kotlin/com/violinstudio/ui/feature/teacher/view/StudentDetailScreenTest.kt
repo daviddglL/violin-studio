@@ -43,6 +43,7 @@ class StudentDetailScreenTest {
     private val context: Application = ApplicationProvider.getApplicationContext()
     private val intents = mutableListOf<StudentDetailIntent>()
     private var back = 0
+    private var openedAssignments = 0
     private val ana =
         TeacherLink("t1", "s1", "Marta", "Ana", Instrument.VIOLIN, 1, Instant.parse("2026-10-01T12:00:00Z"))
     private val sessions = listOf(
@@ -52,7 +53,13 @@ class StudentDetailScreenTest {
 
     private fun show(state: StudentDetailState) = compose.setContent {
         ViolinStudioTheme {
-            StudentDetailScreen(state, { intents += it }, onBack = { back++ }, zone = ZoneOffset.UTC)
+            StudentDetailScreen(
+                state,
+                { intents += it },
+                onBack = { back++ },
+                onOpenAssignments = { openedAssignments++ },
+                zone = ZoneOffset.UTC
+            )
         }
     }
 
@@ -64,6 +71,19 @@ class StudentDetailScreenTest {
         compose.onNodeWithTag(practiceItemTag("a")).assertIsDisplayed()
         compose.onNodeWithTag(practiceItemTag("b")).assertIsDisplayed()
         compose.onAllNodesWithText("escalas en re").assertCountEquals(1)
+    }
+
+    @Test
+    fun `ofrece abrir las tareas del alumno`() {
+        show(StudentDetailState(isLoading = false, link = ana, sessions = sessions, weeklyTotalSec = 1_800))
+        compose.onNodeWithTag(STUDENT_DETAIL_ASSIGNMENTS_TAG).performClick()
+        assertEquals(1, openedAssignments)
+    }
+
+    @Test
+    fun `no ofrece las tareas si el alumno no esta disponible`() {
+        show(StudentDetailState(isLoading = false, unavailable = true))
+        compose.onAllNodesWithTag(STUDENT_DETAIL_ASSIGNMENTS_TAG).assertCountEquals(0)
     }
 
     @Test
