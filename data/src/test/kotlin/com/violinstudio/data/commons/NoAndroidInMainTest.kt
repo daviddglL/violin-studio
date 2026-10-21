@@ -51,7 +51,18 @@ class NoAndroidInMainTest {
             "android.media.AudioAttributes",
             "android.media.MediaDataSource",
             "android.media.MediaPlayer"
-        ).map { "com/violinstudio/data/feature/recording/datasource/media/AndroidAudioClipOutput.kt" to it }
+        ).map { "com/violinstudio/data/feature/recording/datasource/media/AndroidAudioClipOutput.kt" to it } + listOf(
+            // Video (4c): difuminado de caras con GL de Media3 y ML Kit; se verifica en dispositivo.
+            "android.content.Context",
+            "android.graphics.Bitmap",
+            "android.opengl.GLES20"
+        ).map { "com/violinstudio/data/feature/recording/datasource/media/video/FaceBlurEffect.kt" to it } +
+        listOf(
+            "android.content.Context",
+            "android.net.Uri",
+            "android.os.Handler",
+            "android.os.HandlerThread"
+        ).map { "com/violinstudio/data/feature/recording/datasource/media/video/Media3BlurTranscoder.kt" to it }
 
     @Test
     fun `el codigo principal de data no importa android`() {

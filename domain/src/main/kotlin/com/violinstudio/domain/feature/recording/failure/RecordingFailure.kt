@@ -28,4 +28,10 @@ sealed class RecordingFailure(message: String) : Exception(message) {
 
     /** Fallo de `MediaRecorder` o de disco durante o al cerrar la toma: recuperable, sin fichero parcial. */
     data object RecorderFailed : RecordingFailure("Fallo del grabador")
+
+    /** El difuminado del video fallo (4c): no hay fichero difuminado y el video sin difuminar no se sube nunca. */
+    data object BlurFailed : RecordingFailure("Fallo del difuminado del video")
+
+    /** El video difuminado supera `RecordingLimits.MAX_VIDEO_BYTES`: el servidor lo rechazaria; se borra en el cliente. */
+    data object TooLarge : RecordingFailure("El video es demasiado grande")
 }

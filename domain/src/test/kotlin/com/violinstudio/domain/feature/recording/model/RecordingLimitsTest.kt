@@ -22,6 +22,8 @@ class RecordingLimitsTest {
         assertEquals(serverNumber("MAX_STUDENT_DURATION_SEC").toLong() * 1000, RecordingLimits.STUDENT_MAX_MS)
         assertEquals(serverNumber("MAX_TEACHER_DURATION_SEC").toLong() * 1000, RecordingLimits.TEACHER_MAX_MS)
         assertEquals(serverNumber("MAX_AUDIO_BYTES").toLong(), RecordingLimits.MAX_AUDIO_BYTES)
+        assertEquals(serverNumber("MAX_VIDEO_BYTES").toLong(), RecordingLimits.MAX_VIDEO_BYTES)
+        assertEquals(serverNumber("BLUR_POLICY_VERSION").toInt(), RecordingLimits.BLUR_POLICY_VERSION)
         assertEquals(serverNumber("MAX_RECORDINGS_PER_OWNER").toInt(), RecordingLimits.MAX_RECORDINGS_PER_OWNER)
     }
 
@@ -36,6 +38,7 @@ class RecordingLimitsTest {
         assertEquals(60_000L, RecordingLimits.STUDENT_MAX_MS)
         assertEquals(120_000L, RecordingLimits.TEACHER_MAX_MS)
         assertEquals(25L * 1024 * 1024, RecordingLimits.MAX_AUDIO_BYTES)
+        assertEquals(60L * 1024 * 1024, RecordingLimits.MAX_VIDEO_BYTES)
         assertEquals(20, RecordingLimits.MAX_RECORDINGS_PER_OWNER)
     }
 
