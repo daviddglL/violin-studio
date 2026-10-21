@@ -22,7 +22,8 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(application = Application::class, qualifiers = "es")
+// Pantalla de movil comun: en la de Robolectric por defecto (470dp de alto) solo cabe un mensaje en la lista.
+@Config(application = Application::class, qualifiers = "es-w411dp-h891dp")
 class ChatScreenTest {
     @get:Rule
     val compose = createComposeRule()
