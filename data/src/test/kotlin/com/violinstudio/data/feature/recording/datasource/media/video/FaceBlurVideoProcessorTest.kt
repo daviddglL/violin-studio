@@ -7,6 +7,7 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 /** Video (4c): propiedad del fichero difuminado con un transcodificador fake (sin GL ni ML Kit). */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FaceBlurVideoProcessorTest {
     @TempDir
     lateinit var root: File
