@@ -47,6 +47,24 @@ class ManifestPermissionsTest {
     }
 
     @Test
+    fun `no declara el identificador de publicidad AD_ID`() {
+        assertFalse(info.requestedPermissions.orEmpty().contains("com.google.android.gms.permission.AD_ID"))
+    }
+
+    @Test
+    fun `Google Analytics queda desactivado en el manifiesto`() {
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val meta = app.packageManager.getApplicationInfo(app.packageName, PackageManager.GET_META_DATA).metaData
+        assertTrue(meta.getBoolean("firebase_analytics_collection_deactivated"))
+        assertFalse(meta.getBoolean("google_analytics_adid_collection_enabled", true))
+    }
+
+    @Test
+    fun `la app no depende de firebase-analytics`() {
+        assertFalse(File("build.gradle.kts").readText().contains("firebase.analytics"))
+    }
+
+    @Test
     fun `ningun servicio declara foregroundServiceType`() {
         val typed = info.services.orEmpty().filter { it.foregroundServiceType != 0 }.map { it.name }
         assertEquals(emptyList<String>(), typed)

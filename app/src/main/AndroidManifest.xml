@@ -3,6 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Sin identificador de publicidad: hay usuarios menores y la app no hace publicidad. Algun SDK de Google Play
+         services puede fusionarlo en el manifiesto; se elimina siempre. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
 
     <application
         android:name=".ViolinStudioApp"
@@ -10,6 +15,14 @@
         android:label="@string/app_name"
         tools:replace="android:theme"
         android:theme="@style/Theme.ViolinStudio">
+        <!-- Sin Google Analytics: no hay consentimiento para analitica y hay menores de 14. Si algun SDK lo trae
+             como dependencia transitiva, queda apagado y sin recoger el id de publicidad. -->
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true" />
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
         <!-- Antes de Android 13 AppCompat guarda aquí el idioma elegido en la app y lo reaplica al arrancar. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

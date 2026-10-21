@@ -72,7 +72,6 @@ dependencies {
     implementation(libs.androidx.appcompat)
 
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.perf)
     implementation(libs.firebase.appcheck.playintegrity)
