@@ -115,4 +115,30 @@ class RecordingUploadContractTest {
         val server = File("../functions/src/config/recordings.ts").readText()
         assertTrue("""RECORDINGS_DIR = "${RecordingUploadContract.RECORDINGS_DIR}"""" in server)
     }
+
+    @Test
+    fun `una demo va a demos con tarea y destinatario y una grabacion propia no lleva destinatario`() {
+        val own = QueuedRecording(take, assignmentId = "as-1")
+        assertEquals("users/uidAbc123/recordings/3f2a-9b.m4a", RecordingUploadContract.objectPath(own))
+        assertEquals("as-1", RecordingUploadContract.customMetadata(own)["assignmentId"])
+        assertFalse("sharedWith" in RecordingUploadContract.customMetadata(own))
+
+        val demo = QueuedRecording(take, assignmentId = "as-1", sharedWith = "student9")
+        assertEquals("users/uidAbc123/demos/3f2a-9b.m4a", RecordingUploadContract.objectPath(demo))
+        val meta = RecordingUploadContract.customMetadata(demo)
+        assertEquals("student9", meta["sharedWith"])
+        assertTrue(whitelist().containsAll(meta.keys))
+        assertTrue("match/users/{uid}/${RecordingUploadContract.DEMOS_DIR}/{file}" in compact)
+        assertTrue("'sharedWith'inrequest.resource.metadata&&'assignmentId'inrequest.resource.metadata" in compact)
+    }
+
+    @Test
+    fun `tarea y destinatario fuera del formato de las reglas no se suben`() {
+        listOf(
+            QueuedRecording(take, assignmentId = "con espacio"),
+            QueuedRecording(take, assignmentId = "a".repeat(65)),
+            QueuedRecording(take, assignmentId = "as-1", sharedWith = "no_vale"),
+            QueuedRecording(take, sharedWith = "student9")
+        ).forEach { assertThrows(IllegalArgumentException::class.java) { RecordingUploadContract.customMetadata(it) } }
+    }
 }

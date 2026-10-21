@@ -13,12 +13,16 @@ class ViolinStudioApp : Application() {
     @Inject
     lateinit var foregroundSessionRefresh: ForegroundSessionRefresh
 
+    @Inject
+    lateinit var uploadQueueStarter: UploadQueueStarter
+
     override fun onCreate() {
         super.onCreate()
         AuthDiagnostics.verbose = BuildConfig.DEBUG
         installAppCheck()
         // super.onCreate() de Hilt ya inyecto el campo: ON_START del proceso pide reevaluar la sesion.
         foregroundSessionRefresh.install()
+        uploadQueueStarter.install()
         Firebase.crashlytics.isCrashlyticsCollectionEnabled = BuildConfig.CRASHLYTICS_ENABLED
     }
 }

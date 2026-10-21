@@ -42,7 +42,10 @@ class NoAndroidInMainTest {
     ).map { "com/violinstudio/data/feature/recording/datasource/media/AndroidMediaRecorderFactory.kt" to it } +
         listOf(
             "com/violinstudio/data/feature/recording/datasource/media/NoBackupRecordingsDirectory.kt" to
-                "android.content.Context"
+                "android.content.Context",
+            // `putFile` solo reanuda una subida a partir de una Uri (B7b); el adaptador se prueba en el E2E.
+            "com/violinstudio/data/feature/recording/datasource/firebase/FirebaseRecordingUploader.kt" to
+                "android.net.Uri"
         )
 
     @Test

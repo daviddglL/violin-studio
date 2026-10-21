@@ -2,6 +2,7 @@ package com.violinstudio.data.commons.firebase
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -19,6 +20,14 @@ class EmulatorConfigTest {
         val config = EmulatorConfig(enabled = true, host = "10.0.2.2")
         assertEquals(EmulatorEndpoint("10.0.2.2", 9099), config.auth())
         assertEquals(EmulatorEndpoint("10.0.2.2", 8080), config.firestore())
+    }
+
+    @Test
+    fun `activado devuelve el endpoint de Storage en el puerto 9199 de firebase json`() {
+        assertEquals(EmulatorEndpoint("10.0.2.2", 9199), EmulatorConfig(enabled = true, host = "10.0.2.2").storage())
+        assertNull(EmulatorConfig(enabled = false, host = "10.0.2.2").storage())
+        val firebaseJson = java.io.File("../firebase.json").readText().filterNot { it.isWhitespace() }
+        assertTrue("\"storage\":{\"host\":\"0.0.0.0\",\"port\":${EmulatorConfig.STORAGE_PORT}}" in firebaseJson)
     }
 
     @Test
