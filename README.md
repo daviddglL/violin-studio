@@ -6,16 +6,18 @@ alumnos que trabajan con un profesor.
 ## Qué ofrece
 
 - **Práctica diaria**: afinador, metrónomo, registro de sesiones con notas, estadísticas (rachas, semana, últimos
-  30 días y gráfico de los últimos 7 días) y un currículo de 12 lecciones en 3 niveles que enlaza con el afinador y el
-  metrónomo.
-- **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica y le asigna
-  tareas que el alumno marca como hechas.
+  30 días y gráfico de los últimos 7 días), 10 logros calculados en el dispositivo y un currículo de 12 lecciones en
+  3 niveles que enlaza con el afinador y el metrónomo.
+- **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica, le asigna
+  tareas que el alumno marca como hechas y ambos pueden escribirse por chat.
+- **Grabaciones**: el alumno graba audio o vídeo de su práctica y el profesor lo revisa; el profesor puede mandar
+  demostraciones. En los vídeos las caras se difuminan en el móvil antes de guardarlos.
 - **Privacidad desde el diseño**: cuentas con email o Google, consentimiento versionado, autorización del tutor para
   menores de 14 años, borrado completo de la cuenta y sus datos en cualquier momento y sin analítica ni identificador
   de publicidad.
 
-Próximamente: grabaciones de práctica con revisión del profesor (el servidor ya está listo; falta la parte de la app),
-vídeo con difuminado, chat profesor‑alumno, logros y feedback.
+Las grabaciones, el vídeo y el chat están hechos pero apagados por interruptores del servidor (ver
+[Despliegue](#despliegue)). Próximamente: feedback inteligente y configuración remota.
 
 ## Estado
 
@@ -27,9 +29,9 @@ El desarrollo va por fases:
 | 2. Identidad y privacidad | Registro, perfil, consentimiento, flujo del tutor, borrado de cuenta | ✅ |
 | 3. Práctica | Afinador, metrónomo, sesiones, estadísticas, currículo | ✅ |
 | 4a. Profesor–alumno | Vínculo por código, registro compartido, tareas | ✅ (sin desplegar) |
-| 4b. Grabaciones | Consentimiento, subida, revisión, purgas | Servidor ✅, app en curso |
+| 4b. Grabaciones | Consentimiento, subida, revisión, demostraciones, purgas | ✅ (apagadas hasta activar `RECORDINGS_ENABLED`) |
 | 4c. Vídeo y chat | Vídeo con difuminado, chat | ✅ (apagados hasta activar `VIDEO_ENABLED` y `CHAT_ENABLED`) |
-| 5. Extras | Gamificación, feedback inteligente, configuración remota | Pendiente |
+| 5. Extras | Logros, feedback inteligente, configuración remota | Logros ✅; el resto pendiente |
 
 ## Tecnología
 
