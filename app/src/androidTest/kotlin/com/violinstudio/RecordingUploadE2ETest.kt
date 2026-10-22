@@ -8,13 +8,17 @@ import com.violinstudio.domain.feature.recording.repository.RecordingAccountSour
 import com.violinstudio.domain.feature.recording.repository.RecordingQueue
 import com.violinstudio.domain.feature.recording.usecase.FinishRecordingUseCase
 import com.violinstudio.domain.feature.recording.usecase.GrantRecordingConsentUseCase
+import com.violinstudio.domain.feature.recording.usecase.RunUploadQueueUseCase
 import dagger.hilt.android.testing.HiltAndroidTest
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,6 +32,7 @@ import org.junit.runner.RunWith
  *
  * El emulador de Android arranca sin audio (`-noaudio`), asi que la toma no se graba con el micro: es un `.m4a`
  * minimo (cajas `ftyp`/`moov`/`mvhd`/`mdat`) que el parser del servidor acepta, en la carpeta real de las tomas.
+ * `HiltTestApplication` no ejecuta `ViolinStudioApp.onCreate`, asi que el test arranca el motor de la cola el mismo.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -46,6 +51,9 @@ class RecordingUploadE2ETest : E2eTest() {
 
     @Inject
     lateinit var queue: RecordingQueue
+
+    @Inject
+    lateinit var runQueue: RunUploadQueueUseCase
 
     @Test
     fun aQueuedTakeIsUploadedAndFinalizedAsReady() = runBlocking {
@@ -66,6 +74,15 @@ class RecordingUploadE2ETest : E2eTest() {
         val take = RecordedTake(id, uid, file.path, DURATION_MS, file.length(), account.consentEpoch)
         assertTrue(finish(take).isSuccess)
 
+        val engine = launch(Dispatchers.Default) { runQueue() }
+        try {
+            awaitUploaded(uid, id, file)
+        } finally {
+            engine.cancelAndJoin()
+        }
+    }
+
+    private fun awaitUploaded(uid: String, id: String, file: File) {
         awaitBackend("grabacion ready", UPLOAD_TIMEOUT_MS) {
             Emulators.stringField("users/$uid/recordings/$id", "status") == "ready"
         }
