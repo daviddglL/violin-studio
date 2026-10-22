@@ -30,7 +30,16 @@ sealed interface SessionState {
         override fun toString(): String = "ParentalPending(sends=$sends)"
     }
 
-    data class Ready(val profile: UserProfile) : SessionState
+    /** [features]: interruptores del servidor que deciden qué accesos se muestran (apagados por defecto). */
+    data class Ready(val profile: UserProfile, val features: SessionFeatures = SessionFeatures()) : SessionState
+}
+
+/** Funciones que el servidor tiene encendidas ([IdentityConfig]): con una apagada, su acceso no se muestra. */
+data class SessionFeatures(val recordings: Boolean = false, val chat: Boolean = false) {
+    companion object {
+        fun from(config: IdentityConfig) =
+            SessionFeatures(recordings = config.recordingsEnabled, chat = config.chatEnabled)
+    }
 }
 
 /** Por qué se pide (re)aceptar: la UI cambia el texto, nunca la lógica. */

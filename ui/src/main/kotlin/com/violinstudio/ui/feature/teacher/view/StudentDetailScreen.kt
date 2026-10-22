@@ -62,7 +62,7 @@ const val STUDENT_DETAIL_CHAT_TAG = "student_detail_chat"
 @Composable
 fun StudentDetailRoute(
     onOpenAssignments: () -> Unit,
-    onOpenRecordings: () -> Unit,
+    onOpenRecordings: (() -> Unit)?,
     onBack: () -> Unit,
     onOpenChat: (() -> Unit)? = null,
     viewModel: StudentDetailViewModel = hiltViewModel()
