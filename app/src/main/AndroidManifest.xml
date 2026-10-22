@@ -16,6 +16,11 @@
     <uses-permission
         android:name="com.google.android.gms.permission.AD_ID"
         tools:node="remove" />
+    <!-- WorkManager (subida de la cola de grabaciones) trae el permiso y el servicio de primer plano para setForeground;
+         la app no los usa: sin servicios en primer plano (REQ-AUD-05). -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE"
+        tools:node="remove" />
 
     <application
         android:name=".ViolinStudioApp"
@@ -40,6 +45,9 @@
                 android:name="autoStoreLocales"
                 android:value="true" />
         </service>
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            tools:node="remove" />
         <activity
             android:name="com.violinstudio.ui.MainActivity"
             android:exported="true">

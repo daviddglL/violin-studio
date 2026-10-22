@@ -27,3 +27,12 @@ enum class UploadPass {
     /** Nada avanzo (sin red, finalize pendiente...): la siguiente pasada espera mas. */
     STALLED
 }
+
+/** Resultado de una ejecucion de [com.violinstudio.domain.feature.recording.usecase.DrainUploadQueueUseCase]. */
+enum class DrainOutcome {
+    /** Nada pendiente (o cambio el usuario: el programador lanza otra ejecucion para el nuevo). */
+    DONE,
+
+    /** Sigue habiendo trabajo que no avanza: el programador reintenta mas tarde con su propia espera. */
+    RETRY
+}
