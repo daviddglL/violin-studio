@@ -54,6 +54,21 @@ Controles técnicos relacionados (verificados por tests de reglas y de integraci
   de menor se borra por el cambio.
 - Los registros de Functions solo llevan hashes de uid y contadores; nunca nombres, notas ni códigos.
 
+## Chat profesor-alumno (fase 4c)
+
+Se activa con `CHAT_ENABLED`. Lo que añade a la declaración de Play Console:
+
+| Pregunta | Respuesta | Motivo |
+|---|---|---|
+| Mensajes: otros mensajes en la app | Recopilados y **compartidos solo con la otra parte del vínculo**; opcionales | Texto de hasta 1000 caracteres, autor y hora; sin adjuntos |
+| ¿Se comparten con terceros? | No | Solo el profesor y el alumno del vínculo los leen |
+| Cifrado en tránsito | Sí | Firebase (TLS) |
+| Borrado | El autor borra los suyos; caen al desvincular, al borrar la cuenta de cualquiera de los dos y a los 180 días | Paso `deleteChatMessages` de `removeLink`, borrado de cuenta y TTL de `expireAt` |
+
+Controles técnicos: las reglas de Firestore solo dejan leer y escribir a las dos partes de un vínculo vivo, con email
+verificado, consentimiento vigente y ambas cuentas activas; el esquema del mensaje es cerrado, sin edición, y
+`expireAt` solo se acepta entre 170 y 181 días después de la escritura.
+
 ## Grabaciones de vídeo (fase 4c)
 
 Se activa con `VIDEO_ENABLED`. Lo que añade el vídeo a la declaración de Play Console:
