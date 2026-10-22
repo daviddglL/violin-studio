@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.FakeAuthRepository
 import com.violinstudio.domain.feature.FakeConsentRepository
+import com.violinstudio.domain.feature.FakeIdentityConfigCache
 import com.violinstudio.domain.feature.FakeProfileRepository
 import com.violinstudio.domain.feature.auth.failure.AuthFailure
 import com.violinstudio.domain.feature.auth.model.SessionClaims
@@ -37,8 +38,18 @@ class ObserveSessionStateUseCaseTest {
     private val consent = FakeConsentRepository()
     private val trigger = SessionRefreshTrigger()
     private val pending = PendingGuardianEmail()
+    private val cache = FakeIdentityConfigCache()
     private val useCase =
-        ObserveSessionStateUseCase(auth, profile, consent, SessionStateResolver(), RetryBackoff(), trigger, pending)
+        ObserveSessionStateUseCase(
+            auth,
+            profile,
+            consent,
+            SessionStateResolver(),
+            RetryBackoff(),
+            trigger,
+            pending,
+            cache
+        )
 
     private fun claims(consentOk: Boolean) = Result.success(SessionClaims(Role.INDEPENDENT, consentOk))
 
@@ -324,6 +335,56 @@ class ObserveSessionStateUseCaseTest {
         trigger.requestForegroundRefresh()
         runCurrent()
         assertEquals(SessionState.Ready(userProfile(policyVersion = 2)), states.last())
+    }
+
+    @Test
+    fun `cada config del servidor se guarda para el usuario`() = runTest {
+        profile.profile.value = userProfile()
+        auth.user = verifiedUser
+        collectStates()
+        assertEquals(config, cache.saved[verifiedUser.uid])
+    }
+
+    @Test
+    fun `sin conexion al arrancar usa la config guardada sin pasar por Unavailable`() = runTest {
+        cache.saved[verifiedUser.uid] = config
+        consent.configResult = Result.failure(AuthFailure.Network)
+        profile.profile.value = userProfile()
+        auth.user = verifiedUser
+        val states = collectStates()
+        assertEquals(listOf(SessionState.Loading, SessionState.Ready(userProfile())), states)
+    }
+
+    @Test
+    fun `con la config guardada sigue pidiendo la del servidor y la aplica al llegar`() = runTest {
+        val v1 = config.copy(policyVersion = 1)
+        cache.saved[verifiedUser.uid] = v1
+        consent.configQueue += listOf(Result.failure(AuthFailure.Network), Result.failure(AuthFailure.Network))
+        consent.configResult = Result.success(config.copy(policyVersion = 3))
+        profile.profile.value = userProfile(policyVersion = 1)
+        auth.user = verifiedUser
+        val states = collectStates()
+        assertEquals(SessionState.Ready(userProfile(policyVersion = 1)), states.last())
+        passTime(1_000)
+        assertEquals(2, consent.calls.size)
+        assertEquals(SessionState.Ready(userProfile(policyVersion = 1)), states.last())
+        passTime(2_000)
+        assertEquals(3, consent.calls.size)
+        val pending = states.last() as SessionState.ConsentPending
+        assertEquals(3, pending.config.policyVersion)
+        assertEquals(3, cache.saved[verifiedUser.uid]?.policyVersion)
+        passTime(60_000)
+        assertEquals(3, consent.calls.size)
+        assertTrue(SessionState.Unavailable !in states)
+    }
+
+    @Test
+    fun `la config guardada de otro usuario no sirve`() = runTest {
+        cache.saved["otro"] = config
+        consent.configResult = Result.failure(AuthFailure.Network)
+        profile.profile.value = userProfile()
+        auth.user = verifiedUser
+        assertEquals(listOf(SessionState.Loading, SessionState.Unavailable), collectStates())
     }
 
     private fun TestScope.collectStates(): List<SessionState> {

@@ -9,6 +9,7 @@ import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.model.GuardianRequestReceipt
 import com.violinstudio.domain.feature.consent.model.IdentityConfig
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
+import com.violinstudio.domain.feature.consent.repository.IdentityConfigCache
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.EditableProfile
 import com.violinstudio.domain.feature.profile.model.Instrument
@@ -154,6 +155,16 @@ class FakeProfileRepository : ProfileRepository {
         calls += "update:$uid"
         lastUpdate = profile
         return updateResult
+    }
+}
+
+class FakeIdentityConfigCache : IdentityConfigCache {
+    val saved = mutableMapOf<String, IdentityConfig>()
+
+    override suspend fun lastKnown(uid: String): IdentityConfig? = saved[uid]
+
+    override suspend fun remember(uid: String, config: IdentityConfig) {
+        saved[uid] = config
     }
 }
 

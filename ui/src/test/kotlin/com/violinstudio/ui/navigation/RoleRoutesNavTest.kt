@@ -20,6 +20,7 @@ import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
 import com.violinstudio.domain.feature.profile.model.UserProfile
+import com.violinstudio.domain.feature.session.SessionFeatures
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import org.junit.Assert.assertEquals
@@ -36,9 +37,11 @@ class RoleRoutesNavTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun ready(role: Role) = SessionState.Ready(
-        UserProfile("u1", "Ana", Instrument.VIOLIN, "es", role, false, ConsentStatus.GRANTED, 1, null, false)
-    )
+    private fun ready(role: Role, features: SessionFeatures = SessionFeatures(recordings = true, chat = true)) =
+        SessionState.Ready(
+            UserProfile("u1", "Ana", Instrument.VIOLIN, "es", role, false, ConsentStatus.GRANTED, 1, null, false),
+            features
+        )
 
     private val session = mutableStateOf<SessionState>(SessionState.Loading)
     private var redeemComposed = false
@@ -94,6 +97,9 @@ class RoleRoutesNavTest {
                             navigation.onOpenMyTeacher?.let {
                                 Button(onClick = it, modifier = Modifier.testTag("open_my_teacher")) { Text("t") }
                             }
+                            navigation.onOpenRecordings?.let {
+                                Button(onClick = it, modifier = Modifier.testTag("open_recordings")) { Text("g") }
+                            }
                         }
                     },
                     redeemCode = { onBack ->
@@ -122,10 +128,12 @@ class RoleRoutesNavTest {
                             Button(onClick = onOpenAssignments, modifier = Modifier.testTag("detail_to_tasks")) {
                                 Text("t")
                             }
-                            Button(onClick = onOpenRecordings, modifier = Modifier.testTag("detail_to_recordings")) {
-                                Text("g")
+                            onOpenRecordings?.let {
+                                Button(onClick = it, modifier = Modifier.testTag("detail_to_recordings")) { Text("g") }
                             }
-                            Button(onClick = onOpenChat, modifier = Modifier.testTag("detail_to_chat")) { Text("m") }
+                            onOpenChat?.let {
+                                Button(onClick = it, modifier = Modifier.testTag("detail_to_chat")) { Text("m") }
+                            }
                         }
                     },
                     studentRecordings = { onBack ->
@@ -179,10 +187,11 @@ class RoleRoutesNavTest {
                         myTeacherComposed = true
                         Column {
                             Button(onClick = onBack, modifier = Modifier.testTag("my_teacher_screen")) { Text("b") }
-                            Button(
-                                onClick = { onOpenChat("t9") },
-                                modifier = Modifier.testTag("my_teacher_chat")
-                            ) { Text("m") }
+                            onOpenChat?.let { open ->
+                                Button(onClick = { open("t9") }, modifier = Modifier.testTag("my_teacher_chat")) {
+                                    Text("m")
+                                }
+                            }
                         }
                     },
                     chat = { onBack ->
@@ -575,6 +584,33 @@ class RoleRoutesNavTest {
         assertEquals("u1", chat?.studentUid)
         compose.onNodeWithTag("chat_screen").performClick()
         assertAt(MyTeacherDestination)
+    }
+
+    @Test
+    fun withRecordingsAndChatOffTheStudentDetailHidesTheirEntries() {
+        start(ready(Role.TEACHER, SessionFeatures()))
+        compose.onNodeWithTag("open_students").performClick()
+        compose.onNodeWithTag("students_to_detail").performClick()
+        assertAt(StudentDetailDestination("s1"))
+        compose.onNodeWithTag("detail_to_recordings").assertDoesNotExist()
+        compose.onNodeWithTag("detail_to_chat").assertDoesNotExist()
+    }
+
+    @Test
+    fun homeShowsRecordingsOnlyWithTheSwitchOn() {
+        start(ready(Role.INDEPENDENT, SessionFeatures()))
+        compose.onNodeWithTag("open_recordings").assertDoesNotExist()
+        session.value = ready(Role.INDEPENDENT, SessionFeatures(recordings = true))
+        compose.waitForIdle()
+        compose.onNodeWithTag("open_recordings").assertIsDisplayed()
+    }
+
+    @Test
+    fun withChatOffMyTeacherHidesTheChatEntry() {
+        start(ready(Role.STUDENT, SessionFeatures()))
+        compose.onNodeWithTag("open_my_teacher").performClick()
+        assertAt(MyTeacherDestination)
+        compose.onNodeWithTag("my_teacher_chat").assertDoesNotExist()
     }
 
     @Test

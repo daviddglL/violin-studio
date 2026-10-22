@@ -180,4 +180,14 @@ class SessionStateResolverTest {
         assertFalse(SessionState.EmailUnverified("ana@secreto.com").toString().contains("ana@secreto.com"))
         assertFalse(SessionState.ParentalPending("p***@g***.com", 1).toString().contains("p***"))
     }
+
+    @Test
+    fun `Ready lleva los interruptores de grabaciones y chat del servidor`() {
+        assertEquals(SessionFeatures(), (resolver(password, profile(), config) as SessionState.Ready).features)
+        val on = config.copy(recordingsEnabled = true, chatEnabled = true, videoEnabled = true)
+        assertEquals(
+            SessionState.Ready(profile(), SessionFeatures(recordings = true, chat = true)),
+            resolver(password, profile(), on)
+        )
+    }
 }

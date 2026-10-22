@@ -16,7 +16,7 @@ class SessionStateResolver @Inject constructor() {
         profile.deletionInProgress -> SessionState.Loading
         profile.consentStatus == ConsentStatus.PARENTAL_PENDING ->
             SessionState.ParentalPending(profile.guardian?.emailMasked, profile.guardian?.sends ?: 0)
-        profile.isConsentCurrent(config.policyVersion) -> SessionState.Ready(profile)
+        profile.isConsentCurrent(config.policyVersion) -> SessionState.Ready(profile, SessionFeatures.from(config))
         else -> SessionState.ConsentPending(config, profile.isMinor, profile.consentReason())
     }
 

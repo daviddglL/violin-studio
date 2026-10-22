@@ -34,6 +34,8 @@ object UserKeys {
 
     fun recQueue(uid: String) = stringPreferencesKey("${prefix(uid)}rec.queue")
 
+    fun identityConfig(uid: String) = stringPreferencesKey("${prefix(uid)}session.identity_config")
+
     fun completedLessons(uid: String) = stringSetPreferencesKey("${prefix(uid)}curriculum.completed")
 
     fun belongsTo(key: Preferences.Key<*>, uid: String) = key.name.startsWith(prefix(uid))

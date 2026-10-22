@@ -63,16 +63,19 @@ fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
     )
 }
 
-/** Detalle del alumno: abrir sus tareas, abrir sus grabaciones, abrir el chat con él y volver. */
+/**
+ * Detalle del alumno: abrir sus tareas, abrir sus grabaciones, abrir el chat con él y volver. Grabaciones y chat son
+ * nulos con su interruptor apagado en el servidor: el acceso no se muestra.
+ */
 typealias StudentDetailSlot = @Composable (
     onOpenAssignments: () -> Unit,
-    onOpenRecordings: () -> Unit,
-    onOpenChat: () -> Unit,
+    onOpenRecordings: (() -> Unit)?,
+    onOpenChat: (() -> Unit)?,
     onBack: () -> Unit
 ) -> Unit
 
-/** Mi profesor: abrir el chat con el profesor (`teacherUid`) y volver. */
-typealias MyTeacherSlot = @Composable (onOpenChat: (String) -> Unit, onBack: () -> Unit) -> Unit
+/** Mi profesor: abrir el chat con el profesor (`teacherUid`; nulo con el chat apagado) y volver. */
+typealias MyTeacherSlot = @Composable (onOpenChat: ((String) -> Unit)?, onBack: () -> Unit) -> Unit
 
 /** Tareas del profesor para un alumno: crear, editar, grabar una demostración de una tarea y volver. */
 typealias TeacherAssignmentsSlot = @Composable (
@@ -229,7 +232,10 @@ private fun SessionGraph(
                         onOpenPractice = { navController.navigate(PracticeLogDestination) { launchSingleTop = true } },
                         onOpenStats = { navController.navigate(StatsDestination) { launchSingleTop = true } },
                         onOpenCurriculum = { navController.navigate(CurriculumDestination) { launchSingleTop = true } },
-                        onOpenRecordings = { navController.navigate(RecordingsDestination) { launchSingleTop = true } },
+                        onOpenRecordings = {
+                            navController.navigate(RecordingsDestination) { launchSingleTop = true }
+                        }
+                            .takeIf { session.features.recordings },
                         onOpenRedeem = { navController.navigate(RedeemCodeDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(RedeemCodeDestination::class) },
                         onOpenMyTeacher = { navController.navigate(MyTeacherDestination) { launchSingleTop = true } }
@@ -293,8 +299,10 @@ private fun SessionGraph(
         composable<MyTeacherDestination> {
             if (session is SessionState.Ready && session.allowsRoute(MyTeacherDestination::class)) {
                 val me = session.profile.uid
+                val openChat: (String) -> Unit =
+                    { teacher -> navController.navigate(ChatDestination(teacher, me)) { launchSingleTop = true } }
                 myTeacher(
-                    { teacher -> navController.navigate(ChatDestination(teacher, me)) { launchSingleTop = true } },
+                    openChat.takeIf { session.features.chat },
                     { navController.popIfPossible() }
                 )
             } else {
@@ -316,10 +324,13 @@ private fun SessionGraph(
             if (session is SessionState.Ready && session.allowsRoute(StudentDetailDestination::class)) {
                 val uid = entry.toRoute<StudentDetailDestination>().studentUid
                 val me = session.profile.uid
+                val openRecordings =
+                    { navController.navigate(StudentRecordingsDestination(uid)) { launchSingleTop = true } }
+                val openChat = { navController.navigate(ChatDestination(me, uid)) { launchSingleTop = true } }
                 studentDetail(
                     { navController.navigate(TeacherAssignmentsDestination(uid)) { launchSingleTop = true } },
-                    { navController.navigate(StudentRecordingsDestination(uid)) { launchSingleTop = true } },
-                    { navController.navigate(ChatDestination(me, uid)) { launchSingleTop = true } },
+                    openRecordings.takeIf { session.features.recordings },
+                    openChat.takeIf { session.features.chat },
                     { navController.popIfPossible() }
                 )
             } else {
