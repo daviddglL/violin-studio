@@ -3,6 +3,7 @@ package com.violinstudio.domain.feature.recording.usecase
 import com.violinstudio.domain.feature.auth.repository.AuthRepository
 import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.recording.failure.RecordingFailure
+import com.violinstudio.domain.feature.recording.model.RecordingAccount
 import com.violinstudio.domain.feature.recording.model.RecordingLimits
 import com.violinstudio.domain.feature.recording.model.RecordingSpec
 import com.violinstudio.domain.feature.recording.repository.PendingUploads
@@ -37,16 +38,8 @@ class StartRecordingUseCase(
     ) : this(auth, consent, accounts, pending, recorder, { UUID.randomUUID().toString() })
 
     suspend operator fun invoke(): Result<RecordingHandle> {
-        val uid = auth.authUser.first()?.uid ?: return fail(RecordingFailure.NoSession)
-        val config = consent.identityConfig().getOrElse { return fail(RecordingFailure.Unavailable) }
-        if (!config.recordingsEnabled) return fail(RecordingFailure.Disabled)
-        val account = accounts.current(uid).getOrElse { return fail(RecordingFailure.Unavailable) }
-        if (account.isMinor && !config.minorRecordingEnabled) return fail(RecordingFailure.Disabled)
-        val consented = account.baseConsentGranted && account.recordingConsentGranted &&
-            account.recordingConsentVersion >= config.recordingConsentVersion
-        if (!consented) return fail(RecordingFailure.ConsentRequired)
-        if (account.liveCount + pending.count(uid) >= RecordingLimits.MAX_RECORDINGS_PER_OWNER) {
-            return fail(RecordingFailure.QuotaReached)
+        val (uid, account) = checkRecordingAllowed(auth, consent, accounts, pending).getOrElse {
+            return Result.failure(it)
         }
         return recorder.start(
             RecordingSpec(
@@ -58,6 +51,34 @@ class StartRecordingUseCase(
             )
         )
     }
+}
 
-    private fun fail(failure: RecordingFailure): Result<RecordingHandle> = Result.failure(failure)
+/** Quien graba y su estado de cuenta, ya comprobados por [checkRecordingAllowed]. */
+internal data class AllowedRecorder(val uid: String, val account: RecordingAccount)
+
+/**
+ * Comprobaciones comunes a audio y video (REQ-REC-02, REQ-REC-14), fallando cerrado: sesion, flags del servidor (con
+ * [video] tambien `videoEnabled`), consentimiento base + de grabacion en la version vigente y cupo (vivas + en cola).
+ */
+internal suspend fun checkRecordingAllowed(
+    auth: AuthRepository,
+    consent: ConsentRepository,
+    accounts: RecordingAccountSource,
+    pending: PendingUploads,
+    video: Boolean = false
+): Result<AllowedRecorder> {
+    val uid = auth.authUser.first()?.uid ?: return Result.failure(RecordingFailure.NoSession)
+    val config = consent.identityConfig().getOrElse { return Result.failure(RecordingFailure.Unavailable) }
+    if (!config.recordingsEnabled || (video && !config.videoEnabled)) {
+        return Result.failure(RecordingFailure.Disabled)
+    }
+    val account = accounts.current(uid).getOrElse { return Result.failure(RecordingFailure.Unavailable) }
+    if (account.isMinor && !config.minorRecordingEnabled) return Result.failure(RecordingFailure.Disabled)
+    val consented = account.baseConsentGranted && account.recordingConsentGranted &&
+        account.recordingConsentVersion >= config.recordingConsentVersion
+    if (!consented) return Result.failure(RecordingFailure.ConsentRequired)
+    if (account.liveCount + pending.count(uid) >= RecordingLimits.MAX_RECORDINGS_PER_OWNER) {
+        return Result.failure(RecordingFailure.QuotaReached)
+    }
+    return Result.success(AllowedRecorder(uid, account))
 }

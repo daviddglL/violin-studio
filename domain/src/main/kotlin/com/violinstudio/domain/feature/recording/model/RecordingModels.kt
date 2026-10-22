@@ -72,3 +72,19 @@ data class BlurredVideo(
 ) {
     override fun toString(): String = "BlurredVideo(durationMs=$durationMs, sizeBytes=$sizeBytes, v=$policyVersion)"
 }
+
+/**
+ * Toma de video en curso (4c): la camara escribe el original sin difuminar en [rawPath], que nunca sale del movil ni
+ * sobrevive a la toma; el difuminado se escribe en [outputPath] y es lo unico que se encola. Sin rutas en `toString`.
+ */
+data class VideoSpec(
+    val id: String,
+    val uid: String,
+    val rawPath: String,
+    val outputPath: String,
+    val maxDurationMs: Long,
+    val autoStopMs: Long,
+    val consentEpoch: Long
+) {
+    override fun toString(): String = "VideoSpec(maxDurationMs=$maxDurationMs)"
+}
