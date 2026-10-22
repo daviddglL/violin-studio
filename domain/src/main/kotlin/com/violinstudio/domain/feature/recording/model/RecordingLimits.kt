@@ -11,6 +11,12 @@ object RecordingLimits {
     const val TEACHER_MAX_MS = 120_000L
     const val MAX_AUDIO_BYTES = 25L * 1024 * 1024
 
+    /** Video ya difuminado (4c): tope de `storage.rules` y de `finalizeRecording`. */
+    const val MAX_VIDEO_BYTES = 60L * 1024 * 1024
+
+    /** Version del sello `blurPolicyVersion` que el servidor exige; cambia si cambia [FaceBlurPolicy]. */
+    const val BLUR_POLICY_VERSION = 1
+
     /** Cupo de grabaciones vivas por dueno, contando las que esperan en la cola local (REQ-REC-14). */
     const val MAX_RECORDINGS_PER_OWNER = 20
 

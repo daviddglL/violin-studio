@@ -28,6 +28,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
+    // Video (4c): difuminado de caras en el movil. Modelo de ML Kit incluido en el APK (sin descarga ni red).
+    implementation(libs.media3.common)
+    implementation(libs.media3.effect)
+    implementation(libs.media3.transformer)
+    implementation(libs.mlkit.face.detection)
 
     // Tests que escriben en un DataStore real: Robolectric (SDK >= 26) + JUnit4 sobre la plataforma JUnit5 vía vintage.
     testImplementation(libs.robolectric)

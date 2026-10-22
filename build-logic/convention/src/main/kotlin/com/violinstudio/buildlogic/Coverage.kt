@@ -17,6 +17,10 @@ private val COVERAGE_EXCLUDES = listOf(
     "**/Manifest*.*",
     "**/di/**",
     "**/datasource/firebase/**",
+    // Adaptadores de GL de Media3 y ML Kit del video (4c): sin GPU ni modelo en JVM, se verifican en dispositivo.
+    "**/datasource/media/video/FaceBlurEffect*.class",
+    "**/datasource/media/video/FaceBlurShaderProgram*.class",
+    "**/datasource/media/video/Media3BlurTranscoder*.class",
     "**/*_Factory*.class",
     "**/*_HiltModules*.class",
     "**/*_MembersInjector*.class",
