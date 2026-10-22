@@ -161,8 +161,9 @@ fun SessionNavHost(
         Box {
             SessionGraph(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
-                tuner, metronome, practice, redeemCode, myTeacher, students, studentDetail, teacherCodes,
-                assignments, teacherAssignments, assignmentEdit, stats, curriculum, recordings, studentRecordings,
+                tuner, metronome, practice, redeemCode, teacherRequest, myTeacher, students, studentDetail,
+                teacherCodes, assignments, teacherAssignments, assignmentEdit, stats, curriculum, recordings,
+                studentRecordings,
                 teacherDemo, videoCapture, assignmentDemos, chat, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
@@ -188,6 +189,7 @@ private fun SessionGraph(
     metronome: @Composable (onBack: () -> Unit) -> Unit,
     practice: @Composable (onBack: () -> Unit) -> Unit,
     redeemCode: @Composable (onBack: () -> Unit) -> Unit,
+    teacherRequest: @Composable (onBack: () -> Unit) -> Unit,
     myTeacher: MyTeacherSlot,
     students: @Composable (onOpenCodes: () -> Unit, onOpenStudent: (String) -> Unit, onBack: () -> Unit) -> Unit,
     studentDetail: StudentDetailSlot,
