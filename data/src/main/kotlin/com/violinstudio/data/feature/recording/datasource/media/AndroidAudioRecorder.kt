@@ -6,6 +6,7 @@ import com.violinstudio.domain.feature.recording.model.RecordedTake
 import com.violinstudio.domain.feature.recording.model.RecordingLimits
 import com.violinstudio.domain.feature.recording.model.RecordingOutcome
 import com.violinstudio.domain.feature.recording.model.RecordingSpec
+import com.violinstudio.domain.feature.recording.model.RecordingUploadContract
 import com.violinstudio.domain.feature.recording.repository.Recorder
 import com.violinstudio.domain.feature.recording.repository.RecordingHandle
 import java.io.File
@@ -69,7 +70,7 @@ class AndroidAudioRecorder(
 
     override suspend fun deleteTake(take: RecordedTake) {
         if (!RecordingNames.ID.matches(take.id) || !RecordingNames.UID.matches(take.uid)) return
-        val own = File(directories.forUid(take.uid), "${take.id}.m4a")
+        val own = File(directories.forUid(take.uid), "${take.id}.${RecordingUploadContract.extension(take)}")
         // Solo la ruta propia de la toma: una ruta ajena (o con `..`) no se toca.
         if (own.path != take.path) return
         ioScope.launch { own.delete() }.join()

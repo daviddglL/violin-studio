@@ -1,13 +1,14 @@
 package com.violinstudio.domain.feature.recording.model
 
 /**
- * Lo que `storage.rules` y `finalizeRecording` esperan de una subida de grabacion propia (audio): ruta, tipo y
- * metadatos personalizados. `RecordingUploadContractTest` lo compara con las reglas. La subida (B7b) usa SIEMPRE
+ * Lo que `storage.rules` y `finalizeRecording` esperan de una subida de grabacion (audio `.m4a` o, en 4c, video `.mp4`
+ * ya difuminado): ruta, tipo y metadatos personalizados. `RecordingUploadContractTest` lo compara con las reglas. La subida (B7b) usa SIEMPRE
  * [customMetadata]: sin el sello [EPOCH_KEY] o con una epoca distinta de la vigente, las reglas deniegan y finalize
  * rechaza con `consent` (el clasificador de B7a trata ese 403 como consentimiento y borra la toma).
  */
 object RecordingUploadContract {
     const val CONTENT_TYPE = "audio/mp4"
+    const val CONTENT_TYPE_VIDEO = "video/mp4"
     const val RECORDINGS_DIR = "recordings"
 
     /** Demostraciones del profesor para un alumno: ruta disjunta de las grabaciones (C1), mismo doc de Firestore. */
@@ -18,6 +19,11 @@ object RecordingUploadContract {
     const val KIND_KEY = "kind"
     const val DURATION_KEY = "durationMs"
     const val KIND_AUDIO = "audio"
+    const val KIND_VIDEO = "video"
+
+    /** Sello del difuminado (4c): las reglas solo aceptan un `.mp4` con `true` y la version vigente. */
+    const val BLUR_APPLIED_KEY = "blurApplied"
+    const val BLUR_POLICY_KEY = "blurPolicyVersion"
     const val ASSIGNMENT_KEY = "assignmentId"
     const val SHARED_WITH_KEY = "sharedWith"
 
@@ -26,22 +32,31 @@ object RecordingUploadContract {
     private val ASSIGNMENT_ID = Regex("^[A-Za-z0-9-]{1,64}$")
     private val SHARED_WITH = Regex("^[A-Za-z0-9]{1,128}$")
 
-    fun objectPath(take: RecordedTake): String = "users/${take.uid}/$RECORDINGS_DIR/${take.id}.m4a"
+    /** La extension decide el tipo en las reglas: `.m4a` audio, `.mp4` video. */
+    fun extension(take: RecordedTake): String = if (take.kind == MediaKind.VIDEO) "mp4" else "m4a"
 
+    fun contentType(take: RecordedTake): String = if (take.kind == MediaKind.VIDEO) CONTENT_TYPE_VIDEO else CONTENT_TYPE
+
+    fun objectPath(take: RecordedTake): String = "users/${take.uid}/$RECORDINGS_DIR/${take.id}.${extension(take)}"
+
+    /** Un video sin version de difuminado no se sube nunca: las reglas lo denegarian y no debe salir del movil. */
     fun customMetadata(take: RecordedTake): Map<String, String> {
         require(take.consentEpoch in 0..MAX_EPOCH) { "epoca fuera del rango de las reglas" }
         require(take.durationMs in 0..MAX_DURATION_MS) { "duracion fuera del rango de las reglas" }
-        return mapOf(
-            KIND_KEY to KIND_AUDIO,
+        val base = mapOf(
             DURATION_KEY to take.durationMs.toString(),
             EPOCH_KEY to take.consentEpoch.toString()
         )
+        if (take.kind == MediaKind.AUDIO) return mapOf(KIND_KEY to KIND_AUDIO) + base
+        val version = requireNotNull(take.blurPolicyVersion) { "video sin difuminar" }
+        return mapOf(KIND_KEY to KIND_VIDEO) + base +
+            mapOf(BLUR_APPLIED_KEY to "true", BLUR_POLICY_KEY to version.toString())
     }
 
     /** Ruta de una toma encolada: con [QueuedRecording.sharedWith] es una demo y va a [DEMOS_DIR]. */
     fun objectPath(item: QueuedRecording): String {
         val dir = if (item.sharedWith != null) DEMOS_DIR else RECORDINGS_DIR
-        return "users/${item.take.uid}/$dir/${item.id}.m4a"
+        return "users/${item.take.uid}/$dir/${item.id}.${extension(item.take)}"
     }
 
     /**

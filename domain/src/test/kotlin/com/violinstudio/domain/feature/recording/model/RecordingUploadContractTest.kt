@@ -141,4 +141,45 @@ class RecordingUploadContractTest {
             QueuedRecording(take, sharedWith = "student9")
         ).forEach { assertThrows(IllegalArgumentException::class.java) { RecordingUploadContract.customMetadata(it) } }
     }
+
+    private val video = take.copy(
+        path = "/x/3f2a-9b.mp4",
+        kind = MediaKind.VIDEO,
+        blurPolicyVersion = FaceBlurPolicy.VERSION
+    )
+
+    @Test
+    fun `un video difuminado va como mp4 video con el sello que exigen las reglas`() {
+        assertEquals("users/uidAbc123/recordings/3f2a-9b.mp4", RecordingUploadContract.objectPath(video))
+        assertEquals("video/mp4", RecordingUploadContract.contentType(video))
+        assertEquals("audio/mp4", RecordingUploadContract.contentType(take))
+        val meta = RecordingUploadContract.customMetadata(video)
+        assertEquals("video", meta["kind"])
+        assertEquals("true", meta["blurApplied"])
+        assertEquals(FaceBlurPolicy.VERSION.toString(), meta["blurPolicyVersion"])
+        assertTrue(
+            whitelist().containsAll(meta.keys),
+            "claves fuera de la lista blanca: ${meta.keys - whitelist().toSet()}"
+        )
+        assertTrue("r.contentType=='${RecordingUploadContract.CONTENT_TYPE_VIDEO}'" in compact)
+        assertTrue("r.metadata.kind=='video'" in compact)
+        assertTrue("r.metadata.get('blurApplied','')=='true'" in compact)
+        assertTrue("r.metadata.get('blurPolicyVersion','')=='${FaceBlurPolicy.VERSION}'" in compact)
+        assertTrue("(m4a|mp4)" in compact)
+    }
+
+    @Test
+    fun `una demo de video va a demos como mp4`() {
+        val demo = QueuedRecording(video, assignmentId = "as-1", sharedWith = "student9")
+        assertEquals("users/uidAbc123/demos/3f2a-9b.mp4", RecordingUploadContract.objectPath(demo))
+        assertEquals("true", RecordingUploadContract.customMetadata(demo)["blurApplied"])
+    }
+
+    @Test
+    fun `un audio no lleva sello de difuminado y un video sin version no se sube`() {
+        assertFalse("blurApplied" in RecordingUploadContract.customMetadata(take))
+        assertThrows(IllegalArgumentException::class.java) {
+            RecordingUploadContract.customMetadata(video.copy(blurPolicyVersion = null))
+        }
+    }
 }

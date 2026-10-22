@@ -27,7 +27,7 @@ import kotlinx.coroutines.tasks.await
 class FirebaseRecordingUploader @Inject constructor(private val storage: FirebaseStorage) : RecordingUploader {
     override suspend fun upload(item: QueuedRecording, onSession: suspend (String) -> Unit): Result<Unit> = guard {
         val metadata = StorageMetadata.Builder().apply {
-            contentType = RecordingUploadContract.CONTENT_TYPE
+            contentType = RecordingUploadContract.contentType(item.take)
             RecordingUploadContract.customMetadata(item).forEach { (key, value) -> setCustomMetadata(key, value) }
         }.build()
         val ref = storage.reference.child(RecordingUploadContract.objectPath(item))

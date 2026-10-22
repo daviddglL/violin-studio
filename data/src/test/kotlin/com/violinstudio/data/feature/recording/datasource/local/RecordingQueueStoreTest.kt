@@ -10,6 +10,7 @@ import com.violinstudio.data.commons.datastore.UserKeys
 import com.violinstudio.data.commons.datastore.createUserLocalDataStore
 import com.violinstudio.data.feature.recording.dto.QueuedRecordingDto
 import com.violinstudio.domain.feature.recording.model.FailReason
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.QueueState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
 import com.violinstudio.domain.feature.recording.model.RecordedTake
@@ -219,6 +220,34 @@ class RecordingQueueStoreTest {
             .awaitAll().forEach { it.getOrThrow() }
         assertEquals(20, store.observe("A").first().single().attempts)
     }
+
+    @Test
+    fun `un video difuminado sobrevive a un proceso nuevo con su tipo y su version de politica`() = runBlocking<Unit> {
+        val video = QueuedRecording(
+            RecordedTake("v1", "A", "/nb/recordings/A/v1.mp4", 30_000, 2_000, 7, MediaKind.VIDEO, blurPolicyVersion = 1)
+        )
+        RecordingQueueStore(open()).enqueue(video).getOrThrow()
+        closeStores()
+        val back = RecordingQueueStore(open()).observe("A").first().single()
+        assertEquals(video, back)
+        assertEquals(MediaKind.VIDEO, back.take.kind)
+        assertEquals(1, back.take.blurPolicyVersion)
+    }
+
+    @Test
+    fun `una cola guardada antes del video se lee como audio y un tipo desconocido descarta el elemento`() =
+        runBlocking<Unit> {
+            val ds = open()
+            val store = RecordingQueueStore(ds)
+            val old = "{\"id\":\"r1\",\"uid\":\"A\",\"path\":\"/nb/recordings/A/r1.m4a\",\"durationMs\":5000," +
+                "\"sizeBytes\":1000,\"consentEpoch\":7,\"state\":\"RECORDED\"}"
+            val odd = old.replace("\"r1\"", "\"r2\"").replace("}", ",\"kind\":\"HOLOGRAM\"}")
+            ds.edit { it[queueKey] = "[$old,$odd]" }
+            val items = store.observe("A").first()
+            assertEquals(listOf(item("r1")), items)
+            assertEquals(MediaKind.AUDIO, items.single().take.kind)
+            assertNull(items.single().take.blurPolicyVersion)
+        }
 
     @Test
     fun `el toString del DTO no expone ruta, id ni sessionUri`() {
