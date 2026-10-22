@@ -35,6 +35,8 @@ import com.violinstudio.ui.feature.onboarding.view.ONBOARDING_YEAR_TAG
 import com.violinstudio.ui.feature.onboarding.view.onboardingInstrumentTag
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 import org.json.JSONArray
@@ -156,6 +158,34 @@ object Emulators {
         val url = "http://$host:8080/v1/projects/$PROJECT/$DOCS:commit"
         val body = JSONObject().put("writes", JSONArray().put(write)).toString()
         return request("POST", url, body, token = idToken)
+    }
+
+    /**
+     * Envia un mensaje del chat COMO [idToken] (con sus reglas): `createdAt` va como transformacion de servidor
+     * (`request.time`, lo que exige `validMessage`) y `expireAt` a 180 dias, como hace el cliente.
+     */
+    fun sendChatAs(
+        idToken: String,
+        id: String,
+        teacher: String,
+        student: String,
+        sender: String,
+        text: String
+    ): Response {
+        val fields = JSONObject()
+            .put("teacherUid", stringValue(teacher))
+            .put("studentUid", stringValue(student))
+            .put("senderUid", stringValue(sender))
+            .put("text", stringValue(text))
+            .put("expireAt", JSONObject().put("timestampValue", Instant.now().plus(Duration.ofDays(180)).toString()))
+        val doc = JSONObject().put("name", "projects/$PROJECT/$DOCS/chatMessages/$id").put("fields", fields)
+        val transform = JSONObject().put("fieldPath", "createdAt").put("setToServerValue", "REQUEST_TIME")
+        val write = JSONObject()
+            .put("update", doc)
+            .put("updateTransforms", JSONArray().put(transform))
+            .put("currentDocument", JSONObject().put("exists", false))
+        val url = "http://$host:8080/v1/projects/$PROJECT/$DOCS:commit"
+        return request("POST", url, JSONObject().put("writes", JSONArray().put(write)).toString(), token = idToken)
     }
 
     fun stringValue(value: String): JSONObject = JSONObject().put("stringValue", value)
