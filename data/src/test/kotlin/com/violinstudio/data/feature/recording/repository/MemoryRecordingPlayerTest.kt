@@ -125,6 +125,10 @@ class MemoryRecordingPlayerTest {
         assertEquals(0, output.played.size)
         player.stop()
         assertEquals(PlaybackState.Idle, player.state.value)
+        // El audio pedido antes ya no vale: al llegar no suena.
+        bytes.pending.getValue("p1").complete(byteArrayOf(1))
+        runCurrent()
+        assertEquals(0, output.played.size)
     }
 
     @Test
