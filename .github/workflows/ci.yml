@@ -75,8 +75,8 @@ jobs:
       - run: npm i -g firebase-tools@15.20.0
       - run: firebase emulators:exec --only firestore,storage --project demo-violin-studio "npm --prefix rules-tests test"
 
-  # E2E contra los emuladores de Firebase (functions, auth, firestore, storage). NO bloqueante (continue-on-error): el
-  # emulador de Android en el runner ha sido inestable; pasa a bloquear cuando lleve varias ejecuciones verdes.
+  # E2E contra los emuladores de Firebase (functions, auth, firestore, storage). Bloqueante: cubre registro, menor,
+  # vinculo profesor-alumno, chat y subida de grabaciones.
   e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
@@ -96,6 +96,10 @@ jobs:
           mkdir -p app/src/dev app/src/prod
           echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
           echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
+          # Sin credenciales el emulador de Functions asume el bucket `<proyecto>.appspot.com` para los triggers de
+          # Storage (finalizeRecording); la app subiria al bucket real (`.firebasestorage.app`) y el trigger no saltaria.
+          jq '.project_info.storage_bucket = (.project_info.project_id + ".appspot.com")' app/src/dev/google-services.json > gs.tmp
+          mv gs.tmp app/src/dev/google-services.json
       - run: npm ci --prefix functions && npm --prefix functions run build
       - run: npm i -g firebase-tools@15.20.0
       # requestGuardianConsent (E2E del menor) necesita el pepper del HMAC; valor fijo de PRUEBA, como en el job functions.
@@ -131,6 +135,9 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           script: ./gradlew :app:connectedDevDebugAndroidTest
+      - if: failure()
+        name: Log de los emuladores
+        run: tail -n 300 emulators.log
       - if: always()
         uses: actions/upload-artifact@v4
         with: { name: emulators-log, path: emulators.log }
