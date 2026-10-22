@@ -34,7 +34,7 @@ h1,h2{line-height:1.25}
 <p>Tu profesor puede asignarte tareas (título, descripción y fecha límite opcionales) y tú puedes marcarlas como hechas. Al desvincularte se eliminan las tareas pendientes; las ya hechas se conservan en tu espacio.</p>
 
 <h2>Grabaciones de audio y vídeo</h2>
-<p>La app permitirá grabar audio o vídeo de tu práctica para compartirlo con tu profesor y recibir sus revisiones. Las grabaciones requieren tu consentimiento explícito y separado (el de tu tutor, si tienes menos de 14 años), no se hacen sin tu acción y solo las ve tu profesor vinculado. En el vídeo se puede difuminar la imagen; en menores de 18 años el difuminado es obligatorio. Cada alumno dispone de un cupo de 20 grabaciones. Las grabaciones se conservan hasta 90 días y después se eliminan automáticamente; también puedes borrarlas tú antes.</p>
+<p>La app permitirá grabar audio o vídeo de tu práctica para compartirlo con tu profesor y recibir sus revisiones. Las grabaciones requieren tu consentimiento explícito y separado (el de tu tutor, si tienes menos de 14 años), no se hacen sin tu acción y solo las ve tu profesor vinculado. En los vídeos, las caras se difuminan en tu dispositivo antes de guardarlos, sea cual sea tu edad; si en un fotograma no se detecta ninguna cara, se difumina entero. El vídeo original sin difuminar se borra del dispositivo y nunca se sube. Un vídeo dura como máximo 60 segundos (120 si eres profesor), con calidad de hasta 720p. Cada alumno dispone de un cupo de 20 grabaciones. Las grabaciones se conservan hasta 90 días y después se eliminan automáticamente; también puedes borrarlas tú antes.</p>
 
 <h2>Revocar y borrar</h2>
 <p>Puedes revocar tu consentimiento en cualquier momento. Al revocar el consentimiento de grabación se eliminan tus grabaciones y las revisiones asociadas. Puedes borrar tu cuenta desde la app: se eliminan tus datos, tu vínculo, tus tareas y tus grabaciones.</p>
@@ -42,6 +42,7 @@ h1,h2{line-height:1.25}
 <h2>Terceros y seguridad</h2>
 <p>Usamos Firebase (Google) para autenticación, base de datos, almacenamiento y diagnósticos. No vendemos tus datos ni los usamos para publicidad. El acceso a tus datos está limitado por reglas de seguridad.</p>
 <p>Los diagnósticos se limitan a informes de fallos (Firebase Crashlytics) y métricas de rendimiento (Firebase Performance), sin el identificador de publicidad. La app no usa Google Analytics.</p>
+<p>Para difuminar las caras de los vídeos usamos ML Kit de Google, que detecta las caras en tu dispositivo. ML Kit envía a Google métricas técnicas de uso y rendimiento (modelo y sistema del dispositivo, versión de la app, un identificador por instalación que no identifica a la persona, tiempos, tamaños y códigos de error), cifradas en tránsito, para diagnóstico. Google no las cede a terceros. Las imágenes del vídeo no forman parte de esas métricas.</p>
 
 <h2>Base jurídica</h2>
 <p>Tratamos tus datos de cuenta, de práctica, el vínculo con tu profesor, las tareas y las grabaciones con tu consentimiento (art. 6.1.a del RGPD), que puedes retirar en cualquier momento. Si tienes menos de 14 años, el consentimiento lo da tu tutor legal (art. 8 del RGPD y art. 7 de la LOPDGDD). Los informes de fallos y de rendimiento se basan en nuestro interés legítimo en mantener la app estable y segura (art. 6.1.f del RGPD).</p>
@@ -77,7 +78,7 @@ h1,h2{line-height:1.25}
 <p>Your teacher can give you assignments (title, optional description and due date) and you can mark them as done. When you unlink, open assignments are removed; completed ones stay in your space.</p>
 
 <h2>Audio and video recordings</h2>
-<p>The app will let you record audio or video of your practice to share with your teacher and receive their reviews. Recordings need your explicit, separate consent (your guardian's, if you are under 14), are never made without your action and are visible only to your linked teacher. Video images can be blurred; for users under 18 blurring is mandatory. Each student has a quota of 20 recordings. Recordings are kept for up to 90 days and then deleted automatically; you can also delete them earlier.</p>
+<p>The app will let you record audio or video of your practice to share with your teacher and receive their reviews. Recordings need your explicit, separate consent (your guardian's, if you are under 14), are never made without your action and are visible only to your linked teacher. In videos, faces are blurred on your device before the video is saved, whatever your age; if no face is detected in a frame, the whole frame is blurred. The original, unblurred video is deleted from the device and never uploaded. A video lasts at most 60 seconds (120 if you are a teacher), at up to 720p. Each student has a quota of 20 recordings. Recordings are kept for up to 90 days and then deleted automatically; you can also delete them earlier.</p>
 
 <h2>Revoke and delete</h2>
 <p>You can revoke your consent at any time. Revoking the recording consent deletes your recordings and related reviews. You can delete your account from the app: your data, link, assignments and recordings are removed.</p>
@@ -85,6 +86,7 @@ h1,h2{line-height:1.25}
 <h2>Third parties and security</h2>
 <p>We use Firebase (Google) for authentication, database, storage and diagnostics. We do not sell your data or use it for advertising. Access to your data is limited by security rules.</p>
 <p>Diagnostics are limited to crash reports (Firebase Crashlytics) and performance metrics (Firebase Performance), without the advertising ID. The app does not use Google Analytics.</p>
+<p>To blur faces in videos we use Google's ML Kit, which detects faces on your device. ML Kit sends Google technical usage and performance metrics (device model and OS, app version, a per-installation identifier that does not identify the person, timings, sizes and error codes), encrypted in transit, for diagnostics. Google does not pass them to third parties. Video images are not part of those metrics.</p>
 
 <h2>Legal basis</h2>
 <p>We process your account data, practice data, the link with your teacher, assignments and recordings based on your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time. If you are under 14, consent is given by your legal guardian (Art. 8 GDPR and Art. 7 of the Spanish LOPDGDD). Crash and performance reports are based on our legitimate interest in keeping the app stable and secure (Art. 6(1)(f) GDPR).</p>
