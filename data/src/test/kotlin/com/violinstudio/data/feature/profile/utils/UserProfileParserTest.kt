@@ -4,6 +4,7 @@ import com.violinstudio.data.feature.profile.utils.extensions.toDomain
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
+import com.violinstudio.domain.feature.profile.model.TeacherRequestStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -114,5 +115,16 @@ class UserProfileParserTest {
     @Test
     fun `rol teacher llega como TEACHER`() {
         assertEquals(Role.TEACHER, domain(full + ("role" to "teacher")).role)
+    }
+
+    @Test
+    fun `teacherRequest se lee por su estado y lo desconocido o ausente queda en null`() {
+        assertNull(domain(full).teacherRequest)
+        val pending = full + ("teacherRequest" to mapOf("status" to "pending", "requestedAt" to 1L))
+        assertEquals(TeacherRequestStatus.PENDING, domain(pending).teacherRequest)
+        val rejected = full + ("teacherRequest" to mapOf("status" to "rejected"))
+        assertEquals(TeacherRequestStatus.REJECTED, domain(rejected).teacherRequest)
+        assertNull(domain(full + ("teacherRequest" to mapOf("status" to "otro"))).teacherRequest)
+        assertNull(domain(full + ("teacherRequest" to "pending")).teacherRequest)
     }
 }

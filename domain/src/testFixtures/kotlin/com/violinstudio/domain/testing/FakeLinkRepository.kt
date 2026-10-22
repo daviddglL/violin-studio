@@ -4,6 +4,7 @@ import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.link.repository.LinkRepository
+import com.violinstudio.domain.feature.profile.model.TeacherRequestStatus
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ class FakeLinkRepository : LinkRepository {
     var createResult: Result<TeacherCode> = Result.success(TeacherCode("id", "ABCD2345", "45", Instant.EPOCH))
     var listResult: Result<List<TeacherCode>> = Result.success(emptyList())
     var revokeResult: Result<Unit> = Result.success(Unit)
+    var teacherRequestResult: Result<TeacherRequestStatus> = Result.success(TeacherRequestStatus.PENDING)
 
     override fun observeAsStudent(uid: String): Flow<List<TeacherLink>> {
         calls += "observeAsStudent:$uid"
@@ -62,5 +64,10 @@ class FakeLinkRepository : LinkRepository {
     override suspend fun revokeCode(id: String): Result<Unit> {
         calls += "revokeCode:$id"
         return revokeResult
+    }
+
+    override suspend fun requestTeacherRole(): Result<TeacherRequestStatus> {
+        calls += "requestTeacherRole"
+        return teacherRequestResult
     }
 }

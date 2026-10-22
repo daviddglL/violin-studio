@@ -35,6 +35,7 @@ import com.violinstudio.ui.feature.home.view.HomeNavigation
 import com.violinstudio.ui.feature.home.view.HomeRoute
 import com.violinstudio.ui.feature.link.view.MyTeacherRoute
 import com.violinstudio.ui.feature.link.view.RedeemCodeRoute
+import com.violinstudio.ui.feature.link.view.TeacherRequestRoute
 import com.violinstudio.ui.feature.metronome.view.MetronomeRoute
 import com.violinstudio.ui.feature.onboarding.view.OnboardingRoute
 import com.violinstudio.ui.feature.practice.view.PracticeRoute
@@ -111,6 +112,7 @@ fun SessionNavHost(
     metronome: @Composable (onBack: () -> Unit) -> Unit = { MetronomeRoute(onBack = it) },
     practice: @Composable (onBack: () -> Unit) -> Unit = { PracticeRoute(onBack = it) },
     redeemCode: @Composable (onBack: () -> Unit) -> Unit = { RedeemCodeRoute(onBack = it) },
+    teacherRequest: @Composable (onBack: () -> Unit) -> Unit = { TeacherRequestRoute(onBack = it) },
     myTeacher: MyTeacherSlot = { chat, back -> MyTeacherRoute(onBack = back, onOpenChat = chat) },
     students: @Composable (onOpenCodes: () -> Unit, onOpenStudent: (String) -> Unit, onBack: () -> Unit) -> Unit =
         { codes, open, back -> StudentsRoute(onOpenCodes = codes, onOpenStudent = open, onBack = back) },
@@ -238,6 +240,13 @@ private fun SessionGraph(
                             .takeIf { session.features.recordings },
                         onOpenRedeem = { navController.navigate(RedeemCodeDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(RedeemCodeDestination::class) },
+                        onOpenTeacherRequest = {
+                            navController.navigate(TeacherRequestDestination) { launchSingleTop = true }
+                        }
+                            .takeIf {
+                                session.profile.role.allows(TeacherRequestDestination::class) &&
+                                    !session.profile.isMinor
+                            },
                         onOpenMyTeacher = { navController.navigate(MyTeacherDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(MyTeacherDestination::class) },
                         onOpenAssignments = {
@@ -292,6 +301,14 @@ private fun SessionGraph(
         composable<RedeemCodeDestination> {
             if (session.allowsRoute(RedeemCodeDestination::class)) {
                 redeemCode { navController.popIfPossible() }
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<TeacherRequestDestination> {
+            val adult = session is SessionState.Ready && !session.profile.isMinor
+            if (adult && session.allowsRoute(TeacherRequestDestination::class)) {
+                teacherRequest { navController.popIfPossible() }
             } else {
                 SplashScreen()
             }

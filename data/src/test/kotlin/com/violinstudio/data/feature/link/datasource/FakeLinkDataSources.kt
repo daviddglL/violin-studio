@@ -42,4 +42,6 @@ class FakeTeacherFunctionsDataSource : TeacherFunctionsDataSource {
     override suspend fun redeem(code: String, ackVersion: Int) = call("redeem", code, ackVersion)
 
     override suspend fun unlink(teacherUid: String, studentUid: String) = call("unlink", teacherUid, studentUid)
+
+    override suspend fun requestTeacherRole() = call("requestTeacherRole")
 }

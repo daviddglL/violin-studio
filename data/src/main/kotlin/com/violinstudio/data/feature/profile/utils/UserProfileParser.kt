@@ -16,7 +16,8 @@ object UserProfileParser {
             policyVersion = (data["policyVersion"] as? Number)?.wholeInt(),
             guardianEmailMasked = guardian?.get("emailMasked") as? String,
             guardianSends = guardian?.sends() ?: 0,
-            deletionInProgress = data["deletion"] != null
+            deletionInProgress = data["deletion"] != null,
+            teacherRequestStatus = (data["teacherRequest"] as? Map<*, *>)?.get("status") as? String
         )
     }
 

@@ -37,11 +37,14 @@ class RoleRoutesNavTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun ready(role: Role, features: SessionFeatures = SessionFeatures(recordings = true, chat = true)) =
-        SessionState.Ready(
-            UserProfile("u1", "Ana", Instrument.VIOLIN, "es", role, false, ConsentStatus.GRANTED, 1, null, false),
-            features
-        )
+    private fun ready(
+        role: Role,
+        features: SessionFeatures = SessionFeatures(recordings = true, chat = true),
+        minor: Boolean = false
+    ) = SessionState.Ready(
+        UserProfile("u1", "Ana", Instrument.VIOLIN, "es", role, minor, ConsentStatus.GRANTED, 1, null, false),
+        features
+    )
 
     private val session = mutableStateOf<SessionState>(SessionState.Loading)
     private var redeemComposed = false
@@ -56,6 +59,7 @@ class RoleRoutesNavTest {
     private var assignmentDemosComposed = false
     private var editComposed = false
     private var chatComposed = false
+    private var teacherRequestComposed = false
     private lateinit var nav: NavHostController
 
     private fun start(initial: SessionState) {
@@ -72,6 +76,7 @@ class RoleRoutesNavTest {
         assignmentDemosComposed = false
         editComposed = false
         chatComposed = false
+        teacherRequestComposed = false
         compose.setContent {
             ViolinStudioTheme {
                 nav = rememberNavController()
@@ -97,10 +102,17 @@ class RoleRoutesNavTest {
                             navigation.onOpenMyTeacher?.let {
                                 Button(onClick = it, modifier = Modifier.testTag("open_my_teacher")) { Text("t") }
                             }
+                            navigation.onOpenTeacherRequest?.let {
+                                Button(onClick = it, modifier = Modifier.testTag("open_teacher_request")) { Text("p") }
+                            }
                             navigation.onOpenRecordings?.let {
                                 Button(onClick = it, modifier = Modifier.testTag("open_recordings")) { Text("g") }
                             }
                         }
+                    },
+                    teacherRequest = { onBack ->
+                        teacherRequestComposed = true
+                        Button(onClick = onBack, modifier = Modifier.testTag("teacher_request_screen")) { Text("b") }
                     },
                     redeemCode = { onBack ->
                         redeemComposed = true
@@ -246,6 +258,32 @@ class RoleRoutesNavTest {
         start(ready(Role.INDEPENDENT))
         compose.onNodeWithTag("open_redeem").assertIsDisplayed()
         compose.onNodeWithTag("open_my_teacher").assertDoesNotExist()
+    }
+
+    @Test
+    fun adultIndependentCanOpenTheTeacherRequestAndComeBack() {
+        assertTrue(TeacherRequestDestination::class in BUSINESS_ROUTES)
+        start(ready(Role.INDEPENDENT))
+        compose.onNodeWithTag("open_teacher_request").performClick()
+        assertAt(TeacherRequestDestination)
+        assertTrue(teacherRequestComposed)
+        compose.onNodeWithTag("teacher_request_screen").performClick()
+        assertAt(HomeDestination)
+    }
+
+    @Test
+    fun teacherRequestIsHiddenFromMinors() {
+        start(ready(Role.INDEPENDENT, minor = true))
+        compose.onNodeWithTag("open_redeem").assertIsDisplayed()
+        compose.onNodeWithTag("open_teacher_request").assertDoesNotExist()
+    }
+
+    @Test
+    fun teacherRequestIsHiddenFromTeachers() {
+        start(ready(Role.TEACHER))
+        compose.onNodeWithTag("open_teacher_request").assertDoesNotExist()
+        assertFalse(Role.TEACHER.allows(TeacherRequestDestination::class))
+        assertFalse(Role.STUDENT.allows(TeacherRequestDestination::class))
     }
 
     @Test

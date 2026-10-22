@@ -2,6 +2,7 @@ package com.violinstudio.domain.feature.link.repository
 
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.domain.feature.link.model.TeacherLink
+import com.violinstudio.domain.feature.profile.model.TeacherRequestStatus
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -26,4 +27,7 @@ interface LinkRepository {
     suspend fun listCodes(): Result<List<TeacherCode>>
 
     suspend fun revokeCode(id: String): Result<Unit>
+
+    /** Pide el alta de profesor (la aprueba un administrador); devuelve el estado de la solicitud tras la llamada. */
+    suspend fun requestTeacherRole(): Result<TeacherRequestStatus>
 }

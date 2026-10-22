@@ -2,6 +2,7 @@ package com.violinstudio.data.feature.link.utils
 
 import com.violinstudio.data.feature.health.utils.MalformedResponseException
 import com.violinstudio.domain.feature.link.model.TeacherCode
+import com.violinstudio.domain.feature.profile.model.TeacherRequestStatus
 import java.time.Instant
 
 /** Respuestas de los callables de vinculo: lo que no es un objeto o una lista es malformado; un elemento ilegible se omite. */
@@ -20,6 +21,10 @@ object TeacherCodeParser {
         return map?.takeIf { it["linked"] == true }?.get("teacherUid") as? String
             ?: throw MalformedResponseException("redeemTeacherCode: respuesta ilegible")
     }
+
+    fun parseTeacherRequest(data: Any?): TeacherRequestStatus =
+        TeacherRequestStatus.fromWire((data as? Map<*, *>)?.get("status") as? String)
+            ?: throw MalformedResponseException("requestTeacherRole: respuesta ilegible")
 
     private fun element(map: Map<*, *>?, withCode: Boolean): TeacherCode? {
         map ?: return null

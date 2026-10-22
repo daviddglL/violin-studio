@@ -12,6 +12,7 @@ import com.violinstudio.data.feature.link.utils.extensions.toDomain
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.link.repository.LinkRepository
+import com.violinstudio.domain.feature.profile.model.TeacherRequestStatus
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -45,6 +46,9 @@ class LinkRepositoryImpl @Inject constructor(
         functions.revokeCode(id)
         Unit
     }
+
+    override suspend fun requestTeacherRole(): Result<TeacherRequestStatus> =
+        call { TeacherCodeParser.parseTeacherRequest(functions.requestTeacherRole()) }
 
     private suspend inline fun <T> call(block: () -> T): Result<T> =
         resultOf(FunctionsErrorMapper::toLinkFailure, block)

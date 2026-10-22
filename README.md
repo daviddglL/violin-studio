@@ -158,6 +158,19 @@ El botón de vídeo solo aparece con `VIDEO_ENABLED=true` en `functions/.env.<pr
    `VIDEO_ENABLED=true` en el proyecto de desarrollo.
 4. Solo entonces `VIDEO_ENABLED=true` y `firebase deploy --only functions`.
 
+### Alta de profesor
+
+Un adulto con el email verificado y el consentimiento al día pide ser profesor desde Ajustes (`requestTeacherRole`):
+solo se marca `users/{uid}.teacherRequest` como `pending`, nunca el rol. El administrador decide:
+
+```bash
+GCLOUD_PROJECT=<id> npm --prefix functions run admin:teacher-requests -- [--yes]        # uid y fecha de las pendientes
+GCLOUD_PROJECT=<id> npm --prefix functions run admin:grant-teacher -- <uid> [--yes]     # aprueba (mismo alta de siempre)
+GCLOUD_PROJECT=<id> npm --prefix functions run admin:reject-teacher -- <uid> [--yes]    # rechaza; 30 días para volver a pedirlo
+```
+
+La app ve el cambio de rol al refrescar la sesión (al volver a primer plano).
+
 ### Chat profesor–alumno (fase 4c)
 
 Los mensajes viven en `chatMessages` (reglas, índice compuesto y TTL de `expireAt` en `firestore.rules` y `firestore.indexes.json`): solo las dos partes de un vínculo vivo los leen y escriben, y se borran al desvincular, al borrar la cuenta de cualquiera de las dos y a los 180 días. La app solo muestra el chat con `CHAT_ENABLED=true` en `functions/.env.<project-id>`. Antes de activarlo en producción, publica (`firebase deploy --only hosting`) la política que describe el chat, declara los mensajes en Play Console según [`docs/data-safety.md`](docs/data-safety.md) y despliega `firestore.rules` y `firestore.indexes.json` (con la política TTL de `chatMessages.expireAt`).

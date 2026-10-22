@@ -45,7 +45,10 @@ Cubre REQ-CON-R04. Declaración para Play Console de lo que añade el vínculo; 
 Controles técnicos relacionados (verificados por tests de reglas y de integración):
 
 - El profesor solo existe por alta administrativa (`admin:grant-teacher`, adulto con consentimiento vigente); ninguna
-  llamada del cliente asigna el rol.
+  llamada del cliente asigna el rol. Desde la app un adulto solo puede pedirlo (`requestTeacherRole` marca
+  `users/{uid}.teacherRequest` con estado y fechas, que las reglas no dejan escribir al cliente); el administrador
+  lista las pendientes con `admin:teacher-requests` y las aprueba con `admin:grant-teacher` o las rechaza con
+  `admin:reject-teacher` (30 días antes de poder volver a pedirlo).
 - Un alumno tiene como máximo 1 profesor; un profesor, 30 alumnos y 5 códigos activos (20 en 24 h). Los códigos se
   guardan con HMAC, caducan a los 7 días y el canje tiene límite de 5 fallos por hora y alumno.
 - El profesor no puede escribir ni borrar el registro del alumno.

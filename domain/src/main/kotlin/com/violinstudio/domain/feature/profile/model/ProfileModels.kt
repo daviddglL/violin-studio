@@ -47,6 +47,17 @@ data class GuardianSummary(val emailMasked: String, val sends: Int) {
     override fun toString(): String = "GuardianSummary(sends=$sends)"
 }
 
+/** Estado de `users/{uid}.teacherRequest`: el rol lo concede un administrador, nunca la app. */
+enum class TeacherRequestStatus(val wire: String) {
+    PENDING("pending"),
+    APPROVED("approved"),
+    REJECTED("rejected");
+
+    companion object {
+        fun fromWire(value: String?): TeacherRequestStatus? = entries.firstOrNull { it.wire == value }
+    }
+}
+
 /**
  * Perfil del usuario. Contrato fail-closed para quien lo construya desde datos remotos: un `consentStatus`
  * desconocido o futuro se trata como `PENDING` ([ConsentStatus.fromWireOrPending]) y un `isMinor` ausente
@@ -62,7 +73,9 @@ data class UserProfile(
     val consentStatus: ConsentStatus,
     val policyVersion: Int?,
     val guardian: GuardianSummary?,
-    val deletionInProgress: Boolean
+    val deletionInProgress: Boolean,
+    /** Solicitud de alta de profesor hecha desde la app; `null` si no hay ninguna (o el estado es desconocido). */
+    val teacherRequest: TeacherRequestStatus? = null
 ) {
     /**
      * `granted` aceptado exactamente en la versión [requiredVersion]. Igualdad, no `>=`, como el `consentOk` del

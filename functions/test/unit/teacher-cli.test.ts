@@ -1,4 +1,4 @@
-import { runTeacherCli } from "../../src/admin/teacher-cli";
+import { runTeacherCli, runTeacherRequestsCli, TeacherCliAction } from "../../src/admin/teacher-cli";
 import { TeacherRoleError } from "../../src/admin/teacher-role";
 
 const EMU = { GCLOUD_PROJECT: "demo-x", FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080", FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099", STORAGE_BUCKET: "demo-x.appspot.com" };
@@ -8,10 +8,11 @@ const mk = () => {
   const out: string[] = [];
   const grant = jest.fn().mockResolvedValue(undefined);
   const revoke = jest.fn().mockResolvedValue(undefined);
-  const make = jest.fn(() => ({ grant, revoke }));
+  const reject = jest.fn().mockResolvedValue(undefined);
+  const make = jest.fn(() => ({ grant, revoke, reject }));
   return {
-    out, grant, revoke, make,
-    run: (action: "grant" | "revoke", argv: string[], env: Record<string, string | undefined> = EMU) =>
+    out, grant, revoke, reject, make,
+    run: (action: TeacherCliAction, argv: string[], env: Record<string, string | undefined> = EMU) =>
       runTeacherCli(action, argv, make, (l) => out.push(l), env),
   };
 };
@@ -137,5 +138,65 @@ describe("W3 (revision fresca B5b): revoke-teacher exige el bucket de Storage", 
     const t = mk();
     expect(await t.run("grant", ["u"], NO_BUCKET)).toBe(0);
     expect(t.grant).toHaveBeenCalledWith("u");
+  });
+});
+
+test("reject con un uid invoca reject y no exige bucket", async () => {
+  const t = mk();
+  const sinBucket = { ...EMU, STORAGE_BUCKET: undefined };
+  expect(await t.run("reject", ["abc123"], sinBucket)).toBe(0);
+  expect(t.reject).toHaveBeenCalledWith("abc123");
+  expect(t.out.join(" ")).toContain("reject-teacher: OK");
+});
+
+test("reject sin solicitud pendiente -> 1 con el motivo", async () => {
+  const t = mk();
+  t.reject.mockRejectedValue(new TeacherRoleError("NO_PENDING_REQUEST"));
+  expect(await t.run("reject", ["abc123"])).toBe(1);
+  expect(t.out.join(" ")).toContain("NO_PENDING_REQUEST");
+});
+
+describe("teacher-requests", () => {
+  const run = (argv: string[], list: jest.Mock, env: Record<string, string | undefined> = EMU) => {
+    const out: string[] = [];
+    return runTeacherRequestsCli(argv, () => list, (l) => out.push(l), env).then((code) => ({ code, out }));
+  };
+
+  test("lista uid y fecha de cada solicitud pendiente", async () => {
+    const list = jest.fn().mockResolvedValue([
+      { uid: "u1", requestedAt: "2026-10-20T10:00:00.000Z" },
+      { uid: "u2", requestedAt: null },
+    ]);
+    const { code, out } = await run([], list);
+    expect(code).toBe(0);
+    expect(out).toContain("u1  2026-10-20T10:00:00.000Z");
+    expect(out).toContain("u2  (sin fecha)");
+  });
+
+  test("sin pendientes lo dice", async () => {
+    const { code, out } = await run([], jest.fn().mockResolvedValue([]));
+    expect(code).toBe(0);
+    expect(out).toContain("Sin solicitudes pendientes.");
+  });
+
+  test("argumentos de mas -> uso y 2 sin listar", async () => {
+    const list = jest.fn();
+    const { code, out } = await run(["u1"], list);
+    expect(code).toBe(2);
+    expect(list).not.toHaveBeenCalled();
+    expect(out.join(" ")).toMatch(/uso/i);
+  });
+
+  test("proyecto REAL sin confirmacion -> 2 sin listar", async () => {
+    const list = jest.fn();
+    const { code } = await run([], list, REAL);
+    expect(code).toBe(2);
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  test("un fallo al listar -> 1 sin detalles", async () => {
+    const { code, out } = await run([], jest.fn().mockRejectedValue(new Error("secreto")));
+    expect(code).toBe(1);
+    expect(out.join(" ")).not.toContain("secreto");
   });
 });

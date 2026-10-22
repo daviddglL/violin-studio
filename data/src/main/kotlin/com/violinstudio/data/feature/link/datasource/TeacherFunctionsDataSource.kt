@@ -14,4 +14,6 @@ interface TeacherFunctionsDataSource {
     suspend fun redeem(code: String, ackVersion: Int): Any?
 
     suspend fun unlink(teacherUid: String, studentUid: String): Any?
+
+    suspend fun requestTeacherRole(): Any?
 }
