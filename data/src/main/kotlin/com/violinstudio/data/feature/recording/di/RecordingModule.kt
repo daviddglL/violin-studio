@@ -24,6 +24,7 @@ import com.violinstudio.data.feature.recording.datasource.media.RecordingsDirect
 import com.violinstudio.data.feature.recording.datasource.media.video.BlurTranscoder
 import com.violinstudio.data.feature.recording.datasource.media.video.FaceBlurVideoProcessor
 import com.violinstudio.data.feature.recording.datasource.media.video.Media3BlurTranscoder
+import com.violinstudio.data.feature.recording.datasource.media.video.NoBackupVideoFiles
 import com.violinstudio.data.feature.recording.repository.MemoryRecordingPlayer
 import com.violinstudio.domain.feature.recording.repository.FinalizeStatusSource
 import com.violinstudio.domain.feature.recording.repository.PendingUploads
@@ -36,6 +37,7 @@ import com.violinstudio.domain.feature.recording.repository.RecordingQueue
 import com.violinstudio.domain.feature.recording.repository.RecordingReviews
 import com.violinstudio.domain.feature.recording.repository.RecordingUploader
 import com.violinstudio.domain.feature.recording.repository.VideoBlurrer
+import com.violinstudio.domain.feature.recording.repository.VideoFiles
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -102,6 +104,9 @@ abstract class RecordingModule {
 
     @Binds
     abstract fun bindBlurTranscoder(impl: Media3BlurTranscoder): BlurTranscoder
+
+    @Binds
+    abstract fun bindVideoFiles(impl: NoBackupVideoFiles): VideoFiles
 
     companion object {
         @Provides

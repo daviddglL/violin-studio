@@ -9,11 +9,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.VideoEncoderSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -22,7 +24,8 @@ import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
- * Adaptador fino sobre Media3 Transformer: H.264 con [FaceBlurEffect] en cada fotograma; el audio se copia tal cual.
+ * Adaptador fino sobre Media3 Transformer: H.264 a [VIDEO_BITRATE_BPS] con [FaceBlurEffect] en cada fotograma; el audio
+ * se copia tal cual.
  * Transformer exige un `Looper`: cada exportacion usa su propio hilo y lo cierra al terminar. Sin logica propia ni
  * logs; no se prueba en JVM.
  */
@@ -57,6 +60,13 @@ class Media3BlurTranscoder @Inject constructor(
                         transformer = Transformer.Builder(context)
                             .setLooper(thread.looper)
                             .setVideoMimeType(MimeTypes.VIDEO_H264)
+                            .setEncoderFactory(
+                                DefaultEncoderFactory.Builder(context)
+                                    .setRequestedVideoEncoderSettings(
+                                        VideoEncoderSettings.Builder().setBitrate(VIDEO_BITRATE_BPS).build()
+                                    )
+                                    .build()
+                            )
                             .addListener(listener)
                             .build()
                             .also { it.start(item, output.path) }
@@ -69,5 +79,10 @@ class Media3BlurTranscoder @Inject constructor(
         } finally {
             thread.quitSafely()
         }
+    }
+
+    private companion object {
+        /** 3 Mbps: 120 s de profesor caben en ~45 MB, bajo `MAX_VIDEO_BYTES` (60 MiB) y la tasa maxima del servidor. */
+        const val VIDEO_BITRATE_BPS = 3_000_000
     }
 }
