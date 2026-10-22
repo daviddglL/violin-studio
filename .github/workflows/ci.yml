@@ -81,7 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     timeout-minutes: 45
-    continue-on-error: true # pasa a bloquear cuando sea estable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
