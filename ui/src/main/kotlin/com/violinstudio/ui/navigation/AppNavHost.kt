@@ -51,6 +51,7 @@ import com.violinstudio.ui.feature.teacher.view.StudentDetailRoute
 import com.violinstudio.ui.feature.teacher.view.StudentsRoute
 import com.violinstudio.ui.feature.teacher.view.TeacherCodesRoute
 import com.violinstudio.ui.feature.tuner.view.TunerRoute
+import com.violinstudio.ui.feature.video.view.VideoCaptureRoute
 
 @Composable
 fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
@@ -80,6 +81,9 @@ typealias TeacherAssignmentsSlot = @Composable (
     onDemo: (String) -> Unit,
     onBack: () -> Unit
 ) -> Unit
+
+/** Grabaciones (propias o demo del profesor): grabar un video (4c) y volver. */
+typealias RecordingsSlot = @Composable (onRecordVideo: () -> Unit, onBack: () -> Unit) -> Unit
 
 /** Tareas del alumno: abrir las demostraciones de una tarea (`teacherUid`, `assignmentId`) y volver. */
 typealias StudentAssignmentsSlot = @Composable (onOpenDemos: (String, String) -> Unit, onBack: () -> Unit) -> Unit
@@ -126,9 +130,10 @@ fun SessionNavHost(
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit = { AssignmentEditRoute(onBack = it) },
     stats: @Composable (onBack: () -> Unit) -> Unit = { StatsRoute(onBack = it) },
     curriculum: @Composable (CurriculumNavigation) -> Unit = { CurriculumRoute(it) },
-    recordings: @Composable (onBack: () -> Unit) -> Unit = { RecordingsRoute(onBack = it) },
+    recordings: RecordingsSlot = { video, back -> RecordingsRoute(onBack = back, onRecordVideo = video) },
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit = { StudentRecordingsRoute(onBack = it) },
-    teacherDemo: @Composable (onBack: () -> Unit) -> Unit = { RecordingsRoute(onBack = it) },
+    teacherDemo: RecordingsSlot = { video, back -> RecordingsRoute(onBack = back, onRecordVideo = video) },
+    videoCapture: @Composable (onBack: () -> Unit) -> Unit = { VideoCaptureRoute(onBack = it) },
     assignmentDemos: @Composable (onBack: () -> Unit) -> Unit = { AssignmentDemosRoute(onBack = it) },
     chat: @Composable (onBack: () -> Unit) -> Unit = { ChatRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
@@ -153,7 +158,7 @@ fun SessionNavHost(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
                 tuner, metronome, practice, redeemCode, myTeacher, students, studentDetail, teacherCodes,
                 assignments, teacherAssignments, assignmentEdit, stats, curriculum, recordings, studentRecordings,
-                teacherDemo, assignmentDemos, chat, deleteViewModel
+                teacherDemo, videoCapture, assignmentDemos, chat, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
                 Surface(Modifier.fillMaxSize()) { OfflineScreen(onSignOut) }
@@ -187,9 +192,10 @@ private fun SessionGraph(
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit,
     stats: @Composable (onBack: () -> Unit) -> Unit,
     curriculum: @Composable (CurriculumNavigation) -> Unit,
-    recordings: @Composable (onBack: () -> Unit) -> Unit,
+    recordings: RecordingsSlot,
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit,
-    teacherDemo: @Composable (onBack: () -> Unit) -> Unit,
+    teacherDemo: RecordingsSlot,
+    videoCapture: @Composable (onBack: () -> Unit) -> Unit,
     assignmentDemos: @Composable (onBack: () -> Unit) -> Unit,
     chat: @Composable (onBack: () -> Unit) -> Unit,
     deleteViewModel: (@Composable () -> DeleteAccountViewModel)?
@@ -265,7 +271,17 @@ private fun SessionGraph(
             }
         }
         composable<RecordingsDestination> {
-            if (session is SessionState.Ready) recordings { navController.popBackStack() } else SplashScreen()
+            if (session is SessionState.Ready) {
+                recordings(
+                    { navController.navigate(VideoCaptureDestination()) { launchSingleTop = true } },
+                    { navController.popBackStack() }
+                )
+            } else {
+                SplashScreen()
+            }
+        }
+        composable<VideoCaptureDestination> {
+            if (session is SessionState.Ready) videoCapture { navController.popIfPossible() } else SplashScreen()
         }
         composable<RedeemCodeDestination> {
             if (session.allowsRoute(RedeemCodeDestination::class)) {
@@ -342,9 +358,17 @@ private fun SessionGraph(
                 SplashScreen()
             }
         }
-        composable<TeacherDemoDestination> {
+        composable<TeacherDemoDestination> { entry ->
             if (session.allowsRoute(TeacherDemoDestination::class)) {
-                teacherDemo { navController.popIfPossible() }
+                val demo = entry.toRoute<TeacherDemoDestination>()
+                teacherDemo(
+                    {
+                        navController.navigate(VideoCaptureDestination(demo.studentUid, demo.assignmentId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    { navController.popIfPossible() }
+                )
             } else {
                 SplashScreen()
             }

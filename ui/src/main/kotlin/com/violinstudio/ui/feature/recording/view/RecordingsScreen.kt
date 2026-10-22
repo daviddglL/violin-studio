@@ -45,6 +45,7 @@ import java.util.Locale
 const val RECORDINGS_TAG = "recordings"
 const val RECORDINGS_BACK_TAG = "recordings_back"
 const val RECORDINGS_RECORD_TAG = "recordings_record"
+const val RECORDINGS_RECORD_VIDEO_TAG = "recordings_record_video"
 const val RECORDINGS_STOP_TAG = "recordings_stop"
 const val RECORDINGS_GRANT_TAG = "recordings_grant"
 const val RECORDINGS_REVOKE_TAG = "recordings_revoke"
@@ -65,7 +66,9 @@ fun RecordingsScreen(
     state: RecordingsState,
     onIntent: (RecordingsIntent) -> Unit,
     onRecord: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    /** Abre la grabacion de video; solo se ofrece con `VIDEO_ENABLED` y sin toma de audio en curso. */
+    onRecordVideo: (() -> Unit)? = null
 ) {
     val title = if (state.demo) R.string.recordings_demo_title else R.string.recordings_title
     AuthScaffold(RECORDINGS_TAG, stringResource(title)) {
@@ -77,7 +80,7 @@ fun RecordingsScreen(
                     modifier = Modifier.testTag(RECORDINGS_DEMO_INTRO_TAG)
                 )
             }
-            Access(state, onIntent, onRecord)
+            Access(state, onIntent, onRecord, onRecordVideo)
             Mic(state.mic, onIntent)
             Message(state.message, onIntent)
             if (state.pending.isNotEmpty()) {
@@ -132,7 +135,12 @@ fun RecordingsScreen(
 private fun RecordingAccess?.isConsented() = this is RecordingAccess.Allowed
 
 @Composable
-private fun Access(state: RecordingsState, onIntent: (RecordingsIntent) -> Unit, onRecord: () -> Unit) {
+private fun Access(
+    state: RecordingsState,
+    onIntent: (RecordingsIntent) -> Unit,
+    onRecord: () -> Unit,
+    onRecordVideo: (() -> Unit)?
+) {
     when (val access = state.access) {
         null -> if (state.accessFailed) {
             Text(stringResource(R.string.recordings_access_failed), color = MaterialTheme.colorScheme.error)
@@ -145,7 +153,7 @@ private fun Access(state: RecordingsState, onIntent: (RecordingsIntent) -> Unit,
         }
         RecordingAccess.Disabled -> Text(stringResource(R.string.recordings_disabled))
         is RecordingAccess.NeedsConsent -> Consent(access, state, onIntent)
-        is RecordingAccess.Allowed -> Recorder(state, access, onIntent, onRecord)
+        is RecordingAccess.Allowed -> Recorder(state, access, onIntent, onRecord, onRecordVideo)
     }
 }
 
@@ -200,7 +208,8 @@ private fun Recorder(
     state: RecordingsState,
     access: RecordingAccess.Allowed,
     onIntent: (RecordingsIntent) -> Unit,
-    onRecord: () -> Unit
+    onRecord: () -> Unit,
+    onRecordVideo: (() -> Unit)?
 ) {
     val elapsed = state.elapsedMs
     if (elapsed != null) {
@@ -223,6 +232,13 @@ private fun Recorder(
         )
         Button(onClick = onRecord, enabled = !state.busy, modifier = Modifier.testTag(RECORDINGS_RECORD_TAG)) {
             Text(stringResource(R.string.recordings_record))
+        }
+        if (access.videoEnabled && onRecordVideo != null) {
+            OutlinedButton(
+                onClick = onRecordVideo,
+                enabled = !state.busy,
+                modifier = Modifier.testTag(RECORDINGS_RECORD_VIDEO_TAG)
+            ) { Text(stringResource(R.string.recordings_record_video)) }
         }
     }
 }

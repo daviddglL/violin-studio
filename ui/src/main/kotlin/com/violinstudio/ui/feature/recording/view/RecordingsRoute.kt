@@ -30,7 +30,11 @@ import com.violinstudio.ui.feature.recording.viewmodel.RecordingsViewModel
  * toma en curso; volver a primer plano refresca el acceso (el permiso pudo cambiar fuera).
  */
 @Composable
-fun RecordingsRoute(onBack: () -> Unit, viewModel: RecordingsViewModel = hiltViewModel()) {
+fun RecordingsRoute(
+    onBack: () -> Unit,
+    onRecordVideo: (() -> Unit)? = null,
+    viewModel: RecordingsViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val checker = remember(context) { ActivityMicPermissionChecker(context.findActivity()) }
@@ -57,7 +61,8 @@ fun RecordingsRoute(onBack: () -> Unit, viewModel: RecordingsViewModel = hiltVie
             val permission = checker.snapshot()
             viewModel.onIntent(RecordingsIntent.Start(permission.granted, permission.rationale))
         },
-        onBack = onBack
+        onBack = onBack,
+        onRecordVideo = onRecordVideo
     )
 }
 

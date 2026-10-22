@@ -614,4 +614,26 @@
     <string name="chat_error_too_long">El mensaje es demasiado largo (máximo 1000 caracteres).</string>
     <string name="chat_error_denied">Ahora mismo no puedes enviar mensajes en este chat.</string>
     <string name="chat_error_unknown">No se ha podido completar. Inténtalo de nuevo.</string>
+    <string name="recordings_record_video">Grabar vídeo</string>
+    <string name="video_title">Grabar vídeo</string>
+    <string name="video_demo_title">Vídeo de demostración</string>
+    <string name="video_privacy">Las caras se difuminan en tu móvil antes de subir el vídeo. El original sin difuminar se borra al terminar y nunca sale del dispositivo.</string>
+    <string name="video_record">Grabar</string>
+    <string name="video_stop">Parar</string>
+    <string name="video_elapsed">Grabando %1$s de %2$s</string>
+    <string name="video_blurring">Difuminando las caras… Mantén la pantalla abierta.</string>
+    <string name="video_back">Volver</string>
+    <string name="video_dismiss">Cerrar</string>
+    <string name="video_permission_rationale">Para grabar vídeo, la app necesita usar la cámara y el micrófono.</string>
+    <string name="video_permission_allow">Permitir</string>
+    <string name="video_permission_blocked">El permiso de la cámara o del micrófono está bloqueado. Actívalo en los ajustes de la app.</string>
+    <string name="video_permission_settings">Abrir ajustes</string>
+    <string name="video_msg_not_available">La grabación de vídeo no está disponible ahora mismo.</string>
+    <string name="video_msg_offline">No se pudo comprobar si puedes grabar. Revisa tu conexión.</string>
+    <string name="video_msg_quota">Has llegado al máximo de grabaciones. Borra alguna para grabar otra.</string>
+    <string name="video_msg_camera_failed">La cámara no pudo grabar. Inténtalo de nuevo.</string>
+    <string name="video_msg_too_short">La toma es demasiado corta.</string>
+    <string name="video_msg_too_large">El vídeo ocupa demasiado. Graba una toma más corta.</string>
+    <string name="video_msg_blur_failed">No se pudieron difuminar las caras, así que el vídeo se ha borrado. Inténtalo de nuevo.</string>
+    <string name="video_msg_save_failed">No se pudo guardar el vídeo.</string>
 </resources>

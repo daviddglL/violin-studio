@@ -151,9 +151,17 @@ class RoleRoutesNavTest {
                             Button(onClick = { onDemo("a1") }, modifier = Modifier.testTag("tasks_demo")) { Text("d") }
                         }
                     },
-                    teacherDemo = { onBack ->
+                    teacherDemo = { onRecordVideo, onBack ->
                         teacherDemoComposed = true
-                        Button(onClick = onBack, modifier = Modifier.testTag("teacher_demo_screen")) { Text("b") }
+                        Column {
+                            Button(onClick = onBack, modifier = Modifier.testTag("teacher_demo_screen")) { Text("b") }
+                            Button(onClick = onRecordVideo, modifier = Modifier.testTag("teacher_demo_video")) {
+                                Text("v")
+                            }
+                        }
+                    },
+                    videoCapture = { onBack ->
+                        Button(onClick = onBack, modifier = Modifier.testTag("video_screen")) { Text("b") }
                     },
                     assignmentDemos = { onBack ->
                         assignmentDemosComposed = true
@@ -493,6 +501,20 @@ class RoleRoutesNavTest {
         assertEquals("a1", demo?.assignmentId)
         compose.onNodeWithTag("teacher_demo_screen").performClick()
         assertAt(TeacherAssignmentsDestination("s1"))
+    }
+
+    @Test
+    fun teacherRecordsAVideoDemoForTheSameStudentAndTaskAndBackReturnsToTheDemo() {
+        start(ready(Role.TEACHER))
+        compose.runOnUiThread { nav.navigate(TeacherDemoDestination("s1", "a1")) }
+        compose.onNodeWithTag("teacher_demo_video").performClick()
+        assertAt(VideoCaptureDestination("s1", "a1"))
+        val video = nav.currentBackStackEntry?.toRoute<VideoCaptureDestination>()
+        assertEquals("s1", video?.studentUid)
+        assertEquals("a1", video?.assignmentId)
+        assertTrue(VideoCaptureDestination::class in BUSINESS_ROUTES)
+        compose.onNodeWithTag("video_screen").performClick()
+        assertAt(TeacherDemoDestination("s1", "a1"))
     }
 
     @Test

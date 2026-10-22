@@ -36,8 +36,15 @@ sealed interface RecordingAccess {
         val guardianPending: Boolean = false
     ) : RecordingAccess
 
-    /** Se puede grabar. [maxDurationMs] por rol; [quotaFull] con 20 grabaciones vivas o en cola. */
-    data class Allowed(val maxDurationMs: Long, val quotaFull: Boolean) : RecordingAccess
+    /**
+     * Se puede grabar. [maxDurationMs] por rol; [quotaFull] con 20 grabaciones vivas o en cola; [videoEnabled] si
+     * ademas se ofrece grabar video (flag `VIDEO_ENABLED`).
+     */
+    data class Allowed(
+        val maxDurationMs: Long,
+        val quotaFull: Boolean,
+        val videoEnabled: Boolean = false
+    ) : RecordingAccess
 }
 
 /** Cola local + grabaciones del servidor del usuario [uid]; una toma que ya esta en el servidor no se repite. */

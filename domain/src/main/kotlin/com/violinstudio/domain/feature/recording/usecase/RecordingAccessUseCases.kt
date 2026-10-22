@@ -44,7 +44,8 @@ class GetRecordingAccessUseCase @Inject constructor(
         return Result.success(
             RecordingAccess.Allowed(
                 maxDurationMs = RecordingLimits.maxDurationMs(account.role),
-                quotaFull = used >= RecordingLimits.MAX_RECORDINGS_PER_OWNER
+                quotaFull = used >= RecordingLimits.MAX_RECORDINGS_PER_OWNER,
+                videoEnabled = config.videoEnabled
             )
         )
     }

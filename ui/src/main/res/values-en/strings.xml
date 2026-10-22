@@ -614,4 +614,26 @@
     <string name="chat_error_too_long">The message is too long (1000 characters maximum).</string>
     <string name="chat_error_denied">You can\'t send messages in this chat right now.</string>
     <string name="chat_error_unknown">That didn\'t work. Please try again.</string>
+    <string name="recordings_record_video">Record video</string>
+    <string name="video_title">Record video</string>
+    <string name="video_demo_title">Demonstration video</string>
+    <string name="video_privacy">Faces are blurred on your phone before the video is uploaded. The unblurred original is deleted when you finish and never leaves the device.</string>
+    <string name="video_record">Record</string>
+    <string name="video_stop">Stop</string>
+    <string name="video_elapsed">Recording %1$s of %2$s</string>
+    <string name="video_blurring">Blurring faces… Keep the screen open.</string>
+    <string name="video_back">Back</string>
+    <string name="video_dismiss">Close</string>
+    <string name="video_permission_rationale">To record video, the app needs the camera and the microphone.</string>
+    <string name="video_permission_allow">Allow</string>
+    <string name="video_permission_blocked">Camera or microphone permission is blocked. Turn it on in the app settings.</string>
+    <string name="video_permission_settings">Open settings</string>
+    <string name="video_msg_not_available">Video recording isn\'t available right now.</string>
+    <string name="video_msg_offline">Couldn\'t check whether you can record. Check your connection.</string>
+    <string name="video_msg_quota">You\'ve reached the maximum number of recordings. Delete one to record another.</string>
+    <string name="video_msg_camera_failed">The camera couldn\'t record. Try again.</string>
+    <string name="video_msg_too_short">The take is too short.</string>
+    <string name="video_msg_too_large">The video is too large. Record a shorter take.</string>
+    <string name="video_msg_blur_failed">Faces couldn\'t be blurred, so the video was deleted. Try again.</string>
+    <string name="video_msg_save_failed">Couldn\'t save the video.</string>
 </resources>
