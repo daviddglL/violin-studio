@@ -71,10 +71,10 @@ class ManifestPermissionsTest {
     }
 
     @Test
-    fun `4b no declara permisos ni servicios de camara y las copias de seguridad siguen apagadas`() {
+    fun `4c declara CAMERA para el video pero ningun servicio de camara y las copias de seguridad siguen apagadas`() {
         val requested = info.requestedPermissions.orEmpty().toList()
         assertFalse(requested.contains("android.permission.FOREGROUND_SERVICE_CAMERA"))
-        assertFalse(requested.contains(Manifest.permission.CAMERA))
+        assertTrue(requested.contains(Manifest.permission.CAMERA))
         val camera = info.services.orEmpty().filter {
             it.foregroundServiceType and ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA != 0
         }
@@ -109,18 +109,35 @@ class ManifestPermissionsTest {
         val requesting = roots.flatMap { root -> root.walkTopDown().filter { it.extension == "kt" }.toList() }
             .filter { requestsMic(it.readText()) }
             .map { it.name }
-        assertEquals(setOf("TunerRoute.kt", "RecordingsRoute.kt"), requesting.toSet())
-        assertEquals(2, requesting.size)
+        assertEquals(setOf("TunerRoute.kt", "RecordingsRoute.kt", "VideoCaptureRoute.kt"), requesting.toSet())
+        assertEquals(3, requesting.size)
         assertTrue(requestsMic("launcher.launch(Manifest.permission.RECORD_AUDIO)"))
         assertTrue(requestsMic("requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)"))
         assertTrue(requestsMic("launcher.launch(\n    Manifest.permission.RECORD_AUDIO\n)"))
         assertFalse(requestsMic("// launcher.launch(Manifest.permission.RECORD_AUDIO)"))
     }
 
-    private fun requestsMic(source: String): Boolean {
+    @Test
+    fun `CAMERA solo se solicita desde la ruta de video, nunca al arrancar`() {
+        val roots = listOf("../ui/src/main", "../app/src/main", "../data/src/main").map { File(it) }
+        val requesting = roots.flatMap { root -> root.walkTopDown().filter { it.extension == "kt" }.toList() }
+            .filter { requestsCamera(it.readText()) }
+            .map { it.name }
+        assertEquals(listOf("VideoCaptureRoute.kt"), requesting)
+        val both = "launcher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))"
+        assertTrue(requestsCamera(both))
+        assertTrue(requestsMic(both))
+        assertFalse(requestsCamera("// launcher.launch(arrayOf(Manifest.permission.CAMERA))"))
+    }
+
+    private fun requestsCamera(source: String): Boolean = requests(source, "CAMERA")
+
+    private fun requestsMic(source: String): Boolean = requests(source, "RECORD_AUDIO")
+
+    private fun requests(source: String, permission: String): Boolean {
         val code = source.replace(Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("""//[^\n]*"""), "")
-        return Regex("""(launch|requestPermissions?)\([^)]*?RECORD_AUDIO""", RegexOption.DOT_MATCHES_ALL)
+        return Regex("""(launch|requestPermissions?)\([^)]*?\b$permission\b""", RegexOption.DOT_MATCHES_ALL)
             .containsMatchIn(code)
     }
 }

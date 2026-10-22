@@ -58,6 +58,13 @@ class RecordingAccessUseCasesTest {
     }
 
     @Test
+    fun `el video solo se ofrece con VIDEO_ENABLED`() = runTest {
+        consent.configResult =
+            Result.success(config.copy(recordingsEnabled = true, videoEnabled = true, recordingConsentVersion = 2))
+        assertEquals(RecordingAccess.Allowed(60_000, quotaFull = false, videoEnabled = true), access().getOrThrow())
+    }
+
+    @Test
     fun `el cupo cuenta las vivas y las de la cola`() = runTest {
         accounts.result = Result.success(account.copy(liveCount = 19))
         queue.items.value = listOf(take("r1"))

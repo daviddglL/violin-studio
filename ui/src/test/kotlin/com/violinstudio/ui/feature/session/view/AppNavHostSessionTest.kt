@@ -50,6 +50,7 @@ import com.violinstudio.ui.navigation.TeacherAssignmentsDestination
 import com.violinstudio.ui.navigation.TeacherCodesDestination
 import com.violinstudio.ui.navigation.TeacherDemoDestination
 import com.violinstudio.ui.navigation.TunerDestination
+import com.violinstudio.ui.navigation.VideoCaptureDestination
 import com.violinstudio.ui.navigation.rootRoute
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -306,6 +307,7 @@ class AppNavHostSessionTest {
                 StatsDestination::class,
                 CurriculumDestination::class,
                 RecordingsDestination::class,
+                VideoCaptureDestination::class,
                 RedeemCodeDestination::class,
                 MyTeacherDestination::class,
                 StudentsDestination::class,

@@ -1,6 +1,7 @@
 package com.violinstudio.ui.feature.recording.view
 
 import android.app.Application
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -70,6 +71,32 @@ class RecordingsScreenTest {
         compose.onNodeWithTag(RECORDINGS_BACK_TAG).performScrollTo().performClick()
         assertEquals(1, records)
         assertEquals(1, back)
+    }
+
+    @Test
+    fun `el video solo se ofrece con VIDEO_ENABLED, sin cupo lleno y sin toma de audio en curso`() {
+        var videos = 0
+        val video = allowed.copy(videoEnabled = true)
+        val state = mutableStateOf(RecordingsState(access = allowed))
+        compose.setContent {
+            ViolinStudioTheme {
+                RecordingsScreen(state.value, { sent += it }, { records++ }, { back++ }, onRecordVideo = { videos++ })
+            }
+        }
+        compose.onNodeWithTag(RECORDINGS_RECORD_VIDEO_TAG).assertDoesNotExist()
+        state.value = RecordingsState(access = video)
+        compose.onNodeWithTag(RECORDINGS_RECORD_VIDEO_TAG).performClick()
+        assertEquals(1, videos)
+        state.value = RecordingsState(access = video, elapsedMs = 1_000)
+        compose.onNodeWithTag(RECORDINGS_RECORD_VIDEO_TAG).assertDoesNotExist()
+        state.value = RecordingsState(access = video.copy(quotaFull = true))
+        compose.onNodeWithTag(RECORDINGS_RECORD_VIDEO_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun `sin destino de video no se ofrece aunque el flag este encendido`() {
+        show(RecordingsState(access = allowed.copy(videoEnabled = true)))
+        compose.onNodeWithTag(RECORDINGS_RECORD_VIDEO_TAG).assertDoesNotExist()
     }
 
     @Test

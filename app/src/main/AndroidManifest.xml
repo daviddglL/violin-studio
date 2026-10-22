@@ -3,6 +3,14 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Video (4c): solo se pide al pulsar "Grabar video" con VIDEO_ENABLED; la app sigue instalandose sin camara. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
     <!-- Sin identificador de publicidad: hay usuarios menores y la app no hace publicidad. Algun SDK de Google Play
          services puede fusionarlo en el manifiesto; se elimina siempre. -->
     <uses-permission

@@ -54,6 +54,15 @@ data object CurriculumDestination
 @Serializable
 data object RecordingsDestination
 
+/**
+ * Grabar un video (4c): común a todos los roles. Con [studentUid] y [assignmentId] es una demostración del profesor
+ * para ese alumno y esa tarea (se llega desde `TeacherDemoDestination`).
+ */
+@Serializable
+data class VideoCaptureDestination(val studentUid: String? = null, val assignmentId: String? = null) {
+    override fun toString(): String = "VideoCaptureDestination"
+}
+
 /** Canjear código: solo `independent`. */
 @Serializable
 data object RedeemCodeDestination
@@ -129,6 +138,7 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         StatsDestination::class,
         CurriculumDestination::class,
         RecordingsDestination::class,
+        VideoCaptureDestination::class,
         RedeemCodeDestination::class,
         MyTeacherDestination::class,
         StudentsDestination::class,
