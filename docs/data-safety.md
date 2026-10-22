@@ -54,6 +54,35 @@ Controles técnicos relacionados (verificados por tests de reglas y de integraci
   de menor se borra por el cambio.
 - Los registros de Functions solo llevan hashes de uid y contadores; nunca nombres, notas ni códigos.
 
+## Grabaciones de vídeo (fase 4c)
+
+Se activa con `VIDEO_ENABLED`. Lo que añade el vídeo a la declaración de Play Console:
+
+| Pregunta | Respuesta | Motivo |
+|---|---|---|
+| Fotos y vídeos: vídeos | Recopilados y **compartidos solo con el profesor vinculado** (o, en una demo, con el alumno destinatario); opcionales | El usuario los graba con su acción, con el consentimiento de grabación (el del tutor si tiene menos de 14 años) |
+| Audio: grabaciones de voz o sonido | Recopiladas dentro del vídeo, con las mismas condiciones | La pista de audio del vídeo |
+| Permiso `CAMERA` | Declarado; solicitado en contexto al abrir la pantalla de vídeo | Nunca al arrancar la app; `uses-feature` de cámara no obligatorio |
+| Diagnósticos de la app (ML Kit) | Recopilados por Google, no compartidos, cifrados en tránsito | Métricas de uso y rendimiento de ML Kit: dispositivo, versión de la app, tiempos, tamaños y códigos de error |
+| Identificadores de dispositivo u otros (ML Kit) | Recopilados, no compartidos | Identificador por instalación de ML Kit, que no identifica al usuario ni al dispositivo |
+| Cifrado en tránsito | Sí | Firebase (TLS) y ML Kit (HTTPS) |
+| Borrado | El usuario borra cada vídeo; caducan a los 90 días; se borran al revocar el consentimiento o la cuenta | Las mismas purgas que el audio (fase 4b) |
+
+Fuente de las métricas de ML Kit: <https://developers.google.com/ml-kit/android-data-disclosure> (consultada el
+2026-10-22). Esa página no ofrece forma de desactivarlas.
+
+Controles técnicos:
+
+- Las caras se difuminan en el dispositivo para todas las edades, con un margen del 30 %; un fotograma sin cara
+  detectada se difumina entero. Si el difuminado falla, el vídeo no se guarda.
+- El original sin difuminar vive en almacenamiento interno sin copia de seguridad y se borra al terminar, al salir de
+  la pantalla o en el siguiente arranque de una toma; nunca se sube.
+- Las reglas de Storage y `finalizeRecording` solo aceptan `.mp4` de hasta 60 MiB sellados con `blurApplied` y
+  `blurPolicyVersion`, y solo con `VIDEO_ENABLED`.
+- La reproducción descarga el vídeo a memoria; no se escribe en disco.
+- `PracticeAudioSourcesTest` prohíbe los logs en `feature/video` y `ManifestPermissionsTest` limita la petición de
+  `CAMERA` a la pantalla de vídeo.
+
 ## Texto para la política de privacidad
 
 > El afinador usa el micrófono de tu dispositivo solo mientras la pantalla del afinador está abierta. El sonido se

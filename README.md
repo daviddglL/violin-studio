@@ -28,7 +28,7 @@ El desarrollo va por fases:
 | 3. Práctica | Afinador, metrónomo, sesiones, estadísticas, currículo | ✅ |
 | 4a. Profesor–alumno | Vínculo por código, registro compartido, tareas | ✅ (sin desplegar) |
 | 4b. Grabaciones | Consentimiento, subida, revisión, purgas | Servidor ✅, app en curso |
-| 4c. Vídeo y chat | Vídeo con difuminado, chat | Pendiente |
+| 4c. Vídeo y chat | Vídeo con difuminado, chat | ✅ (apagados hasta activar `VIDEO_ENABLED` y `CHAT_ENABLED`) |
 | 5. Extras | Gamificación, feedback inteligente, configuración remota | Pendiente |
 
 ## Tecnología
@@ -138,6 +138,23 @@ Orden (detalle en `docs/runbooks/storage-rules-iam.md`):
 5. **Prerrequisito duro: B5b** (revocacion completa y borrado de cuenta con grabaciones): `revokeRecordingConsent`, `revokeConsent` (politica) y la revocacion del tutor borran de inmediato objeto, doc y revisiones de todas las grabaciones del usuario (y las demos del profesor) con `purgeRevokedRecordings`, acotada por epoca y reanudable (un fallo no deshace la revocacion: `recordingPurge.pending` sigue y lo completa la propia llamada repetida, incluido el reintento del callable o del enlace del tutor tras un error posterior al commit, o el paso 2 de `purgeRecordings`, diaria 03:30, que corre ANTES de las caducadas, cursor `maintenance/recordingPurgePending`; en los callables la purga tiene un presupuesto de 45 s y, si se agota, la revocacion responde normal y el resto queda para la diaria; alerta de log sobre `purgeRecordings.budgetExhausted`, `revokePurge.itemFailed`, `revokePurge.anomaly` (WARN: grabaciones de una epoca posterior a la revocada mientras la purga sigue pendiente) y, sobre todo, `revokePurge.stuck` (ERROR)). Mientras la purga siga pendiente, volver a conceder la grabacion (`grantRecordingConsent`) falla con `TEMPORARILY_UNAVAILABLE` (reintentable) y la aceptacion del tutor de una solicitud de grabacion responde 503 con `Retry-After`: no se puede re-consentir hasta que el borrado termine. **Runbook `revokePurge.stuck`** (purga de revocacion incompleta con `recordingPurge.since` de hace mas de 3 dias, `STUCK_PURGE_AFTER_MS`): con el `uidHash` del log, localiza el fallo en los `revokePurge.itemFailed` (categoria y codigo: objeto, listado, doc), corrige la causa (permisos o bucket de la cuenta de servicio, objeto con retencion, doc corrupto) y deja que la purga diaria lo complete; si no puede completarse sola, borra a mano los objetos de `users/<uid>/recordings/` y `users/<uid>/demos/` y los docs `ready` de la epoca revocada y cierra con `GCLOUD_PROJECT=<id> npm --prefix functions run admin:complete-recording-purge -- <uid> [--yes]`, que comprueba en una transaccion que no quedan docs `ready` dentro de la epoca de la purga (si quedan responde `RECORDINGS_REMAIN` y no escribe; `--force` cierra igual y deja `recordingPurge.forced: true` como rastro) y sella `completedBy: "admin"`; no comprueba Storage, asi que verifica a mano que no quedan objetos bajo esos prefijos. Hasta ese cierre el usuario no puede volver a conceder la grabacion. El borrado de cuenta borra las demos dirigidas al alumno (con su objeto de `demos/`), anonimiza las revisiones del profesor (id aleatorio, `reviewerUid: null`, texto conservado) y desvincular (o `revoke-teacher`) borra las demos del profesor para ese alumno: `npm run admin:revoke-teacher` ahora necesita credenciales con acceso al bucket de Storage ademas de Firestore/Auth, y exige `STORAGE_BUCKET=<bucket>` (o `storageBucket` en `FIREBASE_CONFIG`; nunca se adivina `<proyecto>.appspot.com`): sin el responde 2 sin actuar. Un borrado de objeto contra un bucket inexistente ya no cuenta como "ya borrado" (falla con `bucket-not-found`). Despliega tambien `firestore.indexes.json` (indices COLLECTION_GROUP de `recordings.sharedWith` y `reviews.reviewerUid`: sin ellos la cascada del borrado de cuenta falla con FAILED_PRECONDITION) y comprueba en staging que la consulta de pendientes del paso 2 (`users` con `recordingPurge.pending == true` por rango de id de documento) no pide un indice compuesto nuevo; si lo pide, la consola da el enlace de creacion.
 6. Solo entonces `RECORDINGS_ENABLED=true` y `firebase deploy --only functions`.
 
+
+### Vídeo con difuminado (fase 4c)
+
+El alumno graba su práctica (y el profesor, demostraciones para un alumno) con la cámara frontal. Las caras se difuminan
+en el móvil con ML Kit y Media3 antes de guardar, para todas las edades y con un margen del 30 %; un fotograma sin cara
+detectada se difumina entero. El original sin difuminar se borra y nunca se sube: el servidor solo acepta `.mp4`
+sellados con `blurApplied` y `blurPolicyVersion`. Límites: 60 s para alumnos y 120 s para profesores, 720p y 60 MB.
+Los vídeos se reproducen desde memoria, sin escribirse en disco.
+
+El botón de vídeo solo aparece con `VIDEO_ENABLED=true` en `functions/.env.<project-id>`, que además requiere
+`RECORDINGS_ENABLED=true` (fase 4b). Antes de activarlo en producción:
+
+1. Publica (`firebase deploy --only hosting`) la política que describe el difuminado y las métricas de ML Kit.
+2. Declara en Play Console el vídeo y las métricas de ML Kit según [`docs/data-safety.md`](docs/data-safety.md).
+3. Prueba en un dispositivo real que la grabación, el difuminado, la subida y la reproducción funcionan con
+   `VIDEO_ENABLED=true` en el proyecto de desarrollo.
+4. Solo entonces `VIDEO_ENABLED=true` y `firebase deploy --only functions`.
 
 ### Chat profesor–alumno (fase 4c)
 
