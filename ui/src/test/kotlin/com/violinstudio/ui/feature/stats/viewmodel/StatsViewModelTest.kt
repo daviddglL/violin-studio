@@ -1,5 +1,9 @@
 package com.violinstudio.ui.feature.stats.viewmodel
 
+import com.violinstudio.domain.feature.achievement.model.Achievement
+import com.violinstudio.domain.feature.achievement.model.Achievements
+import com.violinstudio.domain.feature.curriculum.model.CurriculumProgress
+import com.violinstudio.domain.feature.curriculum.usecase.ObserveCurriculumUseCase
 import com.violinstudio.domain.feature.practice.failure.PracticeFailure
 import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.domain.feature.practice.model.practiceStats
@@ -25,13 +29,27 @@ import org.junit.jupiter.api.extension.ExtendWith
 class StatsViewModelTest {
     private val empty = emptyList<PracticeSession>()
         .practiceStats(Instant.parse("2026-10-14T12:00:00Z"), ZoneOffset.UTC)
+    private val curriculum = mockk<ObserveCurriculumUseCase> {
+        every { this@mockk.invoke() } returns flowOf(CurriculumProgress.of(setOf("b1_posture")))
+    }
 
     @Test
     fun `carga las estadisticas del historial`() = runTest {
         val useCase = mockk<ObservePracticeStatsUseCase> { every { this@mockk.invoke() } returns flowOf(empty) }
-        StatsViewModel(useCase).testMvi {
+        StatsViewModel(useCase, curriculum).testMvi {
             assertState { !it.loading && it.stats == empty && !it.failed }
             assertNoEffects()
+        }
+    }
+
+    @Test
+    fun `calcula los logros con el historial y las lecciones hechas`() = runTest {
+        val useCase = mockk<ObservePracticeStatsUseCase> { every { this@mockk.invoke() } returns flowOf(empty) }
+        StatsViewModel(useCase, curriculum).testMvi {
+            assertState { s ->
+                s.achievements == Achievements.of(empty, 1) &&
+                    s.achievements.single { it.unlocked }.achievement == Achievement.FIRST_LESSON
+            }
         }
     }
 
@@ -52,7 +70,7 @@ class StatsViewModelTest {
                 }
             }
         }
-        StatsViewModel(useCase).testMvi {
+        StatsViewModel(useCase, curriculum).testMvi {
             assertState { it.failed && it.stats == null && !it.loading }
             intent(StatsIntent.Retry)
             assertState { it.loading && !it.failed }
@@ -66,8 +84,9 @@ class StatsViewModelTest {
         val loading = StatsReducer.reduce(StatsState(loading = false, failed = true), StatsMutation.Loading)
         assertTrue(loading.loading)
         assertFalse(loading.failed)
-        val loaded = StatsReducer.reduce(loading, StatsMutation.Loaded(empty))
-        assertEquals(StatsState(loading = false, stats = empty, failed = false), loaded)
+        val achievements = Achievements.of(empty, 0)
+        val loaded = StatsReducer.reduce(loading, StatsMutation.Loaded(empty, achievements))
+        assertEquals(StatsState(loading = false, stats = empty, achievements = achievements, failed = false), loaded)
         val failed = StatsReducer.reduce(loaded, StatsMutation.Failed)
         assertNull(failed.stats)
         assertTrue(failed.failed)
