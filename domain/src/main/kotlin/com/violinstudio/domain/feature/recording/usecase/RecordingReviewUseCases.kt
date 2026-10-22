@@ -72,7 +72,7 @@ class RecordingPlaybackUseCase @Inject constructor(private val player: Recording
 
     suspend fun play(recording: RecordingSummary) {
         val path = recording.objectPath ?: return
-        player.play(recording.id, path)
+        player.play(recording.id, path, recording.kind)
     }
 
     fun stop() = player.stop()

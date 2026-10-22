@@ -1,10 +1,12 @@
 package com.violinstudio.domain.feature.recording.usecase
 
 import com.violinstudio.domain.feature.FakeAuthRepository
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
 import com.violinstudio.domain.feature.recording.model.Review
 import com.violinstudio.domain.feature.recording.model.Verdict
+import com.violinstudio.domain.feature.recording.model.VideoClip
 import com.violinstudio.domain.feature.recording.repository.RecordingPlayer
 import com.violinstudio.domain.feature.recording.repository.RecordingReviews
 import com.violinstudio.domain.feature.verifiedUser
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -62,8 +65,8 @@ class RecordingReviewUseCasesTest {
         var stops = 0
         override val state: StateFlow<PlaybackState> = MutableStateFlow(PlaybackState.Idle)
 
-        override suspend fun play(recordingId: String, objectPath: String) {
-            played += "$recordingId@$objectPath"
+        override suspend fun play(recordingId: String, objectPath: String, kind: MediaKind) {
+            played += "$recordingId@$objectPath:$kind"
         }
 
         override fun stop() {
@@ -114,9 +117,18 @@ class RecordingReviewUseCasesTest {
         val playback = RecordingPlaybackUseCase(player)
         playback.play(recording)
         playback.play(recording.copy(id = "r2", objectPath = null))
+        playback.play(recording.copy(id = "v1", objectPath = "p/v1.mp4", kind = MediaKind.VIDEO))
         playback.stop()
-        assertEquals(listOf("r1@p/r1.m4a"), player.played)
+        assertEquals(listOf("r1@p/r1.m4a:AUDIO", "v1@p/v1.mp4:VIDEO"), player.played)
         assertEquals(1, player.stops)
         assertEquals(PlaybackState.Idle, playback.state.value)
+    }
+
+    @Test
+    fun `un video en memoria no vuelca sus bytes ni se compara por contenido`() {
+        val clip = VideoClip(byteArrayOf(1, 2, 3))
+        assertEquals("VideoClip(size=3)", clip.toString())
+        assertNotEquals(PlaybackState.Video("v1", clip), PlaybackState.Video("v1", VideoClip(byteArrayOf(1, 2, 3))))
+        assertEquals(PlaybackState.Video("v1", clip), PlaybackState.Video("v1", clip))
     }
 }

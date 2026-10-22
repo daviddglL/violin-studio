@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.violinstudio.domain.feature.recording.model.FailReason
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.QueueState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
 import com.violinstudio.domain.feature.recording.model.RecordingAccess
@@ -356,7 +357,8 @@ private fun RecordingItem(item: RecordingSummary, state: RecordingsState, onInte
                         item.id,
                         state.playback,
                         onPlay = { onIntent(RecordingsIntent.Play(item.id)) },
-                        onStop = { onIntent(RecordingsIntent.StopPlayback) }
+                        onStop = { onIntent(RecordingsIntent.StopPlayback) },
+                        video = item.kind == MediaKind.VIDEO
                     )
                 }
                 if (item.ready && !item.isDemo) {

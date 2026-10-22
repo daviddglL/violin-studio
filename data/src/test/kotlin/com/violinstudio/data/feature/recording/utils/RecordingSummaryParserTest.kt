@@ -1,6 +1,7 @@
 package com.violinstudio.data.feature.recording.utils
 
 import com.google.firebase.Timestamp
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -40,6 +41,17 @@ class RecordingSummaryParserTest {
         assertEquals(
             RecordingSummary("r2", null, null, ready = false, isDemo = true, assignmentId = "a1", sharedWith = "s1"),
             RecordingSummaryParser.parse("r2", data)
+        )
+    }
+
+    @Test
+    fun `kind video marca el video y cualquier otro valor es audio`() {
+        val video = RecordingSummaryParser.parse("v1", mapOf("status" to "ready", "kind" to "video"))
+        assertEquals(MediaKind.VIDEO, video?.kind)
+        assertEquals(MediaKind.AUDIO, RecordingSummaryParser.parse("r1", mapOf("status" to "ready"))?.kind)
+        assertEquals(
+            MediaKind.AUDIO,
+            RecordingSummaryParser.parse("r1", mapOf("status" to "ready", "kind" to "audio"))?.kind
         )
     }
 

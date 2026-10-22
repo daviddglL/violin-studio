@@ -636,4 +636,6 @@
     <string name="video_msg_too_large">The video is too large. Record a shorter take.</string>
     <string name="video_msg_blur_failed">Faces couldn\'t be blurred, so the video was deleted. Try again.</string>
     <string name="video_msg_save_failed">Couldn\'t save the video.</string>
+    <string name="recordings_watch">Watch video</string>
+    <string name="video_player_close">Close</string>
 </resources>

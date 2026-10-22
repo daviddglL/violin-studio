@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.components.LoadingIndicator
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
@@ -78,7 +79,8 @@ fun AssignmentDemosScreen(state: AssignmentDemosState, onIntent: (AssignmentDemo
                                     demo.id,
                                     state.playback,
                                     onPlay = { onIntent(AssignmentDemosIntent.Play(demo.id)) },
-                                    onStop = { onIntent(AssignmentDemosIntent.Stop) }
+                                    onStop = { onIntent(AssignmentDemosIntent.Stop) },
+                                    video = demo.kind == MediaKind.VIDEO
                                 )
                             }
                         }

@@ -1,6 +1,7 @@
 package com.violinstudio.data.feature.recording.utils
 
 import com.google.firebase.Timestamp
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
 
 /**
@@ -27,7 +28,8 @@ object RecordingSummaryParser {
             isDemo = data["sharedWith"] is String,
             objectPath = data["objectPath"] as? String,
             assignmentId = data["assignmentId"] as? String,
-            sharedWith = data["sharedWith"] as? String
+            sharedWith = data["sharedWith"] as? String,
+            kind = if (data["kind"] == "video") MediaKind.VIDEO else MediaKind.AUDIO
         )
     }
 }

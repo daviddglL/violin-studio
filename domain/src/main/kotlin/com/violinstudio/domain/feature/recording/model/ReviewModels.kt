@@ -37,4 +37,12 @@ sealed interface PlaybackState {
     data class Playing(val recordingId: String) : PlaybackState
 
     data class Failed(val recordingId: String) : PlaybackState
+
+    /** Video (4c) descargado a memoria y listo para verse; la pantalla lo reproduce hasta que se cierra. */
+    data class Video(val recordingId: String, val clip: VideoClip) : PlaybackState
+}
+
+/** Bytes de un video en memoria. Igualdad por identidad (no se comparan megas) y sin contenido en `toString`. */
+class VideoClip(val bytes: ByteArray) {
+    override fun toString(): String = "VideoClip(size=${bytes.size})"
 }

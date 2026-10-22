@@ -7,7 +7,7 @@ interface AudioClipOutput {
     fun stop()
 }
 
-/** Bytes del objeto de Storage (implementacion en `datasource/firebase`). */
+/** Bytes del objeto de Storage (implementacion en `datasource/firebase`); falla si pasa de [maxBytes]. */
 interface RecordingBytesSource {
-    suspend fun read(objectPath: String): ByteArray
+    suspend fun read(objectPath: String, maxBytes: Long): ByteArray
 }
