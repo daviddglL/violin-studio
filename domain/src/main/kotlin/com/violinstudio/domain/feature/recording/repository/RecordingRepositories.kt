@@ -12,9 +12,9 @@ interface Recorder {
     suspend fun start(spec: RecordingSpec): Result<RecordingHandle>
 
     /**
-     * Borra del disco una toma ya cerrada (`{id}.m4a`): la forma EXPLICITA de borrar lo que el [RecordingHandle] ya
-     * entrego (descartar desde la UI, cola de subida, revocacion). Solo actua sobre la ruta propia de la toma
-     * (`recordings/{uid}/{id}.m4a`); idempotente.
+     * Borra del disco una toma ya cerrada (`{id}.m4a`, o `{id}.mp4` si es video): la forma EXPLICITA de borrar lo que
+     * el [RecordingHandle] ya entrego (descartar desde la UI, cola de subida, revocacion). Solo actua sobre la ruta
+     * propia de la toma (`recordings/{uid}/{id}.{ext}`); idempotente.
      */
     suspend fun deleteTake(take: RecordedTake)
 }

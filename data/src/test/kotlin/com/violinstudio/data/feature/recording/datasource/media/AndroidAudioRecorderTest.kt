@@ -1,6 +1,7 @@
 package com.violinstudio.data.feature.recording.datasource.media
 
 import com.violinstudio.domain.feature.recording.failure.RecordingFailure
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.RecordingOutcome
 import com.violinstudio.domain.feature.recording.model.RecordingSpec
 import com.violinstudio.domain.feature.recording.repository.RecordingHandle
@@ -176,6 +177,18 @@ class AndroidAudioRecorderTest {
         assertTrue(m4a().isFile)
         rec.deleteTake(take.copy(id = "../keep"))
         assertTrue(other.isFile)
+    }
+
+    @Test
+    fun `deleteTake de un video borra su mp4 difuminado y no el m4a con el mismo id`() = runBlocking {
+        val rec = recorder()
+        val take = rec.start(spec()).getOrThrow().stop().getOrThrow()
+        val mp4 = File(m4a().parentFile, "rec-1.mp4").apply { writeText("v") }
+        val video = take.copy(path = mp4.path, kind = MediaKind.VIDEO, blurPolicyVersion = 1)
+        rec.deleteTake(video.copy(path = m4a().path))
+        assertTrue(mp4.isFile, "un video solo borra su propia ruta .mp4")
+        rec.deleteTake(video)
+        assertEquals(listOf("rec-1.m4a"), files())
     }
 
     @Test

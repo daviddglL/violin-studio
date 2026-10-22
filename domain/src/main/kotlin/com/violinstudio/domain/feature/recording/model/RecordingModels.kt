@@ -36,16 +36,24 @@ data class RecordingSpec(
     override fun toString(): String = "RecordingSpec(maxDurationMs=$maxDurationMs)"
 }
 
-/** Toma terminada: fichero `.m4a` completo (el `.part` ya se renombro). Ni id, uid ni ruta salen en `toString`. */
+/** Tipo de toma: decide extension, tipo de contenido y metadatos de la subida (`RecordingUploadContract`). */
+enum class MediaKind { AUDIO, VIDEO }
+
+/**
+ * Toma terminada: fichero `.m4a` completo (el `.part` ya se renombro) o, en video (4c), el `.mp4` ya difuminado con la
+ * version de politica [blurPolicyVersion] (`null` en audio). Ni id, uid ni ruta salen en `toString`.
+ */
 data class RecordedTake(
     val id: String,
     val uid: String,
     val path: String,
     val durationMs: Long,
     val sizeBytes: Long,
-    val consentEpoch: Long
+    val consentEpoch: Long,
+    val kind: MediaKind = MediaKind.AUDIO,
+    val blurPolicyVersion: Int? = null
 ) {
-    override fun toString(): String = "RecordedTake(durationMs=$durationMs, sizeBytes=$sizeBytes)"
+    override fun toString(): String = "RecordedTake(kind=$kind, durationMs=$durationMs, sizeBytes=$sizeBytes)"
 }
 
 /** Final de una toma que no provoco el usuario: parada automatica al limite o fallo del recorder. */
