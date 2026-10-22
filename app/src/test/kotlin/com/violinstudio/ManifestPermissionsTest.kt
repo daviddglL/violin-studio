@@ -65,6 +65,13 @@ class ManifestPermissionsTest {
     }
 
     @Test
+    fun `WorkManager queda sin su servicio en primer plano`() {
+        val names = info.services.orEmpty().map { it.name }
+        assertTrue(names.any { it.startsWith("androidx.work.impl") })
+        assertFalse(names.contains("androidx.work.impl.foreground.SystemForegroundService"))
+    }
+
+    @Test
     fun `ningun servicio declara foregroundServiceType`() {
         val typed = info.services.orEmpty().filter { it.foregroundServiceType != 0 }.map { it.name }
         assertEquals(emptyList<String>(), typed)
@@ -92,10 +99,14 @@ class ManifestPermissionsTest {
         assertTrue(captureManifestViolations(cameraPermission).isNotEmpty())
         assertTrue(captureManifestViolations("<service android:foregroundServiceType=\"microphone\" />").isNotEmpty())
         assertTrue(captureManifestViolations("<!-- foregroundServiceType --><application/>").isEmpty())
+        val removal = "<uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" tools:node=\"remove\" />"
+        assertTrue(captureManifestViolations(removal).isEmpty())
     }
 
+    /** Los elementos con `tools:node="remove"` quitan lo que fusiona una libreria (WorkManager): no declaran nada. */
     private fun captureManifestViolations(xml: String): List<String> {
         val code = xml.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("""<[^<>]*tools:node="remove"[^<>]*>"""), "")
         return buildList {
             if (Regex("""android\.permission\.FOREGROUND_SERVICE""").containsMatchIn(code)) add("permiso de servicio")
             if ("foregroundServiceType" in code) add("foregroundServiceType")

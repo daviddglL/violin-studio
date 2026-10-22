@@ -32,7 +32,8 @@ import org.junit.runner.RunWith
  *
  * El emulador de Android arranca sin audio (`-noaudio`), asi que la toma no se graba con el micro: es un `.m4a`
  * minimo (cajas `ftyp`/`moov`/`mvhd`/`mdat`) que el parser del servidor acepta, en la carpeta real de las tomas.
- * `HiltTestApplication` no ejecuta `ViolinStudioApp.onCreate`, asi que el test arranca el motor de la cola el mismo.
+ * `HiltTestApplication` no ejecuta `ViolinStudioApp.onCreate`, asi que el test arranca el vigia de la cola el mismo; la
+ * subida la hace el trabajo real de WorkManager (`UploadQueueWorker`).
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)

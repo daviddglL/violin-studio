@@ -10,8 +10,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * Lanza el motor de la cola de subida de grabaciones (B7b) una sola vez, en un ambito que vive lo que el proceso. Con
- * el proceso muerto la cola sigue en DataStore y se reanuda en el siguiente arranque.
+ * Lanza el vigia de la cola de subida de grabaciones (B7b) una sola vez, en un ambito que vive lo que el proceso: al
+ * haber tomas pendientes programa [UploadQueueWorker]. Con el proceso muerto WorkManager sigue con el trabajo ya
+ * programado, y la cola sigue en DataStore para el siguiente arranque.
  */
 @Singleton
 class UploadQueueStarter @Inject constructor(private val run: RunUploadQueueUseCase) {
