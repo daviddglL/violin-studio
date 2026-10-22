@@ -1,5 +1,6 @@
 package com.violinstudio.domain.feature.recording.repository
 
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
 import com.violinstudio.domain.feature.recording.model.Review
@@ -41,8 +42,11 @@ interface RecordingReviews {
 interface RecordingPlayer {
     val state: StateFlow<PlaybackState>
 
-    /** Para lo que suene y reproduce [objectPath]; los fallos quedan en [state] como `Failed`. */
-    suspend fun play(recordingId: String, objectPath: String)
+    /**
+     * Para lo que suene y reproduce [objectPath]; los fallos quedan en [state] como `Failed`. Un [kind] video no suena:
+     * queda en [state] como `Video` para que la pantalla lo muestre.
+     */
+    suspend fun play(recordingId: String, objectPath: String, kind: MediaKind = MediaKind.AUDIO)
 
     fun stop()
 }

@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.RecordingSummary
 import com.violinstudio.domain.feature.recording.model.Review
@@ -115,7 +116,8 @@ private fun StudentRecordingItem(
                     item.id,
                     playback,
                     onPlay = { onIntent(StudentRecordingsIntent.Play(item.id)) },
-                    onStop = { onIntent(StudentRecordingsIntent.Stop) }
+                    onStop = { onIntent(StudentRecordingsIntent.Stop) },
+                    video = item.kind == MediaKind.VIDEO
                 )
                 TextButton(
                     onClick = { onIntent(StudentRecordingsIntent.OpenReview(item.id)) },

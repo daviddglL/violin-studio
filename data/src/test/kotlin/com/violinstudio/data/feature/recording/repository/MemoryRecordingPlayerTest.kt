@@ -3,7 +3,9 @@ package com.violinstudio.data.feature.recording.repository
 import com.violinstudio.data.feature.recording.datasource.media.AudioClipOutput
 import com.violinstudio.data.feature.recording.datasource.media.ByteArrayDataSource
 import com.violinstudio.data.feature.recording.datasource.media.RecordingBytesSource
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.PlaybackState
+import com.violinstudio.domain.feature.recording.model.RecordingLimits
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,9 +40,12 @@ class MemoryRecordingPlayerTest {
 
     private class FakeBytes : RecordingBytesSource {
         val pending = mutableMapOf<String, CompletableDeferred<ByteArray>>()
+        val limits = mutableMapOf<String, Long>()
 
-        override suspend fun read(objectPath: String): ByteArray =
-            pending.getOrPut(objectPath) { CompletableDeferred() }.await()
+        override suspend fun read(objectPath: String, maxBytes: Long): ByteArray {
+            limits[objectPath] = maxBytes
+            return pending.getOrPut(objectPath) { CompletableDeferred() }.await()
+        }
     }
 
     private val output = FakeOutput()
@@ -100,6 +105,42 @@ class MemoryRecordingPlayerTest {
         runCurrent()
         output.onError()
         assertEquals(PlaybackState.Failed("r3"), player.state.value)
+    }
+
+    @Test
+    fun `un video se descarga con su tope y queda para la pantalla sin sonar`() = runTest {
+        val player = MemoryRecordingPlayer(bytes, output, StandardTestDispatcher(testScheduler))
+        launch { player.play("r1", "p1") }
+        runCurrent()
+        assertEquals(RecordingLimits.MAX_AUDIO_BYTES, bytes.limits["p1"])
+        launch { player.play("v1", "pv", MediaKind.VIDEO) }
+        runCurrent()
+        assertEquals(RecordingLimits.MAX_VIDEO_BYTES, bytes.limits["pv"])
+        assertEquals(PlaybackState.Loading("v1"), player.state.value)
+        bytes.pending.getValue("pv").complete(byteArrayOf(7, 8))
+        runCurrent()
+        val video = player.state.value as PlaybackState.Video
+        assertEquals("v1", video.recordingId)
+        assertArrayEquals(byteArrayOf(7, 8), video.clip.bytes)
+        assertEquals(0, output.played.size)
+        player.stop()
+        assertEquals(PlaybackState.Idle, player.state.value)
+    }
+
+    @Test
+    fun `un video que llega tarde o falla no pisa lo demas`() = runTest {
+        val player = MemoryRecordingPlayer(bytes, output, StandardTestDispatcher(testScheduler))
+        launch { player.play("v1", "pv", MediaKind.VIDEO) }
+        runCurrent()
+        player.stop()
+        bytes.pending.getValue("pv").complete(byteArrayOf(1))
+        runCurrent()
+        assertEquals(PlaybackState.Idle, player.state.value)
+        launch { player.play("v2", "pv2", MediaKind.VIDEO) }
+        runCurrent()
+        bytes.pending.getValue("pv2").completeExceptionally(IOException("demasiado grande"))
+        runCurrent()
+        assertEquals(PlaybackState.Failed("v2"), player.state.value)
     }
 
     @Test

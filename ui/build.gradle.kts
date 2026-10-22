@@ -29,6 +29,8 @@ dependencies {
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.video)
     implementation(libs.camera.view)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.runtime.compose)

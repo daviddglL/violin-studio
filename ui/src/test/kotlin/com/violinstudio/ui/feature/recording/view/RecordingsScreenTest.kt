@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.domain.feature.recording.model.FailReason
+import com.violinstudio.domain.feature.recording.model.MediaKind
 import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.QueueState
 import com.violinstudio.domain.feature.recording.model.QueuedRecording
@@ -218,6 +219,23 @@ class RecordingsScreenTest {
         compose.onNodeWithTag(playTag("r0")).performClick()
         compose.onNodeWithTag(reviewsToggleTag("r0")).performClick()
         assertEquals(listOf(RecordingsIntent.Play("r0"), RecordingsIntent.ToggleReviews("r0")), sent)
+    }
+
+    @Test
+    fun `un video listo se ofrece para ver`() {
+        val video = RecordingSummary(
+            "v0",
+            null,
+            5_000,
+            ready = true,
+            isDemo = false,
+            objectPath = "p",
+            kind = MediaKind.VIDEO
+        )
+        show(RecordingsState(access = allowed, recordings = listOf(video)))
+        compose.onNodeWithText("Ver vídeo").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(playTag("v0")).performClick()
+        assertEquals(listOf<RecordingsIntent>(RecordingsIntent.Play("v0")), sent)
     }
 
     @Test

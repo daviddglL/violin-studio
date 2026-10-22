@@ -17,17 +17,28 @@ import com.violinstudio.domain.feature.recording.model.PlaybackState
 import com.violinstudio.domain.feature.recording.model.Review
 import com.violinstudio.domain.feature.recording.model.Verdict
 import com.violinstudio.ui.R
+import com.violinstudio.ui.feature.video.view.VideoPlayerDialog
 
 fun playTag(id: String) = "recording_play_$id"
 
 fun stopPlaybackTag(id: String) = "recording_stop_$id"
 
-/** "Escuchar" o "Parar" segun lo que suene; el aviso de fallo solo en la grabacion que fallo. */
+/**
+ * "Escuchar" (o "Ver video") o "Parar" segun lo que suene; el aviso de fallo solo en la grabacion que fallo. Un video
+ * descargado se abre en un dialogo que, al cerrarse, para la reproduccion.
+ */
 @Composable
-fun PlaybackControl(recordingId: String, playback: PlaybackState, onPlay: () -> Unit, onStop: () -> Unit) {
+fun PlaybackControl(
+    recordingId: String,
+    playback: PlaybackState,
+    onPlay: () -> Unit,
+    onStop: () -> Unit,
+    video: Boolean = false
+) {
     val active = when (playback) {
         is PlaybackState.Loading -> playback.recordingId == recordingId
         is PlaybackState.Playing -> playback.recordingId == recordingId
+        is PlaybackState.Video -> playback.recordingId == recordingId
         else -> false
     }
     if (active) {
@@ -41,8 +52,11 @@ fun PlaybackControl(recordingId: String, playback: PlaybackState, onPlay: () -> 
         }
     } else {
         TextButton(onClick = onPlay, modifier = Modifier.testTag(playTag(recordingId))) {
-            Text(stringResource(R.string.recordings_play))
+            Text(stringResource(if (video) R.string.recordings_watch else R.string.recordings_play))
         }
+    }
+    if (playback is PlaybackState.Video && playback.recordingId == recordingId) {
+        VideoPlayerDialog(playback.clip, onClose = onStop)
     }
     if (playback is PlaybackState.Failed && playback.recordingId == recordingId) {
         Text(

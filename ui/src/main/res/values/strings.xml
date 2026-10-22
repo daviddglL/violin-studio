@@ -636,4 +636,6 @@
     <string name="video_msg_too_large">El vídeo ocupa demasiado. Graba una toma más corta.</string>
     <string name="video_msg_blur_failed">No se pudieron difuminar las caras, así que el vídeo se ha borrado. Inténtalo de nuevo.</string>
     <string name="video_msg_save_failed">No se pudo guardar el vídeo.</string>
+    <string name="recordings_watch">Ver vídeo</string>
+    <string name="video_player_close">Cerrar</string>
 </resources>

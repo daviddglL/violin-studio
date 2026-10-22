@@ -15,7 +15,9 @@ data class RecordingSummary(
     /** Tarea a la que va ligada (las demos siempre llevan una). */
     val assignmentId: String? = null,
     /** Alumno con quien se comparte una demo. */
-    val sharedWith: String? = null
+    val sharedWith: String? = null,
+    /** Audio o video difuminado (4c); los docs anteriores al video son audio. */
+    val kind: MediaKind = MediaKind.AUDIO
 ) {
     override fun toString(): String = "RecordingSummary(ready=$ready, isDemo=$isDemo)"
 }
