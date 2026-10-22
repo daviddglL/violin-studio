@@ -297,6 +297,16 @@
     <string name="practice_message_permission_denied">No tienes permiso para guardar tus sesiones. Vuelve a iniciar sesión.</string>
     <string name="practice_message_unknown">No se pudo completar la acción. Inténtalo de nuevo.</string>
     <string name="home_redeem_card">Vincular con profesor</string>
+    <string name="home_teacher_request_card">Quiero dar clase</string>
+    <string name="teacher_request_title">Hazte profesor</string>
+    <string name="teacher_request_intro">Como profesor podrás crear códigos para que tus alumnos se vinculen contigo, ver su práctica, asignarles tareas y revisar sus grabaciones.</string>
+    <string name="teacher_request_review_notice">Revisamos cada solicitud a mano antes de dar el alta. Guardamos el estado de la solicitud y sus fechas, y se borran con tu cuenta.</string>
+    <string name="teacher_request_submit">Enviar solicitud</string>
+    <string name="teacher_request_sending">Enviando…</string>
+    <string name="teacher_request_pending">Solicitud enviada. Cuando la revisemos verás aquí la respuesta.</string>
+    <string name="teacher_request_approved">Tu solicitud está aprobada. Vuelve al inicio para ver las opciones de profesor.</string>
+    <string name="teacher_request_rejected">No hemos aprobado tu solicitud. Podrás volver a pedirla pasados 30 días.</string>
+    <string name="teacher_request_not_eligible">Ahora mismo tu cuenta no puede pedirlo: hace falta ser adulto, tener el consentimiento al día y no estar vinculado como alumno.</string>
     <string name="home_my_teacher_card">Mi profesor</string>
     <string name="link_back">Volver</string>
     <string name="link_redeem_title">Vincular con tu profesor</string>

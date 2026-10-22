@@ -128,6 +128,10 @@ data class AssignmentEditDestination(val studentUid: String, val assignmentId: S
     override fun toString(): String = "AssignmentEditDestination"
 }
 
+/** Solicitud de alta de profesor: solo `independent` (y adulto, que lo decide la navegación con el perfil). */
+@Serializable
+data object TeacherRequestDestination
+
 /** Rutas de negocio: solo se mantienen con Ready; con otro estado SessionRedirect las lleva a la raíz. */
 val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
     listOf(
@@ -140,6 +144,7 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         RecordingsDestination::class,
         VideoCaptureDestination::class,
         RedeemCodeDestination::class,
+        TeacherRequestDestination::class,
         MyTeacherDestination::class,
         StudentsDestination::class,
         StudentDetailDestination::class,
@@ -156,6 +161,7 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
 /** Roles que pueden abrir cada ruta por rol; las ausentes son comunes a todos. Solo UX: la seguridad está en reglas. */
 private val ROLE_ROUTES: Map<kotlin.reflect.KClass<*>, Set<Role>> = mapOf(
     RedeemCodeDestination::class to setOf(Role.INDEPENDENT),
+    TeacherRequestDestination::class to setOf(Role.INDEPENDENT),
     MyTeacherDestination::class to setOf(Role.STUDENT),
     StudentsDestination::class to setOf(Role.TEACHER),
     StudentDetailDestination::class to setOf(Role.TEACHER),

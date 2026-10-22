@@ -40,6 +40,7 @@ import {
 import { TEACHER_CODE_PEPPER } from "./teacher/pepper";
 import { redeemTeacherCodeHandler } from "./teacher/redeem";
 import { syncLinkNamesHandler } from "./teacher/sync-names";
+import { requestTeacherRoleHandler } from "./teacher/teacher-request";
 import { unlinkTeacherHandler } from "./teacher/unlink";
 import { VERSION } from "./version";
 
@@ -176,6 +177,12 @@ export const redeemTeacherCode = onCall({ ...callableOptions(), secrets: [TEACHE
     uid,
     request.data,
   );
+});
+
+/** Solicitud de alta de profesor desde la app: solo la marca; el rol lo da un administrador (`admin:grant-teacher`). */
+export const requestTeacherRole = onCall(callableOptions(), (request) => {
+  const { uid } = requireVerifiedUser(request);
+  return requestTeacherRoleHandler({ db: getFirestore(admin()) }, uid, true);
 });
 
 /** Desvinculacion inmediata por cualquiera de las partes (REQ-LNK-08); idempotente y reanudable. */

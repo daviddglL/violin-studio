@@ -5,6 +5,7 @@ import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.GuardianSummary
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.profile.model.Role
+import com.violinstudio.domain.feature.profile.model.TeacherRequestStatus
 import com.violinstudio.domain.feature.profile.model.UserProfile
 
 private const val DEFAULT_LOCALE = "es"
@@ -22,5 +23,6 @@ fun UserProfileDto.toDomain(uid: String): UserProfile = UserProfile(
     consentStatus = ConsentStatus.fromWireOrPending(consentStatus),
     policyVersion = policyVersion,
     guardian = guardianEmailMasked?.let { GuardianSummary(it, guardianSends) },
-    deletionInProgress = deletionInProgress
+    deletionInProgress = deletionInProgress,
+    teacherRequest = TeacherRequestStatus.fromWire(teacherRequestStatus)
 )

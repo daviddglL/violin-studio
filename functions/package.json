@@ -11,6 +11,8 @@
     "test:integration": "jest test/integration --testTimeout=30000 --runInBand",
     "preadmin:grant-teacher": "npm run build",
     "preadmin:revoke-teacher": "npm run build",
+    "preadmin:reject-teacher": "npm run build",
+    "preadmin:teacher-requests": "npm run build",
     "preadmin:reevaluate-consents": "npm run build",
     "preadmin:recount-recordings": "npm run build",
     "preadmin:complete-recording-purge": "npm run build",
@@ -19,6 +21,8 @@
     "admin:reevaluate-consents": "node scripts/reevaluate-consents.js",
     "admin:grant-teacher": "node scripts/grant-teacher.js",
     "admin:revoke-teacher": "node scripts/revoke-teacher.js",
+    "admin:reject-teacher": "node scripts/reject-teacher.js",
+    "admin:teacher-requests": "node scripts/teacher-requests.js",
     "test:mail-extension": "firebase emulators:exec --only functions,auth,firestore,extensions --project demo-violin-studio \"node scripts/mail-extension-smoke.js\""
   },
   "dependencies": {

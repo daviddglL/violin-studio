@@ -22,6 +22,8 @@ class FirebaseTeacherFunctionsDataSource @Inject constructor(private val functio
     override suspend fun unlink(teacherUid: String, studentUid: String): Any? =
         call("unlinkTeacher", mapOf("teacherUid" to teacherUid, "studentUid" to studentUid))
 
+    override suspend fun requestTeacherRole(): Any? = call("requestTeacherRole")
+
     private suspend fun call(name: String, data: Any? = null): Any? = try {
         functions.getHttpsCallable(name).call(data).await().getData()
     } catch (e: FirebaseFunctionsException) {

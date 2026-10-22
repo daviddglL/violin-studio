@@ -15,7 +15,8 @@ export type TeacherRoleErrorReason =
   | TeacherDenyReason
   | "INVALID_UID"
   | "USER_NOT_FOUND"
-  | "INVALID_TRANSITION";
+  | "INVALID_TRANSITION"
+  | "NO_PENDING_REQUEST";
 
 /** Error de la CLI de administracion; el mensaje solo lleva el motivo (nunca PII). */
 export class TeacherRoleError extends Error {
@@ -46,10 +47,16 @@ function requireValidUid(uid: string): void {
   }
 }
 
-function makeLog(deps: TeacherRoleDeps, uid: string) {
+function makeLog(deps: Pick<TeacherRoleDeps, "log">, uid: string) {
   const uidHash = sha256Hex(uid).slice(0, 12);
   const sink = deps.log ?? ((m, d) => logger.info(m, d));
   return (message: string, data: Record<string, unknown> = {}) => sink(message, { uidHash, ...data });
+}
+
+/** Solicitud resuelta: conserva `requestedAt` y sella la decision. */
+function decided(request: unknown, status: "approved" | "rejected"): Record<string, unknown> {
+  const requestedAt = (request as { requestedAt?: unknown } | null)?.requestedAt;
+  return { status, ...(requestedAt ? { requestedAt } : {}), decidedAt: FieldValue.serverTimestamp() };
 }
 
 /** Alta de profesor (REQ-TRL-01/02). Reintentable: el rol se escribe en transaccion y los claims despues. */
@@ -85,7 +92,13 @@ export async function grantTeacher(deps: TeacherRoleDeps, uid: string): Promise<
     if (!isAllowedRoleTransition(String(profile?.role ?? "independent") as Role, "teacher")) {
       return reject("INVALID_TRANSITION");
     }
-    tx.update(ref, { role: "teacher", studentCount: 0, updatedAt: FieldValue.serverTimestamp() });
+    tx.update(ref, {
+      role: "teacher",
+      studentCount: 0,
+      updatedAt: FieldValue.serverTimestamp(),
+      // Aprobar una solicitud de la app es este mismo alta; sin solicitud (alta directa) no se crea ninguna.
+      ...(profile?.teacherRequest ? { teacherRequest: decided(profile.teacherRequest, "approved") } : {}),
+    });
     return true;
   });
 
@@ -108,7 +121,8 @@ export async function revokeTeacher(deps: TeacherRoleDeps, uid: string): Promise
   const { changed } = await deps.db.runTransaction(async (tx) => {
     const fresh = (await tx.get(ref)).data();
     if (fresh?.role !== "teacher") return { changed: false };
-    tx.update(ref, { role: "independent", updatedAt: FieldValue.serverTimestamp() });
+    // Sin solicitud previa: tras una baja el usuario puede volver a pedirlo desde la app.
+    tx.update(ref, { role: "independent", teacherRequest: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() });
     return { changed: true };
   });
 
@@ -118,4 +132,50 @@ export async function revokeTeacher(deps: TeacherRoleDeps, uid: string): Promise
   const students = await (deps.unlinkAllStudents ?? ((t) => unlinkAllStudents(linkDeps, t)))(uid);
   await syncClaims({ db: deps.db, auth: deps.auth }, uid);
   log("revokeTeacher", { changed, codes, students });
+}
+
+/** Solicitud pendiente de alta de profesor, para que el administrador decida. */
+export interface PendingTeacherRequest {
+  uid: string;
+  /** ISO 8601, o `null` si el servidor aun no sello la fecha. */
+  requestedAt: string | null;
+}
+
+/** Solicitudes pendientes, las mas antiguas primero (como mucho [limit]). */
+export async function listTeacherRequests(
+  deps: Pick<TeacherRoleDeps, "db">,
+  limit = 50,
+): Promise<PendingTeacherRequest[]> {
+  const snap = await deps.db
+    .collection(COLLECTIONS.users)
+    .where("teacherRequest.status", "==", "pending")
+    .limit(limit)
+    .get();
+  return snap.docs
+    .map((d) => {
+      const at = d.get("teacherRequest.requestedAt") as { toDate?: () => Date } | undefined;
+      return { uid: d.id, requestedAt: at?.toDate ? at.toDate().toISOString() : null };
+    })
+    .sort((a, b) => (a.requestedAt ?? "").localeCompare(b.requestedAt ?? ""));
+}
+
+/**
+ * Rechaza una solicitud pendiente; el usuario no puede volver a pedirlo durante `TEACHER_REQUEST_COOLDOWN_DAYS`.
+ * Sin solicitud pendiente responde `NO_PENDING_REQUEST` y no escribe.
+ */
+export async function rejectTeacherRequest(deps: Pick<TeacherRoleDeps, "db" | "log">, uid: string): Promise<void> {
+  requireValidUid(uid);
+  const log = makeLog(deps, uid);
+  const ref = deps.db.collection(COLLECTIONS.users).doc(uid);
+  const ok = await deps.db.runTransaction(async (tx) => {
+    const request = (await tx.get(ref)).get("teacherRequest") as { status?: unknown } | undefined;
+    if (request?.status !== "pending") return false;
+    tx.update(ref, { teacherRequest: decided(request, "rejected"), updatedAt: FieldValue.serverTimestamp() });
+    return true;
+  });
+  if (!ok) {
+    log("rejectTeacherRequest.rejected", { reason: "NO_PENDING_REQUEST" });
+    throw new TeacherRoleError("NO_PENDING_REQUEST");
+  }
+  log("rejectTeacherRequest", {});
 }

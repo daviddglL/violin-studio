@@ -14,7 +14,9 @@ data class UserProfileDto(
     val policyVersion: Int?,
     val guardianEmailMasked: String?,
     val guardianSends: Int,
-    val deletionInProgress: Boolean
+    val deletionInProgress: Boolean,
+    /** `teacherRequest.status` tal cual; el mapper descarta lo desconocido. */
+    val teacherRequestStatus: String? = null
 ) {
     override fun toString(): String = "UserProfileDto(consentStatus=$consentStatus, isMinor=$isMinor)"
 }

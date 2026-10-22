@@ -12,6 +12,7 @@ import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.link.model.TeacherCode
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.profile.model.Instrument
+import com.violinstudio.domain.feature.profile.model.TeacherRequestStatus
 import java.io.IOException
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
@@ -146,5 +147,19 @@ class LinkRepositoryImplTest {
         functions.response = mapOf("revoked" to true)
         assertTrue(repo.revokeCode("h1").isSuccess)
         assertEquals(listOf("revokeCode", "h1"), functions.calls.single())
+    }
+
+    @Test
+    fun `requestTeacherRole devuelve el estado y mapea NOT_ELIGIBLE y la respuesta malformada`() = runTest {
+        functions.response = mapOf("status" to "pending")
+        assertEquals(TeacherRequestStatus.PENDING, repo.requestTeacherRole().getOrThrow())
+        assertEquals(listOf<Any?>("requestTeacherRole"), functions.calls.single())
+        functions.response = mapOf("status" to "nope")
+        assertSame(LinkFailure.Unknown, repo.requestTeacherRole().exceptionOrNull())
+        functions.failure = FunctionsCallException(
+            "FAILED_PRECONDITION",
+            mapOf("reason" to "NOT_ELIGIBLE", "deny" to "NOT_ADULT")
+        )
+        assertSame(LinkFailure.NotEligible, repo.requestTeacherRole().exceptionOrNull())
     }
 }

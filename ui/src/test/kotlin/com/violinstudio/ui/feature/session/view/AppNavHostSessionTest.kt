@@ -49,6 +49,7 @@ import com.violinstudio.ui.navigation.StudentsDestination
 import com.violinstudio.ui.navigation.TeacherAssignmentsDestination
 import com.violinstudio.ui.navigation.TeacherCodesDestination
 import com.violinstudio.ui.navigation.TeacherDemoDestination
+import com.violinstudio.ui.navigation.TeacherRequestDestination
 import com.violinstudio.ui.navigation.TunerDestination
 import com.violinstudio.ui.navigation.VideoCaptureDestination
 import com.violinstudio.ui.navigation.rootRoute
@@ -309,6 +310,7 @@ class AppNavHostSessionTest {
                 RecordingsDestination::class,
                 VideoCaptureDestination::class,
                 RedeemCodeDestination::class,
+                TeacherRequestDestination::class,
                 MyTeacherDestination::class,
                 StudentsDestination::class,
                 StudentDetailDestination::class,
