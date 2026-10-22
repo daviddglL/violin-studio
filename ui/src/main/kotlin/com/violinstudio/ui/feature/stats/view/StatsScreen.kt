@@ -25,9 +25,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.violinstudio.domain.feature.achievement.model.Achievement
+import com.violinstudio.domain.feature.achievement.model.AchievementProgress
 import com.violinstudio.domain.feature.practice.model.DayTotal
 import com.violinstudio.domain.feature.practice.model.PracticeStats
 import com.violinstudio.ui.R
@@ -47,8 +50,11 @@ const val STATS_STREAK_TAG = "stats_streak"
 const val STATS_WEEK_TAG = "stats_week"
 const val STATS_TRUNCATED_TAG = "stats_truncated"
 const val STATS_EMPTY_TAG = "stats_empty"
+const val STATS_ACHIEVEMENTS_TAG = "stats_achievements"
 
 fun statsDayTag(index: Int) = "stats_day_$index"
+
+fun achievementTag(achievement: Achievement) = "achievement_${achievement.name.lowercase()}"
 
 private val chartHeight = 120.dp
 
@@ -75,6 +81,9 @@ fun StatsScreen(state: StatsState, onIntent: (StatsIntent) -> Unit, onBack: () -
                 modifier = Modifier.testTag(STATS_EMPTY_TAG)
             )
             else -> StatsContent(stats)
+        }
+        if (!state.loading && !state.failed && stats != null && state.achievements.isNotEmpty()) {
+            AchievementsSection(state.achievements)
         }
         TextButton(onClick = onBack, modifier = Modifier.testTag(STATS_BACK_TAG)) {
             Text(stringResource(R.string.stats_back))
@@ -122,6 +131,69 @@ private fun StatsContent(stats: PracticeStats) {
             )
         }
     }
+}
+
+/** Logros calculados en el dispositivo; cada fila se lee entera (titulo, descripcion y estado). */
+@Composable
+private fun AchievementsSection(achievements: List<AchievementProgress>) {
+    Column(
+        Modifier.fillMaxWidth().testTag(STATS_ACHIEVEMENTS_TAG),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(stringResource(R.string.achievements_title), style = MaterialTheme.typography.titleMedium)
+        achievements.forEach { AchievementRow(it) }
+    }
+}
+
+@Composable
+private fun AchievementRow(progress: AchievementProgress) {
+    val achievement = progress.achievement
+    val status = if (progress.unlocked) {
+        stringResource(R.string.achievement_unlocked)
+    } else {
+        stringResource(R.string.achievement_progress, progress.current, achievement.target)
+    }
+    Card(Modifier.fillMaxWidth().testTag(achievementTag(achievement)).semantics(mergeDescendants = true) {}) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(achievement.title(), style = MaterialTheme.typography.titleSmall)
+                Text(achievement.description(), style = MaterialTheme.typography.bodyMedium)
+            }
+            Text(
+                status,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (progress.unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
+        }
+    }
+}
+
+@Composable
+private fun Achievement.title(): String = stringResource(
+    when (this) {
+        Achievement.FIRST_SESSION -> R.string.achievement_first_session
+        Achievement.SESSIONS_10 -> R.string.achievement_sessions_10
+        Achievement.SESSIONS_50 -> R.string.achievement_sessions_50
+        Achievement.STREAK_3 -> R.string.achievement_streak_3
+        Achievement.STREAK_7 -> R.string.achievement_streak_7
+        Achievement.STREAK_30 -> R.string.achievement_streak_30
+        Achievement.HOURS_1 -> R.string.achievement_hours_1
+        Achievement.HOURS_10 -> R.string.achievement_hours_10
+        Achievement.FIRST_LESSON -> R.string.achievement_first_lesson
+        Achievement.ALL_LESSONS -> R.string.achievement_all_lessons
+    }
+)
+
+@Composable
+private fun Achievement.description(): String = when (this) {
+    Achievement.FIRST_SESSION -> stringResource(R.string.achievement_first_session_desc)
+    Achievement.SESSIONS_10, Achievement.SESSIONS_50 -> stringResource(R.string.achievement_sessions_desc, target)
+    Achievement.STREAK_3, Achievement.STREAK_7, Achievement.STREAK_30 ->
+        stringResource(R.string.achievement_streak_desc, target)
+    Achievement.HOURS_1 -> stringResource(R.string.achievement_hours_1_desc)
+    Achievement.HOURS_10 -> stringResource(R.string.achievement_hours_desc, target)
+    Achievement.FIRST_LESSON -> stringResource(R.string.achievement_first_lesson_desc)
+    Achievement.ALL_LESSONS -> stringResource(R.string.achievement_all_lessons_desc, target)
 }
 
 @Composable

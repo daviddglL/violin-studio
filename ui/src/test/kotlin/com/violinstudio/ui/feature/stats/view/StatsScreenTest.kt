@@ -2,6 +2,7 @@ package com.violinstudio.ui.feature.stats.view
 
 import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -9,6 +10,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.violinstudio.domain.feature.achievement.model.Achievement
+import com.violinstudio.domain.feature.achievement.model.Achievements
 import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.domain.feature.practice.model.practiceStats
 import com.violinstudio.domain.feature.profile.model.Instrument
@@ -78,9 +81,35 @@ class StatsScreenTest {
     }
 
     @Test
+    fun `los logros muestran los conseguidos y el avance de los demas`() {
+        val stats = listOf(
+            session("2026-10-14T09:00:00Z", 1_800),
+            session("2026-10-13T09:00:00Z", 600)
+        ).practiceStats(now, ZoneOffset.UTC)
+        show(StatsState(loading = false, stats = stats, achievements = Achievements.of(stats, 0)))
+        compose.onNodeWithText("Logros").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(achievementTag(Achievement.FIRST_SESSION)).performScrollTo()
+            .assertTextContains("Conseguido")
+        compose.onNodeWithTag(achievementTag(Achievement.STREAK_7)).performScrollTo()
+            .assertTextContains("Practica 7 días seguidos.").assertTextContains("2 de 7")
+        compose.onNodeWithTag(achievementTag(Achievement.ALL_LESSONS)).performScrollTo()
+            .assertTextContains("Completa las 12 lecciones del currículo.")
+    }
+
+    @Test
+    fun `sin sesiones tambien muestra los logros`() {
+        val stats = emptyList<PracticeSession>().practiceStats(now, ZoneOffset.UTC)
+        show(StatsState(loading = false, stats = stats, achievements = Achievements.of(stats, 1)))
+        compose.onNodeWithTag(STATS_EMPTY_TAG).assertIsDisplayed()
+        compose.onNodeWithTag(achievementTag(Achievement.FIRST_LESSON)).performScrollTo()
+            .assertTextContains("Conseguido")
+    }
+
+    @Test
     fun `tras un fallo ofrece reintentar`() {
         show(StatsState(loading = false, failed = true))
         compose.onNodeWithText("No se pudieron cargar tus estadísticas.").assertIsDisplayed()
+        compose.onNodeWithTag(STATS_ACHIEVEMENTS_TAG).assertDoesNotExist()
         compose.onNodeWithTag(STATS_RETRY_TAG).performClick()
         assertEquals(listOf<StatsIntent>(StatsIntent.Retry), sent)
     }
