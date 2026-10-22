@@ -9,8 +9,8 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { requireVerifiedUser } from "./common/auth-guard";
 import { systemClock } from "./common/clock";
-import { recordingFlags } from "./config/features";
 import { GUARDIAN_FLOW_ENABLED } from "./config/identity";
+import { liveFeaturesReader } from "./config/live-features";
 import { callableOptions, httpOptions, REGION, storageTriggerRegion } from "./config/runtime";
 import { recordConsentHandler } from "./consent/record-consent";
 import { grantRecordingConsentHandler, PurgeRecordingsHook, revokeRecordingConsentHandler } from "./consent/recording-consent";
@@ -47,6 +47,9 @@ export { REGION };
 
 const admin = () => getApps()[0] ?? initializeApp();
 
+/** Interruptores de 4b/4c: entorno como techo y `appConfig/features` para apagarlos sin desplegar (cache de 1 min). */
+const liveFeatures = liveFeaturesReader({ db: () => getFirestore(admin()) });
+
 const erasureDeps = () => {
   const app = admin();
   const bucket = getStorage(app).bucket(resolveBucketName(app.options));
@@ -74,9 +77,15 @@ export const registerProfile = onCall(callableOptions(), async (request) => {
   );
 });
 
-export const identityConfig = onCall(callableOptions(), (request) => {
+export const identityConfig = onCall(callableOptions(), async (request) => {
   const app = admin();
-  return identityConfigHandler(request, { db: getFirestore(app), auth: getAuth(app) });
+  const live = await liveFeatures();
+  return identityConfigHandler(request, {
+    db: getFirestore(app),
+    auth: getAuth(app),
+    flags: live.flags,
+    chatEnabled: live.chatEnabled,
+  });
 });
 
 export const recordConsent = onCall(callableOptions(), async (request) => {
@@ -86,10 +95,10 @@ export const recordConsent = onCall(callableOptions(), async (request) => {
 });
 
 /** Consentimiento de grabación del propio usuario (14+); los <14 solo por el tutor. No toca la base ni los claims. */
-export const grantRecordingConsent = onCall(callableOptions(), (request) => {
+export const grantRecordingConsent = onCall(callableOptions(), async (request) => {
   const { uid } = requireVerifiedUser(request);
   return grantRecordingConsentHandler(
-    { db: getFirestore(admin()), clock: systemClock, flags: recordingFlags() },
+    { db: getFirestore(admin()), clock: systemClock, flags: (await liveFeatures()).flags },
     uid,
     request.data,
   );
@@ -117,6 +126,7 @@ export const requestGuardianConsent = onCall(
         pepper: GUARDIAN_EMAIL_PEPPER.value(),
         linkBaseUrl: guardianLinkBaseUrl(),
         guardianFlowEnabled: GUARDIAN_FLOW_ENABLED,
+        flags: (await liveFeatures()).flags,
       },
       uid,
       token.email,
@@ -128,7 +138,18 @@ export const requestGuardianConsent = onCall(
 /** Página del tutor (Hosting reescribe /tutor aquí). Sin secretos: el handler no necesita el pepper; sin App Check (lo abre un navegador). */
 export const guardianConsent = onRequest({ ...httpOptions, timeoutSeconds: 300 }, (req, res) => {
   const app = admin();
-  return guardianHttpAdapter((r) => guardianConsentHandler({ db: getFirestore(app), auth: getAuth(app), purgeRecordings: purgeRecordingsHook(), erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }) }, r))(req, res);
+  return guardianHttpAdapter(async (r) =>
+    guardianConsentHandler(
+      {
+        db: getFirestore(app),
+        auth: getAuth(app),
+        purgeRecordings: purgeRecordingsHook(),
+        erase: (uid) => eraseUserData(erasureDeps(), uid, { deleteAuth: true }),
+        flags: (await liveFeatures()).flags,
+      },
+      r,
+    ),
+  )(req, res);
 });
 
 /** Codigos de vinculo del profesor (REQ-LNK-01/02): el rol y el consentimiento se leen del doc, no del claim. */
@@ -211,7 +232,7 @@ export const finalizeRecording = onObjectFinalized(
         db: getFirestore(app),
         store: bucketStore(getStorage(app).bucket(event.data.bucket)),
         clock: systemClock,
-        flags: recordingFlags(),
+        flags: (await liveFeatures()).flags,
       },
       { name: event.data.name, generation: String(event.data.generation), time: event.time },
     );

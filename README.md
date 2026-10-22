@@ -162,6 +162,18 @@ El botón de vídeo solo aparece con `VIDEO_ENABLED=true` en `functions/.env.<pr
 
 Los mensajes viven en `chatMessages` (reglas, índice compuesto y TTL de `expireAt` en `firestore.rules` y `firestore.indexes.json`): solo las dos partes de un vínculo vivo los leen y escriben, y se borran al desvincular, al borrar la cuenta de cualquiera de las dos y a los 180 días. La app solo muestra el chat con `CHAT_ENABLED=true` en `functions/.env.<project-id>`. Antes de activarlo en producción, publica (`firebase deploy --only hosting`) la política que describe el chat, declara los mensajes en Play Console según [`docs/data-safety.md`](docs/data-safety.md) y despliega `firestore.rules` y `firestore.indexes.json` (con la política TTL de `chatMessages.expireAt`).
 
+### Interruptores en caliente
+
+`RECORDINGS_ENABLED`, `VIDEO_ENABLED`, `MINOR_RECORDING_ENABLED` y `CHAT_ENABLED` del `.env.<project-id>` son el
+techo: lo que está apagado ahí sigue apagado. Para apagar algo encendido sin redesplegar, crea en la consola de Firestore
+el documento `appConfig/features` con el campo a `false` (por ejemplo `videoEnabled: false` o `chatEnabled: false`).
+Un campo ausente o a `true` deja el valor del `.env`; cualquier otro valor apaga. Cada instancia de Functions relee el
+documento como mucho una vez por minuto, así que el cambio tarda hasta un minuto en llegar. Los clientes no pueden leerlo:
+la app recibe los interruptores ya combinados por `identityConfig`.
+
+Para activar una función de forma escalonada: crea antes el campo a `false`, despliega con la variable a `true` en el
+`.env` y, cuando quieras abrirla, borra el campo o ponlo a `true`.
+
 ### App Check en prod
 
 Play Integrity solo valida apps instaladas desde Google Play. Mientras la app se reparta por App

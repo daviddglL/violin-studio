@@ -18,6 +18,7 @@ describe("COLLECTIONS", () => {
       recordingCountLedger: "recordingCountLedger",
       maintenance: "maintenance",
       chatMessages: "chatMessages",
+      appConfig: "appConfig",
     });
   });
   test("CollectionName admite los valores registrados", () => {

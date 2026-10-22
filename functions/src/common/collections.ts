@@ -17,6 +17,8 @@ export const COLLECTIONS = {
   maintenance: "maintenance",
   /** `chatMessages/{id}`: mensajes del chat de un vinculo, con `teacherUid` y `studentUid` en el doc (fase 4c). */
   chatMessages: "chatMessages",
+  /** `appConfig/features`: interruptores en caliente que solo pueden apagar lo que el entorno enciende; solo servidor. */
+  appConfig: "appConfig",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

@@ -18,7 +18,7 @@ const contexts: [string, () => RulesTestContext][] = [
 ];
 
 // Colecciones del servidor: solo Admin SDK. Un match explícito por cada una (convención de fase 2).
-describe.each(["guardianRequests", "guardianEmailLimits", "mail", "maintenance", "coleccionDesconocida"])("%s", (name) => {
+describe.each(["guardianRequests", "guardianEmailLimits", "mail", "maintenance", "appConfig", "coleccionDesconocida"])("%s", (name) => {
   describe.each(contexts)("como %s", (_, ctx) => {
     beforeEach(async () => {
       await seed(env, `${name}/x`, { uid: "alice" });
