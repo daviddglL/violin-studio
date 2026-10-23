@@ -33,6 +33,8 @@ test("el registro cubre todas las colecciones con la política prevista", () => 
   expect(ERASABLE_COLLECTIONS.chatMessages).toEqual({ kind: "queryByFields", fields: ["teacherUid", "studentUid"] });
   // Avisos push: los tokens de FCM cuelgan del usuario y caen con el.
   expect(ERASABLE_COLLECTIONS.devices).toEqual({ kind: "subcollectionOf", parent: "users" });
+  // Progreso del curriculo: cuelga del usuario y cae con el.
+  expect(ERASABLE_COLLECTIONS.progress).toEqual({ kind: "subcollectionOf", parent: "users" });
   // B5a (W1): cursores de los trabajos diarios; sin uid completo (prefijo truncado), exenta con motivo.
   const maint = ERASABLE_COLLECTIONS.maintenance;
   expect(maint.kind).toBe("exempt");

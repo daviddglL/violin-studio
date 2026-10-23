@@ -2,6 +2,8 @@ package com.violinstudio.ui.feature.teacher.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.violinstudio.domain.feature.curriculum.model.CurriculumProgress
+import com.violinstudio.domain.feature.curriculum.usecase.ObserveStudentCurriculumUseCase
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.link.usecase.ObserveMyStudentsUseCase
 import com.violinstudio.domain.feature.link.usecase.ObserveStudentPracticeUseCase
@@ -18,15 +20,18 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
  * Registro de un alumno vinculado, solo lectura. El `studentUid` llega por la ruta (`SavedStateHandle`). El registro
  * solo se pide mientras el alumno sigue en la lista de vínculos; si el vínculo desaparece o las reglas deniegan
- * (el caso de uso emite vacío y termina), la vista se vacía y se vuelve atrás. Sin logs ni datos en errores
+ * (el caso de uso emite vacío y termina), la vista se vacía y se vuelve atrás. Las lecciones del currículo se leen
+ * aparte y nunca bloquean la vista: un fallo o una denegación las deja sin hacer. Sin logs ni datos en errores
  * (lección 8).
  */
 @HiltViewModel
@@ -35,19 +40,23 @@ class StudentDetailViewModel(
     private val observeStudents: ObserveMyStudentsUseCase,
     private val observePractice: ObserveStudentPracticeUseCase,
     private val clock: Clock,
-    private val zone: () -> ZoneId
+    /** Sin valor (tests anteriores al progreso en la nube): no se muestran las lecciones. */
+    private val observeCurriculum: (String) -> Flow<CurriculumProgress> = { emptyFlow() },
+    private val zone: () -> ZoneId = { ZoneId.systemDefault() }
 ) : MviViewModel<StudentDetailState, StudentDetailIntent, StudentDetailEffect>(StudentDetailState()) {
     @Inject
     constructor(
         savedStateHandle: SavedStateHandle,
         observeStudents: ObserveMyStudentsUseCase,
         observePractice: ObserveStudentPracticeUseCase,
+        observeCurriculum: ObserveStudentCurriculumUseCase,
         clock: Clock
-    ) : this(savedStateHandle, observeStudents, observePractice, clock, { ZoneId.systemDefault() })
+    ) : this(savedStateHandle, observeStudents, observePractice, clock, { observeCurriculum(it) })
 
     private val studentUid: String? = savedStateHandle.get<String>(STUDENT_UID_KEY)
     private var linkObserver: Job? = null
     private var practiceObserver: Job? = null
+    private var curriculumObserver: Job? = null
     private var seenLink = false
     private var pendingEmpty: Job? = null
     private var weekRollover: Job? = null
@@ -61,6 +70,7 @@ class StudentDetailViewModel(
     private fun start() {
         linkObserver?.cancel()
         practiceObserver?.cancel()
+        curriculumObserver?.cancel()
         pendingEmpty?.cancel()
         weekRollover?.cancel()
         shownSessions = null
@@ -97,6 +107,7 @@ class StudentDetailViewModel(
         if (!seenLink) {
             seenLink = true
             practiceObserver = viewModelScope.launch { collectPractice(uid) }
+            curriculumObserver = viewModelScope.launch { collectCurriculum(uid) }
         }
     }
 
@@ -111,6 +122,16 @@ class StudentDetailViewModel(
             throw e
         } catch (_: Throwable) {
             setState { copy(isLoading = false, loadFailed = true) }
+        }
+    }
+
+    private suspend fun collectCurriculum(uid: String) {
+        try {
+            observeCurriculum(uid).collect { progress -> if (!gone) setState { copy(curriculum = progress) } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // El repositorio ya convierte los fallos en "nada hecho"; si aun asi falla, la linea no se muestra.
         }
     }
 
@@ -144,10 +165,18 @@ class StudentDetailViewModel(
         if (gone) return
         gone = true
         practiceObserver?.cancel()
+        curriculumObserver?.cancel()
         pendingEmpty?.cancel()
         weekRollover?.cancel()
         setState {
-            copy(isLoading = false, unavailable = true, link = null, sessions = emptyList(), weeklyTotalSec = 0)
+            copy(
+                isLoading = false,
+                unavailable = true,
+                link = null,
+                sessions = emptyList(),
+                weeklyTotalSec = 0,
+                curriculum = null
+            )
         }
         sendEffect(StudentDetailEffect.NavigateBack)
     }

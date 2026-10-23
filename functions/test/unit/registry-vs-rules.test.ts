@@ -166,6 +166,7 @@ test("toda subcoleccion registrada tiene su match explicito bajo su padre inmedi
   expect(declared).toContainEqual({ name: "reviews", parent: "recordings" });
   expect(declared).toContainEqual({ name: "recordingCountLedger", parent: "users" });
   expect(declared).toContainEqual({ name: "devices", parent: "users" });
+  expect(declared).toContainEqual({ name: "progress", parent: "users" });
 });
 
 test("las colecciones solo-servidor de B5a (ledger del cupo, cursores de mantenimiento) son deny total", () => {

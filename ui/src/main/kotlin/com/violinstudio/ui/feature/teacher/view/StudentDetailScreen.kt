@@ -34,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.ObserveAsEvents
+import com.violinstudio.ui.feature.curriculum.view.lessonTexts
 import com.violinstudio.ui.feature.practice.view.SessionItem
 import com.violinstudio.ui.feature.practice.view.practiceDuration
 import com.violinstudio.ui.feature.teacher.viewmodel.StudentDetailEffect
@@ -46,6 +47,7 @@ const val STUDENT_DETAIL_TAG = "student_detail"
 const val STUDENT_DETAIL_BACK_TAG = "student_detail_back"
 const val STUDENT_DETAIL_NAME_TAG = "student_detail_name"
 const val STUDENT_DETAIL_WEEKLY_TAG = "student_detail_weekly"
+const val STUDENT_DETAIL_CURRICULUM_TAG = "student_detail_curriculum"
 const val STUDENT_DETAIL_EMPTY_TAG = "student_detail_empty"
 const val STUDENT_DETAIL_LOADING_TAG = "student_detail_loading"
 const val STUDENT_DETAIL_UNAVAILABLE_TAG = "student_detail_unavailable"
@@ -169,6 +171,22 @@ private fun LazyListScope.content(
                 onClick = open,
                 modifier = Modifier.fillMaxWidth().testTag(STUDENT_DETAIL_CHAT_TAG)
             ) { Text(stringResource(R.string.chat_open)) }
+        }
+    }
+    state.curriculum?.let { progress ->
+        item {
+            Column(Modifier.testTag(STUDENT_DETAIL_CURRICULUM_TAG)) {
+                Text(stringResource(R.string.teacher_student_curriculum, progress.done, progress.total))
+                val next = progress.next?.let { lessonTexts(it.id) }
+                Text(
+                    if (next != null) {
+                        stringResource(R.string.curriculum_next, stringResource(next.title))
+                    } else {
+                        stringResource(R.string.teacher_student_curriculum_all_done)
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
     item {

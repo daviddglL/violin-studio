@@ -389,6 +389,8 @@
     <string name="teacher_codes_error_revoke">No se ha podido revocar el código. Inténtalo de nuevo.</string>
     <string name="teacher_code_revoke_desc">Revocar código terminado en %1$s</string>
     <string name="teacher_student_detail_readonly">Vista de solo lectura: ves las sesiones y las notas de tu alumno, pero no puedes modificarlas.</string>
+    <string name="teacher_student_curriculum">Lecciones del currículo: %1$d de %2$d hechas</string>
+    <string name="teacher_student_curriculum_all_done">Ha completado todas las lecciones.</string>
     <string name="teacher_student_detail_empty">Este alumno todavía no ha registrado sesiones.</string>
     <string name="teacher_student_detail_unavailable">Este alumno no está disponible. Puede que ya no esté vinculado contigo.</string>
     <string name="teacher_student_detail_load_failed">No se ha podido cargar el registro del alumno. Inténtalo de nuevo.</string>

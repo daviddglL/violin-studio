@@ -1,6 +1,9 @@
 package com.violinstudio.ui.feature.teacher.view
 
 import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -11,9 +14,11 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.violinstudio.domain.feature.curriculum.model.CurriculumProgress
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.domain.feature.profile.model.Instrument
@@ -71,6 +76,22 @@ class StudentDetailScreenTest {
         compose.onNodeWithTag(practiceItemTag("a")).assertIsDisplayed()
         compose.onNodeWithTag(practiceItemTag("b")).assertIsDisplayed()
         compose.onAllNodesWithText("escalas en re").assertCountEquals(1)
+    }
+
+    @Test
+    fun `muestra las lecciones hechas del alumno solo cuando hay progreso`() {
+        var state by mutableStateOf(
+            StudentDetailState(isLoading = false, link = ana, sessions = sessions, weeklyTotalSec = 1_800)
+        )
+        compose.setContent {
+            ViolinStudioTheme {
+                StudentDetailScreen(state, { intents += it }, onBack = { back++ }, zone = ZoneOffset.UTC)
+            }
+        }
+        compose.onAllNodesWithTag(STUDENT_DETAIL_CURRICULUM_TAG).assertCountEquals(0)
+        state = state.copy(curriculum = CurriculumProgress.of(setOf("b1_posture", "b2_bow_hold")))
+        compose.onNodeWithTag(STUDENT_DETAIL_CURRICULUM_TAG).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.teacher_student_curriculum, 2, 12)).assertIsDisplayed()
     }
 
     @Test

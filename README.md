@@ -7,9 +7,9 @@ alumnos que trabajan con un profesor.
 
 - **Práctica diaria**: afinador, metrónomo, registro de sesiones con notas, estadísticas (rachas, semana, últimos
   30 días y gráfico de los últimos 7 días), 10 logros calculados en el dispositivo y un currículo de 12 lecciones en
-  3 niveles que enlaza con el afinador y el metrónomo.
-- **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica, le asigna
-  tareas que el alumno marca como hechas y ambos pueden escribirse por chat.
+  3 niveles que enlaza con el afinador y el metrónomo (el progreso se guarda en la nube y sobrevive a un cambio de móvil).
+- **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica y sus
+  lecciones hechas, le asigna tareas que el alumno marca como hechas y ambos pueden escribirse por chat.
 - **Grabaciones**: el alumno graba audio o vídeo de su práctica y el profesor lo revisa; el profesor puede mandar
   demostraciones. En los vídeos las caras se difuminan en el móvil antes de guardarlos.
 - **Privacidad desde el diseño**: cuentas con email o Google, consentimiento versionado, autorización del tutor para

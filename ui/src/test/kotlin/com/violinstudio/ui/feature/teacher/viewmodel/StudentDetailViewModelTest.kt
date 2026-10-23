@@ -2,6 +2,7 @@ package com.violinstudio.ui.feature.teacher.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.violinstudio.domain.feature.curriculum.model.CurriculumProgress
 import com.violinstudio.domain.feature.link.failure.LinkFailure
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.link.usecase.ObserveMyStudentsUseCase
@@ -130,6 +131,36 @@ class StudentDetailViewModelTest {
         advanceTimeBy(60_000)
         runCurrent()
         assertTrue(vm.state.value.weeklyTotalSec == 120)
+    }
+
+    @Test
+    fun `las lecciones del alumno se leen tras ver el vinculo y se vacian al perderlo`() = runTest {
+        every { observeStudents() } returns students
+        every { observePractice("s1") } returns practice
+        val curriculum = MutableSharedFlow<CurriculumProgress>(replay = 1)
+        val asked = mutableListOf<String>()
+        val vm = StudentDetailViewModel(
+            SavedStateHandle(mapOf("studentUid" to "s1")),
+            observeStudents,
+            observePractice,
+            clock,
+            { uid ->
+                asked += uid
+                curriculum
+            }
+        ) { ZoneOffset.UTC }.also { created += it }
+        runCurrent()
+        assertTrue(asked.isEmpty())
+        students.emit(listOf(ana))
+        practice.emit(listOf(thisWeek))
+        curriculum.emit(CurriculumProgress.of(setOf("b1_posture", "b2_bow_hold")))
+        runCurrent()
+        assertTrue(asked == listOf("s1"))
+        assertTrue(vm.state.value.curriculum?.done == 2)
+        students.emit(emptyList())
+        advanceTimeBy(SETTLE_MS + 1)
+        runCurrent()
+        assertTrue(vm.state.value.unavailable && vm.state.value.curriculum == null)
     }
 
     @Test

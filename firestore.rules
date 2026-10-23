@@ -93,6 +93,16 @@ service cloud.firestore {
     function validDone(d) {
       return (d.status == 'done' && d.doneAt == request.time) || (d.status == 'open' && !('doneAt' in d));
     }
+    // Progreso del curriculo (`users/{uid}/progress/curriculum`): lista de lecciones hechas, sin repetidas y solo con ids
+    // del curriculo fijo de la app (espeja `Curriculum` de dominio; paridad en functions/test/unit/curriculum-rules-parity.test.ts).
+    function validProgress(d) {
+      return d.keys().hasOnly(['completed', 'updatedAt']) && d.keys().hasAll(['completed', 'updatedAt'])
+        && d.completed is list && d.completed.size() <= 12 && d.completed.toSet().size() == d.completed.size()
+        && d.completed.hasOnly(['b1_posture', 'b2_bow_hold', 'b3_open_strings', 'b4_tuning',
+          'e1_finger_pattern', 'e2_d_major_scale', 'e3_bow_distribution', 'e4_string_crossing',
+          'i1_g_major_two_octaves', 'i2_dynamics', 'i3_third_position', 'i4_vibrato'])
+        && d.updatedAt == request.time;
+    }
     function validNotes(d) { return !('notes' in d) || (d.notes is string && d.notes.size() <= 500); }
     // Sin campos de audio posibles: hasOnly cierra el esquema.
     function validSession(d) {
@@ -136,6 +146,16 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes'])
           && validNotes(request.resource.data);
         allow delete: if isOwner(uid); // supresión siempre disponible, sin consentimiento
+      }
+
+      // Progreso del curriculo: un unico doc `curriculum`. El profesor vinculado solo lee (como el registro de practica).
+      // Sin `list`: se lee por id. Accesos: dueno 0 en lectura y 1 get (userDocActive) al escribir; profesor 3 (3 get).
+      match /progress/{id} {
+        allow get: if isOwner(uid) || isLinkedTeacher(uid);
+        allow list: if false;
+        allow create, update: if id == 'curriculum' && isOwner(uid) && emailVerified() && hasConsent() && userDocActive(uid)
+          && validProgress(request.resource.data);
+        allow delete: if isOwner(uid); // supresion siempre disponible, sin consentimiento
       }
 
       // Tareas del profesor al alumno (REQ-ASG-01..04). El profesor opera solo mientras exista el vinculo (nunca por
