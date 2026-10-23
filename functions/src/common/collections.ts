@@ -19,6 +19,8 @@ export const COLLECTIONS = {
   chatMessages: "chatMessages",
   /** `appConfig/features`: interruptores en caliente que solo pueden apagar lo que el entorno enciende; solo servidor. */
   appConfig: "appConfig",
+  /** `users/{uid}/devices/{sha256(token)}`: tokens de FCM para los avisos push; solo servidor. */
+  devices: "devices",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

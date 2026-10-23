@@ -1,10 +1,11 @@
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
 import * as functionsV1 from "firebase-functions/v1";
-import { onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
-import { onCall, onRequest } from "firebase-functions/v2/https";
+import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { requireVerifiedUser } from "./common/auth-guard";
@@ -20,6 +21,9 @@ import { deleteAccountHandler } from "./erasure/delete-account";
 import { eraseUserData } from "./erasure/erase-user-data";
 import { onUserDeletedHandler } from "./erasure/on-user-deleted";
 import { guardianConsentHandler } from "./guardian/confirm";
+import { registerDeviceHandler, unregisterDeviceHandler } from "./notifications/devices";
+import { fcmMessaging } from "./notifications/fcm";
+import { assignmentRecipient, chatRecipient, NotificationKind, notifyUser, reviewRecipient } from "./notifications/notify";
 import { guardianLinkBaseUrl } from "./guardian/config";
 import { guardianHttpAdapter } from "./guardian/http";
 import { GUARDIAN_EMAIL_PEPPER } from "./guardian/pepper";
@@ -86,6 +90,7 @@ export const identityConfig = onCall(callableOptions(), async (request) => {
     auth: getAuth(app),
     flags: live.flags,
     chatEnabled: live.chatEnabled,
+    notificationsEnabled: live.notificationsEnabled,
   });
 });
 
@@ -292,4 +297,51 @@ export const sweepRecordingOrphans = onSchedule(
     const app = admin();
     await sweepOrphansHandler({ db: getFirestore(app), store: bucketSweepStore(getStorage(app).bucket(resolveBucketName(app.options))) });
   },
+);
+
+/** Token de FCM del dispositivo (avisos push). Solo con email verificado; el cliente lo llama con el interruptor encendido. */
+export const registerDevice = onCall(callableOptions(), (request) => {
+  const { uid } = requireVerifiedUser(request);
+  return registerDeviceHandler({ db: getFirestore(admin()) }, uid, (request.data as { token?: unknown } | undefined)?.token);
+});
+
+/** Al cerrar sesion: basta con la sesion (un email sin verificar tambien puede tener un token antiguo). */
+export const unregisterDevice = onCall(callableOptions(), (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Se requiere sesión");
+  return unregisterDeviceHandler(
+    { db: getFirestore(admin()) },
+    request.auth.uid,
+    (request.data as { token?: unknown } | undefined)?.token,
+  );
+});
+
+/** Aviso al destinatario; sin reintentos: un aviso duplicado molesta mas que uno perdido. */
+const notify = (uid: string | undefined, kind: NotificationKind) => {
+  if (uid === undefined) return Promise.resolve();
+  const app = admin();
+  return notifyUser(
+    {
+      db: getFirestore(app),
+      messaging: fcmMessaging(getMessaging(app)),
+      enabled: async () => (await liveFeatures()).notificationsEnabled,
+    },
+    uid,
+    kind,
+  ).then(() => undefined);
+};
+
+const notifyOptions = { region: REGION, maxInstances: 10, retry: false } as const;
+
+export const notifyChatMessage = onDocumentCreated({ document: "chatMessages/{id}", ...notifyOptions }, (event) =>
+  notify(chatRecipient(event.data?.data()), "chat"),
+);
+
+export const notifyReview = onDocumentCreated(
+  { document: "users/{uid}/recordings/{recordingId}/reviews/{reviewId}", ...notifyOptions },
+  (event) => notify(reviewRecipient(event.params.uid, event.data?.data()), "review"),
+);
+
+export const notifyAssignment = onDocumentCreated(
+  { document: "users/{uid}/assignments/{assignmentId}", ...notifyOptions },
+  (event) => notify(assignmentRecipient(event.params.uid, event.data?.data()), "assignment"),
 );

@@ -50,6 +50,8 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   // Chat (fase 4c): los mensajes llevan los dos uids; caen al borrar a cualquiera de las partes (y antes, al desvincular,
   // por el paso de `removeLink`, y a los 180 dias por TTL).
   chatMessages: { kind: "queryByFields", fields: ["teacherUid", "studentUid"] },
+  // Tokens de FCM: caen con el `recursiveDelete` del usuario (y antes, al cerrar sesion o cuando FCM los invalida).
+  devices: { kind: "subcollectionOf", parent: "users" },
   appConfig: { kind: "exempt", reason: "configuracion global de la app (interruptores); no contiene datos de usuarios" },
   maintenance: {
     kind: "exempt",

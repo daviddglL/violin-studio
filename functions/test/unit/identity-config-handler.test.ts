@@ -70,6 +70,10 @@ test("el interruptor del chat se expone; sin inyeccion sale del entorno (encendi
   const { db, auth } = fakes(granted, { role: "independent", consentOk: true });
   expect(await identityConfigHandler(req(true), { db, auth, currentVersion: 1, chatEnabled: false } as never)).toMatchObject({ chatEnabled: false });
   expect(await identityConfigHandler(req(true), { db, auth, currentVersion: 1 } as never)).toMatchObject({ chatEnabled: true });
+  expect(await identityConfigHandler(req(true), { db, auth, currentVersion: 1, notificationsEnabled: false } as never))
+    .toMatchObject({ notificationsEnabled: false });
+  expect(await identityConfigHandler(req(true), { db, auth, currentVersion: 1 } as never))
+    .toMatchObject({ notificationsEnabled: true });
 });
 
 describe("interruptores de grabación y versión del consentimiento (REQ-REC-02, A19)", () => {

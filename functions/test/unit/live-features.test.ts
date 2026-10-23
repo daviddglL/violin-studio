@@ -4,16 +4,19 @@ import { applyRemote, FEATURES_CACHE_MS, LiveFeatures, liveFeaturesReader } from
 const ALL_ON: LiveFeatures = {
   flags: { recordingsEnabled: true, videoEnabled: true, minorRecordingEnabled: true },
   chatEnabled: true,
+  notificationsEnabled: true,
 };
 const ALL_OFF: LiveFeatures = {
   flags: { recordingsEnabled: false, videoEnabled: false, minorRecordingEnabled: false },
   chatEnabled: false,
+  notificationsEnabled: false,
 };
 const ENV_ON = {
   RECORDINGS_ENABLED: "true",
   VIDEO_ENABLED: "true",
   MINOR_RECORDING_ENABLED: "true",
   CHAT_ENABLED: "true",
+  NOTIFICATIONS_ENABLED: "true",
 };
 
 /** Firestore minimo: `collection(c).doc(d).get()` devuelve lo que diga `read`, y cuenta las lecturas. */
@@ -43,11 +46,15 @@ describe("applyRemote", () => {
     expect(applyRemote(ALL_ON, { videoEnabled: false, chatEnabled: false })).toEqual({
       flags: { recordingsEnabled: true, videoEnabled: false, minorRecordingEnabled: true },
       chatEnabled: false,
+      notificationsEnabled: true,
     });
+    expect(applyRemote(ALL_ON, { notificationsEnabled: false })).toEqual({ ...ALL_ON, notificationsEnabled: false });
   });
 
   test("el doc nunca enciende lo que el entorno tiene apagado", () => {
-    const remote = { recordingsEnabled: true, videoEnabled: true, minorRecordingEnabled: true, chatEnabled: true };
+    const remote = {
+      recordingsEnabled: true, videoEnabled: true, minorRecordingEnabled: true, chatEnabled: true, notificationsEnabled: true,
+    };
     expect(applyRemote(ALL_OFF, remote)).toEqual(ALL_OFF);
   });
 

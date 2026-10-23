@@ -184,9 +184,14 @@ class SessionStateResolverTest {
     @Test
     fun `Ready lleva los interruptores de grabaciones y chat del servidor`() {
         assertEquals(SessionFeatures(), (resolver(password, profile(), config) as SessionState.Ready).features)
-        val on = config.copy(recordingsEnabled = true, chatEnabled = true, videoEnabled = true)
+        val on = config.copy(
+            recordingsEnabled = true,
+            chatEnabled = true,
+            videoEnabled = true,
+            notificationsEnabled = true
+        )
         assertEquals(
-            SessionState.Ready(profile(), SessionFeatures(recordings = true, chat = true)),
+            SessionState.Ready(profile(), SessionFeatures(recordings = true, chat = true, notifications = true)),
             resolver(password, profile(), on)
         )
     }

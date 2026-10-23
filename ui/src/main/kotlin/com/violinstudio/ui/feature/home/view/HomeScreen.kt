@@ -139,6 +139,11 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
                     Text(stringResource(R.string.home_teacher_request_card))
                 }
             }
+            it.onEnableNotifications?.let { enable ->
+                OutlinedButton(onClick = enable, modifier = Modifier.testTag("home_enable_notifications")) {
+                    Text(stringResource(R.string.home_enable_notifications))
+                }
+            }
             it.onOpenAssignments?.let { open ->
                 OutlinedButton(onClick = open, modifier = Modifier.testTag("home_assignments")) {
                     Text(stringResource(R.string.home_assignments_card))
@@ -183,5 +188,7 @@ data class HomeNavigation(
     /** Comunes a todos los roles; nulos solo en tests que no los usan. */
     val onOpenStats: (() -> Unit)? = null,
     val onOpenCurriculum: (() -> Unit)? = null,
-    val onOpenRecordings: (() -> Unit)? = null
+    val onOpenRecordings: (() -> Unit)? = null,
+    /** Pide el permiso de avisos (Android 13+); solo con los avisos encendidos y el permiso sin conceder. */
+    val onEnableNotifications: (() -> Unit)? = null
 )

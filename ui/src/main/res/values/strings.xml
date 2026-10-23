@@ -298,6 +298,15 @@
     <string name="practice_message_unknown">No se pudo completar la acción. Inténtalo de nuevo.</string>
     <string name="home_redeem_card">Vincular con profesor</string>
     <string name="home_teacher_request_card">Quiero dar clase</string>
+    <string name="home_enable_notifications">Activar avisos</string>
+    <string name="push_channel_name">Actividad</string>
+    <string name="push_channel_description">Mensajes, revisiones y tareas de tu profesor o de tus alumnos.</string>
+    <string name="push_chat_title">Mensaje nuevo</string>
+    <string name="push_chat_body">Tienes un mensaje nuevo en el chat.</string>
+    <string name="push_review_title">Revisión nueva</string>
+    <string name="push_review_body">Tu profesor ha revisado una de tus grabaciones.</string>
+    <string name="push_assignment_title">Tarea nueva</string>
+    <string name="push_assignment_body">Tu profesor te ha puesto una tarea nueva.</string>
     <string name="teacher_request_title">Hazte profesor</string>
     <string name="teacher_request_intro">Como profesor podrás crear códigos para que tus alumnos se vinculen contigo, ver su práctica, asignarles tareas y revisar sus grabaciones.</string>
     <string name="teacher_request_review_notice">Revisamos cada solicitud a mano antes de dar el alta. Guardamos el estado de la solicitud y sus fechas, y se borran con tu cuenta.</string>

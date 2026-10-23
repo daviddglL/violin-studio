@@ -38,5 +38,8 @@ object UserKeys {
 
     fun completedLessons(uid: String) = stringSetPreferencesKey("${prefix(uid)}curriculum.completed")
 
+    /** Token de FCM que este usuario registro desde este dispositivo (para darlo de baja al cerrar sesion). */
+    fun pushToken(uid: String) = stringPreferencesKey("${prefix(uid)}push.token")
+
     fun belongsTo(key: Preferences.Key<*>, uid: String) = key.name.startsWith(prefix(uid))
 }

@@ -24,6 +24,8 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
+    // Avisos push: solo se pide el token con NOTIFICATIONS_ENABLED (auto-init apagado en el manifiesto de app).
+    implementation(libs.firebase.messaging)
     api(libs.firebase.functions)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.datastore.preferences)

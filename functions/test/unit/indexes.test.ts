@@ -99,6 +99,12 @@ describe("firestore.indexes.json", () => {
     expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION" });
   });
 
+  test("devices.token: indice COLLECTION_GROUP (registerDevice quita el token de otras cuentas)", () => {
+    const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === "devices" && f.fieldPath === "token");
+    expect(o).toBeDefined();
+    expect(o.indexes).toContainEqual({ order: "ASCENDING", queryScope: "COLLECTION_GROUP" });
+  });
+
   test("recordingCountLedger.expireAt: TTL (marcas de idempotencia del decremento del cupo, B5a W2)", () => {
     const o = cfg.fieldOverrides.find((f: { collectionGroup: string; fieldPath: string }) => f.collectionGroup === "recordingCountLedger" && f.fieldPath === "expireAt");
     expect(o).toBeDefined();

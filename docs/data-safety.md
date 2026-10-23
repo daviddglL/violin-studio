@@ -72,6 +72,23 @@ Controles técnicos: las reglas de Firestore solo dejan leer y escribir a las do
 verificado, consentimiento vigente y ambas cuentas activas; el esquema del mensaje es cerrado, sin edición, y
 `expireAt` solo se acepta entre 170 y 181 días después de la escritura.
 
+## Avisos push
+
+Se activa con `NOTIFICATIONS_ENABLED` (apagado en producción sin variable; también se puede apagar en caliente con
+`appConfig/features.notificationsEnabled`). Lo que añade a la declaración de Play Console:
+
+| Pregunta | Respuesta | Motivo |
+|---|---|---|
+| Identificadores del dispositivo u otros | Recopilado; **no compartido**; opcional | Token de FCM en `users/{uid}/devices/{sha256(token)}`, solo para enviar los avisos |
+| ¿Se comparten con terceros? | No | Lo usa Firebase Cloud Messaging (encargado) para entregar el aviso |
+| Contenido del aviso | Sin datos personales | Solo claves de texto (`push_chat_*`, `push_review_*`, `push_assignment_*`) y el tipo |
+| Borrado | Al cerrar sesión, al borrar la cuenta y cuando FCM lo invalida | `unregisterDevice`, `recursiveDelete` del usuario y limpieza en `notifyUser` |
+
+Controles técnicos: FCM arranca sin auto-inicio (`firebase_messaging_auto_init_enabled=false`), así que el token solo
+existe si el servidor tiene los avisos encendidos y hay sesión; `POST_NOTIFICATIONS` solo se pide al pulsar «Activar
+avisos»; las reglas niegan `devices` a cualquier cliente; un token se quita de otra cuenta al registrarlo (dispositivo
+compartido) y hay como mucho 10 por usuario. Los avisos no se reintentan (un duplicado molesta más que uno perdido).
+
 ## Grabaciones de vídeo (fase 4c)
 
 Se activa con `VIDEO_ENABLED`. Lo que añade el vídeo a la declaración de Play Console:

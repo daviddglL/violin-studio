@@ -3,6 +3,7 @@ package com.violinstudio.ui.feature.session.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
+import com.violinstudio.domain.feature.notification.usecase.SyncPushTokenUseCase
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.domain.feature.session.usecase.ObserveSessionStateUseCase
 import com.violinstudio.ui.commons.mvi.MviViewModel
@@ -16,8 +17,11 @@ import kotlinx.coroutines.launch
 class SessionViewModel @Inject constructor(
     private val observeSession: ObserveSessionStateUseCase,
     private val signOut: SignOutUseCase,
-    private val backoff: RetryBackoff
+    private val backoff: RetryBackoff,
+    private val syncPushToken: SyncPushTokenUseCase
 ) : MviViewModel<SessionUiState, SessionIntent, SessionEffect>(SessionUiState()) {
+    /** Uid cuyo token de avisos ya se registro en esta sesion de la app (uno por uid y arranque). */
+    private var pushSyncedFor: String? = null
 
     init {
         viewModelScope.launch { collectSessionForever() }
@@ -35,6 +39,7 @@ class SessionViewModel @Inject constructor(
                 observeSession().collect { session ->
                     attempt = 0
                     setState { copy(session = session) }
+                    syncPushIfNeeded(session)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -43,6 +48,31 @@ class SessionViewModel @Inject constructor(
             }
             setState { copy(session = SessionState.Unavailable) }
             delay(backoff.delayFor(attempt++))
+        }
+    }
+
+    /**
+     * Con la sesion lista y los avisos encendidos registra el token una vez por uid (lo mejor posible: un fallo se
+     * reintenta en el siguiente arranque). Al salir de la sesion se olvida, para volver a registrar al entrar.
+     */
+    private fun syncPushIfNeeded(session: SessionState) {
+        when {
+            session is SessionState.Ready && session.features.notifications -> {
+                val uid = session.profile.uid
+                if (pushSyncedFor == uid) return
+                pushSyncedFor = uid
+                viewModelScope.launch {
+                    try {
+                        syncPushToken(uid)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Throwable) {
+                        // Sin registrar la causa.
+                    }
+                }
+            }
+            session is SessionState.LoggedOut -> pushSyncedFor = null
+            else -> Unit
         }
     }
 
