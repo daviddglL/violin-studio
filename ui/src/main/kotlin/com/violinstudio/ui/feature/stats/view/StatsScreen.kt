@@ -211,7 +211,7 @@ private fun StatCard(title: String, value: String, detail: String, tag: String? 
 @Composable
 private fun WeekChart(days: List<DayTotal>) {
     val resources = LocalContext.current.resources
-    val locale: Locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val locale: Locale = LocalConfiguration.current.locales[0]
     val max = days.maxOfOrNull { it.seconds }?.coerceAtLeast(1) ?: 1
     Row(
         modifier = Modifier.fillMaxWidth().height(chartHeight + 24.dp),

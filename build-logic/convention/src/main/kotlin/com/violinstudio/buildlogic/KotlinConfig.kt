@@ -9,7 +9,10 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
 
-internal const val COMPILE_SDK = 36
+internal const val COMPILE_SDK = 37
+
+/** Separado de COMPILE_SDK: Compose 1.12 exige compilar contra 37, pero subir el target cambia el comportamiento. */
+internal const val TARGET_SDK = 36
 internal const val MIN_SDK = 26
 internal const val JDK = 21
 internal val JAVA_VERSION = JavaVersion.VERSION_21

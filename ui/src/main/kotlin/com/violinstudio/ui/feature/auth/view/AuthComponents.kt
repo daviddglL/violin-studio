@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalComposeUiApi::class)
-
 package com.violinstudio.ui.feature.auth.view
 
 import android.app.Activity
@@ -24,7 +22,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,19 +29,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.AutofillNode
-import androidx.compose.ui.autofill.AutofillType
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalAutofill
-import androidx.compose.ui.platform.LocalAutofillTree
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -84,7 +75,7 @@ internal fun AuthTextField(
     label: String,
     error: String?,
     tag: String,
-    autofillTypes: List<AutofillType>,
+    contentType: ContentType?,
     isPassword: Boolean = false,
     enabled: Boolean = true,
     onDone: (() -> Unit)? = null
@@ -103,7 +94,7 @@ internal fun AuthTextField(
             imeAction = if (onDone != null) ImeAction.Done else ImeAction.Next
         ),
         keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
-        modifier = Modifier.fillMaxWidth().autofill(autofillTypes, onValueChange).testTag(tag)
+        modifier = Modifier.fillMaxWidth().autofill(contentType).testTag(tag)
     )
     Spacer(Modifier.height(8.dp))
 }
@@ -129,24 +120,15 @@ internal fun AuthSubmitButton(label: String, enabled: Boolean, onClick: () -> Un
     }
 }
 
+/** El email de la cuenta también es su usuario: el gestor puede ofrecer cualquiera de los dos. */
+internal val accountEmailContentType: ContentType = ContentType.Username + ContentType.EmailAddress
+
 /**
- * Declara qué rellena el gestor de contraseñas en este campo (Compose 1.7 aún no expone `ContentType` público). El
- * valor rellenado entra por el mismo callback que lo escrito a mano, es decir, como un intent más.
+ * Declara qué rellena el gestor de contraseñas en este campo. El valor rellenado llega por la acción semántica de fijar
+ * texto del propio campo, es decir, por el mismo `onValueChange` que lo escrito a mano: un intent más.
  */
-@Composable
-private fun Modifier.autofill(types: List<AutofillType>, onFill: (String) -> Unit): Modifier {
-    val autofill = LocalAutofill.current
-    val tree = LocalAutofillTree.current
-    val latest by rememberUpdatedState(onFill)
-    val node = remember(types) { AutofillNode(autofillTypes = types, onFill = { latest(it) }) }
-    DisposableEffect(node) {
-        tree += node
-        onDispose { tree.children.remove(node.id) }
-    }
-    return onGloballyPositioned { node.boundingBox = it.boundsInWindow() }.onFocusChanged {
-        if (it.isFocused) autofill?.requestAutofillForNode(node) else autofill?.cancelAutofillForNode(node)
-    }
-}
+private fun Modifier.autofill(type: ContentType?): Modifier =
+    if (type == null) this else semantics { contentType = type }
 
 /**
  * Pide el token a Credential Manager (a través del solicitante de `CompositionLocal`, que necesita la Activity). Cancelar

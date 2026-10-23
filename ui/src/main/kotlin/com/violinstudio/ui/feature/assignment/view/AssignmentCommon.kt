@@ -19,7 +19,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.core.os.ConfigurationCompat
 import com.violinstudio.domain.feature.assignment.model.Assignment
 import com.violinstudio.domain.feature.assignment.model.AssignmentStatus
 import com.violinstudio.ui.R
@@ -49,9 +48,8 @@ internal fun pickerMillisToLocalDate(millis: Long): LocalDate =
 @Composable
 internal fun rememberLocale(): Locale {
     val configuration = LocalConfiguration.current
-    return remember(configuration) {
-        ConfigurationCompat.getLocales(configuration).get(0) ?: Locale.getDefault()
-    }
+    // La lista de locales de Configuration nunca está vacía.
+    return remember(configuration) { configuration.locales[0] }
 }
 
 @Composable
