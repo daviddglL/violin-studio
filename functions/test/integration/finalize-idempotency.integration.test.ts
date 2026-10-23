@@ -17,6 +17,15 @@ const deps = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 const run = (ev: { name: string; generation: string }, over: Record<string, unknown> = {}) => finalizeRecordingHandler(deps(over), ev);
+async function waitFor<T>(fn: () => Promise<T | undefined>, ms = 25000): Promise<T> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const v = await fn();
+    if (v !== undefined) return v;
+    if (Date.now() > end) throw new Error("timeout");
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
 const snap = async (uid: string, id: string) => {
   const s = await recRef(uid, id).get();
   return { data: s.data(), updateTime: s.updateTime?.toMillis() };
@@ -76,9 +85,13 @@ describe("B4b.2 idempotencia y reintentos", () => {
     expect(await run(ev)).toBe("ready");
     await recRef(uid, idOf(ev.name)).delete(); // el dueno borra el doc y onRecordingDeleted el objeto
     await bucket.file(ev.name).delete();
+    // El trigger real onRecordingDeleted (B5a) descuenta el borrado en segundo plano: se espera a que llegue para que
+    // la comprobacion no dependa de la carrera con el emulador.
+    await waitFor(async () => ((await userDoc(uid))?.recordingCount === 0 ? true : undefined));
     expect(await run(ev)).toBe("ignored");
     expect(await recDoc(uid, idOf(ev.name))).toBeUndefined();
-    expect((await userDoc(uid))?.recordingCount).toBe(1); // el reintento no suma (el decremento del borrado es de B5a)
+    await new Promise((r) => setTimeout(r, 1000));
+    expect((await userDoc(uid))?.recordingCount).toBe(0); // el reintento no suma
   });
 
   test("evento con generation distinta de la vigente del objeto (stale) -> ignorado sin tocar nada", async () => {
