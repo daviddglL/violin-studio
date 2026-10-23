@@ -322,8 +322,8 @@
     <string name="link_redeem_intro">Enter the code your teacher gave you.</string>
     <string name="link_redeem_code_label">Teacher code</string>
     <string name="link_redeem_notice_title">Before linking</string>
-    <string name="link_redeem_notice_body">Your teacher will be able to see all your practice sessions, including the notes you write. You can unlink whenever you want and your teacher will lose access immediately.</string>
-    <string name="link_redeem_notice_checkbox">I have read the notice and agree that my teacher can see my practice log</string>
+    <string name="link_redeem_notice_body">Your teacher will be able to see all your practice sessions, including the notes you write, and the curriculum lessons you have completed. You can unlink whenever you want and your teacher will lose access immediately.</string>
+    <string name="link_redeem_notice_checkbox">I have read the notice and agree that my teacher can see my practice log and my progress</string>
     <string name="link_redeem_submit">Link</string>
     <string name="link_redeem_submitting">Linking…</string>
     <string name="link_error_invalid_code">That code is not valid. Check it or ask your teacher for a new one.</string>
