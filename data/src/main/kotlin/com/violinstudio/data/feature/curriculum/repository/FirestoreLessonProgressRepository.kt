@@ -6,11 +6,13 @@ import com.violinstudio.domain.feature.curriculum.repository.LessonProgressRepos
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Lecciones hechas en Firestore (`users/{uid}/progress/curriculum`); la cache del SDK lo hace funcionar sin conexion. Al
@@ -46,7 +48,9 @@ class FirestoreLessonProgressRepository @Inject constructor(
             val local = legacy.read(uid)
             if (local.isEmpty()) return
             remote.addAndAwaitServer(uid, local)
-            legacy.clear(uid)
+            // Confirmado por el servidor: el borrado local termina aunque quien observa ya se haya ido (si no, el
+            // siguiente arranque repetiria la union sin necesidad).
+            withContext(NonCancellable) { legacy.clear(uid) }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
