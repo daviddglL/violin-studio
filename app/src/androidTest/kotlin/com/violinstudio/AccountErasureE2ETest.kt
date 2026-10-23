@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.violinstudio.domain.feature.curriculum.repository.LessonProgressRepository
 import com.violinstudio.domain.feature.practice.model.PracticeDraft
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
 import com.violinstudio.domain.feature.profile.model.Instrument
@@ -20,7 +21,7 @@ import org.junit.runner.RunWith
 
 /**
  * [Cascada completa de datos][Borrado desde el cliente] Borrar la cuenta con sesiones de practica deja el backend sin
- * `users/{uid}/practiceSessions` y marca la purga de la cache offline de Firestore para el siguiente arranque.
+ * `users/{uid}/practiceSessions` ni `users/{uid}/progress/curriculum` (progreso del curriculo) y marca la purga de la cache offline de Firestore para el siguiente arranque.
  */
 @OptIn(ExperimentalTestApi::class)
 @HiltAndroidTest
@@ -28,6 +29,9 @@ import org.junit.runner.RunWith
 class AccountErasureE2ETest : E2eTest() {
     @Inject
     lateinit var practiceLog: PracticeLogRepository
+
+    @Inject
+    lateinit var lessonProgress: LessonProgressRepository
 
     private fun purgeRequested(): Boolean = InstrumentationRegistry.getInstrumentation().targetContext
         .getSharedPreferences("local_erasure", Context.MODE_PRIVATE).getBoolean("purge_firestore_cache", false)
@@ -51,6 +55,9 @@ class AccountErasureE2ETest : E2eTest() {
             assertTrue(runBlocking { practiceLog.create(uid, draft) }.isSuccess)
         }
         awaitBackend("2 sesiones en users/$uid/practiceSessions") { Emulators.practiceSessions(uid).size == 2 }
+        val progressDoc = "users/$uid/progress/curriculum"
+        runBlocking { lessonProgress.setCompleted(uid, "b1_posture", true) }
+        awaitBackend("progreso del curriculo en $progressDoc") { Emulators.docExists(progressDoc) }
 
         // La marca persiste entre tests del proceso: se baja antes para que la comprobacion final no sea vacua.
         clearPurgeFlag()
@@ -60,8 +67,9 @@ class AccountErasureE2ETest : E2eTest() {
         journey.waitForTag(SETTINGS_TAG)
         journey.deleteAccount()
 
-        awaitBackend("practiceSessions y users/$uid borrados") {
-            Emulators.practiceSessions(uid).isEmpty() && !Emulators.docExists("users/$uid")
+        awaitBackend("practiceSessions, progreso y users/$uid borrados") {
+            Emulators.practiceSessions(uid).isEmpty() && !Emulators.docExists(progressDoc) &&
+                !Emulators.docExists("users/$uid")
         }
         // El siguiente arranque purga la cache offline (el borrado deja la marca; FirestoreCachePurge la consume).
         assertTrue("falta la marca de purga de la cache", purgeRequested())

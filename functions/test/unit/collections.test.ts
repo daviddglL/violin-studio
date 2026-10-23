@@ -20,6 +20,7 @@ describe("COLLECTIONS", () => {
       chatMessages: "chatMessages",
       appConfig: "appConfig",
       devices: "devices",
+      progress: "progress",
     });
   });
   test("CollectionName admite los valores registrados", () => {

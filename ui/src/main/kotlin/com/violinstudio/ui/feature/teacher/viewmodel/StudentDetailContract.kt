@@ -1,5 +1,6 @@
 package com.violinstudio.ui.feature.teacher.viewmodel
 
+import com.violinstudio.domain.feature.curriculum.model.CurriculumProgress
 import com.violinstudio.domain.feature.link.model.TeacherLink
 import com.violinstudio.domain.feature.practice.model.PracticeSession
 import com.violinstudio.ui.commons.mvi.UiEffect
@@ -13,6 +14,9 @@ data class StudentDetailState(
     val link: TeacherLink? = null,
     val sessions: List<PracticeSession> = emptyList(),
     val weeklyTotalSec: Int = 0,
+
+    /** Lecciones del curriculo del alumno; nulo hasta la primera lectura (la vista no muestra la linea). */
+    val curriculum: CurriculumProgress? = null,
 
     /** El uid de la ruta no corresponde a ningún alumno vinculado. */
     val unavailable: Boolean = false,

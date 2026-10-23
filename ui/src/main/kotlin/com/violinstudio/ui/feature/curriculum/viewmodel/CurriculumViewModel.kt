@@ -10,7 +10,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
-/** El progreso se lee del dispositivo; si la lectura falla se muestra todo sin hacer (la lectura nunca bloquea). */
+/** Progreso en la nube (con cache sin conexion); si la lectura falla se muestra todo sin hacer (nunca bloquea). */
 @HiltViewModel
 class CurriculumViewModel @Inject constructor(
     observeCurriculum: ObserveCurriculumUseCase,

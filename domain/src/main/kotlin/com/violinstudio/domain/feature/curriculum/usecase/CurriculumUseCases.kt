@@ -29,6 +29,12 @@ class ObserveCurriculumUseCase @Inject constructor(
     }
 }
 
+/** Progreso de un alumno vinculado, solo lectura. Si las reglas deniegan (vinculo caido) todo sale sin hacer. */
+class ObserveStudentCurriculumUseCase @Inject constructor(private val repo: LessonProgressRepository) {
+    operator fun invoke(studentUid: String): Flow<CurriculumProgress> =
+        repo.observeCompleted(studentUid).map { CurriculumProgress.of(it) }
+}
+
 /** Marca o desmarca una leccion como hecha. Fallos como `Result.failure(CurriculumFailure)`. */
 class SetLessonCompletedUseCase @Inject constructor(
     private val auth: AuthRepository,

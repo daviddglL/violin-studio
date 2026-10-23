@@ -24,7 +24,8 @@ dispositivo, se descarta al terminar cada ventana de análisis y NUNCA se guarda
 | Actividad en la app (analytics) | **No recopilada** | La app no incluye Google Analytics (retirado: no había consentimiento y hay menores de 14) |
 
 Datos que sí trata la app (fase 2 y registro de práctica; ya cubiertos por el consentimiento): correo, nombre, fecha de
-nacimiento (edad), instrumento, historial de práctica (fecha, duración, instrumento y notas opcionales) y registros de
+nacimiento (edad), instrumento, historial de práctica (fecha, duración, instrumento y notas opcionales), lecciones del
+currículo marcadas como hechas (`users/{uid}/progress/curriculum`: solo los ids de lección) y registros de
 consentimiento. El historial de práctica no contiene audio, frecuencias ni notas tocadas. Se puede borrar por sesión o
 junto con la cuenta (borrado completo desde la app).
 
@@ -36,7 +37,7 @@ secciones más abajo.
 | Pregunta | Respuesta | Motivo |
 |---|---|---|
 | Datos personales: nombre, correo, fecha de nacimiento | Recopilados y, solo el nombre y el instrumento, **compartidos con el profesor vinculado** | El alumno elige vincularse canjeando el código y acepta un aviso versionado (`LinkNotice`) que lo explica |
-| Actividad en la app: historial de práctica (fecha, duración, instrumento) y **notas del alumno** | Recopilada y **compartida con el profesor vinculado** (solo lectura) | Las reglas de Firestore solo dejan leer al profesor con vínculo vigente, consentimiento vigente y sin borrado en curso |
+| Actividad en la app: historial de práctica (fecha, duración, instrumento), **notas del alumno** y lecciones del currículo hechas | Recopilada y **compartida con el profesor vinculado** (solo lectura) | Las reglas de Firestore solo dejan leer al profesor con vínculo vigente, consentimiento vigente y sin borrado en curso |
 | Contenido generado por el usuario: tareas (título, descripción, fecha límite, estado y fecha de hecha) | Recopiladas; visibles para el profesor autor y el alumno | El profesor las crea y las edita; el alumno solo cambia el estado |
 | ¿Se comparten datos con terceros? | No, salvo el profesor elegido por el propio usuario | Sin SDK de terceros para esto |
 | Cifrado en tránsito | Sí | Firebase (TLS) |

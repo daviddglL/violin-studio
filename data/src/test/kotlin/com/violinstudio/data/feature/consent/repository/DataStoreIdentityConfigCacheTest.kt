@@ -27,7 +27,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Bajo Robolectric con SDK 34, como `DataStoreLessonProgressRepositoryTest`. */
+/** Bajo Robolectric con SDK 34, como `FirestoreLessonProgressRepositoryTest`. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [34])
 class DataStoreIdentityConfigCacheTest {

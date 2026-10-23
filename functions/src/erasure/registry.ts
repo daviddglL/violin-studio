@@ -52,6 +52,8 @@ export const ERASABLE_COLLECTIONS: Record<CollectionName, ErasurePolicy> = {
   chatMessages: { kind: "queryByFields", fields: ["teacherUid", "studentUid"] },
   // Tokens de FCM: caen con el `recursiveDelete` del usuario (y antes, al cerrar sesion o cuando FCM los invalida).
   devices: { kind: "subcollectionOf", parent: "users" },
+  // Progreso del curriculo (`users/{uid}/progress/curriculum`): cae con el `recursiveDelete` del usuario.
+  progress: { kind: "subcollectionOf", parent: "users" },
   appConfig: { kind: "exempt", reason: "configuracion global de la app (interruptores); no contiene datos de usuarios" },
   maintenance: {
     kind: "exempt",

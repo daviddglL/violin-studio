@@ -7,6 +7,7 @@ import com.violinstudio.domain.feature.curriculum.model.CurriculumProgress
 import com.violinstudio.domain.feature.curriculum.model.LessonTool
 import com.violinstudio.domain.feature.curriculum.model.Level
 import com.violinstudio.domain.feature.curriculum.usecase.ObserveCurriculumUseCase
+import com.violinstudio.domain.feature.curriculum.usecase.ObserveStudentCurriculumUseCase
 import com.violinstudio.domain.feature.curriculum.usecase.SetLessonCompletedUseCase
 import com.violinstudio.domain.feature.verifiedUser
 import com.violinstudio.domain.testing.FakeLessonProgressRepository
@@ -55,6 +56,16 @@ class CurriculumTest {
         assertEquals(1, ObserveCurriculumUseCase(auth, repo)().first().done)
         auth.user = null
         assertEquals(0, ObserveCurriculumUseCase(auth, repo)().first().done)
+    }
+
+    @Test
+    fun `el profesor observa el progreso del alumno por su uid, sin depender de su propia sesion`() = runTest {
+        repo.seed("alumno", "b1_posture", "b2_bow_hold")
+        repo.seed("u1", "b3_open_strings")
+        val progress = ObserveStudentCurriculumUseCase(repo)("alumno").first()
+        assertEquals(2, progress.done)
+        assertEquals("b3_open_strings", progress.next?.id)
+        assertEquals(listOf("observe:alumno"), repo.calls)
     }
 
     @Test

@@ -17,7 +17,9 @@ import com.violinstudio.data.feature.chat.datasource.firebase.FirebaseChatRemote
 import com.violinstudio.data.feature.chat.repository.ChatRepositoryImpl
 import com.violinstudio.data.feature.consent.repository.ConsentRepositoryImpl
 import com.violinstudio.data.feature.consent.repository.DataStoreIdentityConfigCache
-import com.violinstudio.data.feature.curriculum.repository.DataStoreLessonProgressRepository
+import com.violinstudio.data.feature.curriculum.datasource.CurriculumProgressRemoteDataSource
+import com.violinstudio.data.feature.curriculum.datasource.firebase.FirebaseCurriculumProgressRemoteDataSource
+import com.violinstudio.data.feature.curriculum.repository.FirestoreLessonProgressRepository
 import com.violinstudio.data.feature.health.datasource.HealthRemoteDataSource
 import com.violinstudio.data.feature.health.datasource.firebase.FirebaseHealthRemoteDataSource
 import com.violinstudio.data.feature.health.repository.HealthRepositoryImpl
@@ -131,7 +133,12 @@ abstract class DataModule {
     abstract fun bindIdentityConfigCache(impl: DataStoreIdentityConfigCache): IdentityConfigCache
 
     @Binds
-    abstract fun bindLessonProgressRepository(impl: DataStoreLessonProgressRepository): LessonProgressRepository
+    abstract fun bindCurriculumProgressRemoteDataSource(
+        impl: FirebaseCurriculumProgressRemoteDataSource
+    ): CurriculumProgressRemoteDataSource
+
+    @Binds
+    abstract fun bindLessonProgressRepository(impl: FirestoreLessonProgressRepository): LessonProgressRepository
 
     @Binds
     abstract fun bindLinkRemoteDataSource(impl: FirebaseLinkRemoteDataSource): LinkRemoteDataSource

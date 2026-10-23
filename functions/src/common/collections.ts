@@ -21,6 +21,8 @@ export const COLLECTIONS = {
   appConfig: "appConfig",
   /** `users/{uid}/devices/{sha256(token)}`: tokens de FCM para los avisos push; solo servidor. */
   devices: "devices",
+  /** `users/{uid}/progress/curriculum`: lecciones del curriculo hechas; escribe el dueno, el profesor vinculado lee. */
+  progress: "progress",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
