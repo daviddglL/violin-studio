@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalComposeUiApi::class)
-
 package com.violinstudio.ui.feature.guardian.view
 
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,9 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -134,7 +130,7 @@ private fun ChangeEmailForm(state: GuardianWaitState, busy: Boolean, onIntent: (
         error = state.emailError?.let { stringResource(it.textRes()) },
         tag = AUTH_EMAIL_TAG,
         // El email es de otra persona: sin autorrelleno de las credenciales del propio usuario.
-        autofillTypes = emptyList<AutofillType>(),
+        contentType = null,
         enabled = !busy,
         onDone = { if (!busy) onIntent(GuardianWaitIntent.SubmitNewEmail) }
     )

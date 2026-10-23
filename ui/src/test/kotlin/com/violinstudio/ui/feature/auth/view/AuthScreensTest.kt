@@ -1,11 +1,9 @@
 package com.violinstudio.ui.feature.auth.view
 
 import android.app.Application
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.autofill.AutofillTree
-import androidx.compose.ui.autofill.AutofillType
-import androidx.compose.ui.platform.LocalAutofillTree
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -17,7 +15,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.violinstudio.ui.R
@@ -42,7 +42,6 @@ import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
 @Config(application = Application::class)
-@OptIn(ExperimentalComposeUiApi::class)
 class AuthScreensTest {
     @get:Rule
     val compose = createComposeRule()
@@ -54,27 +53,24 @@ class AuthScreensTest {
     private val registerIntents = mutableListOf<RegisterIntent>()
     private val resetIntents = mutableListOf<ResetPasswordIntent>()
     private val calls = mutableListOf<String>()
-    private lateinit var autofillTree: AutofillTree
-
-    private fun autofillTypes() = autofillTree.children.values.map { it.autofillTypes }
+    private fun assertContentType(tag: String, type: ContentType) {
+        compose.onNodeWithTag(tag).assert(SemanticsMatcher.expectValue(SemanticsProperties.ContentType, type))
+    }
 
     private fun showLogin(state: LoginState = LoginState()) = compose.setContent {
         ViolinStudioTheme {
-            autofillTree = LocalAutofillTree.current
             LoginScreen(state, { loginIntents += it }, { calls += "register" }, { calls += "forgot" })
         }
     }
 
     private fun showRegister(state: RegisterState = RegisterState()) = compose.setContent {
         ViolinStudioTheme {
-            autofillTree = LocalAutofillTree.current
             RegisterScreen(state, { registerIntents += it }, { calls += "back" })
         }
     }
 
     private fun showReset(state: ResetPasswordState = ResetPasswordState()) = compose.setContent {
         ViolinStudioTheme {
-            autofillTree = LocalAutofillTree.current
             ResetPasswordScreen(state, { resetIntents += it }, { calls += "back" })
         }
     }
@@ -169,31 +165,31 @@ class AuthScreensTest {
     @Test
     fun loginFieldsDeclareAutofillTypes() {
         showLogin()
-        assertEquals(
-            listOf(listOf(AutofillType.Username, AutofillType.EmailAddress), listOf(AutofillType.Password)),
-            autofillTypes()
-        )
+        assertContentType(AUTH_EMAIL_TAG, accountEmailContentType)
+        assertContentType(AUTH_PASSWORD_TAG, ContentType.Password)
     }
 
     @Test
     fun registerFieldsDeclareNewPasswordAndEmailAutofillTypes() {
         showRegister()
-        assertEquals(
-            listOf(listOf(AutofillType.Username, AutofillType.EmailAddress), listOf(AutofillType.NewPassword)),
-            autofillTypes()
-        )
+        assertContentType(AUTH_EMAIL_TAG, accountEmailContentType)
+        assertContentType(AUTH_PASSWORD_TAG, ContentType.NewPassword)
     }
 
     @Test
     fun resetEmailDeclaresEmailAutofillTypes() {
         showReset()
-        assertEquals(listOf(listOf(AutofillType.EmailAddress, AutofillType.Username)), autofillTypes())
+        assertContentType(AUTH_EMAIL_TAG, accountEmailContentType)
     }
 
     @Test
     fun autofilledValuesReachTheViewModelAsIntents() {
         showLogin()
-        compose.runOnIdle { autofillTree.children.values.forEach { it.onFill?.invoke("filled") } }
+        // El autorrelleno de Compose escribe en el campo con la acción semántica SetText.
+        listOf(AUTH_EMAIL_TAG, AUTH_PASSWORD_TAG).forEach { tag ->
+            compose.onNodeWithTag(tag)
+                .performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString("filled")) }
+        }
         assertEquals(
             listOf(LoginIntent.EmailChanged("filled"), LoginIntent.PasswordChanged("filled")),
             loginIntents

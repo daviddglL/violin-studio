@@ -23,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -44,11 +43,11 @@ import com.violinstudio.ui.feature.home.viewmodel.HomeViewModel
 fun HomeRoute(navigation: HomeNavigation? = null, viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val unknownError = stringResource(R.string.error_unknown)
     ObserveAsEvents(viewModel.effects) { effect ->
         when (effect) {
             is HomeEffect.ShowError ->
-                snackbarHostState.showSnackbar(effect.message ?: context.getString(R.string.error_unknown))
+                snackbarHostState.showSnackbar(effect.message ?: unknownError)
         }
     }
     HomeScreen(
