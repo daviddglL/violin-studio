@@ -194,6 +194,9 @@ service cloud.firestore {
 
       // Marcas de idempotencia del decremento del cupo (onRecordingDeleted): solo Admin SDK, ni el dueno las ve.
       match /recordingCountLedger/{id} { allow read, write: if false; }
+
+      // Tokens de FCM (avisos push): solo Functions (registerDevice/unregisterDevice); el cliente no los lee.
+      match /devices/{id} { allow read, write: if false; }
     }
 
     // Colecciones del servidor (solo Admin SDK): deny explícito para que el test de registro las detecte.

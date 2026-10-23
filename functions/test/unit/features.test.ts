@@ -1,4 +1,4 @@
-import { chatEnabled, recordingFlags } from "../../src/config/features";
+import { chatEnabled, notificationsEnabled, recordingFlags } from "../../src/config/features";
 import { RECORDING_CONSENT_VERSION } from "../../src/config/identity";
 
 describe("recordingFlags (A19)", () => {
@@ -39,4 +39,17 @@ describe("chatEnabled (4c)", () => {
 test("RECORDING_CONSENT_VERSION es un entero >= 1 (versionado propio, aparte de la política)", () => {
   expect(Number.isInteger(RECORDING_CONSENT_VERSION)).toBe(true);
   expect(RECORDING_CONSENT_VERSION).toBeGreaterThanOrEqual(1);
+});
+
+describe("notificationsEnabled (avisos push)", () => {
+  test("sin variable: apagado en produccion, encendido en emulador y tests", () => {
+    expect(notificationsEnabled({})).toBe(false);
+    expect(notificationsEnabled({ FUNCTIONS_EMULATOR: "true" })).toBe(true);
+    expect(notificationsEnabled({ NODE_ENV: "test" })).toBe(true);
+  });
+  test("solo `true` enciende", () => {
+    expect(notificationsEnabled({ NOTIFICATIONS_ENABLED: " TRUE " })).toBe(true);
+    expect(notificationsEnabled({ NODE_ENV: "test", NOTIFICATIONS_ENABLED: "false" })).toBe(false);
+    expect(notificationsEnabled({ NOTIFICATIONS_ENABLED: "yes" })).toBe(false);
+  });
 });

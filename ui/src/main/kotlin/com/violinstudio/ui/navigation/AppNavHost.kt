@@ -19,6 +19,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.violinstudio.domain.feature.session.SessionState
+import com.violinstudio.ui.commons.permission.rememberNotificationPermissionRequest
 import com.violinstudio.ui.feature.account.view.WithDeleteAccount
 import com.violinstudio.ui.feature.account.viewmodel.DeleteAccountViewModel
 import com.violinstudio.ui.feature.assignment.view.AssignmentEditRoute
@@ -228,6 +229,11 @@ private fun SessionGraph(
         // contenido de negocio mientras la redirección está en curso.
         composable<HomeDestination> {
             if (session is SessionState.Ready) {
+                val enableNotifications = if (session.features.notifications) {
+                    rememberNotificationPermissionRequest()
+                } else {
+                    null
+                }
                 home(
                     HomeNavigation(
                         onOpenSettings = { navController.navigate(SettingsDestination) { launchSingleTop = true } },
@@ -258,7 +264,8 @@ private fun SessionGraph(
                         onOpenStudents = { navController.navigate(StudentsDestination) { launchSingleTop = true } }
                             .takeIf { session.profile.role.allows(StudentsDestination::class) },
                         onOpenCodes = { navController.navigate(TeacherCodesDestination) { launchSingleTop = true } }
-                            .takeIf { session.profile.role.allows(TeacherCodesDestination::class) }
+                            .takeIf { session.profile.role.allows(TeacherCodesDestination::class) },
+                        onEnableNotifications = enableNotifications
                     )
                 )
             } else {

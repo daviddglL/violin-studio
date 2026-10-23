@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Video (4c): solo se pide al pulsar "Grabar video" con VIDEO_ENABLED; la app sigue instalandose sin camara. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Avisos push (Android 13+): solo se pide desde el boton "Activar avisos" de inicio con NOTIFICATIONS_ENABLED. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -36,6 +38,20 @@
         <meta-data
             android:name="google_analytics_adid_collection_enabled"
             android:value="false" />
+        <!-- FCM sin auto-inicio: el token solo se genera si el servidor tiene los avisos encendidos y hay sesion. -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="activity" />
+        <service
+            android:name=".PushMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <!-- Antes de Android 13 AppCompat guarda aquí el idioma elegido en la app y lo reaplica al arrancar. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

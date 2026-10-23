@@ -66,6 +66,7 @@ class ConsentRepositoryImplTest {
             "videoEnabled" to false,
             "minorRecordingEnabled" to true,
             "chatEnabled" to true,
+            "notificationsEnabled" to true,
             "recordingConsentVersion" to 2.0
         )
         val parsed = repo.identityConfig().getOrThrow()
@@ -73,6 +74,7 @@ class ConsentRepositoryImplTest {
         assertEquals(false, parsed.videoEnabled)
         assertEquals(true, parsed.minorRecordingEnabled)
         assertEquals(true, parsed.chatEnabled)
+        assertEquals(true, parsed.notificationsEnabled)
         assertEquals(2, parsed.recordingConsentVersion)
     }
 
@@ -84,6 +86,7 @@ class ConsentRepositoryImplTest {
         assertEquals(false, parsed.videoEnabled)
         assertEquals(false, parsed.minorRecordingEnabled)
         assertEquals(false, parsed.chatEnabled)
+        assertEquals(false, parsed.notificationsEnabled)
         assertEquals(1, parsed.recordingConsentVersion)
     }
 

@@ -45,7 +45,8 @@ class DataStoreIdentityConfigCacheTest {
         videoEnabled = false,
         minorRecordingEnabled = true,
         recordingConsentVersion = 3,
-        chatEnabled = true
+        chatEnabled = true,
+        notificationsEnabled = true
     )
 
     private fun open(): DataStore<Preferences> {

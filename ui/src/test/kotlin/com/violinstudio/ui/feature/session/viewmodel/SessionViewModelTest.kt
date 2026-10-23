@@ -3,6 +3,12 @@ package com.violinstudio.ui.feature.session.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.violinstudio.domain.common.RetryBackoff
 import com.violinstudio.domain.feature.auth.usecase.SignOutUseCase
+import com.violinstudio.domain.feature.notification.usecase.SyncPushTokenUseCase
+import com.violinstudio.domain.feature.profile.model.ConsentStatus
+import com.violinstudio.domain.feature.profile.model.Instrument
+import com.violinstudio.domain.feature.profile.model.Role
+import com.violinstudio.domain.feature.profile.model.UserProfile
+import com.violinstudio.domain.feature.session.SessionFeatures
 import com.violinstudio.domain.feature.session.SessionState
 import com.violinstudio.domain.feature.session.usecase.ObserveSessionStateUseCase
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
@@ -27,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionViewModelTest {
     private val signOut = mockk<SignOutUseCase>(relaxed = true)
+    private val syncPush = mockk<SyncPushTokenUseCase>().also { coEvery { it(any()) } returns Result.success(Unit) }
 
     // The session collector loops forever by design: cancel it so runTest can finish.
     private suspend fun SessionViewModel.testSession(
@@ -42,7 +49,7 @@ class SessionViewModelTest {
     private fun viewModel(states: Flow<SessionState>): SessionViewModel {
         val observe = mockk<ObserveSessionStateUseCase>()
         every { observe() } returns states
-        return SessionViewModel(observe, signOut, RetryBackoff(1_000, 8_000))
+        return SessionViewModel(observe, signOut, RetryBackoff(1_000, 8_000), syncPush)
     }
 
     @Test
@@ -136,6 +143,57 @@ class SessionViewModelTest {
             intent(SessionIntent.SignOut)
             testScheduler.advanceUntilIdle()
             coVerify(exactly = 2) { signOut() }
+        }
+    }
+
+    private fun ready(uid: String, notifications: Boolean) = SessionState.Ready(
+        UserProfile(
+            uid = uid,
+            displayName = "Ana",
+            instrument = Instrument.VIOLIN,
+            locale = "es",
+            role = Role.INDEPENDENT,
+            isMinor = false,
+            consentStatus = ConsentStatus.GRANTED,
+            policyVersion = 1,
+            guardian = null,
+            deletionInProgress = false
+        ),
+        SessionFeatures(notifications = notifications)
+    )
+
+    @Test
+    fun `with notifications on, Ready registers the push token once per uid`() = runTest {
+        val states = MutableSharedFlow<SessionState>(replay = 1)
+        viewModel(states).testSession {
+            states.emit(ready("u1", notifications = true))
+            states.emit(ready("u1", notifications = true))
+            testScheduler.advanceUntilIdle()
+            coVerify(exactly = 1) { syncPush("u1") }
+            states.emit(SessionState.LoggedOut)
+            states.emit(ready("u1", notifications = true))
+            testScheduler.advanceUntilIdle()
+            coVerify(exactly = 2) { syncPush("u1") }
+        }
+    }
+
+    @Test
+    fun `with notifications off nothing is registered`() = runTest {
+        val states = MutableSharedFlow<SessionState>(replay = 1)
+        viewModel(states).testSession {
+            states.emit(ready("u1", notifications = false))
+            testScheduler.advanceUntilIdle()
+            coVerify(exactly = 0) { syncPush(any()) }
+        }
+    }
+
+    @Test
+    fun `a failing registration does not break the session`() = runTest {
+        coEvery { syncPush(any()) } throws IOException("offline")
+        val states = MutableSharedFlow<SessionState>(replay = 1)
+        viewModel(states).testSession {
+            states.emit(ready("u1", notifications = true))
+            assertState { it.session is SessionState.Ready }
         }
     }
 }

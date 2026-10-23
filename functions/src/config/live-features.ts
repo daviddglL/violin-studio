@@ -1,6 +1,6 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { COLLECTIONS } from "../common/collections";
-import { chatEnabled, RecordingFlags, recordingFlags } from "./features";
+import { chatEnabled, notificationsEnabled, RecordingFlags, recordingFlags } from "./features";
 
 /** Doc `appConfig/features`: interruptores en caliente, editables desde la consola (solo Admin SDK lo lee). */
 export const FEATURES_DOC_ID = "features";
@@ -10,9 +10,10 @@ export const FEATURES_CACHE_MS = 60_000;
 export interface LiveFeatures {
   flags: RecordingFlags;
   chatEnabled: boolean;
+  notificationsEnabled: boolean;
 }
 
-type Key = keyof RecordingFlags | "chatEnabled";
+type Key = keyof RecordingFlags | "chatEnabled" | "notificationsEnabled";
 
 /**
  * El entorno (`functions/.env.<project>`) es el techo y el doc solo puede apagar: un campo ausente o `true` deja el valor
@@ -28,6 +29,7 @@ export function applyRemote(base: LiveFeatures, remote: Record<string, unknown> 
       minorRecordingEnabled: on("minorRecordingEnabled", base.flags.minorRecordingEnabled),
     },
     chatEnabled: on("chatEnabled", base.chatEnabled),
+    notificationsEnabled: on("notificationsEnabled", base.notificationsEnabled),
   };
 }
 
@@ -50,7 +52,10 @@ export function liveFeaturesReader(deps: LiveFeaturesDeps): () => Promise<LiveFe
     if (cached && t - cached.at < FEATURES_CACHE_MS) return cached.value;
     const env = deps.env ?? process.env;
     const snap = await deps.db().collection(COLLECTIONS.appConfig).doc(FEATURES_DOC_ID).get();
-    const value = applyRemote({ flags: recordingFlags(env), chatEnabled: chatEnabled(env) }, snap.data());
+    const value = applyRemote(
+      { flags: recordingFlags(env), chatEnabled: chatEnabled(env), notificationsEnabled: notificationsEnabled(env) },
+      snap.data(),
+    );
     cached = { value, at: t };
     return value;
   };

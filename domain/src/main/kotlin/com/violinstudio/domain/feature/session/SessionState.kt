@@ -35,10 +35,17 @@ sealed interface SessionState {
 }
 
 /** Funciones que el servidor tiene encendidas ([IdentityConfig]): con una apagada, su acceso no se muestra. */
-data class SessionFeatures(val recordings: Boolean = false, val chat: Boolean = false) {
+data class SessionFeatures(
+    val recordings: Boolean = false,
+    val chat: Boolean = false,
+    val notifications: Boolean = false
+) {
     companion object {
-        fun from(config: IdentityConfig) =
-            SessionFeatures(recordings = config.recordingsEnabled, chat = config.chatEnabled)
+        fun from(config: IdentityConfig) = SessionFeatures(
+            recordings = config.recordingsEnabled,
+            chat = config.chatEnabled,
+            notifications = config.notificationsEnabled
+        )
     }
 }
 

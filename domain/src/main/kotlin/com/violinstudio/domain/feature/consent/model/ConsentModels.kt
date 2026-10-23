@@ -13,7 +13,9 @@ data class IdentityConfig(
     /** Versión vigente del consentimiento de grabación, independiente de `policyVersion`. */
     val recordingConsentVersion: Int = 1,
     /** Chat profesor-alumno (4c): apagado por defecto. */
-    val chatEnabled: Boolean = false
+    val chatEnabled: Boolean = false,
+    /** Avisos push: sin el, la app no pide ni registra el token del dispositivo. */
+    val notificationsEnabled: Boolean = false
 )
 
 /** Acuse de `requestGuardianConsent`: solo el email enmascarado. */

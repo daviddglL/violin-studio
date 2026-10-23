@@ -298,6 +298,15 @@
     <string name="practice_message_unknown">The action could not be completed. Try again.</string>
     <string name="home_redeem_card">Link with a teacher</string>
     <string name="home_teacher_request_card">I want to teach</string>
+    <string name="home_enable_notifications">Turn on notifications</string>
+    <string name="push_channel_name">Activity</string>
+    <string name="push_channel_description">Messages, reviews and assignments from your teacher or students.</string>
+    <string name="push_chat_title">New message</string>
+    <string name="push_chat_body">You have a new chat message.</string>
+    <string name="push_review_title">New review</string>
+    <string name="push_review_body">Your teacher reviewed one of your recordings.</string>
+    <string name="push_assignment_title">New assignment</string>
+    <string name="push_assignment_body">Your teacher gave you a new assignment.</string>
     <string name="teacher_request_title">Become a teacher</string>
     <string name="teacher_request_intro">As a teacher you can create codes for your students to link with you, see their practice, give them assignments and review their recordings.</string>
     <string name="teacher_request_review_notice">We review every request by hand before granting access. We keep the request status and its dates, and they are deleted with your account.</string>

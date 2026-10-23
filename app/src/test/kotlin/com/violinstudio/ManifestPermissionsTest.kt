@@ -141,6 +141,19 @@ class ManifestPermissionsTest {
         assertFalse(requestsCamera("// launcher.launch(arrayOf(Manifest.permission.CAMERA))"))
     }
 
+    @Test
+    fun `POST_NOTIFICATIONS se declara, solo se pide desde el boton de avisos y FCM no se auto-inicia`() {
+        assertTrue(info.requestedPermissions.orEmpty().contains("android.permission.POST_NOTIFICATIONS"))
+        val roots = listOf("../ui/src/main", "../app/src/main", "../data/src/main").map { File(it) }
+        val requesting = roots.flatMap { root -> root.walkTopDown().filter { it.extension == "kt" }.toList() }
+            .filter { requests(it.readText(), "POST_NOTIFICATIONS") }
+            .map { it.name }
+        assertEquals(listOf("NotificationPermission.kt"), requesting)
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val meta = app.packageManager.getApplicationInfo(app.packageName, PackageManager.GET_META_DATA).metaData
+        assertFalse(meta.getBoolean("firebase_messaging_auto_init_enabled", true))
+    }
+
     private fun requestsCamera(source: String): Boolean = requests(source, "CAMERA")
 
     private fun requestsMic(source: String): Boolean = requests(source, "RECORD_AUDIO")

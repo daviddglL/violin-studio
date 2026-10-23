@@ -26,6 +26,11 @@ import com.violinstudio.data.feature.link.datasource.TeacherFunctionsDataSource
 import com.violinstudio.data.feature.link.datasource.firebase.FirebaseLinkRemoteDataSource
 import com.violinstudio.data.feature.link.datasource.firebase.FirebaseTeacherFunctionsDataSource
 import com.violinstudio.data.feature.link.repository.LinkRepositoryImpl
+import com.violinstudio.data.feature.notification.datasource.DeviceFunctionsDataSource
+import com.violinstudio.data.feature.notification.datasource.PushTokenSource
+import com.violinstudio.data.feature.notification.datasource.firebase.FirebaseDeviceFunctionsDataSource
+import com.violinstudio.data.feature.notification.datasource.firebase.FirebasePushTokenSource
+import com.violinstudio.data.feature.notification.repository.PushTokenRepositoryImpl
 import com.violinstudio.data.feature.practice.datasource.PracticeRemoteDataSource
 import com.violinstudio.data.feature.practice.datasource.firebase.FirebasePracticeRemoteDataSource
 import com.violinstudio.data.feature.practice.repository.DataStoreRunningSessionStore
@@ -50,6 +55,7 @@ import com.violinstudio.domain.feature.consent.repository.IdentityConfigCache
 import com.violinstudio.domain.feature.curriculum.repository.LessonProgressRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
 import com.violinstudio.domain.feature.link.repository.LinkRepository
+import com.violinstudio.domain.feature.notification.repository.PushTokenRepository
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
 import com.violinstudio.domain.feature.practice.repository.RunningSessionStore
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
@@ -147,4 +153,13 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
+
+    @Binds
+    abstract fun bindPushTokenSource(impl: FirebasePushTokenSource): PushTokenSource
+
+    @Binds
+    abstract fun bindDeviceFunctionsDataSource(impl: FirebaseDeviceFunctionsDataSource): DeviceFunctionsDataSource
+
+    @Binds
+    abstract fun bindPushTokenRepository(impl: PushTokenRepositoryImpl): PushTokenRepository
 }

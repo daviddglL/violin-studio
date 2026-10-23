@@ -24,5 +24,6 @@ test("no exige email verificado y devuelve la política vigente concreta (C6)", 
     minorRecordingEnabled: true,
     recordingConsentVersion: RECORDING_CONSENT_VERSION,
     chatEnabled: true,
+    notificationsEnabled: true,
   });
 });

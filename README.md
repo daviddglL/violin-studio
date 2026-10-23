@@ -160,7 +160,7 @@ El botón de vídeo solo aparece con `VIDEO_ENABLED=true` en `functions/.env.<pr
 
 ### Alta de profesor
 
-Un adulto con el email verificado y el consentimiento al día pide ser profesor desde Ajustes (`requestTeacherRole`):
+Un adulto con el email verificado y el consentimiento al día pide ser profesor desde inicio, «Quiero dar clase» (`requestTeacherRole`):
 solo se marca `users/{uid}.teacherRequest` como `pending`, nunca el rol. El administrador decide:
 
 ```bash
@@ -170,6 +170,15 @@ GCLOUD_PROJECT=<id> npm --prefix functions run admin:reject-teacher -- <uid> [--
 ```
 
 La app ve el cambio de rol al refrescar la sesión (al volver a primer plano).
+
+### Avisos push
+
+Mensaje de chat, revisión del profesor y tarea nueva avisan al destinatario (triggers `notifyChatMessage`,
+`notifyReview`, `notifyAssignment`) con FCM. El aviso no lleva contenido: solo claves de texto que traduce la app.
+Interruptor `NOTIFICATIONS_ENABLED` en `functions/.env.<project>` (techo) y `appConfig/features.notificationsEnabled`
+para apagarlo en caliente. Encenderlo en producción solo cuando la política publicada incluya la sección «Avisos en el
+móvil». La app registra el token (`registerDevice`) al entrar con el interruptor encendido, lo da de baja al cerrar
+sesión (`unregisterDevice`) y pide `POST_NOTIFICATIONS` (Android 13+) solo con el botón «Activar avisos» de inicio.
 
 ### Chat profesor–alumno (fase 4c)
 

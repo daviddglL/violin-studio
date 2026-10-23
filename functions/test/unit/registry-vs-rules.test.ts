@@ -165,11 +165,13 @@ test("toda subcoleccion registrada tiene su match explicito bajo su padre inmedi
   expect(declared).toContainEqual({ name: "recordings", parent: "users" });
   expect(declared).toContainEqual({ name: "reviews", parent: "recordings" });
   expect(declared).toContainEqual({ name: "recordingCountLedger", parent: "users" });
+  expect(declared).toContainEqual({ name: "devices", parent: "users" });
 });
 
 test("las colecciones solo-servidor de B5a (ledger del cupo, cursores de mantenimiento) son deny total", () => {
   expect(rules).toMatch(/match \/recordingCountLedger\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
   expect(rules).toMatch(/match \/maintenance\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
+  expect(rules).toMatch(/match \/devices\/\{id\}\s*\{\s*allow read, write: if false;\s*\}/);
 });
 
 test("reviews cuelga de recordings y no de users: otro padre falla (negativo)", () => {

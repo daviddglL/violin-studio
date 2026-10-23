@@ -19,6 +19,7 @@ describe("COLLECTIONS", () => {
       maintenance: "maintenance",
       chatMessages: "chatMessages",
       appConfig: "appConfig",
+      devices: "devices",
     });
   });
   test("CollectionName admite los valores registrados", () => {

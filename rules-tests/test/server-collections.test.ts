@@ -52,3 +52,22 @@ describe("users/{uid}/recordingCountLedger", () => {
     });
   });
 });
+
+// Avisos push: tokens de FCM bajo el propio usuario; solo Admin SDK (registerDevice/unregisterDevice).
+describe("users/{uid}/devices", () => {
+  describe.each(contexts)("como %s", (_, ctx) => {
+    beforeEach(async () => {
+      await seed(env, "users/alice", { consentStatus: "granted" });
+      await seed(env, "users/alice/devices/d1", { token: "t", platform: "android" });
+    });
+    test("ni el dueno lee, lista, crea, actualiza ni borra", async () => {
+      const db = ctx().firestore();
+      const path = "users/alice/devices";
+      await assertFails(getDoc(doc(db, `${path}/d1`)));
+      await assertFails(getDocs(collection(db, path)));
+      await assertFails(setDoc(doc(db, `${path}/nuevo`), { token: "x" }));
+      await assertFails(updateDoc(doc(db, `${path}/d1`), { token: "y" }));
+      await assertFails(deleteDoc(doc(db, `${path}/d1`)));
+    });
+  });
+});

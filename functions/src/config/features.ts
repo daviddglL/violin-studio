@@ -28,6 +28,14 @@ export function chatEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return flag(env, "CHAT_ENABLED", env.FUNCTIONS_EMULATOR === "true" || env.NODE_ENV === "test");
 }
 
+/**
+ * Avisos push (chat, revisiones, tareas), con las mismas reglas: `NOTIFICATIONS_ENABLED`, apagado en produccion sin
+ * variable. Se enciende cuando la politica publicada describa los avisos y el token del dispositivo.
+ */
+export function notificationsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return flag(env, "NOTIFICATIONS_ENABLED", env.FUNCTIONS_EMULATOR === "true" || env.NODE_ENV === "test");
+}
+
 export function recordingFlags(env: NodeJS.ProcessEnv = process.env): RecordingFlags {
   const local = env.FUNCTIONS_EMULATOR === "true" || env.NODE_ENV === "test";
   return {
