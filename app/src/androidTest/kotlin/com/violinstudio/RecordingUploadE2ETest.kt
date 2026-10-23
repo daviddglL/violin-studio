@@ -10,8 +10,6 @@ import com.violinstudio.domain.feature.recording.usecase.FinishRecordingUseCase
 import com.violinstudio.domain.feature.recording.usecase.GrantRecordingConsentUseCase
 import com.violinstudio.domain.feature.recording.usecase.RunUploadQueueUseCase
 import dagger.hilt.android.testing.HiltAndroidTest
-import java.io.ByteArrayOutputStream
-import java.io.DataOutputStream
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
@@ -31,7 +29,7 @@ import org.junit.runner.RunWith
  * motor de subida de la app la sube a Storage con el sello de la epoca; el servidor la valida y escribe el doc `ready`.
  *
  * El emulador de Android arranca sin audio (`-noaudio`), asi que la toma no se graba con el micro: es un `.m4a`
- * minimo (cajas `ftyp`/`moov`/`mvhd`/`mdat`) que el parser del servidor acepta, en la carpeta real de las tomas.
+ * minimo ([minimalMp4]) que el parser del servidor acepta, en la carpeta real de las tomas.
  * `HiltTestApplication` no ejecuta `ViolinStudioApp.onCreate`, asi que el test arranca el vigia de la cola el mismo; la
  * subida la hace el trabajo real de WorkManager (`UploadQueueWorker`).
  */
@@ -71,7 +69,7 @@ class RecordingUploadE2ETest : E2eTest() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(File(File(context.noBackupFilesDir, "recordings"), uid), "$id.m4a")
         file.parentFile!!.mkdirs()
-        file.writeBytes(minimalM4a(durationMs = DURATION_MS))
+        file.writeBytes(minimalMp4(brand = "M4A ", durationMs = DURATION_MS))
         val take = RecordedTake(id, uid, file.path, DURATION_MS, file.length(), account.consentEpoch)
         assertTrue(finish(take).isSuccess)
 
@@ -98,36 +96,5 @@ class RecordingUploadE2ETest : E2eTest() {
     private companion object {
         const val DURATION_MS = 5_000L
         const val UPLOAD_TIMEOUT_MS = 120_000L
-
-        /** MP4 de audio minimo: `ftyp` (marca `M4A `), `moov` con `mvhd` v0 (escala 1000) y un `mdat` de relleno. */
-        fun minimalM4a(durationMs: Long): ByteArray {
-            fun box(type: String, payload: ByteArray): ByteArray {
-                val out = ByteArrayOutputStream()
-                DataOutputStream(out).apply {
-                    writeInt(8 + payload.size)
-                    writeBytes(type)
-                    write(payload)
-                }
-                return out.toByteArray()
-            }
-            val ftyp = ByteArrayOutputStream().also {
-                DataOutputStream(it).apply {
-                    writeBytes("M4A ")
-                    writeInt(0)
-                    writeBytes("isom")
-                }
-            }.toByteArray()
-            val mvhd = ByteArrayOutputStream().also {
-                DataOutputStream(it).apply {
-                    writeInt(0) // version 0 y flags
-                    writeInt(0) // creation_time
-                    writeInt(0) // modification_time
-                    writeInt(1_000) // timescale
-                    writeInt(durationMs.toInt())
-                    write(ByteArray(80))
-                }
-            }.toByteArray()
-            return box("ftyp", ftyp) + box("moov", box("mvhd", mvhd)) + box("mdat", ByteArray(16 * 1024))
-        }
     }
 }
