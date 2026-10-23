@@ -5,9 +5,12 @@ cada uno depende del anterior.
 
 ## 1. Cuenta de servicio de CI con permisos mínimos
 
-El job `release` solo sube el APK a App Distribution. Hoy usa `firebase-adminsdk-fbsvc@…`, que tiene acceso de
-administrador a todo el proyecto (Auth, Firestore y Storage con datos de menores). Si se filtrara el secreto
+El job `release` solo sube el APK a App Distribution. No debe usar `firebase-adminsdk-fbsvc@…`, que tiene acceso de
+administrador a todo el proyecto (Auth, Firestore y Storage con datos de menores): si se filtrara el secreto
 `FIREBASE_SERVICE_ACCOUNT_JSON`, se filtraría todo.
+
+Hecho en `violin-app-dev-f0b55` el 2026-10-21: CI usa `ci-app-distribution@violin-app-dev-f0b55`, que solo tiene
+`roles/firebaseappdistro.admin`. Repítelo en el proyecto de producción (paso 2.5).
 
 ```bash
 PROJECT=<id-del-proyecto>
@@ -43,7 +46,9 @@ desarrollo comparten datos.
    - `GUARDIAN_LINK_BASE_URL=https://<id-prod>.web.app`. También fija la URL de la política que ve la app
      (`policyUrl()`); sin ella se mostraría la de desarrollo.
    - `ENFORCE_APP_CHECK=false` hasta completar el paso 4.
-   - Los interruptores de grabación de la sección "Publicar la fase 4b" del README.
+   - Los interruptores de la sección "Interruptores en caliente" del README (`RECORDINGS_ENABLED`, `VIDEO_ENABLED`,
+     `MINOR_RECORDING_ENABLED`, `CHAT_ENABLED`, `NOTIFICATIONS_ENABLED`), apagados hasta que la política publicada
+     cubra cada función.
 5. Repite el paso 1 (cuenta de servicio de CI) en el proyecto nuevo.
 
 ## 3. Correo del tutor
@@ -72,6 +77,7 @@ Play Integrity solo valida apps instaladas desde Google Play, así que App Distr
 ## 5. Antes de abrir la app al público
 
 - Revisión legal de la política v2 (puerta 0 del README).
-- Data safety en Play Console según `docs/data-safety.md`, incluidas las grabaciones cuando se activen.
+- Data safety en Play Console según `docs/data-safety.md`, incluidos las grabaciones, el chat y los avisos cuando
+  se activen.
 - Cuestionario de clasificación de contenido y público objetivo. Si se admite a menores de 13, revisa la política de
   Familias de Google Play.
