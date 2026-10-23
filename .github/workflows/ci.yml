@@ -76,7 +76,7 @@ jobs:
       - run: firebase emulators:exec --only firestore,storage --project demo-violin-studio "npm --prefix rules-tests test"
 
   # E2E contra los emuladores de Firebase (functions, auth, firestore, storage). Bloqueante: cubre registro, menor,
-  # vinculo profesor-alumno, chat y subida de grabaciones.
+  # vinculo profesor-alumno, chat y subida de grabaciones de audio y video.
   e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
