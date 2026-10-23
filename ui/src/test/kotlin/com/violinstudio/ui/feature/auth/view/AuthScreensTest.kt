@@ -187,7 +187,8 @@ class AuthScreensTest {
         showLogin()
         // El autorrelleno de Compose escribe en el campo con la acción semántica SetText.
         listOf(AUTH_EMAIL_TAG, AUTH_PASSWORD_TAG).forEach { tag ->
-            compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString("filled")) }
+            compose.onNodeWithTag(tag)
+                .performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString("filled")) }
         }
         assertEquals(
             listOf(LoginIntent.EmailChanged("filled"), LoginIntent.PasswordChanged("filled")),
