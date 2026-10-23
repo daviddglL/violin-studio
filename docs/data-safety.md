@@ -1,22 +1,22 @@
 # Declaración de Data safety y política: micrófono (`RECORD_AUDIO`)
 
-Estado: borrador de la fase 3 (slice C1), ampliado en la fase 4a (A11) para Google Play Console > Contenido de la app > Seguridad de los datos y para
-el texto de la política de privacidad (`hosting/public/politica/index.html`, versión 2, pendiente de revisión legal).
-Cubre REQ-AUD-05 de `practice-audio`.
+Estado: borrador de la fase 3, ampliado en las fases 4a, 4b y 4c y con los avisos push, para Google Play Console >
+Contenido de la app > Seguridad de los datos y para el texto de la política de privacidad
+(`hosting/public/politica/index.html`, versión 2, pendiente de revisión legal).
 
 ## Resumen
 
-La app usa el micrófono solo para el afinador, con la pantalla visible. El audio se procesa en memoria en el
+Sin las grabaciones (fase 4b), la app usa el micrófono solo para el afinador, con la pantalla visible. El audio se procesa en memoria en el
 dispositivo, se descarta al terminar cada ventana de análisis y NUNCA se guarda, se registra ni se envía.
 
 ## Declaración en Play Console
 
 | Pregunta | Respuesta | Motivo |
 |---|---|---|
-| Datos de audio: grabaciones de voz o sonido | **No recopilados, no compartidos** | El audio del micro solo se analiza en memoria (frecuencia, nota y cents para la pantalla); no sale del dispositivo ni se persiste |
+| Datos de audio: grabaciones de voz o sonido (afinador) | **No recopilados, no compartidos** | El audio del micro solo se analiza en memoria (frecuencia, nota y cents para la pantalla); no sale del dispositivo ni se persiste |
 | Datos de audio: archivos de música/audio | No recopilados | La app no lee ni guarda archivos de audio |
 | ¿Se comparten datos con terceros? (audio) | No | Sin red en el pipeline de audio |
-| Permiso `RECORD_AUDIO` | Declarado; solicitado en contexto al abrir el afinador | Nunca al arrancar la app |
+| Permiso `RECORD_AUDIO` | Declarado; solicitado en contexto al abrir el afinador (o la pantalla de grabaciones) | Nunca al arrancar la app |
 | Servicios en primer plano de micrófono | Ninguno | Sin captura en segundo plano |
 | Registros de fallos (crash logs) | Recopilados, vinculados a la app (no a datos de audio) | Crashlytics en el flavor prod |
 | Diagnósticos y rendimiento de la app | Recopilados | Firebase Performance y Crashlytics |
@@ -31,8 +31,8 @@ junto con la cuenta (borrado completo desde la app).
 
 ## Vínculo profesor-alumno, tareas y visibilidad del registro (fase 4a)
 
-Cubre REQ-CON-R04. Declaración para Play Console de lo que añade el vínculo; el audio y el vídeo de las grabaciones
-(fase 4b/4c) NO están incluidos aquí y se declararán cuando existan.
+Declaración para Play Console de lo que añade el vínculo; las grabaciones de audio y vídeo tienen sus propias
+secciones más abajo.
 
 | Pregunta | Respuesta | Motivo |
 |---|---|---|
@@ -57,6 +57,27 @@ Controles técnicos relacionados (verificados por tests de reglas y de integraci
   bloque): el vínculo se conserva, pero el profesor no tiene acceso hasta que ambos vuelvan a consentir. Ninguna cuenta
   de menor se borra por el cambio.
 - Los registros de Functions solo llevan hashes de uid y contadores; nunca nombres, notas ni códigos.
+
+## Grabaciones de audio (fase 4b)
+
+Se activa con `RECORDINGS_ENABLED` (y, para menores de 14 años, además `MINOR_RECORDING_ENABLED`). Lo que añade a la
+declaración de Play Console:
+
+| Pregunta | Respuesta | Motivo |
+|---|---|---|
+| Audio: grabaciones de voz o sonido | Recopiladas y **compartidas solo con el profesor vinculado** (o, en una demo, con el alumno destinatario); opcionales | El usuario graba con su acción, con el consentimiento de grabación (el del tutor si tiene menos de 14 años) |
+| ¿Se comparten con terceros? | No | Solo el profesor y el alumno del vínculo las oyen |
+| Contenido generado por el usuario: revisiones del profesor | Recopiladas; visibles para el alumno y el profesor | Texto del profesor sobre una grabación |
+| Cifrado en tránsito | Sí | Firebase (TLS) |
+| Borrado | El usuario borra cada grabación; caducan a los 90 días; se borran al revocar el consentimiento, al desvincular (las demos) o al borrar la cuenta | `onRecordingDeleted`, `purgeRecordings`, `purgeRevokedRecordings` y el borrado de cuenta |
+
+Controles técnicos:
+
+- La toma vive en `noBackupFilesDir` (sin copia de seguridad; la app tiene `allowBackup="false"`) hasta que se sube;
+  la cola de subida corre con WorkManager, solo con red y sin servicio en primer plano.
+- Las reglas de Storage solo aceptan `.m4a` de hasta 25 MiB sellados con la época de consentimiento vigente;
+  `finalizeRecording` mide la duración real (60 s alumno, 120 s profesor) y aplica el cupo de 20 por usuario.
+- `ManifestPermissionsTest` limita la petición de `RECORD_AUDIO` a las rutas del afinador y de grabaciones.
 
 ## Chat profesor-alumno (fase 4c)
 
@@ -125,10 +146,11 @@ Controles técnicos:
 > analiza al instante en tu dispositivo para mostrar la nota y la afinación; no se graba, no se guarda y no se envía a
 > ningún servidor ni a terceros. Puedes revocar el permiso en los ajustes del sistema en cualquier momento.
 
-## Menores (D7)
+## Menores
 
-No se añade ningún aviso específico para menores sobre el micrófono más allá del consentimiento de la fase 2: el audio
-no se recopila ni se comparte, así que no altera el tratamiento de datos del menor ni del tutor.
+El afinador no añade ningún aviso específico para menores más allá del consentimiento de la fase 2: su audio no se
+recopila ni se comparte. Las grabaciones de un menor de 14 años necesitan además la autorización del tutor
+(propósito `recording_sharing`) y el interruptor `MINOR_RECORDING_ENABLED`.
 
 ## Garantías verificadas por tests (CI)
 
@@ -146,8 +168,7 @@ no se recopila ni se comparte, así que no altera el tratamiento de datos del me
 - La política v2 (`hosting/public/politica/index.html`, `CURRENT_POLICY_VERSION = 2`) es el borrador de la fase 4
   completa (vínculo, tareas, grabaciones de audio y vídeo, difuminado, retención de 90 días, cupo de 20) e incluye ya
   responsable y contacto, base jurídica, plazos de conservación, transferencias internacionales y derechos (art. 13
-  RGPD). **Falta la revisión legal** de ese texto antes de publicar en Play (riesgo Q1 abierto, puerta bloqueante en
-  README).
+  RGPD). **Falta la revisión legal** de ese texto antes de publicar en Play (puerta bloqueante en el README).
 - Declarar en Play Console las grabaciones de audio y vídeo cuando se publique la fase 4b/4c.
 - Para la revisión legal (residuales conocidos del borrado de cuenta y la revocación, fase 4b):
   - Al borrar la cuenta de un profesor sus revisiones se **anonimizan** (sin uid en la ruta ni en los campos), pero el
