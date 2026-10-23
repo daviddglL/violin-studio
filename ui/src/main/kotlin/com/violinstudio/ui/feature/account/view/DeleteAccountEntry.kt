@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalComposeUiApi::class)
-
 package com.violinstudio.ui.feature.account.view
 
 import androidx.compose.foundation.layout.Column
@@ -14,9 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.AutofillType
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
@@ -127,7 +124,7 @@ private fun Reauthentication(state: DeleteAccountState, onIntent: (DeleteAccount
             label = stringResource(R.string.delete_account_password_label),
             error = null,
             tag = DELETE_ACCOUNT_PASSWORD_TAG,
-            autofillTypes = listOf(AutofillType.Password),
+            contentType = ContentType.Password,
             isPassword = true,
             enabled = !state.isWorking,
             onDone = { onIntent(DeleteAccountIntent.SubmitPassword) }
