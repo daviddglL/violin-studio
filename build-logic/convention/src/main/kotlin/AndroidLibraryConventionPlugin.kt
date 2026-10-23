@@ -2,6 +2,7 @@ import com.android.build.api.dsl.LibraryExtension
 import com.violinstudio.buildlogic.COMPILE_SDK
 import com.violinstudio.buildlogic.JAVA_VERSION
 import com.violinstudio.buildlogic.MIN_SDK
+import com.violinstudio.buildlogic.TARGET_SDK
 import com.violinstudio.buildlogic.configureAndroidKtlintCli
 import com.violinstudio.buildlogic.configureJUnit5
 import com.violinstudio.buildlogic.configureKotlinToolchain
@@ -25,7 +26,11 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     targetCompatibility = JAVA_VERSION
                 }
                 buildTypes.getByName("debug") { enableUnitTestCoverage = true }
-                testOptions { unitTests.isIncludeAndroidResources = true }
+                testOptions {
+                    // Sin esto los tests de Robolectric de las librerías heredarían COMPILE_SDK como target.
+                    targetSdk = TARGET_SDK
+                    unitTests.isIncludeAndroidResources = true
+                }
             }
             configureKotlinToolchain()
             configureJUnit5()

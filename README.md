@@ -64,7 +64,7 @@ functions/  Cloud Functions (TypeScript).
 
 ## Requisitos
 
-JDK 21, Android SDK 36, Node 22 y Firebase CLI (`npm i -g firebase-tools`).
+JDK 21, Android SDK 37, Node 22 y Firebase CLI (`npm i -g firebase-tools`).
 
 Los `google-services.json` no están en git: descárgalos de la consola de Firebase a `app/src/dev/` y
 `app/src/prod/`. Dev y prod usan de momento el mismo proyecto, `violin-app-dev-f0b55`.
