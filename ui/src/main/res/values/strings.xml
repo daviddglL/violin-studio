@@ -322,8 +322,8 @@
     <string name="link_redeem_intro">Introduce el código que te ha dado tu profesor.</string>
     <string name="link_redeem_code_label">Código del profesor</string>
     <string name="link_redeem_notice_title">Antes de vincular</string>
-    <string name="link_redeem_notice_body">Tu profesor podrá ver todas tus sesiones de práctica, incluidas las notas que escribas. Puedes desvincularte cuando quieras y tu profesor perderá el acceso al instante.</string>
-    <string name="link_redeem_notice_checkbox">He leído el aviso y acepto que mi profesor vea mi registro de práctica</string>
+    <string name="link_redeem_notice_body">Tu profesor podrá ver todas tus sesiones de práctica, incluidas las notas que escribas, y las lecciones del currículo que hayas completado. Puedes desvincularte cuando quieras y tu profesor perderá el acceso al instante.</string>
+    <string name="link_redeem_notice_checkbox">He leído el aviso y acepto que mi profesor vea mi registro de práctica y mi progreso</string>
     <string name="link_redeem_submit">Vincular</string>
     <string name="link_redeem_submitting">Vinculando…</string>
     <string name="link_error_invalid_code">Ese código no es válido. Revísalo o pide uno nuevo a tu profesor.</string>

@@ -26,7 +26,13 @@ export const GUARDIAN_REVOKE_LINK_TTL_DAYS = 30;
 export const ADULT_AGE = 18;
 
 /** Vínculo profesor-alumno (design §3.1). */
-export const LINK_NOTICE_VERSION = 1;
+export const LINK_NOTICE_VERSION = 2;
+/**
+ * Versiones del aviso que el canje aun acepta. La v2 menciona el progreso del curriculo; la 1 se mantiene para que
+ * las builds anteriores sigan canjeando mientras se actualizan. Quitar la 1 cuando ya no haya builds antiguas
+ * (el vinculo guarda `ackVersion`, asi que se sabe quien acepto cada una).
+ */
+export const ACCEPTED_LINK_NOTICE_VERSIONS: readonly number[] = [1, LINK_NOTICE_VERSION];
 export const MAX_STUDENTS_PER_TEACHER = 30;
 export const MAX_TEACHERS_PER_STUDENT = 1;
 export const TEACHER_CODE_TTL_DAYS = 7;

@@ -127,6 +127,13 @@ describe("redeemTeacherCode - errores genericos (A3a.3)", () => {
     await expect(canjear(s, code)).resolves.toMatchObject({ linked: true });
   });
 
+  test("aviso v1 de builds antiguas: aun canjea y el vinculo guarda que acepto la v1", async () => {
+    const t = await profesor();
+    const s = await alumno();
+    await expect(canjear(s, await nuevoCodigo(t), 1)).resolves.toMatchObject({ linked: true });
+    expect((await linkDoc(t, s))?.ackVersion).toBe(1);
+  });
+
   test("profesor lleno: TEACHER_FULL (resource-exhausted, cuenta como fallo) y el codigo sigue libre", async () => {
     const t = await profesor({ studentCount: 30 });
     const s = await alumno();

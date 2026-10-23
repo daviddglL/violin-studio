@@ -1,4 +1,4 @@
-import { CURRENT_POLICY_VERSION, LINK_NOTICE_VERSION, MAX_STUDENTS_PER_TEACHER } from "../config/identity";
+import { ACCEPTED_LINK_NOTICE_VERSIONS, CURRENT_POLICY_VERSION, MAX_STUDENTS_PER_TEACHER } from "../config/identity";
 import { isAdult, parseBirthDate } from "../identity/age";
 
 export type TeacherDenyReason =
@@ -108,7 +108,7 @@ export function studentDenial({
   ackVersion,
   policyVersion = CURRENT_POLICY_VERSION,
 }: StudentCheckInput): RedeemDenyReason | null {
-  if (ackVersion !== LINK_NOTICE_VERSION) return "NOTICE_OUTDATED";
+  if (typeof ackVersion !== "number" || !ACCEPTED_LINK_NOTICE_VERSIONS.includes(ackVersion)) return "NOTICE_OUTDATED";
   if (!student || student.deletion) return "STUDENT_INACTIVE";
   if (!consentCurrent(student, policyVersion)) return "NO_CONSENT";
   if (student.role === "teacher") return "STUDENT_IS_TEACHER";

@@ -92,7 +92,7 @@ class TeacherStudentFlowE2ETest : E2eTest() {
         val stale = Emulators.callAs(
             studentToken,
             "redeemTeacherCode",
-            JSONObject().put("code", code).put("ackVersion", LinkNotice.VERSION - 1)
+            JSONObject().put("code", code).put("ackVersion", 0)
         )
         assertEquals("NOTICE_OUTDATED rechazado", 400, stale.code)
         assertTrue("estado FAILED_PRECONDITION: ${stale.body}", stale.body.contains("FAILED_PRECONDITION"))

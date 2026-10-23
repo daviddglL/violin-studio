@@ -1,4 +1,4 @@
-import { CURRENT_POLICY_VERSION, LINK_NOTICE_VERSION } from "../../src/config/identity";
+import { ACCEPTED_LINK_NOTICE_VERSIONS, CURRENT_POLICY_VERSION, LINK_NOTICE_VERSION } from "../../src/config/identity";
 import { canRedeem, RedeemInput } from "../../src/teacher/eligibility";
 
 const now = new Date("2026-10-07T12:00:00Z");
@@ -57,8 +57,15 @@ describe("canRedeem", () => {
   ])("profesor %s -> TEACHER_UNAVAILABLE", (_n, t) => {
     expect(check({ teacher: t })).toEqual({ ok: false, reason: "TEACHER_UNAVAILABLE" });
   });
-  test.each([[0], [LINK_NOTICE_VERSION + 1], [undefined], ["1"], [1.5]])("ackVersion %j -> NOTICE_OUTDATED", (a) => {
+  test.each([[0], [LINK_NOTICE_VERSION + 1], [undefined], ["1"], ["2"], [1.5], [null]])("ackVersion %j -> NOTICE_OUTDATED", (a) => {
     expect(check({ ackVersion: a })).toEqual({ ok: false, reason: "NOTICE_OUTDATED" });
+  });
+  test.each(ACCEPTED_LINK_NOTICE_VERSIONS.map((v) => [v]))("ackVersion %j aceptada durante la transicion", (a) => {
+    expect(check({ ackVersion: a })).toEqual({ ok: true });
+  });
+  test("la version vigente es la mas alta aceptada", () => {
+    expect(ACCEPTED_LINK_NOTICE_VERSIONS).toContain(LINK_NOTICE_VERSION);
+    expect(Math.max(...ACCEPTED_LINK_NOTICE_VERSIONS)).toBe(LINK_NOTICE_VERSION);
   });
   test("el aviso se evalua antes que el resto", () => {
     expect(check({ ackVersion: 0, student: undefined })).toEqual({ ok: false, reason: "NOTICE_OUTDATED" });
