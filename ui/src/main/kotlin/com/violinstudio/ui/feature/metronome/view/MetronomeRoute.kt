@@ -12,6 +12,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.violinstudio.ui.commons.KeepScreenOn
 import com.violinstudio.ui.feature.metronome.viewmodel.MetronomeIntent
 import com.violinstudio.ui.feature.metronome.viewmodel.MetronomeViewModel
 
@@ -35,6 +36,7 @@ fun MetronomeRoute(
     DisposableEffect(viewModel) {
         onDispose { if (!isChangingConfigurations()) viewModel.onIntent(MetronomeIntent.Stop) }
     }
+    KeepScreenOn(state.isPlaying)
     MetronomeScreen(state = state, onIntent = viewModel::onIntent, onBack = onBack)
 }
 
