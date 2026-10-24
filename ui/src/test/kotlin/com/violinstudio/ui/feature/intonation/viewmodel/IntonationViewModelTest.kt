@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -96,7 +97,7 @@ class IntonationViewModelTest {
     fun `sin permiso lo pide, denegado o bloqueado lo dice y bloqueado ya no lo pide`() = runTest {
         val vm = viewModel()
         val effects = mutableListOf<IntonationEffect>()
-        backgroundScope.launch { vm.effects.collect { effects += it } }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect { effects += it } }
         vm.onIntent(IntonationIntent.Start(granted = false))
         advanceUntilIdle()
         assertEquals(listOf<IntonationEffect>(IntonationEffect.RequestMicPermission), effects)
