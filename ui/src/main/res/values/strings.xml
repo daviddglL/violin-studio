@@ -707,4 +707,24 @@
     <string name="intonation_ex_g_major_two_octaves">Escala de sol mayor (dos octavas)</string>
     <string name="intonation_ex_a_string_third_position">Tercera posición en la cuerda la</string>
     <string name="curriculum_open_intonation">Ejercicio de afinación</string>
+    <!-- Consejos de practica (inicio) -->
+    <string name="home_tips_title">Consejos para hoy</string>
+    <string name="tip_first_session">Empieza con tu primera sesión: con 10 minutos basta.</string>
+    <string name="tip_come_back">Llevas más de una semana sin practicar: vuelve hoy con una sesión corta.</string>
+    <plurals name="tip_keep_streak">
+        <item quantity="one">Llevas %1$d día seguido: practica hoy para no perder la racha.</item>
+        <item quantity="many">Llevas %1$d días seguidos: practica hoy para no perder la racha.</item>
+        <item quantity="other">Llevas %1$d días seguidos: practica hoy para no perder la racha.</item>
+    </plurals>
+    <plurals name="tip_catch_up_week">
+        <item quantity="one">Te falta %1$d minuto para igualar la semana pasada.</item>
+        <item quantity="many">Te faltan %1$d minutos para igualar la semana pasada.</item>
+        <item quantity="other">Te faltan %1$d minutos para igualar la semana pasada.</item>
+    </plurals>
+    <plurals name="tip_longer_sessions">
+        <item quantity="one">Tus sesiones duran %1$d minuto de media: intenta llegar a 10.</item>
+        <item quantity="many">Tus sesiones duran %1$d minutos de media: intenta llegar a 10.</item>
+        <item quantity="other">Tus sesiones duran %1$d minutos de media: intenta llegar a 10.</item>
+    </plurals>
+    <string name="tip_next_lesson">Siguiente lección: %1$s (%2$d min al día).</string>
 </resources>
