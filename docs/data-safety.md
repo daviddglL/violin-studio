@@ -6,7 +6,8 @@ Contenido de la app > Seguridad de los datos y para el texto de la política de 
 
 ## Resumen
 
-Sin las grabaciones (fase 4b), la app usa el micrófono solo para el afinador, con la pantalla visible. El audio se procesa en memoria en el
+Sin las grabaciones (fase 4b), la app usa el micrófono solo para el afinador y el ejercicio de afinación, con la
+pantalla visible. El audio se procesa en memoria en el
 dispositivo, se descarta al terminar cada ventana de análisis y NUNCA se guarda, se registra ni se envía.
 
 ## Declaración en Play Console
@@ -16,7 +17,7 @@ dispositivo, se descarta al terminar cada ventana de análisis y NUNCA se guarda
 | Datos de audio: grabaciones de voz o sonido (afinador) | **No recopilados, no compartidos** | El audio del micro solo se analiza en memoria (frecuencia, nota y cents para la pantalla); no sale del dispositivo ni se persiste |
 | Datos de audio: archivos de música/audio | No recopilados | La app no lee ni guarda archivos de audio |
 | ¿Se comparten datos con terceros? (audio) | No | Sin red en el pipeline de audio |
-| Permiso `RECORD_AUDIO` | Declarado; solicitado en contexto al abrir el afinador (o la pantalla de grabaciones) | Nunca al arrancar la app |
+| Permiso `RECORD_AUDIO` | Declarado; solicitado en contexto al abrir el afinador, el ejercicio de afinación o la pantalla de grabaciones | Nunca al arrancar la app |
 | Servicios en primer plano de micrófono | Ninguno | Sin captura en segundo plano |
 | Registros de fallos (crash logs) | Recopilados, vinculados a la app (no a datos de audio) | Crashlytics en el flavor prod |
 | Diagnósticos y rendimiento de la app | Recopilados | Firebase Performance y Crashlytics |
@@ -142,7 +143,7 @@ Controles técnicos:
 
 ## Texto para la política de privacidad
 
-> El afinador usa el micrófono de tu dispositivo solo mientras la pantalla del afinador está abierta. El sonido se
+> El afinador y el ejercicio de afinación usan el micrófono de tu dispositivo solo mientras su pantalla está abierta. El sonido se
 > analiza al instante en tu dispositivo para mostrar la nota y la afinación; no se graba, no se guarda y no se envía a
 > ningún servidor ni a terceros. Puedes revocar el permiso en los ajustes del sistema en cualquier momento.
 

@@ -23,6 +23,7 @@ import com.violinstudio.data.feature.curriculum.repository.FirestoreLessonProgre
 import com.violinstudio.data.feature.health.datasource.HealthRemoteDataSource
 import com.violinstudio.data.feature.health.datasource.firebase.FirebaseHealthRemoteDataSource
 import com.violinstudio.data.feature.health.repository.HealthRepositoryImpl
+import com.violinstudio.data.feature.intonation.repository.DataStoreIntonationScoreRepository
 import com.violinstudio.data.feature.link.datasource.LinkRemoteDataSource
 import com.violinstudio.data.feature.link.datasource.TeacherFunctionsDataSource
 import com.violinstudio.data.feature.link.datasource.firebase.FirebaseLinkRemoteDataSource
@@ -56,6 +57,7 @@ import com.violinstudio.domain.feature.consent.repository.ConsentRepository
 import com.violinstudio.domain.feature.consent.repository.IdentityConfigCache
 import com.violinstudio.domain.feature.curriculum.repository.LessonProgressRepository
 import com.violinstudio.domain.feature.health.repository.HealthRepository
+import com.violinstudio.domain.feature.intonation.repository.IntonationScoreRepository
 import com.violinstudio.domain.feature.link.repository.LinkRepository
 import com.violinstudio.domain.feature.notification.repository.PushTokenRepository
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
@@ -139,6 +141,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindLessonProgressRepository(impl: FirestoreLessonProgressRepository): LessonProgressRepository
+
+    @Binds
+    abstract fun bindIntonationScoreRepository(impl: DataStoreIntonationScoreRepository): IntonationScoreRepository
 
     @Binds
     abstract fun bindLinkRemoteDataSource(impl: FirebaseLinkRemoteDataSource): LinkRemoteDataSource

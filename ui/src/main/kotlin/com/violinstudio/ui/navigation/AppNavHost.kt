@@ -34,6 +34,7 @@ import com.violinstudio.ui.feature.curriculum.view.CurriculumRoute
 import com.violinstudio.ui.feature.guardian.view.GuardianWaitSlot
 import com.violinstudio.ui.feature.home.view.HomeNavigation
 import com.violinstudio.ui.feature.home.view.HomeRoute
+import com.violinstudio.ui.feature.intonation.view.IntonationRoute
 import com.violinstudio.ui.feature.link.view.MyTeacherRoute
 import com.violinstudio.ui.feature.link.view.RedeemCodeRoute
 import com.violinstudio.ui.feature.link.view.TeacherRequestRoute
@@ -136,6 +137,7 @@ fun SessionNavHost(
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit = { AssignmentEditRoute(onBack = it) },
     stats: @Composable (onBack: () -> Unit) -> Unit = { StatsRoute(onBack = it) },
     curriculum: @Composable (CurriculumNavigation) -> Unit = { CurriculumRoute(it) },
+    intonation: @Composable (onBack: () -> Unit) -> Unit = { IntonationRoute(onBack = it) },
     recordings: RecordingsSlot = { video, back -> RecordingsRoute(onBack = back, onRecordVideo = video) },
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit = { StudentRecordingsRoute(onBack = it) },
     teacherDemo: RecordingsSlot = { video, back -> RecordingsRoute(onBack = back, onRecordVideo = video) },
@@ -163,8 +165,8 @@ fun SessionNavHost(
             SessionGraph(
                 routed, navController, onSignOut, home, auth, verifyEmail, onboarding, consent, guardianWait, settings,
                 tuner, metronome, practice, redeemCode, teacherRequest, myTeacher, students, studentDetail,
-                teacherCodes, assignments, teacherAssignments, assignmentEdit, stats, curriculum, recordings,
-                studentRecordings,
+                teacherCodes, assignments, teacherAssignments, assignmentEdit, stats, curriculum, intonation,
+                recordings, studentRecordings,
                 teacherDemo, videoCapture, assignmentDemos, chat, deleteViewModel
             )
             if (session is SessionState.Unavailable && routed is SessionState.Ready) {
@@ -200,6 +202,7 @@ private fun SessionGraph(
     assignmentEdit: @Composable (onBack: () -> Unit) -> Unit,
     stats: @Composable (onBack: () -> Unit) -> Unit,
     curriculum: @Composable (CurriculumNavigation) -> Unit,
+    intonation: @Composable (onBack: () -> Unit) -> Unit,
     recordings: RecordingsSlot,
     studentRecordings: @Composable (onBack: () -> Unit) -> Unit,
     teacherDemo: RecordingsSlot,
@@ -287,12 +290,18 @@ private fun SessionGraph(
                     CurriculumNavigation(
                         onOpenTuner = { navController.navigate(TunerDestination) { launchSingleTop = true } },
                         onOpenMetronome = { navController.navigate(MetronomeDestination) { launchSingleTop = true } },
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        onOpenIntonation = { id ->
+                            navController.navigate(IntonationDestination(id)) { launchSingleTop = true }
+                        }
                     )
                 )
             } else {
                 SplashScreen()
             }
+        }
+        composable<IntonationDestination> {
+            if (session is SessionState.Ready) intonation { navController.popBackStack() } else SplashScreen()
         }
         composable<RecordingsDestination> {
             if (session is SessionState.Ready) {

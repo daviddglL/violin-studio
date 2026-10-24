@@ -114,14 +114,17 @@ class ManifestPermissionsTest {
     }
 
     @Test
-    fun `RECORD_AUDIO solo se solicita desde las rutas del afinador y de grabaciones, nunca al arrancar`() {
+    fun `RECORD_AUDIO solo se solicita desde las rutas del afinador, del ejercicio de afinacion y de grabaciones`() {
         val roots = listOf("../ui/src/main", "../app/src/main", "../data/src/main").map { File(it) }
         assertTrue(roots.all { it.isDirectory })
         val requesting = roots.flatMap { root -> root.walkTopDown().filter { it.extension == "kt" }.toList() }
             .filter { requestsMic(it.readText()) }
             .map { it.name }
-        assertEquals(setOf("TunerRoute.kt", "RecordingsRoute.kt", "VideoCaptureRoute.kt"), requesting.toSet())
-        assertEquals(3, requesting.size)
+        assertEquals(
+            setOf("TunerRoute.kt", "IntonationRoute.kt", "RecordingsRoute.kt", "VideoCaptureRoute.kt"),
+            requesting.toSet()
+        )
+        assertEquals(4, requesting.size)
         assertTrue(requestsMic("launcher.launch(Manifest.permission.RECORD_AUDIO)"))
         assertTrue(requestsMic("requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)"))
         assertTrue(requestsMic("launcher.launch(\n    Manifest.permission.RECORD_AUDIO\n)"))

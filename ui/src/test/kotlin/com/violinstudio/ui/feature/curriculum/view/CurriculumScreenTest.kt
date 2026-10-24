@@ -31,9 +31,10 @@ class CurriculumScreenTest {
     private var tuner = 0
     private var metronome = 0
     private var back = 0
+    private val intonation = mutableListOf<String>()
 
     private fun show(state: CurriculumState) {
-        val navigation = CurriculumNavigation({ tuner++ }, { metronome++ }, { back++ })
+        val navigation = CurriculumNavigation({ tuner++ }, { metronome++ }, { back++ }, { intonation += it })
         compose.setContent { ViolinStudioTheme { CurriculumScreen(state, { sent += it }, navigation) } }
     }
 
@@ -72,6 +73,14 @@ class CurriculumScreenTest {
         show(CurriculumState(progress = CurriculumProgress.of(emptySet()), expandedId = "b4_tuning"))
         compose.onNodeWithTag(lessonToolTag("b4_tuning")).performScrollTo().performClick()
         assertEquals(1, tuner)
+    }
+
+    @Test
+    fun `las lecciones con ejercicio de afinacion lo abren y las demas no lo ofrecen`() {
+        show(CurriculumState(progress = CurriculumProgress.of(emptySet()), expandedId = "e2_d_major_scale"))
+        compose.onNodeWithTag(lessonIntonationTag("e2_d_major_scale")).performScrollTo().performClick()
+        assertEquals(listOf("d_major_one_octave"), intonation)
+        compose.onNodeWithTag(lessonIntonationTag("b3_open_strings")).assertDoesNotExist()
     }
 
     @Test
