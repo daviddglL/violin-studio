@@ -18,13 +18,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.violinstudio.ui.commons.KeepScreenOn
 import com.violinstudio.ui.commons.ObserveAsEvents
 import com.violinstudio.ui.commons.permission.ActivityMicPermissionChecker
 import com.violinstudio.ui.feature.intonation.viewmodel.IntonationEffect
 import com.violinstudio.ui.feature.intonation.viewmodel.IntonationIntent
 import com.violinstudio.ui.feature.intonation.viewmodel.IntonationViewModel
 
-/** Permiso, efectos y ciclo de vida: `ON_STOP` pausa (suelta el micro) y no se reanuda solo. */
+/**
+ * Permiso, efectos y ciclo de vida: `ON_STOP` pausa (suelta el micro) y no se reanuda solo. Mientras escucha, la
+ * pantalla no se apaga: el bloqueo automatico pausaria la escala.
+ */
 @Composable
 fun IntonationRoute(onBack: () -> Unit, viewModel: IntonationViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -46,6 +50,7 @@ fun IntonationRoute(onBack: () -> Unit, viewModel: IntonationViewModel = hiltVie
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onIntent(IntonationIntent.Pause) }
     DisposableEffect(viewModel) { onDispose { viewModel.onIntent(IntonationIntent.Pause) } }
+    KeepScreenOn(state.isListening)
     IntonationScreen(
         state = state,
         onIntent = viewModel::onIntent,

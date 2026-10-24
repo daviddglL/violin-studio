@@ -18,6 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.violinstudio.ui.commons.KeepScreenOn
 import com.violinstudio.ui.commons.ObserveAsEvents
 import com.violinstudio.ui.commons.permission.ActivityMicPermissionChecker
 import com.violinstudio.ui.commons.permission.snapshot
@@ -55,6 +56,7 @@ fun TunerRoute(onBack: () -> Unit, viewModel: TunerViewModel = hiltViewModel()) 
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onIntent(TunerIntent.Stop) }
     // Con la ruta enterrada en la pila el observador puede liberarse antes de ON_STOP: Stop es idempotente.
     DisposableEffect(viewModel) { onDispose { viewModel.onIntent(TunerIntent.Stop) } }
+    KeepScreenOn(state.isListening || state.isPlayingReference)
     TunerScreen(
         state = state,
         onIntent = viewModel::onIntent,
