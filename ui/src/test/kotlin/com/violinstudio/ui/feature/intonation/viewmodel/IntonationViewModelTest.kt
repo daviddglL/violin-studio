@@ -93,7 +93,7 @@ class IntonationViewModelTest {
     }
 
     @Test
-    fun `sin permiso lo pide; denegado o bloqueado lo dice y bloqueado ya no lo pide`() = runTest {
+    fun `sin permiso lo pide, denegado o bloqueado lo dice y bloqueado ya no lo pide`() = runTest {
         val vm = viewModel()
         val effects = mutableListOf<IntonationEffect>()
         backgroundScope.launch { vm.effects.collect { effects += it } }
