@@ -50,6 +50,10 @@ data object StatsDestination
 @Serializable
 data object CurriculumDestination
 
+/** Ejercicio de afinacion [exerciseId] (de una leccion del curriculo): comun a todos los roles. */
+@Serializable
+data class IntonationDestination(val exerciseId: String)
+
 /** Grabaciones de práctica (consentimiento, grabar, cola de subida): común a todos los roles. */
 @Serializable
 data object RecordingsDestination
@@ -141,6 +145,7 @@ val BUSINESS_ROUTES: List<kotlin.reflect.KClass<*>> =
         PracticeLogDestination::class,
         StatsDestination::class,
         CurriculumDestination::class,
+        IntonationDestination::class,
         RecordingsDestination::class,
         VideoCaptureDestination::class,
         RedeemCodeDestination::class,

@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.violinstudio.domain.feature.curriculum.model.LessonProgress
 import com.violinstudio.domain.feature.curriculum.model.LessonTool
 import com.violinstudio.domain.feature.curriculum.model.LevelProgress
+import com.violinstudio.domain.feature.intonation.model.IntonationExercises
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.components.LoadingIndicator
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
@@ -48,8 +49,15 @@ fun lessonDoneTag(id: String) = "lesson_done_$id"
 
 fun lessonToolTag(id: String) = "lesson_tool_$id"
 
-/** Accesos a las herramientas desde una leccion. */
-data class CurriculumNavigation(val onOpenTuner: () -> Unit, val onOpenMetronome: () -> Unit, val onBack: () -> Unit)
+fun lessonIntonationTag(id: String) = "lesson_intonation_$id"
+
+/** Accesos a las herramientas desde una leccion; [onOpenIntonation] recibe el id del ejercicio de afinacion. */
+data class CurriculumNavigation(
+    val onOpenTuner: () -> Unit,
+    val onOpenMetronome: () -> Unit,
+    val onBack: () -> Unit,
+    val onOpenIntonation: (String) -> Unit = {}
+)
 
 @Composable
 fun CurriculumRoute(navigation: CurriculumNavigation, viewModel: CurriculumViewModel = hiltViewModel()) {
@@ -167,6 +175,14 @@ private fun LessonCard(
                     Text("• $step", style = MaterialTheme.typography.bodyMedium)
                 }
                 ToolButton(id, item.lesson.tool, navigation)
+                IntonationExercises.forLesson(id)?.let { exercise ->
+                    OutlinedButton(
+                        onClick = { navigation.onOpenIntonation(exercise.id) },
+                        modifier = Modifier.testTag(lessonIntonationTag(id))
+                    ) {
+                        Text(stringResource(R.string.curriculum_open_intonation))
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
                         checked = item.done,

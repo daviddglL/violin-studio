@@ -679,4 +679,32 @@
     <string name="video_msg_save_failed">Couldn\'t save the video.</string>
     <string name="recordings_watch">Watch video</string>
     <string name="video_player_close">Close</string>
+    <!-- Intonation exercise -->
+    <string name="intonation_title">Intonation exercise</string>
+    <string name="intonation_not_found">This exercise no longer exists.</string>
+    <string name="intonation_how">Play each note and hold it for a moment: the app scores it and moves on. Nothing is recorded.</string>
+    <string name="intonation_position">Note %1$d of %2$d</string>
+    <string name="intonation_play">Play %1$s</string>
+    <string name="intonation_listening">Listening…</string>
+    <string name="intonation_start">Start</string>
+    <string name="intonation_continue">Continue</string>
+    <string name="intonation_pause">Pause</string>
+    <string name="intonation_skip">Skip this note</string>
+    <string name="intonation_mic_denied">We need the microphone to hear your notes.</string>
+    <string name="intonation_error_unknown">The exercise could not start.</string>
+    <string name="intonation_score">Score: %1$d/100</string>
+    <string name="intonation_in_tune_count">%1$d of %2$d notes in tune</string>
+    <string name="intonation_new_best">Your best score!</string>
+    <string name="intonation_best">Your best score: %1$d/100</string>
+    <string name="intonation_tip_sharp">You tend to play %1$s sharp (+%2$d cents): move that finger slightly towards the scroll.</string>
+    <string name="intonation_tip_flat">You tend to play %1$s flat (−%2$d cents): move that finger slightly towards the bridge.</string>
+    <string name="intonation_tip_no_tendency">No repeated deviations: well done.</string>
+    <string name="intonation_tip_none_played">No note was recognised. Try somewhere quieter.</string>
+    <string name="intonation_restart">Try again</string>
+    <string name="intonation_back">Back</string>
+    <string name="intonation_ex_a_string_pattern">A string: A, B, C♯, D</string>
+    <string name="intonation_ex_d_major_one_octave">D major scale (one octave)</string>
+    <string name="intonation_ex_g_major_two_octaves">G major scale (two octaves)</string>
+    <string name="intonation_ex_a_string_third_position">Third position on the A string</string>
+    <string name="curriculum_open_intonation">Intonation exercise</string>
 </resources>

@@ -41,5 +41,10 @@ object UserKeys {
     /** Token de FCM que este usuario registro desde este dispositivo (para darlo de baja al cerrar sesion). */
     fun pushToken(uid: String) = stringPreferencesKey("${prefix(uid)}push.token")
 
+    /** Prefijo de las mejores puntuaciones de afinacion: `{prefijo}{exerciseId}` (solo en el dispositivo). */
+    fun intonationBestPrefix(uid: String) = "${prefix(uid)}intonation.best."
+
+    fun intonationBest(uid: String, exerciseId: String) = intPreferencesKey(intonationBestPrefix(uid) + exerciseId)
+
     fun belongsTo(key: Preferences.Key<*>, uid: String) = key.name.startsWith(prefix(uid))
 }

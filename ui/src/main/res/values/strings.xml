@@ -679,4 +679,32 @@
     <string name="video_msg_save_failed">No se pudo guardar el vídeo.</string>
     <string name="recordings_watch">Ver vídeo</string>
     <string name="video_player_close">Cerrar</string>
+    <!-- Ejercicio de afinacion -->
+    <string name="intonation_title">Ejercicio de afinación</string>
+    <string name="intonation_not_found">Este ejercicio ya no existe.</string>
+    <string name="intonation_how">Toca cada nota y sostenla un momento: la app la puntúa y pasa a la siguiente. Nada se graba.</string>
+    <string name="intonation_position">Nota %1$d de %2$d</string>
+    <string name="intonation_play">Toca %1$s</string>
+    <string name="intonation_listening">Escuchando…</string>
+    <string name="intonation_start">Empezar</string>
+    <string name="intonation_continue">Continuar</string>
+    <string name="intonation_pause">Pausar</string>
+    <string name="intonation_skip">Saltar esta nota</string>
+    <string name="intonation_mic_denied">Necesitamos el micrófono para escuchar tus notas.</string>
+    <string name="intonation_error_unknown">No se pudo iniciar el ejercicio.</string>
+    <string name="intonation_score">Puntuación: %1$d/100</string>
+    <string name="intonation_in_tune_count">%1$d de %2$d notas afinadas</string>
+    <string name="intonation_new_best">¡Tu mejor puntuación!</string>
+    <string name="intonation_best">Tu mejor puntuación: %1$d/100</string>
+    <string name="intonation_tip_sharp">Tiendes a tocar %1$s alto (+%2$d cents): mueve ese dedo un poco hacia la voluta.</string>
+    <string name="intonation_tip_flat">Tiendes a tocar %1$s bajo (−%2$d cents): mueve ese dedo un poco hacia el puente.</string>
+    <string name="intonation_tip_no_tendency">Sin desviaciones repetidas: buen trabajo.</string>
+    <string name="intonation_tip_none_played">No se reconoció ninguna nota. Prueba en un sitio sin ruido.</string>
+    <string name="intonation_restart">Repetir</string>
+    <string name="intonation_back">Volver</string>
+    <string name="intonation_ex_a_string_pattern">Cuerda la: la, si, do♯, re</string>
+    <string name="intonation_ex_d_major_one_octave">Escala de re mayor (una octava)</string>
+    <string name="intonation_ex_g_major_two_octaves">Escala de sol mayor (dos octavas)</string>
+    <string name="intonation_ex_a_string_third_position">Tercera posición en la cuerda la</string>
+    <string name="curriculum_open_intonation">Ejercicio de afinación</string>
 </resources>

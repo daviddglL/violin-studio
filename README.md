@@ -8,6 +8,9 @@ alumnos que trabajan con un profesor.
 - **Práctica diaria**: afinador, metrónomo, registro de sesiones con notas, estadísticas (rachas, semana, últimos
   30 días y gráfico de los últimos 7 días), 10 logros calculados en el dispositivo y un currículo de 12 lecciones en
   3 niveles que enlaza con el afinador y el metrónomo (el progreso se guarda en la nube y sobrevive a un cambio de móvil).
+- **Feedback de afinación**: en las lecciones de escalas y posiciones, un ejercicio escucha cada nota, la puntúa en cents,
+  dice qué notas tiendes a tocar altas o bajas y guarda tu mejor puntuación en el móvil. Todo se analiza en el
+  dispositivo, sin grabar.
 - **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica y sus
   lecciones hechas, le asigna tareas que el alumno marca como hechas y ambos pueden escribirse por chat. Un adulto puede
   pedir desde la app que le den de alta como profesor.
@@ -21,7 +24,7 @@ alumnos que trabajan con un profesor.
 
 Las grabaciones, el vídeo, el chat y los avisos están hechos pero apagados por interruptores del servidor, que además se
 pueden apagar en caliente sin desplegar (ver [Interruptores en caliente](#interruptores-en-caliente)). Próximamente:
-feedback inteligente.
+consejos de práctica según tu registro.
 
 ## Estado
 
@@ -35,7 +38,7 @@ El desarrollo va por fases:
 | 4a. Profesor–alumno | Vínculo por código, registro compartido, tareas, solicitud de alta de profesor | ✅ (sin desplegar) |
 | 4b. Grabaciones | Consentimiento, subida en segundo plano, revisión, demostraciones, purgas | ✅ (apagadas hasta activar `RECORDINGS_ENABLED`) |
 | 4c. Vídeo y chat | Vídeo con difuminado, chat | ✅ (apagados hasta activar `VIDEO_ENABLED` y `CHAT_ENABLED`) |
-| 5. Extras | Logros, configuración remota, avisos push, feedback inteligente | Logros, configuración remota y avisos ✅ (avisos apagados hasta activar `NOTIFICATIONS_ENABLED`); feedback inteligente pendiente |
+| 5. Extras | Logros, configuración remota, avisos push, feedback inteligente | Logros, configuración remota y avisos ✅ (avisos apagados hasta activar `NOTIFICATIONS_ENABLED`); feedback de afinación ✅; consejos de práctica pendientes |
 
 ## Tecnología
 
