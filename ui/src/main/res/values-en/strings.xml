@@ -707,4 +707,21 @@
     <string name="intonation_ex_g_major_two_octaves">G major scale (two octaves)</string>
     <string name="intonation_ex_a_string_third_position">Third position on the A string</string>
     <string name="curriculum_open_intonation">Intonation exercise</string>
+    <!-- Practice tips (home) -->
+    <string name="home_tips_title">Tips for today</string>
+    <string name="tip_first_session">Start with your first session: 10 minutes is enough.</string>
+    <string name="tip_come_back">It has been over a week since you practised: come back today with a short session.</string>
+    <plurals name="tip_keep_streak">
+        <item quantity="one">You are on a %1$d-day streak: practise today to keep it.</item>
+        <item quantity="other">You are on a %1$d-day streak: practise today to keep it.</item>
+    </plurals>
+    <plurals name="tip_catch_up_week">
+        <item quantity="one">%1$d more minute to match last week.</item>
+        <item quantity="other">%1$d more minutes to match last week.</item>
+    </plurals>
+    <plurals name="tip_longer_sessions">
+        <item quantity="one">Your sessions last %1$d minute on average: try to reach 10.</item>
+        <item quantity="other">Your sessions last %1$d minutes on average: try to reach 10.</item>
+    </plurals>
+    <string name="tip_next_lesson">Next lesson: %1$s (%2$d min a day).</string>
 </resources>

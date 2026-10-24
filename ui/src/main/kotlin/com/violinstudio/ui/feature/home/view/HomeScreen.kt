@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.violinstudio.domain.feature.practice.model.PracticeTip
 import com.violinstudio.ui.R
 import com.violinstudio.ui.commons.ObserveAsEvents
 import com.violinstudio.ui.commons.components.ErrorView
@@ -38,10 +39,16 @@ import com.violinstudio.ui.feature.home.viewmodel.HomeEffect
 import com.violinstudio.ui.feature.home.viewmodel.HomeIntent
 import com.violinstudio.ui.feature.home.viewmodel.HomeState
 import com.violinstudio.ui.feature.home.viewmodel.HomeViewModel
+import com.violinstudio.ui.feature.home.viewmodel.PracticeTipsViewModel
 
 @Composable
-fun HomeRoute(navigation: HomeNavigation? = null, viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeRoute(
+    navigation: HomeNavigation? = null,
+    viewModel: HomeViewModel = hiltViewModel(),
+    tipsViewModel: PracticeTipsViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val tips by tipsViewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val unknownError = stringResource(R.string.error_unknown)
     ObserveAsEvents(viewModel.effects) { effect ->
@@ -54,7 +61,8 @@ fun HomeRoute(navigation: HomeNavigation? = null, viewModel: HomeViewModel = hil
         state = state,
         onIntent = viewModel::onIntent,
         snackbarHostState = snackbarHostState,
-        navigation = navigation
+        navigation = navigation,
+        tips = tips.tips
     )
 }
 
@@ -63,19 +71,26 @@ fun HomeScreen(
     state: HomeState,
     onIntent: (HomeIntent) -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    navigation: HomeNavigation? = null
+    navigation: HomeNavigation? = null,
+    tips: List<PracticeTip> = emptyList()
 ) {
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         // Centrado cuando cabe y con scroll cuando no (horizontal, pantallas bajas, fuente grande): las tarjetas
         // inferiores siempre son alcanzables (REQ-NAV-P01).
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
-            HomeContent(state, onIntent, navigation, maxHeight)
+            HomeContent(state, onIntent, navigation, tips, maxHeight)
         }
     }
 }
 
 @Composable
-private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, navigation: HomeNavigation?, minHeight: Dp) {
+private fun HomeContent(
+    state: HomeState,
+    onIntent: (HomeIntent) -> Unit,
+    navigation: HomeNavigation?,
+    tips: List<PracticeTip>,
+    minHeight: Dp
+) {
     Column(
         modifier = Modifier.fillMaxWidth().heightIn(min = minHeight).verticalScroll(rememberScrollState())
             .padding(24.dp),
@@ -101,6 +116,8 @@ private fun HomeContent(state: HomeState, onIntent: (HomeIntent) -> Unit, naviga
             Text(stringResource(R.string.home_check_health))
         }
         navigation?.let {
+            // Solo en el inicio con sesion: los consejos salen del historial del usuario.
+            PracticeTipsCard(tips, Modifier.padding(vertical = 16.dp))
             OutlinedButton(onClick = it.onOpenSettings, modifier = Modifier.testTag("home_settings")) {
                 Text(stringResource(R.string.home_open_settings))
             }

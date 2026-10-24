@@ -11,6 +11,8 @@ alumnos que trabajan con un profesor.
 - **Feedback de afinación**: en las lecciones de escalas y posiciones, un ejercicio escucha cada nota, la puntúa en cents,
   dice qué notas tiendes a tocar altas o bajas y guarda tu mejor puntuación en el móvil. Todo se analiza en el
   dispositivo, sin grabar.
+- **Consejos de práctica**: el inicio sugiere qué hacer hoy (mantener la racha, volver tras una pausa, igualar la
+  semana pasada, alargar las sesiones o la siguiente lección), calculado en el móvil a partir de tu registro.
 - **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica y sus
   lecciones hechas, le asigna tareas que el alumno marca como hechas y ambos pueden escribirse por chat. Un adulto puede
   pedir desde la app que le den de alta como profesor.
@@ -23,8 +25,7 @@ alumnos que trabajan con un profesor.
   de publicidad.
 
 Las grabaciones, el vídeo, el chat y los avisos están hechos pero apagados por interruptores del servidor, que además se
-pueden apagar en caliente sin desplegar (ver [Interruptores en caliente](#interruptores-en-caliente)). Próximamente:
-consejos de práctica según tu registro.
+pueden apagar en caliente sin desplegar (ver [Interruptores en caliente](#interruptores-en-caliente)).
 
 ## Estado
 
@@ -38,7 +39,7 @@ El desarrollo va por fases:
 | 4a. Profesor–alumno | Vínculo por código, registro compartido, tareas, solicitud de alta de profesor | ✅ (sin desplegar) |
 | 4b. Grabaciones | Consentimiento, subida en segundo plano, revisión, demostraciones, purgas | ✅ (apagadas hasta activar `RECORDINGS_ENABLED`) |
 | 4c. Vídeo y chat | Vídeo con difuminado, chat | ✅ (apagados hasta activar `VIDEO_ENABLED` y `CHAT_ENABLED`) |
-| 5. Extras | Logros, configuración remota, avisos push, feedback inteligente | Logros, configuración remota y avisos ✅ (avisos apagados hasta activar `NOTIFICATIONS_ENABLED`); feedback de afinación ✅; consejos de práctica pendientes |
+| 5. Extras | Logros, configuración remota, avisos push, feedback inteligente | Logros, configuración remota y avisos ✅ (avisos apagados hasta activar `NOTIFICATIONS_ENABLED`); feedback inteligente (afinación y consejos) ✅ |
 
 ## Tecnología
 
