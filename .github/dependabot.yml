@@ -1,0 +1,43 @@
+# Avisos semanales de dependencias desactualizadas. Las menores y parches se agrupan en un solo PR por ecosistema
+# para no inundar la lista; las mayores llegan sueltas porque suelen pedir cambios de código.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    groups:
+      gradle-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directories:
+      - /backend/functions
+      - /backend/rules-tests
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      fastlane:
+        patterns: ["*"]
