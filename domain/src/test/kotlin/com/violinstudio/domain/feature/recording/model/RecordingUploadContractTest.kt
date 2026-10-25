@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
  * Los tests leen `storage.rules` y `functions/src/config/recordings.ts` para que un cambio de nombre rompa aqui.
  */
 class RecordingUploadContractTest {
-    private val rules = File("../storage.rules").readText()
+    private val rules = File("../backend/storage.rules").readText()
 
     // Sin espacios ni saltos de linea: los patrones no dependen de como se envuelvan las reglas (ninguno de los
     // literales comparados lleva espacios).
@@ -112,7 +112,7 @@ class RecordingUploadContractTest {
         assertEquals("audio/mp4", RecordingUploadContract.CONTENT_TYPE)
         assertTrue("r.contentType=='${RecordingUploadContract.CONTENT_TYPE}'" in compact)
         assertTrue("match/users/{uid}/${RecordingUploadContract.RECORDINGS_DIR}/{file}" in compact)
-        val server = File("../functions/src/config/recordings.ts").readText()
+        val server = File("../backend/functions/src/config/recordings.ts").readText()
         assertTrue("""RECORDINGS_DIR = "${RecordingUploadContract.RECORDINGS_DIR}"""" in server)
     }
 

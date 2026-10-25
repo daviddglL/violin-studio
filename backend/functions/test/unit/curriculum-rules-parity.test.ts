@@ -9,7 +9,7 @@ import { join } from "node:path";
 const root = join(__dirname, "../../..");
 const rules = readFileSync(join(root, "firestore.rules"), "utf8").replace(/\/\/.*$/gm, "");
 const curriculum = readFileSync(
-  join(root, "domain/src/main/kotlin/com/violinstudio/domain/feature/curriculum/model/Curriculum.kt"),
+  join(root, "../domain/src/main/kotlin/com/violinstudio/domain/feature/curriculum/model/Curriculum.kt"),
   "utf8",
 );
 

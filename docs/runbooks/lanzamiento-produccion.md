@@ -34,15 +34,15 @@ Mejor todavía, sin claves: Workload Identity Federation con
 
 ## 2. Proyecto de producción propio
 
-Hoy `.firebaserc` apunta `dev` y `prod` al mismo proyecto (`violin-app-dev-f0b55`), así que los testers y el
+Hoy `backend/.firebaserc` apunta `dev` y `prod` al mismo proyecto (`violin-app-dev-f0b55`), así que los testers y el
 desarrollo comparten datos.
 
 1. Crea el proyecto de producción en el plan Blaze, en la región `europe-west1`, y habilita Auth (email y Google),
    Firestore, Storage, Hosting y App Check.
 2. Registra la app Android `com.violinstudio` y descarga su `google-services.json` al secreto
    `GOOGLE_SERVICES_PROD_BASE64`. Actualiza la variable `FIREBASE_APP_ID_PROD`.
-3. Cambia `prod` en `.firebaserc` por el id nuevo.
-4. Crea `functions/.env.<id-prod>` (no se versiona) con al menos:
+3. Cambia `prod` en `backend/.firebaserc` por el id nuevo.
+4. Crea `backend/functions/.env.<id-prod>` (no se versiona) con al menos:
    - `GUARDIAN_LINK_BASE_URL=https://<id-prod>.web.app`. También fija la URL de la política que ve la app
      (`policyUrl()`); sin ella se mostraría la de desarrollo.
    - `ENFORCE_APP_CHECK=false` hasta completar el paso 4.
@@ -53,11 +53,11 @@ desarrollo comparten datos.
 
 ## 3. Correo del tutor
 
-`extensions/firestore-send-email.env` trae `DEFAULT_FROM=Violin Studio <no-reply@violin-studio.invalid>`, un dominio
+`backend/extensions/firestore-send-email.env` trae `DEFAULT_FROM=Violin Studio <no-reply@violin-studio.invalid>`, un dominio
 que no existe, así que ningún correo al tutor llegaría.
 
 1. Elige un dominio propio y configura SPF, DKIM y DMARC con tu proveedor SMTP.
-2. Crea `extensions/firestore-send-email.env.<id-prod>` con `DEFAULT_FROM=Violin Studio <no-reply@<tu-dominio>>`.
+2. Crea `backend/extensions/firestore-send-email.env.<id-prod>` con `DEFAULT_FROM=Violin Studio <no-reply@<tu-dominio>>`.
    Firebase lo usa en lugar del fichero común para ese proyecto.
 3. Guarda `SMTP_CONNECTION_URI` y `SMTP_PASSWORD` como parámetros secretos de la extensión (Secret Manager), nunca en
    el repositorio.

@@ -4,8 +4,11 @@ import { join } from "node:path";
 import { CURRENT_POLICY_VERSION } from "../../src/config/identity";
 import { REGION } from "../../src/config/runtime";
 
+// raiz: backend/ (firebase.json y extensions/); repo: la raíz del repositorio (.github/).
 const raiz = join(__dirname, "../../..");
+const repo = join(raiz, "..");
 const leer = (f: string) => readFileSync(join(raiz, f), "utf8");
+const leerRepo = (f: string) => readFileSync(join(repo, f), "utf8");
 
 const parseEnv = (texto: string): Record<string, string> =>
   Object.fromEntries(
@@ -48,7 +51,7 @@ describe("extensions/firestore-send-email.env", () => {
 });
 
 describe("ficheros rastreados", () => {
-  const rastreados = execFileSync("git", ["-C", raiz, "ls-files"], { encoding: "utf8" })
+  const rastreados = execFileSync("git", ["-C", repo, "ls-files"], { encoding: "utf8" })
     .split("\n")
     .filter(Boolean);
 
@@ -73,16 +76,16 @@ describe("ficheros rastreados", () => {
 
   test("ningún fichero rastreado de extensions/ ni de config contiene un SMTP URI con clave", () => {
     const candidatos = rastreados.filter(
-      (f) => f.startsWith("extensions/") || f === "firebase.json" || f.startsWith(".github/"),
+      (f) => f.startsWith("backend/extensions/") || f === "backend/firebase.json" || f.startsWith(".github/"),
     );
     for (const f of candidatos) {
-      expect(leer(f)).not.toMatch(/smtps?:\/\/[^\s/@:]+:[^\s/@]+@/i);
+      expect(leerRepo(f)).not.toMatch(/smtps?:\/\/[^\s/@:]+:[^\s/@]+@/i);
     }
   });
 });
 
 describe("CI y FINT no cargan la extensión", () => {
-  const ci = leer(".github/workflows/ci.yml");
+  const ci = leerRepo(".github/workflows/ci.yml");
 
   test("el FINT usa functions,auth,firestore,storage,hosting y no la extensión", () => {
     const fint = ci
@@ -118,6 +121,6 @@ describe("firebase.json hosting (página del tutor y política)", () => {
   });
 
   test("el FINT incluye el emulador de hosting", () => {
-    expect(leer(".github/workflows/ci.yml")).toMatch(/emulators:exec --only [a-z,]*hosting[a-z,]* .*test:integration/);
+    expect(leerRepo(".github/workflows/ci.yml")).toMatch(/emulators:exec --only [a-z,]*hosting[a-z,]* .*test:integration/);
   });
 });
