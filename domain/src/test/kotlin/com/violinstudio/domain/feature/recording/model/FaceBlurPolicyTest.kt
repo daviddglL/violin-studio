@@ -88,7 +88,7 @@ class FaceBlurPolicyTest {
 
     @Test
     fun `la version de la politica es la del sello que exige el servidor`() {
-        val server = File("../functions/src/config/recordings.ts").readText()
+        val server = File("../backend/functions/src/config/recordings.ts").readText()
         val version = Regex("""export const BLUR_POLICY_VERSION\s*=\s*([0-9]+);""").find(server)?.groupValues?.get(1)
         assertEquals(version?.toInt(), FaceBlurPolicy.VERSION)
         assertEquals(1, FaceBlurPolicy.VERSION)

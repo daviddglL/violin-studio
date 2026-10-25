@@ -13,6 +13,40 @@ permissions:
   contents: read
 
 jobs:
+  # Qué lado del repo ha cambiado: la app Android (raíz, Gradle) o el backend de Firebase (backend/).
+  # Un cambio solo de backend no publica build para testers; uno solo de docs no ejecuta nada salvo secrets-guard.
+  cambios:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      app: ${{ steps.filtro.outputs.app }}
+      backend: ${{ steps.filtro.outputs.backend }}
+      ci: ${{ steps.filtro.outputs.ci }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filtro
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app:
+              - 'app/**'
+              - 'ui/**'
+              - 'domain/**'
+              - 'data/**'
+              - 'build-logic/**'
+              - 'gradle/**'
+              - '*.gradle.kts'
+              - 'gradle.properties'
+              - 'gradlew*'
+              - 'fastlane/**'
+              - 'Gemfile*'
+            backend:
+              - 'backend/**'
+            ci:
+              - '.github/workflows/**'
+
   secrets-guard:
     runs-on: ubuntu-latest
     steps:
@@ -20,7 +54,10 @@ jobs:
       - run: bash scripts/test-secrets-guard.sh
       - run: bash scripts/secrets-guard.sh
 
+  # Tambien corre con cambios de backend: los tests de paridad de domain/data leen backend/.
   android:
+    needs: cambios
+    if: needs.cambios.outputs.app == 'true' || needs.cambios.outputs.backend == 'true' || needs.cambios.outputs.ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -46,11 +83,16 @@ jobs:
             **/build/outputs/roborazzi/
 
   functions:
+    needs: cambios
+    if: needs.cambios.outputs.backend == 'true' || needs.cambios.outputs.ci == 'true'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm, cache-dependency-path: functions/package-lock.json }
+        with: { node-version: "22", cache: npm, cache-dependency-path: backend/functions/package-lock.json }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "21" }
       - run: npm ci --prefix functions
@@ -64,11 +106,16 @@ jobs:
       - run: firebase emulators:exec --only functions,auth,firestore,storage,hosting --project demo-violin-studio "npm --prefix functions run test:integration"
 
   rules:
+    needs: cambios
+    if: needs.cambios.outputs.backend == 'true' || needs.cambios.outputs.ci == 'true'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: npm, cache-dependency-path: rules-tests/package-lock.json }
+        with: { node-version: "22", cache: npm, cache-dependency-path: backend/rules-tests/package-lock.json }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "21" }
       - run: npm ci --prefix rules-tests
@@ -78,8 +125,11 @@ jobs:
   # E2E contra los emuladores de Firebase (functions, auth, firestore, storage). Bloqueante: cubre registro, menor,
   # vinculo profesor-alumno, chat y subida de grabaciones de audio y video.
   e2e:
+    needs: cambios
+    if: >-
+      github.event_name == 'pull_request' &&
+      (needs.cambios.outputs.app == 'true' || needs.cambios.outputs.backend == 'true' || needs.cambios.outputs.ci == 'true')
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -100,14 +150,15 @@ jobs:
           # Storage (finalizeRecording); la app subiria al bucket real (`.firebasestorage.app`) y el trigger no saltaria.
           jq '.project_info.storage_bucket = (.project_info.project_id + ".appspot.com")' app/src/dev/google-services.json > gs.tmp
           mv gs.tmp app/src/dev/google-services.json
-      - run: npm ci --prefix functions && npm --prefix functions run build
+      - run: npm ci --prefix backend/functions && npm --prefix backend/functions run build
       - run: npm i -g firebase-tools@15.20.0
       # requestGuardianConsent (E2E del menor) necesita el pepper del HMAC; valor fijo de PRUEBA, como en el job functions.
-      - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > functions/.secret.local
-      - run: echo "TEACHER_CODE_PEPPER=ci-fixed-non-secret-code-pepper-0123456789abcdef" >> functions/.secret.local
+      - run: echo "GUARDIAN_EMAIL_PEPPER=ci-fixed-non-secret-pepper-0123456789abcdef" > backend/functions/.secret.local
+      - run: echo "TEACHER_CODE_PEPPER=ci-fixed-non-secret-code-pepper-0123456789abcdef" >> backend/functions/.secret.local
       - name: Arrancar el emulador de Functions
+        working-directory: backend
         run: |
-          nohup firebase emulators:start --only functions,auth,firestore,storage --project violin-app-dev-f0b55 > emulators.log 2>&1 &
+          nohup firebase emulators:start --only functions,auth,firestore,storage --project violin-app-dev-f0b55 > ../emulators.log 2>&1 &
           npx --yes wait-on@9 tcp:127.0.0.1:5001 tcp:127.0.0.1:9099 tcp:127.0.0.1:8080 tcp:127.0.0.1:9199 -t 120000
       # El emulador moria al arrancar: "Not enough space to create userdata partition" (5 GB libres, pide 7,3 GB).
       - name: Liberar disco
@@ -145,7 +196,8 @@ jobs:
   # El release solo corre si existen los secrets de firma (KEYSTORE_BASE64, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD);
   # si falta alguno, el push a main deja un aviso visible en el resumen del run en lugar de fallar.
   release-firma:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: cambios
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.cambios.outputs.app == 'true'
     runs-on: ubuntu-latest
     outputs:
       lista: ${{ steps.comprobar.outputs.lista }}
@@ -170,9 +222,14 @@ jobs:
             echo "lista=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # Solo con cambios de la app. functions y rules pueden saltarse (push solo de app): basta con que no fallen.
   release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-firma.outputs.lista == 'true'
-    needs: [secrets-guard, android, functions, rules, release-firma]
+    if: >-
+      !cancelled() && !contains(needs.*.result, 'failure') &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      needs.cambios.outputs.app == 'true' && needs.android.result == 'success' &&
+      needs.release-firma.outputs.lista == 'true'
+    needs: [cambios, secrets-guard, android, functions, rules, release-firma]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

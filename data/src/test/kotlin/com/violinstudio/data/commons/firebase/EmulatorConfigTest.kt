@@ -26,7 +26,7 @@ class EmulatorConfigTest {
     fun `activado devuelve el endpoint de Storage en el puerto 9199 de firebase json`() {
         assertEquals(EmulatorEndpoint("10.0.2.2", 9199), EmulatorConfig(enabled = true, host = "10.0.2.2").storage())
         assertNull(EmulatorConfig(enabled = false, host = "10.0.2.2").storage())
-        val firebaseJson = java.io.File("../firebase.json").readText().filterNot { it.isWhitespace() }
+        val firebaseJson = java.io.File("../backend/firebase.json").readText().filterNot { it.isWhitespace() }
         assertTrue("\"storage\":{\"host\":\"0.0.0.0\",\"port\":${EmulatorConfig.STORAGE_PORT}}" in firebaseJson)
     }
 

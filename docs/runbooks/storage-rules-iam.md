@@ -1,6 +1,6 @@
 # Runbook: reglas de Storage multi-servicio (grabaciones, fase 4b)
 
-`storage.rules` lee Firestore (`firestore.get/exists`) para decidir quien sube y quien lee grabaciones
+`backend/storage.rules` lee Firestore (`firestore.get/exists`) para decidir quien sube y quien lee grabaciones
 (`users/{uid}/recordings/{id}.m4a`) y demostraciones del profesor (`users/{uid}/demos/{id}.m4a`; su doc vive en
 `users/{uid}/recordings/{id}`). Es el paso 1 de "Publicar la fase 4b" del README.
 
@@ -34,16 +34,16 @@ Las reglas cruzadas requieren que el agente de servicio de Storage del proyecto 
 - Tope de plataforma: **2** accesos `firestore.get/exists` por peticion. Cuentan TODOS los evaluados: una rama
   de `||` que da false ya gasto sus accesos antes de pasar a la siguiente. Por eso cada ruta tiene una sola rama de
   lectura que gasta accesos (grabaciones: profesor vinculado; demos: alumno destinatario) y el test estatico
-  `rules-tests/test/storage-access-budget.test.ts` suma el peor caso acumulado. **El emulador NO aplica el tope**
+  `backend/rules-tests/test/storage-access-budget.test.ts` suma el peor caso acumulado. **El emulador NO aplica el tope**
   (comprobado en un spike): el limite real queda sin verificar hasta el smoke test de staging (seccion 1). Cualquier regla nueva
   de Storage debe pasar ese test.
 - El emulador evalua la sobrescritura de un objeto existente como `create`; por eso `create` exige `resource == null`.
 - Las constantes de las reglas (25 MiB, cupo 20, version de consentimiento de grabacion) se repiten como literales;
-  `functions/test/unit/storage-rules-parity.test.ts` falla si se desalinean de `functions/src/config/`.
+  `backend/functions/test/unit/storage-rules-parity.test.ts` falla si se desalinean de `backend/functions/src/config/`.
 - Las reglas son corte rapido: la autoridad sobre cupo, duracion y contenedor es `finalizeRecording`.
 - `recordingCount` solo cuenta objetos finalizados con doc `ready`: las subidas abandonadas a medias (o los objetos
   que finalize aun no ha procesado) no consumen cupo, asi que su volumen solo lo acota la regla de ciclo de vida del
-  bucket (`infra/storage-lifecycle.json`). Esa regla DEBE estar aplicada antes de `RECORDINGS_ENABLED=true` en
+  bucket (`backend/infra/storage-lifecycle.json`). Esa regla DEBE estar aplicada antes de `RECORDINGS_ENABLED=true` en
   cualquier proyecto real.
 
 ## 2b. Riesgos aceptados
@@ -58,8 +58,8 @@ Las reglas cruzadas requieren que el agente de servicio de Storage del proyecto 
 ## 3. Despliegue
 
 1. Conceder el IAM (seccion 1).
-2. `firebase deploy --only storage --project <PROJECT_ID>`.
+2. Desde `backend/`: `firebase deploy --only storage --project <PROJECT_ID>`.
 3. Smoke test de staging (seccion 1: subida, lectura del profesor y lectura de demo).
-4. Aplicar `infra/storage-lifecycle.json` con
-   `gcloud storage buckets update gs://<BUCKET> --lifecycle-file=infra/storage-lifecycle.json`.
+4. Aplicar `backend/infra/storage-lifecycle.json` con
+   `gcloud storage buckets update gs://<BUCKET> --lifecycle-file=backend/infra/storage-lifecycle.json`.
 5. Solo despues, habilitar `RECORDINGS_ENABLED` siguiendo el orden de "Publicar la fase 4b" del README.

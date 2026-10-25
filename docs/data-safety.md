@@ -2,7 +2,7 @@
 
 Estado: borrador de la fase 3, ampliado en las fases 4a, 4b y 4c y con los avisos push, para Google Play Console >
 Contenido de la app > Seguridad de los datos y para el texto de la política de privacidad
-(`hosting/public/politica/index.html`, versión 2, pendiente de revisión legal).
+(`backend/hosting/public/politica/index.html`, versión 2, pendiente de revisión legal).
 
 ## Resumen
 
@@ -166,7 +166,7 @@ recopila ni se comparte. Las grabaciones de un menor de 14 años necesitan adem�
 ## Pendiente antes de publicar
 
 - Confirmar en Play Console el propósito (análisis, estabilidad) y el cifrado en tránsito de cada fila de diagnósticos.
-- La política v2 (`hosting/public/politica/index.html`, `CURRENT_POLICY_VERSION = 2`) es el borrador de la fase 4
+- La política v2 (`backend/hosting/public/politica/index.html`, `CURRENT_POLICY_VERSION = 2`) es el borrador de la fase 4
   completa (vínculo, tareas, grabaciones de audio y vídeo, difuminado, retención de 90 días, cupo de 20) e incluye ya
   responsable y contacto, base jurídica, plazos de conservación, transferencias internacionales y derechos (art. 13
   RGPD). **Falta la revisión legal** de ese texto antes de publicar en Play (puerta bloqueante en el README).

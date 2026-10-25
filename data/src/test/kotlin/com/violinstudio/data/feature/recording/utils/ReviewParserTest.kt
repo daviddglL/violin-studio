@@ -29,7 +29,7 @@ class ReviewParserTest {
 
     @Test
     fun `los veredictos coinciden con las reglas`() {
-        val rules = java.io.File("../firestore.rules").readText()
+        val rules = java.io.File("../backend/firestore.rules").readText()
         val wires = Verdict.entries.joinToString(", ") { "'${it.wire}'" }
         assertEquals(true, "d.verdict in [$wires]" in rules)
         assertEquals(true, "d.text.size() <= ${Review.MAX_TEXT}" in rules)

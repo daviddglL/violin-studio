@@ -18,7 +18,7 @@ keystore/
 
 # Node / Firebase
 node_modules/
-functions/lib/
+backend/functions/lib/
 *.log
 
 # fastlane
@@ -45,13 +45,13 @@ GEMINI.md
 
 # Cobertura de tests
 coverage/
-functions/coverage/
-rules-tests/coverage/
+backend/functions/coverage/
+backend/rules-tests/coverage/
 
 # Secreto local del emulador (valor de prueba, nunca real)
-functions/.secret.local
+backend/functions/.secret.local
 .secret.local
 
 # Parametros locales de la extension Trigger Email (emulador; pueden llevar credenciales de prueba)
-extensions/*.env.local
-extensions/*.secret.local
+backend/extensions/*.env.local
+backend/extensions/*.secret.local

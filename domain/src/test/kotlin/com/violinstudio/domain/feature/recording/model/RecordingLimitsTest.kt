@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 /** REQ-REC-01: los limites del cliente (una sola definicion) coinciden con `functions/src/config/recordings.ts`. */
 class RecordingLimitsTest {
-    private val serverSource = File("../functions/src/config/recordings.ts").readText()
+    private val serverSource = File("../backend/functions/src/config/recordings.ts").readText()
 
     private fun serverNumber(name: String): Double {
         val raw = Regex("""export const $name\s*=\s*([0-9_.* ]+);""").find(serverSource)?.groupValues?.get(1)

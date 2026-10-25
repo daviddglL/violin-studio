@@ -33,8 +33,8 @@ class FinalizeStatusParserTest {
 
     @Test
     fun `todos los motivos del servidor siguen existiendo`() {
-        val validate = File("../functions/src/recordings/validate.ts").readText()
-        val finalize = File("../functions/src/recordings/finalize.ts").readText()
+        val validate = File("../backend/functions/src/recordings/validate.ts").readText()
+        val finalize = File("../backend/functions/src/recordings/finalize.ts").readText()
         listOf("consent", "owner", "disabled", "size", "duration", "assignment", "sharedWith").forEach {
             assertTrue("\"$it\"" in validate, "motivo $it no encontrado en validate.ts")
         }

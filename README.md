@@ -54,7 +54,19 @@ El desarrollo va por fases:
 
 ## Arquitectura
 
-Clean Architecture en cuatro módulos:
+El repositorio tiene dos partes que se prueban y se despliegan por separado:
+
+- **App Android** en la raíz (módulos Gradle `app`, `ui`, `domain`, `data`, más `build-logic`, `gradle` y `fastlane`).
+  Cada push a `main` que la cambie publica una build para testers en App Distribution.
+- **Backend de Firebase** en [`backend/`](backend/): Cloud Functions, reglas e índices de Firestore, reglas de
+  Storage, hosting (política y página del tutor), extensión de correo, sus tests y `firebase.json`/`.firebaserc`.
+  Un cambio solo de `backend/` pasa sus tests y los de paridad de la app, pero no publica build para testers; el
+  despliegue sigue siendo manual (`firebase deploy` desde `backend/`).
+
+Los tests de paridad de `domain` y `data` leen ficheros de `backend/` (reglas, límites de grabación, avisos) para que
+cliente y servidor no se desincronicen, así que las dos partes viven en el mismo repo y un PR puede tocar ambas.
+
+La app sigue Clean Architecture en cuatro módulos:
 
 ```
 app/     Application, App Check y configuración por flavor (dev/prod). Ensambla el resto.
@@ -63,7 +75,7 @@ ui/      → domain · MainActivity, navegación y feature/<nombre>/{view,viewmo
 domain/  (Kotlin puro) · feature/<nombre>/{model,repository,usecase,failure}.
 data/    → domain · feature/<nombre>/{datasource,dto,repository,utils};
                       en commons/ la DI y la configuración de Firebase.
-functions/  Cloud Functions (TypeScript).
+backend/    Firebase: functions/ (TypeScript), hosting/, rules-tests/, extensions/, infra/, reglas e índices.
 ```
 
 - Los repositorios son interfaces en `domain`, implementadas en `data`. Cada caso de uso es una clase.
@@ -81,10 +93,18 @@ Los `google-services.json` no están en git: descárgalos de la consola de Fireb
 
 ## Comandos
 
+Los de Gradle se lanzan desde la raíz; los de Firebase y Node, desde `backend/` (`cd backend`). En el resto del
+README, las rutas `functions/...`, `hosting/...`, `infra/...` y `extensions/...` y todos los `firebase ...` y
+`npm --prefix functions ...` son relativos a `backend/`.
+
 ```bash
+# App (raíz)
 ./gradlew check coverage                           # ktlint, lint, tests y cobertura
 ./gradlew :ui:recordRoborazziDebug                 # regrabar capturas
 ./gradlew :ui:verifyRoborazziDebug                 # comparar capturas
+
+# Backend (desde backend/)
+cd backend
 npm --prefix functions test                        # tests unitarios de Functions
 
 # Tests de integración de Functions contra los emuladores
@@ -95,18 +115,24 @@ firebase emulators:exec --only functions,auth,firestore,storage,hosting \
 firebase emulators:exec --only firestore,storage --project demo-violin-studio \
   "npm --prefix rules-tests test"
 
-# E2E: arranca los emuladores y lanza los tests instrumentados
+# E2E: arranca los emuladores (en backend/) y, en otra terminal desde la raíz, los tests instrumentados
 firebase emulators:start --only functions,auth,firestore,storage --project violin-app-dev-f0b55
-./gradlew :app:connectedDevDebugAndroidTest
+cd .. && ./gradlew :app:connectedDevDebugAndroidTest
 
-bash scripts/secrets-guard.sh                      # comprueba que no hay secretos en git
+bash scripts/secrets-guard.sh                      # (raíz) comprueba que no hay secretos en git
 ```
+
+Si tenías el repo clonado de antes de la separación, mueve tu `functions/.secret.local` (y cualquier
+`functions/.env.<proyecto>` o `extensions/*.env.local`) a la misma ruta bajo `backend/`, y borra la carpeta
+`functions/` vieja de la raíz, que solo conserva `node_modules/` y `lib/` ignorados.
 
 Para probar en un móvil físico contra los emuladores del PC:
 `./gradlew installDevDebug -Pviolin.emulatorHost=<IP del PC>`. Los emuladores ya escuchan en
 `0.0.0.0`, así que úsalo solo en una red de confianza.
 
 ## Despliegue
+
+Todos los `firebase deploy` de esta sección se ejecutan desde `backend/`.
 
 Antes de abrir la app fuera del grupo de testers, sigue [`docs/runbooks/lanzamiento-produccion.md`](docs/runbooks/lanzamiento-produccion.md):
 cuenta de servicio de CI con permisos mínimos, proyecto de producción propio, remitente real para el correo del tutor y
