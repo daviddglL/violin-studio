@@ -50,7 +50,8 @@ El desarrollo va por fases:
 - **Calidad**: JUnit 5, Turbine, MockK, Robolectric, capturas con Roborazzi, JaCoCo (umbral del 80 %),
   ktlint, tests de reglas de seguridad contra los emuladores de Firebase y tests E2E instrumentados (práctica,
   menores, profesor–alumno, chat, subida de grabaciones y borrado de cuenta) que bloquean el CI si fallan.
-- **Entrega**: GitHub Actions y fastlane, que publica en Firebase App Distribution.
+- **Entrega**: GitHub Actions y fastlane, que publica en Firebase App Distribution y, con el secreto
+  `PLAY_SERVICE_ACCOUNT_JSON`, en la pista de pruebas internas de Google Play.
 
 ## Arquitectura
 
