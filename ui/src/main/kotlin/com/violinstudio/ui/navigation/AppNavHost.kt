@@ -56,12 +56,19 @@ import com.violinstudio.ui.feature.teacher.view.TeacherCodesRoute
 import com.violinstudio.ui.feature.tuner.view.TunerRoute
 import com.violinstudio.ui.feature.video.view.VideoCaptureRoute
 
+/** [pushKind]: tipo del aviso tocado que aún no se ha abierto; [onPushHandled] lo descarta una vez atendido. */
 @Composable
-fun AppNavHost(viewModel: SessionViewModel = hiltViewModel()) {
+fun AppNavHost(
+    pushKind: String? = null,
+    onPushHandled: () -> Unit = {},
+    viewModel: SessionViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SessionNavHost(
         session = state.session,
         onSignOut = { viewModel.onIntent(SessionIntent.SignOut) },
+        pushKind = pushKind,
+        onPushHandled = onPushHandled,
         deleteViewModel = { hiltViewModel() }
     )
 }
@@ -145,7 +152,10 @@ fun SessionNavHost(
     assignmentDemos: @Composable (onBack: () -> Unit) -> Unit = { AssignmentDemosRoute(onBack = it) },
     chat: @Composable (onBack: () -> Unit) -> Unit = { ChatRoute(onBack = it) },
     /** ViewModel del borrado compartido de cada destino que lo ofrece (D1); nulo: sin borrado (tests, capturas). */
-    deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null
+    deleteViewModel: (@Composable () -> DeleteAccountViewModel)? = null,
+    /** Tipo del aviso push tocado, pendiente de abrir ([pushDestination]); nulo si no hay ninguno. */
+    pushKind: String? = null,
+    onPushHandled: () -> Unit = {}
 ) {
     // Un fallo transitorio (Ready -> Unavailable) no destruye Home ni su ViewModel: se mantiene Ready para el
     // enrutado y se superpone la pantalla sin conexión, que bloquea la interacción y solo ofrece cerrar sesión.
@@ -158,6 +168,7 @@ fun SessionNavHost(
     }
     SideEffect { lastRouted[0] = routed }
     SessionRedirect(routed, navController)
+    PushRedirect(session, pushKind, navController, onPushHandled)
     // Un único Surface con el fondo del tema para todas las raíces (splash, offline, marcadores...): sin él el texto
     // toma el color por defecto y queda oscuro sobre oscuro.
     Surface(Modifier.fillMaxSize()) {
@@ -495,6 +506,30 @@ private fun SessionRedirect(session: SessionState, navController: NavHostControl
                 launchSingleTop = true
             }
         }
+    }
+}
+
+/**
+ * Abre la pantalla del aviso tocado ([pushKind]) encima de Home cuando la sesión está Ready y la redirección ya ha
+ * dejado la pila en Home o en una ruta de negocio; atrás vuelve a Home. Mientras la sesión carga o falta un paso
+ * (consentimiento, email...) el aviso queda pendiente. Se atiende una sola vez, se pueda abrir o no.
+ */
+@Composable
+private fun PushRedirect(
+    session: SessionState,
+    pushKind: String?,
+    navController: NavHostController,
+    onPushHandled: () -> Unit
+) {
+    val current by navController.currentBackStackEntryAsState()
+    LaunchedEffect(session, pushKind, current) {
+        if (pushKind == null || session !is SessionState.Ready) return@LaunchedEffect
+        val destination = current?.destination ?: return@LaunchedEffect
+        val inReadyGraph = destination.hasRoute(HomeDestination::class) ||
+            BUSINESS_ROUTES.any { destination.hasRoute(it) }
+        if (!inReadyGraph) return@LaunchedEffect
+        session.pushDestination(pushKind)?.let { navController.navigate(it) { launchSingleTop = true } }
+        onPushHandled()
     }
 }
 

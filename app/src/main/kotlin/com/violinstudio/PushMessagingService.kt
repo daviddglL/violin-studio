@@ -14,7 +14,9 @@ import kotlinx.coroutines.launch
 /**
  * Solo atiende el cambio de token. Los avisos llegan como notificacion de FCM con claves de texto (`push_*`): con la
  * app en segundo plano los pinta el sistema en el canal [ACTIVITY_CHANNEL_ID]; en primer plano no se muestran (ya se
- * esta dentro de la app). Sin `onMessageReceived` propio: ningun dato del aviso se procesa ni se guarda.
+ * esta dentro de la app). Sin `onMessageReceived` propio: ningun dato del aviso se procesa ni se guarda. Al tocarlo,
+ * el sistema abre `MainActivity` con el tipo (`kind`) como extra y la navegacion abre su pantalla (`pushDestination`);
+ * `singleTop` en el manifiesto hace que con la app ya abierta llegue por `onNewIntent` sin recrearla.
  */
 class PushMessagingService : FirebaseMessagingService() {
     @EntryPoint
