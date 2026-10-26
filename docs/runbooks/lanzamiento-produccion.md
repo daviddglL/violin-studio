@@ -67,7 +67,19 @@ que no existe, así que ningún correo al tutor llegaría.
 
 Play Integrity solo valida apps instaladas desde Google Play, así que App Distribution no sirve para esto.
 
-1. Sube el AAB a una pista de pruebas internas de Google Play e instálalo desde Play.
+1. Sube el AAB a la pista de pruebas internas de Google Play. CI lo hace en cada push a `main` con la lane
+   `deploy_play` de fastlane en cuanto existe el secreto `PLAY_SERVICE_ACCOUNT_JSON`:
+   1. En Play Console crea la app `com.violinstudio` y sube **a mano** el primer AAB (el artefacto `release-aab` de
+      un run de CI): la API de Play no puede crear la app ni hacer la primera subida. Acepta Play App Signing.
+   2. En Google Cloud, en el proyecto que quieras, crea una cuenta de servicio sin roles de proyecto (por ejemplo
+      `ci-play-upload`), habilita la API "Google Play Android Developer" y crea una clave JSON.
+   3. En Play Console > Usuarios y permisos, invita el correo de esa cuenta solo para esta app con el permiso
+      "Publicar en pistas de prueba" (sin producción).
+   4. Copia el JSON en el secreto `PLAY_SERVICE_ACCOUNT_JSON` del repositorio y borra el fichero local.
+   5. Mientras la app no tenga ninguna versión publicada, Play solo acepta borradores (`draft`): publica cada versión
+      desde Play Console. Cuando la pista interna ya esté publicada, crea la variable de repositorio
+      `PLAY_RELEASE_STATUS=completed` para que CI la publique directamente.
+   6. Añade a los testers en Pruebas internas e instala la app desde el enlace de Play.
 2. En la consola de Firebase, registra Play Integrity con la huella SHA-256 de la clave de firma de Play.
 3. Comprueba en App Check > Métricas que las peticiones llegan como verificadas durante unos días.
 4. Activa la aplicación, en este orden: Functions (`ENFORCE_APP_CHECK=true` y despliegue), después Firestore y por
