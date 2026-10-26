@@ -5,11 +5,13 @@ const ALL_ON: LiveFeatures = {
   flags: { recordingsEnabled: true, videoEnabled: true, minorRecordingEnabled: true },
   chatEnabled: true,
   notificationsEnabled: true,
+  minVersionCode: 0,
 };
 const ALL_OFF: LiveFeatures = {
   flags: { recordingsEnabled: false, videoEnabled: false, minorRecordingEnabled: false },
   chatEnabled: false,
   notificationsEnabled: false,
+  minVersionCode: 0,
 };
 const ENV_ON = {
   RECORDINGS_ENABLED: "true",
@@ -47,6 +49,7 @@ describe("applyRemote", () => {
       flags: { recordingsEnabled: true, videoEnabled: false, minorRecordingEnabled: true },
       chatEnabled: false,
       notificationsEnabled: true,
+      minVersionCode: 0,
     });
     expect(applyRemote(ALL_ON, { notificationsEnabled: false })).toEqual({ ...ALL_ON, notificationsEnabled: false });
   });
@@ -61,6 +64,16 @@ describe("applyRemote", () => {
   test("un valor que no es booleano apaga (fail-closed)", () => {
     for (const v of ["true", "false", 1, 0, null, {}]) {
       expect(applyRemote(ALL_ON, { recordingsEnabled: v }).flags.recordingsEnabled).toBe(false);
+    }
+  });
+
+  test("el doc solo sube la version minima, y un valor invalido se ignora", () => {
+    const base = { ...ALL_ON, minVersionCode: 40 };
+    expect(applyRemote(base, { minVersionCode: 55 }).minVersionCode).toBe(55);
+    expect(applyRemote(base, { minVersionCode: "60" }).minVersionCode).toBe(60);
+    expect(applyRemote(base, { minVersionCode: 10 }).minVersionCode).toBe(40);
+    for (const v of [-1, 1.5, "abc", "", null, true, {}, Number.MAX_VALUE]) {
+      expect(applyRemote(base, { minVersionCode: v }).minVersionCode).toBe(40);
     }
   });
 
@@ -102,6 +115,14 @@ describe("liveFeaturesReader", () => {
     fail = false;
     expect(await read()).toEqual(ALL_ON);
     expect(paths).toHaveLength(2);
+  });
+
+  test("MIN_VERSION_CODE del entorno es el minimo de partida", async () => {
+    const { db } = fakeDb(async () => undefined);
+    const env = { ...ENV_ON, MIN_VERSION_CODE: " 42 " };
+    expect((await liveFeaturesReader({ db: () => db, env, now: () => 0 })()).minVersionCode).toBe(42);
+    const bad = { ...ENV_ON, MIN_VERSION_CODE: "v42" };
+    expect((await liveFeaturesReader({ db: () => db, env: bad, now: () => 0 })()).minVersionCode).toBe(0);
   });
 
   test("sin variables en produccion todo sigue apagado aunque el doc diga true", async () => {

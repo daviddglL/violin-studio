@@ -15,7 +15,9 @@ data class IdentityConfig(
     /** Chat profesor-alumno (4c): apagado por defecto. */
     val chatEnabled: Boolean = false,
     /** Avisos push: sin el, la app no pide ni registra el token del dispositivo. */
-    val notificationsEnabled: Boolean = false
+    val notificationsEnabled: Boolean = false,
+    /** `versionCode` minimo de la app: una version anterior solo puede actualizarse. 0 = sin minimo. */
+    val minVersionCode: Int = 0
 )
 
 /** Acuse de `requestGuardianConsent`: solo el email enmascarado. */
