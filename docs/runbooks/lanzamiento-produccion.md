@@ -88,6 +88,8 @@ Play Integrity solo valida apps instaladas desde Google Play, así que App Distr
 
 ## 5. Antes de abrir la app al público
 
+- Copias de seguridad de Firestore, presupuesto y alertas de errores según [operaciones.md](operaciones.md).
+
 - Revisión legal de la política v2 (puerta 0 del README).
 - Data safety en Play Console según `docs/data-safety.md`, incluidos las grabaciones, el chat y los avisos cuando
   se activen.

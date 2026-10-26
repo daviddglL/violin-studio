@@ -238,6 +238,10 @@ la app recibe los interruptores ya combinados por `identityConfig`.
 Para activar una función de forma escalonada: crea antes el campo a `false`, despliega con la variable a `true` en el
 `.env` y, cuando quieras abrirla, borra el campo o ponlo a `true`.
 
+El mismo documento admite `minVersionCode` (número): la app con un `versionCode` menor solo ofrece actualizarla. Ver
+[`docs/runbooks/operaciones.md`](docs/runbooks/operaciones.md), que también cubre copias de seguridad, presupuesto y
+alertas.
+
 ### App Check en prod
 
 Play Integrity solo valida apps instaladas desde Google Play. Mientras la app se reparta por App

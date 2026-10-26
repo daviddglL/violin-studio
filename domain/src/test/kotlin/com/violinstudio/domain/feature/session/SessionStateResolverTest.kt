@@ -21,7 +21,7 @@ class SessionStateResolverTest {
             guardianFlowEnabled = true
         )
     private val password = AuthUser("u1", "a@b.com", emailVerified = true, providers = setOf(AuthProvider.PASSWORD))
-    private val resolver = SessionStateResolver()
+    private val resolver = SessionStateResolver(AppVersion(100))
 
     private fun profile(
         status: ConsentStatus = ConsentStatus.GRANTED,
@@ -43,6 +43,27 @@ class SessionStateResolverTest {
     )
 
     private fun resolve(user: AuthUser? = password, profile: UserProfile? = profile()) = resolver(user, profile, config)
+
+    @Test
+    fun `una version anterior a la minima es UpdateRequired aunque el perfil este listo o falte`() {
+        val old = config.copy(minVersionCode = 101)
+        assertEquals(SessionState.UpdateRequired, resolver(password, profile(), old))
+        assertEquals(SessionState.UpdateRequired, resolver(password, null, old))
+    }
+
+    @Test
+    fun `la version minima igual a la instalada no bloquea`() {
+        val same = config.copy(minVersionCode = 100)
+        assertEquals(SessionState.Ready(profile(), SessionFeatures()), resolver(password, profile(), same))
+    }
+
+    @Test
+    fun `sin sesion o sin verificar el email no se pide actualizar`() {
+        val old = config.copy(minVersionCode = 101)
+        assertEquals(SessionState.LoggedOut, resolver(null, profile(), old))
+        val unverified = password.copy(emailVerified = false)
+        assertEquals(SessionState.EmailUnverified("a@b.com"), resolver(unverified, null, old))
+    }
 
     @Test
     fun `sin sesion es LoggedOut aunque haya perfil`() {

@@ -8,6 +8,9 @@
     <string name="session_loading">Cargando sesión</string>
     <string name="offline_title">Sin conexión</string>
     <string name="offline_message">Estamos reintentando. Puedes cerrar sesión mientras tanto.</string>
+    <string name="update_required_title">Actualiza la app</string>
+    <string name="update_required_message">Esta versión ya no es compatible. Instala la última versión para seguir practicando; tu progreso se conserva.</string>
+    <string name="update_required_action">Actualizar</string>
     <string name="verify_email_title">Verifica tu email</string>
     <string name="verify_email_message">Te hemos enviado un enlace de verificación a %1$s. Ábrelo y vuelve aquí.</string>
     <string name="verify_email_message_no_email">Te hemos enviado un enlace de verificación. Ábrelo y vuelve aquí.</string>
