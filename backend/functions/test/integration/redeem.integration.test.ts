@@ -127,11 +127,13 @@ describe("redeemTeacherCode - errores genericos (A3a.3)", () => {
     await expect(canjear(s, code)).resolves.toMatchObject({ linked: true });
   });
 
-  test("aviso v1 de builds antiguas: aun canjea y el vinculo guarda que acepto la v1", async () => {
+  test("aviso v1 retirado: NOTICE_OUTDATED y con la v2 canjea guardando que acepto la v2", async () => {
     const t = await profesor();
     const s = await alumno();
-    await expect(canjear(s, await nuevoCodigo(t), 1)).resolves.toMatchObject({ linked: true });
-    expect((await linkDoc(t, s))?.ackVersion).toBe(1);
+    const code = await nuevoCodigo(t);
+    expect(await rechazo(canjear(s, code, 1))).toMatchObject({ code: "failed-precondition", details: { reason: "NOTICE_OUTDATED" } });
+    await expect(canjear(s, code)).resolves.toMatchObject({ linked: true });
+    expect((await linkDoc(t, s))?.ackVersion).toBe(LINK_NOTICE_VERSION);
   });
 
   test("profesor lleno: TEACHER_FULL (resource-exhausted, cuenta como fallo) y el codigo sigue libre", async () => {
