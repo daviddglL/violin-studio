@@ -2,10 +2,15 @@ package com.violinstudio.domain.testing
 
 import com.violinstudio.domain.feature.practice.failure.PracticeFailure
 import com.violinstudio.domain.feature.practice.model.PracticeDraft
+import com.violinstudio.domain.feature.practice.model.PracticeReminder
 import com.violinstudio.domain.feature.practice.model.PracticeSession
+import com.violinstudio.domain.feature.practice.model.PracticeTotals
 import com.violinstudio.domain.feature.practice.model.RunningSession
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
+import com.violinstudio.domain.feature.practice.repository.PracticeReminderScheduler
+import com.violinstudio.domain.feature.practice.repository.PracticeReminderStore
 import com.violinstudio.domain.feature.practice.repository.RunningSessionStore
+import java.time.Duration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
@@ -19,6 +24,9 @@ class FakePracticeLogRepository : PracticeLogRepository {
     val created = mutableListOf<Pair<String, PracticeDraft>>()
     var createFailure: PracticeFailure? = null
     var lastLimit: Int? = null
+
+    /** Lo que devuelve `totals` (`null`: sin conexion). */
+    var totals: PracticeTotals? = null
 
     /** Si no es `null`, `observeHistory` falla con esto al recoger. */
     var observeFailure: PracticeFailure? = null
@@ -37,6 +45,11 @@ class FakePracticeLogRepository : PracticeLogRepository {
             observeFailure?.let { throw it }
             emitAll(store.map { it[uid].orEmpty() })
         }
+    }
+
+    override suspend fun totals(uid: String): PracticeTotals? {
+        calls += "totals:$uid"
+        return totals
     }
 
     override suspend fun create(uid: String, draft: PracticeDraft): Result<Unit> {
@@ -86,5 +99,31 @@ class FakeRunningSessionStore : RunningSessionStore {
         failure?.let { throw it }
         cleared += uid
         store.value = store.value - uid
+    }
+}
+
+/** Recordatorio en memoria por uid. */
+class FakePracticeReminderStore : PracticeReminderStore {
+    val reminders = MutableStateFlow<Map<String, PracticeReminder>>(emptyMap())
+    var failure: Throwable? = null
+
+    override fun observe(uid: String): Flow<PracticeReminder> = reminders.map { it[uid] ?: PracticeReminder() }
+
+    override suspend fun set(uid: String, reminder: PracticeReminder) {
+        failure?.let { throw it }
+        reminders.value = reminders.value + (uid to reminder)
+    }
+}
+
+/** Registra cada programacion (`schedule:<segundos>`, `next:<segundos>` si va tras el actual) y anulacion. */
+class FakePracticeReminderScheduler : PracticeReminderScheduler {
+    val calls = mutableListOf<String>()
+
+    override fun schedule(delay: Duration, afterCurrent: Boolean) {
+        calls += "${if (afterCurrent) "next" else "schedule"}:${delay.seconds}"
+    }
+
+    override fun cancel() {
+        calls += "cancel"
     }
 }

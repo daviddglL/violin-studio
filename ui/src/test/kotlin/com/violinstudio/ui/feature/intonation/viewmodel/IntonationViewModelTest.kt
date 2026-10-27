@@ -20,6 +20,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.time.Clock
 import kotlin.math.pow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -72,7 +73,9 @@ class IntonationViewModelTest {
         observePitch,
         observeConfig,
         observeBest,
-        saveScore
+        saveScore,
+        Clock.systemUTC(),
+        mockk()
     ).also { created += it }
 
     private fun pitch(note: Note, cents: Double) =

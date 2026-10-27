@@ -15,7 +15,8 @@ data class IdentityConfigDto(
     val minorRecordingEnabled: Boolean = false,
     val recordingConsentVersion: Int = 1,
     val chatEnabled: Boolean = false,
-    val notificationsEnabled: Boolean = false
+    val notificationsEnabled: Boolean = false,
+    val minVersionCode: Int = 0
 ) {
     fun toDomain() = IdentityConfig(
         policyVersion = policyVersion,
@@ -27,7 +28,8 @@ data class IdentityConfigDto(
         minorRecordingEnabled = minorRecordingEnabled,
         recordingConsentVersion = recordingConsentVersion,
         chatEnabled = chatEnabled,
-        notificationsEnabled = notificationsEnabled
+        notificationsEnabled = notificationsEnabled,
+        minVersionCode = minVersionCode
     )
 
     companion object {
@@ -41,7 +43,8 @@ data class IdentityConfigDto(
             minorRecordingEnabled = config.minorRecordingEnabled,
             recordingConsentVersion = config.recordingConsentVersion,
             chatEnabled = config.chatEnabled,
-            notificationsEnabled = config.notificationsEnabled
+            notificationsEnabled = config.notificationsEnabled,
+            minVersionCode = config.minVersionCode
         )
     }
 }

@@ -28,7 +28,8 @@ Datos que sí trata la app (fase 2 y registro de práctica; ya cubiertos por el 
 nacimiento (edad), instrumento, historial de práctica (fecha, duración, instrumento y notas opcionales), lecciones del
 currículo marcadas como hechas (`users/{uid}/progress/curriculum`: solo los ids de lección) y registros de
 consentimiento. El historial de práctica no contiene audio, frecuencias ni notas tocadas. Se puede borrar por sesión o
-junto con la cuenta (borrado completo desde la app).
+junto con la cuenta (borrado completo desde la app). El recordatorio diario (encendido y hora) se guarda solo en el dispositivo y el aviso
+lo genera el propio móvil: no se envía nada.
 
 ## Vínculo profesor-alumno, tareas y visibilidad del registro (fase 4a)
 

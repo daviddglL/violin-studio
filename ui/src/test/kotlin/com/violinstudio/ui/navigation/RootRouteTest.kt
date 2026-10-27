@@ -31,6 +31,7 @@ class RootRouteTest {
         SessionState.LoggedOut to AuthDestination,
         SessionState.EmailUnverified("a@b.c") to VerifyEmailDestination,
         SessionState.NeedsProfile to OnboardingDestination,
+        SessionState.UpdateRequired to UpdateRequiredDestination,
         SessionState.ConsentPending(config, isMinor = false) to ConsentDestination,
         SessionState.ConsentPending(config, isMinor = true) to ConsentDestination,
         SessionState.ParentalPending("a***@b.c", 1) to GuardianWaitDestination,
@@ -50,6 +51,7 @@ class RootRouteTest {
             AuthDestination,
             VerifyEmailDestination,
             OnboardingDestination,
+            UpdateRequiredDestination,
             ConsentDestination,
             GuardianWaitDestination
         )

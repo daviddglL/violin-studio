@@ -19,6 +19,7 @@ import com.violinstudio.domain.feature.tuner.audio.AudioOutput
 import com.violinstudio.domain.feature.tuner.audio.PcmGenerator
 import com.violinstudio.ui.commons.theme.ViolinStudioTheme
 import com.violinstudio.ui.feature.metronome.viewmodel.MetronomeViewModel
+import io.mockk.mockk
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.awaitCancellation
@@ -67,7 +68,7 @@ class MetronomeRouteTest {
     }
 
     private fun playing(): MetronomeViewModel {
-        val viewModel = MetronomeViewModel(RunMetronomeUseCase(output), Clock.systemUTC())
+        val viewModel = MetronomeViewModel(RunMetronomeUseCase(output), Clock.systemUTC(), Clock.systemUTC(), mockk())
         compose.setContent {
             ViolinStudioTheme {
                 CompositionLocalProvider(LocalLifecycleOwner provides owner) {

@@ -6,6 +6,7 @@ import com.violinstudio.domain.feature.tuner.model.Note
 import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
+import com.violinstudio.ui.feature.practice.viewmodel.ToolPracticeUi
 
 enum class IntonationMic { OK, DENIED, BLOCKED }
 
@@ -26,7 +27,9 @@ data class IntonationState(
     val best: Int? = null,
     val isNewBest: Boolean = false,
     val mic: IntonationMic = IntonationMic.OK,
-    val error: IntonationError? = null
+    val error: IntonationError? = null,
+    /** Al pausar o acabar con 1 min o mas escuchando, la oferta de guardarlo como practica. */
+    val toolPractice: ToolPracticeUi = ToolPracticeUi()
 ) : UiState {
     val total: Int get() = exercise?.notes?.size ?: 0
 }
@@ -45,6 +48,11 @@ sealed interface IntonationIntent : UiIntent {
     data object Restart : IntonationIntent
 
     data object OpenAppSettings : IntonationIntent
+
+    /** Guarda como practica el tiempo escuchando (solo si hay oferta). */
+    data object SaveToolPractice : IntonationIntent
+
+    data object DismissToolPractice : IntonationIntent
 }
 
 sealed interface IntonationEffect : UiEffect {

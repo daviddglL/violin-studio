@@ -44,3 +44,18 @@ export function recordingFlags(env: NodeJS.ProcessEnv = process.env): RecordingF
     minorRecordingEnabled: flag(env, "MINOR_RECORDING_ENABLED", local),
   };
 }
+
+/**
+ * Version minima de la app (`versionCode`, el numero de run de CI): por debajo, la app solo muestra "Actualiza la app".
+ * `MIN_VERSION_CODE` en `functions/.env.<project>`; sin variable o con un valor que no es un entero >= 0, 0 (sin minimo).
+ * Fail-open a proposito: un error de configuracion nunca debe bloquear a todos los usuarios.
+ */
+export function minVersionCode(env: NodeJS.ProcessEnv = process.env): number {
+  return parseMinVersion(env.MIN_VERSION_CODE?.trim()) ?? 0;
+}
+
+/** Entero >= 0 (numero o texto con solo digitos); cualquier otra cosa, `undefined`. */
+export function parseMinVersion(raw: unknown): number | undefined {
+  const n = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : raw;
+  return typeof n === "number" && Number.isSafeInteger(n) && n >= 0 ? n : undefined;
+}

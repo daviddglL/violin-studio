@@ -25,9 +25,9 @@ jobs:
       backend: ${{ steps.filtro.outputs.backend }}
       ci: ${{ steps.filtro.outputs.ci }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: filtro
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
             app:
@@ -50,7 +50,7 @@ jobs:
   secrets-guard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bash scripts/test-secrets-guard.sh
       - run: bash scripts/secrets-guard.sh
 
@@ -61,21 +61,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with: { distribution: temurin, java-version: "21" }
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: google-services.json
         env:
           GS_DEV: ${{ secrets.GOOGLE_SERVICES_DEV_BASE64 }}
           GS_PROD: ${{ secrets.GOOGLE_SERVICES_PROD_BASE64 }}
         run: |
-          mkdir -p app/src/dev app/src/prod
-          echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
-          echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
+          bash scripts/ci-google-services.sh
       - run: ./gradlew check coverage assembleDevDebug --continue -Proborazzi.test.verify=true
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-reports
           path: |
@@ -90,10 +88,10 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: "22", cache: npm, cache-dependency-path: backend/functions/package-lock.json }
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with: { distribution: temurin, java-version: "21" }
       - run: npm ci --prefix functions
       - run: npm --prefix functions run lint
@@ -113,10 +111,10 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: "22", cache: npm, cache-dependency-path: backend/rules-tests/package-lock.json }
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with: { distribution: temurin, java-version: "21" }
       - run: npm ci --prefix rules-tests
       - run: npm i -g firebase-tools@15.20.0
@@ -132,20 +130,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with: { distribution: temurin, java-version: "21" }
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: "22" }
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: google-services.json
         env:
           GS_DEV: ${{ secrets.GOOGLE_SERVICES_DEV_BASE64 }}
           GS_PROD: ${{ secrets.GOOGLE_SERVICES_PROD_BASE64 }}
         run: |
-          mkdir -p app/src/dev app/src/prod
-          echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
-          echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
+          bash scripts/ci-google-services.sh
           # Sin credenciales el emulador de Functions asume el bucket `<proyecto>.appspot.com` para los triggers de
           # Storage (finalizeRecording); la app subiria al bucket real (`.firebasestorage.app`) y el trigger no saltaria.
           jq '.project_info.storage_bucket = (.project_info.project_id + ".appspot.com")' app/src/dev/google-services.json > gs.tmp
@@ -170,7 +166,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - uses: reactivecircus/android-emulator-runner@v2
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           # Imagen ligera (API 30) y emulador por defecto de la accion: el pin 37.1.11 tampoco arrancaba y la API 34
           # google_apis es la mas pesada para 4 vCPU/16 GB compartidos con los emuladores de Firebase y Gradle.
@@ -190,7 +186,7 @@ jobs:
         name: Log de los emuladores
         run: tail -n 300 emulators.log
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: emulators-log, path: emulators.log }
 
   # El release solo corre si existen los secrets de firma (KEYSTORE_BASE64, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD);
@@ -201,6 +197,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       lista: ${{ steps.comprobar.outputs.lista }}
+      play: ${{ steps.comprobar.outputs.play }}
     steps:
       - id: comprobar
         env:
@@ -208,7 +205,15 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
+          # La subida a Google Play es opcional: sin el secreto solo se publica en App Distribution.
+          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "play=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "play=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Google Play desactivado::Falta el secret PLAY_SERVICE_ACCOUNT_JSON; el AAB no se sube a Play (docs/runbooks/lanzamiento-produccion.md, paso 4)."
+          fi
           faltan=""
           for s in KEYSTORE_BASE64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
             [ -n "${!s}" ] || faltan="$faltan $s"
@@ -238,19 +243,17 @@ jobs:
       KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with: { distribution: temurin, java-version: "21" }
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: google-services.json y keystore
         env:
           GS_DEV: ${{ secrets.GOOGLE_SERVICES_DEV_BASE64 }}
           GS_PROD: ${{ secrets.GOOGLE_SERVICES_PROD_BASE64 }}
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          mkdir -p app/src/dev app/src/prod
-          echo "$GS_DEV" | base64 -d > app/src/dev/google-services.json
-          echo "$GS_PROD" | base64 -d > app/src/prod/google-services.json
+          bash scripts/ci-google-services.sh --require
           echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
           test -s "$KEYSTORE_PATH"
       - run: ./gradlew assembleProdRelease bundleProdRelease
@@ -258,9 +261,9 @@ jobs:
         run: |
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
           "$apksigner" verify --print-certs app/build/outputs/apk/prod/release/app-prod-release.apk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: release-aab, path: app/build/outputs/bundle/prodRelease/ }
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
         with: { ruby-version: "3.3" }
       - run: bundle install
       - name: Publicar en App Distribution
@@ -271,3 +274,13 @@ jobs:
           export FIREBASE_SERVICE_ACCOUNT_PATH="$RUNNER_TEMP/sa.json"
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$FIREBASE_SERVICE_ACCOUNT_PATH"
           bundle exec fastlane android deploy_firebase
+      # Pista de pruebas internas de Play: la necesita App Check (Play Integrity solo valida instalaciones desde Play).
+      - name: Publicar en Google Play (pruebas internas)
+        if: needs.release-firma.outputs.play == 'true'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'draft' }}
+        run: |
+          export PLAY_SERVICE_ACCOUNT_PATH="$RUNNER_TEMP/play.json"
+          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$PLAY_SERVICE_ACCOUNT_PATH"
+          bundle exec fastlane android deploy_play

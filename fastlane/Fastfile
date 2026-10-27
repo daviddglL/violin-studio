@@ -13,4 +13,22 @@ platform :android do
       release_notes: "CI ##{ENV['GITHUB_RUN_NUMBER']} - #{last_git_commit[:abbreviated_commit_hash]}"
     )
   end
+
+  desc "Sube el AAB prodRelease a una pista de Google Play (internal por defecto)"
+  lane :deploy_play do |options|
+    upload_to_play_store(
+      package_name: "com.violinstudio",
+      json_key: ENV.fetch("PLAY_SERVICE_ACCOUNT_PATH"),
+      track: options[:track] || ENV.fetch("PLAY_TRACK", "internal"),
+      # Mientras la ficha de Play no se haya publicado nunca, Play solo acepta releases en borrador.
+      release_status: ENV.fetch("PLAY_RELEASE_STATUS", "draft"),
+      aab: "app/build/outputs/bundle/prodRelease/app-prod-release.aab",
+      mapping: "app/build/outputs/mapping/prodRelease/mapping.txt",
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
 end
