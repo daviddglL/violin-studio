@@ -57,10 +57,10 @@ describe("canRedeem", () => {
   ])("profesor %s -> TEACHER_UNAVAILABLE", (_n, t) => {
     expect(check({ teacher: t })).toEqual({ ok: false, reason: "TEACHER_UNAVAILABLE" });
   });
-  test.each([[0], [LINK_NOTICE_VERSION + 1], [undefined], ["1"], ["2"], [1.5], [null]])("ackVersion %j -> NOTICE_OUTDATED", (a) => {
+  test.each([[0], [1], [LINK_NOTICE_VERSION + 1], [undefined], ["1"], ["2"], [1.5], [null]])("ackVersion %j -> NOTICE_OUTDATED", (a) => {
     expect(check({ ackVersion: a })).toEqual({ ok: false, reason: "NOTICE_OUTDATED" });
   });
-  test.each(ACCEPTED_LINK_NOTICE_VERSIONS.map((v) => [v]))("ackVersion %j aceptada durante la transicion", (a) => {
+  test.each(ACCEPTED_LINK_NOTICE_VERSIONS.map((v) => [v]))("ackVersion %j aceptada", (a) => {
     expect(check({ ackVersion: a })).toEqual({ ok: true });
   });
   test("la version vigente es la mas alta aceptada", () => {

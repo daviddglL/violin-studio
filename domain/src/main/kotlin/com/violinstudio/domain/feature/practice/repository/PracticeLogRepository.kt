@@ -3,6 +3,7 @@ package com.violinstudio.domain.feature.practice.repository
 import com.violinstudio.domain.feature.practice.model.PracticeDraft
 import com.violinstudio.domain.feature.practice.model.PracticeRules
 import com.violinstudio.domain.feature.practice.model.PracticeSession
+import com.violinstudio.domain.feature.practice.model.PracticeTotals
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -12,6 +13,9 @@ import kotlinx.coroutines.flow.Flow
 interface PracticeLogRepository {
     /** Más recientes primero, como mucho [limit]. */
     fun observeHistory(uid: String, limit: Int = PracticeRules.HISTORY_LIMIT): Flow<List<PracticeSession>>
+
+    /** Número de sesiones y segundos de todo el historial según el servidor; `null` sin conexión o si falla. */
+    suspend fun totals(uid: String): PracticeTotals?
 
     suspend fun create(uid: String, draft: PracticeDraft): Result<Unit>
 

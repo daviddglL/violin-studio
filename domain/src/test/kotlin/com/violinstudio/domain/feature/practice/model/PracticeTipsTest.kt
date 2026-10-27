@@ -102,6 +102,8 @@ class PracticeTipsTest {
         progress.seed(verifiedUser.uid, "b1_posture")
         val stats = ObservePracticeStatsUseCase(
             ObservePracticeHistoryUseCase(auth, log),
+            auth,
+            log,
             Clock.fixed(Instant.parse("2026-10-14T12:00:00Z"), ZoneOffset.UTC)
         ) { ZoneOffset.UTC }
         val tips = ObservePracticeTipsUseCase(stats, ObserveCurriculumUseCase(auth, progress))().first()

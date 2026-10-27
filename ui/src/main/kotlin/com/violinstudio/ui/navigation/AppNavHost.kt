@@ -46,6 +46,7 @@ import com.violinstudio.ui.feature.recording.view.RecordingsRoute
 import com.violinstudio.ui.feature.recording.view.StudentRecordingsRoute
 import com.violinstudio.ui.feature.session.view.OfflineScreen
 import com.violinstudio.ui.feature.session.view.SplashScreen
+import com.violinstudio.ui.feature.session.view.UpdateRequiredScreen
 import com.violinstudio.ui.feature.session.viewmodel.SessionIntent
 import com.violinstudio.ui.feature.session.viewmodel.SessionViewModel
 import com.violinstudio.ui.feature.settings.view.SettingsRoute
@@ -230,6 +231,7 @@ private fun SessionGraph(
     NavHost(navController = navController, startDestination = SplashDestination) {
         composable<SplashDestination> { SplashScreen() }
         composable<OfflineDestination> { OfflineScreen(onSignOut) }
+        composable<UpdateRequiredDestination> { UpdateRequiredScreen(onSignOut) }
         composable<AuthDestination> { auth() }
         composable<VerifyEmailDestination> { WithDeleteAccount(deleteViewModel, onSignOut) { verifyEmail(lastEmail) } }
         composable<OnboardingDestination> { WithDeleteAccount(deleteViewModel, onSignOut) { onboarding() } }

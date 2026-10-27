@@ -8,10 +8,12 @@ import com.violinstudio.domain.feature.profile.model.UserProfile
 import javax.inject.Inject
 
 /** Tabla de verdad pura: sin E/S ni edad calculada en cliente (el `isMinor` del servidor prevalece). */
-class SessionStateResolver @Inject constructor() {
+class SessionStateResolver @Inject constructor(private val appVersion: AppVersion) {
     operator fun invoke(user: AuthUser?, profile: UserProfile?, config: IdentityConfig): SessionState = when {
         user == null -> SessionState.LoggedOut
         needsEmailVerification(user) -> SessionState.EmailUnverified(user.email)
+        // Antes que el perfil: una version retirada no debe llegar a escribir nada.
+        config.minVersionCode > appVersion.code -> SessionState.UpdateRequired
         profile == null -> SessionState.NeedsProfile
         profile.deletionInProgress -> SessionState.Loading
         profile.consentStatus == ConsentStatus.PARENTAL_PENDING ->

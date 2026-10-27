@@ -7,6 +7,7 @@ import com.violinstudio.domain.feature.intonation.model.IntonationSummary
 import com.violinstudio.domain.feature.intonation.model.IntonationTracker
 import com.violinstudio.domain.feature.intonation.usecase.ObserveIntonationBestUseCase
 import com.violinstudio.domain.feature.intonation.usecase.SaveIntonationScoreUseCase
+import com.violinstudio.domain.feature.practice.usecase.LogToolPracticeUseCase
 import com.violinstudio.domain.feature.profile.model.Instrument
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.domain.feature.tuner.model.TunerConfig
@@ -14,7 +15,9 @@ import com.violinstudio.domain.feature.tuner.model.TunerReading
 import com.violinstudio.domain.feature.tuner.usecase.ObservePitchUseCase
 import com.violinstudio.domain.feature.tuner.usecase.ObserveTunerConfigUseCase
 import com.violinstudio.ui.commons.mvi.MviViewModel
+import com.violinstudio.ui.feature.practice.viewmodel.ToolPracticeOffer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -26,7 +29,8 @@ import kotlinx.coroutines.launch
 /**
  * Ejercicio de afinacion de la ruta (`exerciseId`). Escucha con el detector del afinador (violin, la referencia del
  * usuario) y lo puntua todo en el dispositivo: no se guarda audio ni lecturas, solo la mejor puntuacion. El micro se
- * usa solo entre `Start` y `Pause`/fin/[onCleared].
+ * usa solo entre `Start` y `Pause`/fin/[onCleared]. El tiempo escuchando se cronometra y, al pausar o acabar con 1 min
+ * o mas, se ofrece guardarlo como practica: no se guarda nada sin `SaveToolPractice` (REQ-PRA-02).
  */
 @HiltViewModel
 class IntonationViewModel @Inject constructor(
@@ -34,8 +38,11 @@ class IntonationViewModel @Inject constructor(
     private val observePitch: ObservePitchUseCase,
     observeConfig: ObserveTunerConfigUseCase,
     observeBest: ObserveIntonationBestUseCase,
-    private val saveScore: SaveIntonationScoreUseCase
+    private val saveScore: SaveIntonationScoreUseCase,
+    clock: Clock,
+    logToolPractice: LogToolPracticeUseCase
 ) : MviViewModel<IntonationState, IntonationIntent, IntonationEffect>(IntonationState()) {
+    private val offer = ToolPracticeOffer(clock, logToolPractice)
     private val exercise = savedStateHandle.get<String>(EXERCISE_ID_KEY)?.let(IntonationExercises::byId)
     private var config = TunerConfig()
     private var tracker: IntonationTracker? = null
@@ -61,6 +68,11 @@ class IntonationViewModel @Inject constructor(
             IntonationIntent.Skip -> onSkip()
             IntonationIntent.Restart -> onRestart()
             IntonationIntent.OpenAppSettings -> sendEffect(IntonationEffect.OpenAppSettings)
+            IntonationIntent.SaveToolPractice -> {
+                val saved = offer.save(state.value.toolPractice)
+                setState { copy(toolPractice = saved) }
+            }
+            IntonationIntent.DismissToolPractice -> setState { copy(toolPractice = offer.dismiss()) }
         }
     }
 
@@ -106,7 +118,7 @@ class IntonationViewModel @Inject constructor(
     private suspend fun startCapture() {
         stopCapture()
         val current = tracker() ?: return
-        setState { copy(isListening = true, error = null) }
+        setState { copy(isListening = true, error = null, toolPractice = offer.started(toolPractice)) }
         captureJob = viewModelScope.launch {
             try {
                 observePitch(Instrument.VIOLIN, config, null).first { reading ->
@@ -114,17 +126,21 @@ class IntonationViewModel @Inject constructor(
                     publish(current, current.onPitch(frequency))
                     current.finished
                 }
-                setState { copy(isListening = false) }
+                setState { copy(isListening = false, toolPractice = offer.stopped(toolPractice)) }
                 finish(current)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: NoSuchElementException) {
                 // La fuente termino sin acabar el ejercicio: se queda en pausa.
-                setState { copy(isListening = false) }
+                setState { copy(isListening = false, toolPractice = offer.stopped(toolPractice)) }
             } catch (_: TunerFailure.MicPermissionDenied) {
-                setState { copy(isListening = false, cents = null, mic = IntonationMic.DENIED) }
+                val practice = offer.stopped(state.value.toolPractice)
+                setState {
+                    copy(isListening = false, cents = null, mic = IntonationMic.DENIED, toolPractice = practice)
+                }
             } catch (e: Exception) {
-                setState { copy(isListening = false, cents = null, error = errorOf(e)) }
+                val practice = offer.stopped(state.value.toolPractice)
+                setState { copy(isListening = false, cents = null, error = errorOf(e), toolPractice = practice) }
             }
         }
     }
@@ -132,7 +148,7 @@ class IntonationViewModel @Inject constructor(
     private suspend fun stopCapture() {
         captureJob?.cancelAndJoin()
         captureJob = null
-        setState { copy(isListening = false, cents = null) }
+        setState { copy(isListening = false, cents = null, toolPractice = offer.stopped(toolPractice)) }
     }
 
     /** El tracker se crea al empezar, con la referencia vigente; un reinicio lo descarta. */

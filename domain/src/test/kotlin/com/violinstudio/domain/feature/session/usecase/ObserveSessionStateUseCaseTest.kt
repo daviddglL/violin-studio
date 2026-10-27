@@ -14,6 +14,7 @@ import com.violinstudio.domain.feature.passwordUser
 import com.violinstudio.domain.feature.profile.failure.ProfileFailure
 import com.violinstudio.domain.feature.profile.model.ConsentStatus
 import com.violinstudio.domain.feature.profile.model.Role
+import com.violinstudio.domain.feature.session.AppVersion
 import com.violinstudio.domain.feature.session.ConsentReason
 import com.violinstudio.domain.feature.session.SessionRefreshTrigger
 import com.violinstudio.domain.feature.session.SessionState
@@ -44,7 +45,7 @@ class ObserveSessionStateUseCaseTest {
             auth,
             profile,
             consent,
-            SessionStateResolver(),
+            SessionStateResolver(AppVersion(1)),
             RetryBackoff(),
             trigger,
             pending,

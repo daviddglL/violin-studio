@@ -43,6 +43,7 @@ import com.violinstudio.ui.feature.account.view.LocalDeleteAccount
 import com.violinstudio.ui.feature.auth.view.AuthMessage
 import com.violinstudio.ui.feature.auth.view.AuthScaffold
 import com.violinstudio.ui.feature.onboarding.view.labelRes
+import com.violinstudio.ui.feature.reminder.view.ReminderRoute
 import com.violinstudio.ui.feature.settings.viewmodel.RevokeError
 import com.violinstudio.ui.feature.settings.viewmodel.SettingsError
 import com.violinstudio.ui.feature.settings.viewmodel.SettingsIntent
@@ -67,12 +68,20 @@ fun settingsLanguageTag(language: AppLanguage) = "settings_language_${language.n
 fun SettingsRoute(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onIntent(SettingsIntent.RefreshLanguage) }
-    SettingsScreen(state, viewModel::onIntent, onBack)
+    SettingsScreen(state, viewModel::onIntent, onBack) { enabled -> ReminderRoute(enabled) }
 }
 
-/** El borrado de cuenta es el flujo compartido (D1): con el flujo abierto o terminado el resto queda bloqueado. */
+/**
+ * El borrado de cuenta es el flujo compartido (D1): con el flujo abierto o terminado el resto queda bloqueado.
+ * [reminder] pinta el recordatorio diario (con su propio ViewModel); recibe si se puede tocar.
+ */
 @Composable
-fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(
+    state: SettingsState,
+    onIntent: (SettingsIntent) -> Unit,
+    onBack: () -> Unit,
+    reminder: @Composable (enabled: Boolean) -> Unit = {}
+) {
     val delete = LocalDeleteAccount.current
     val shown = state.copy(deleteActive = delete.active)
     AuthScaffold(SETTINGS_TAG, stringResource(R.string.settings_title)) {
@@ -82,6 +91,7 @@ fun SettingsScreen(state: SettingsState, onIntent: (SettingsIntent) -> Unit, onB
         } else {
             ProfileForm(shown, onIntent)
             LanguageSection(shown, onIntent)
+            reminder(!shown.busy)
             PrivacySection(shown, onIntent)
             delete.entry(!shown.busy)
         }

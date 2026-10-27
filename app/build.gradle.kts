@@ -23,7 +23,9 @@ android {
         applicationId = "com.violinstudio"
         testInstrumentationRunner = "com.violinstudio.HiltTestRunner"
         versionCode = providers.environmentVariable("GITHUB_RUN_NUMBER").map { it.toInt() }.getOrElse(1)
-        versionName = "0.1.0"
+        // `violin.version` (gradle.properties) es la parte que se sube a mano; el parche es el versionCode, asi cada
+        // build de CI tiene un nombre distinto y se ve de un vistazo con que `minVersionCode` se compara.
+        versionName = "${providers.gradleProperty("violin.version").get()}.$versionCode"
     }
 
     productFlavors {

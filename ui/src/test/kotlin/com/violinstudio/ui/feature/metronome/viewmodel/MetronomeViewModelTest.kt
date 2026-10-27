@@ -4,10 +4,15 @@ import com.violinstudio.domain.feature.metronome.MetronomeGenerator
 import com.violinstudio.domain.feature.metronome.model.Tempo
 import com.violinstudio.domain.feature.metronome.model.TimeSignature
 import com.violinstudio.domain.feature.metronome.usecase.RunMetronomeUseCase
+import com.violinstudio.domain.feature.practice.model.ToolPractice
+import com.violinstudio.domain.feature.practice.usecase.LogToolPracticeUseCase
 import com.violinstudio.domain.feature.tuner.audio.AudioOutput
 import com.violinstudio.domain.feature.tuner.audio.PcmGenerator
 import com.violinstudio.domain.feature.tuner.failure.TunerFailure
 import com.violinstudio.ui.commons.testing.MainDispatcherExtension
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -77,14 +82,50 @@ private class TestClock(var now: Long = 0) : Clock() {
 class MetronomeViewModelTest {
     private val output = FakeOutput()
     private val clock = TestClock()
+    private val wall = TestClock()
+    private val log = mockk<LogToolPracticeUseCase> { coEvery { this@mockk(any()) } returns Result.success(mockk()) }
 
-    private fun vm() = MetronomeViewModel(RunMetronomeUseCase(output), clock)
+    private fun vm() = MetronomeViewModel(RunMetronomeUseCase(output), clock, wall, log)
 
     private fun TestScope.playing(): MetronomeViewModel {
         val vm = vm()
         vm.onIntent(MetronomeIntent.Toggle)
         advanceUntilIdle()
         return vm
+    }
+
+    @Test
+    fun `tras sonar 2 min se ofrece guardarlo y solo se guarda al pedirlo`() = runTest {
+        val vm = playing()
+        wall.now = 120_000
+        vm.onIntent(MetronomeIntent.Stop)
+        advanceUntilIdle()
+        assertEquals(ToolPractice(Instant.EPOCH, 120), vm.state.value.toolPractice.offer)
+        coVerify(exactly = 0) { log(any()) }
+        vm.onIntent(MetronomeIntent.SaveToolPractice)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { log(ToolPractice(Instant.EPOCH, 120)) }
+        assertTrue(vm.state.value.toolPractice.saved)
+        assertNull(vm.state.value.toolPractice.offer)
+    }
+
+    @Test
+    fun `con menos de 1 min no hay oferta y descartarla la borra`() = runTest {
+        val vm = playing()
+        wall.now = 30_000
+        vm.onIntent(MetronomeIntent.Stop)
+        advanceUntilIdle()
+        assertNull(vm.state.value.toolPractice.offer)
+        vm.onIntent(MetronomeIntent.Toggle)
+        advanceUntilIdle()
+        wall.now = 100_000
+        vm.onIntent(MetronomeIntent.Stop)
+        advanceUntilIdle()
+        assertEquals(100, vm.state.value.toolPractice.offer?.durationSec)
+        vm.onIntent(MetronomeIntent.DismissToolPractice)
+        advanceUntilIdle()
+        assertNull(vm.state.value.toolPractice.offer)
+        coVerify(exactly = 0) { log(any()) }
     }
 
     @Test
