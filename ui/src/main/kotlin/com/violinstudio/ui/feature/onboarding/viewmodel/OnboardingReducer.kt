@@ -10,18 +10,23 @@ import java.time.LocalDate
 object OnboardingReducer {
     fun reduce(state: OnboardingState, mutation: OnboardingMutation, ageGate: AgeGate): OnboardingState = when {
         mutation is OnboardingMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
+
         // Con el borrado compartido abierto no se edita ni se envia nada.
         state.deleteActive -> state
+
         else -> reduceActive(state, mutation, ageGate)
     }
 
     private fun reduceActive(state: OnboardingState, mutation: OnboardingMutation, ageGate: AgeGate): OnboardingState =
         when (mutation) {
             is OnboardingMutation.DeleteActiveChanged -> state
+
             is OnboardingMutation.DisplayNameChanged -> state.edited(ProfileField.DISPLAY_NAME)
                 .copy(displayName = mutation.value)
+
             is OnboardingMutation.InstrumentSelected -> state.edited(ProfileField.INSTRUMENT)
                 .copy(instrument = mutation.value)
+
             is OnboardingMutation.BirthDateChanged -> {
                 val typed = state.edited(ProfileField.BIRTH_DATE)
                     .copy(day = mutation.day, month = mutation.month, year = mutation.year)
@@ -33,13 +38,17 @@ object OnboardingReducer {
                     birthDateInFuture = future
                 )
             }
+
             OnboardingMutation.SubmitRequested -> {
                 val errors = validate(state)
                 state.copy(fieldErrors = errors, error = null, isLoading = errors.isEmpty())
             }
+
             OnboardingMutation.Succeeded -> state.copy(isLoading = false, succeeded = true)
+
             is OnboardingMutation.FieldRejected ->
                 state.copy(isLoading = false, fieldErrors = state.fieldErrors + mutation.field)
+
             is OnboardingMutation.Failed -> state.copy(isLoading = false, error = mutation.error)
         }
 

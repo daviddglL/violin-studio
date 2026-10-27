@@ -152,8 +152,11 @@ private fun Access(
             Text(stringResource(R.string.recordings_checking))
             LoadingIndicator()
         }
+
         RecordingAccess.Disabled -> Text(stringResource(R.string.recordings_disabled))
+
         is RecordingAccess.NeedsConsent -> Consent(access, state, onIntent)
+
         is RecordingAccess.Allowed -> Recorder(state, access, onIntent, onRecord, onRecordVideo)
     }
 }
@@ -248,12 +251,14 @@ private fun Recorder(
 private fun Mic(prompt: MicPrompt?, onIntent: (RecordingsIntent) -> Unit) {
     when (prompt) {
         null -> Unit
+
         MicPrompt.RATIONALE -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.recordings_mic_rationale), modifier = Modifier.weight(1f))
             TextButton(onClick = { onIntent(RecordingsIntent.ConfirmRationale) }) {
                 Text(stringResource(R.string.recordings_mic_allow))
             }
         }
+
         MicPrompt.BLOCKED -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.recordings_mic_blocked), modifier = Modifier.weight(1f))
             TextButton(onClick = { onIntent(RecordingsIntent.OpenAppSettings) }) {
@@ -327,8 +332,11 @@ private fun PendingItem(item: QueuedRecording, onIntent: (RecordingsIntent) -> U
 
 private fun pendingText(item: QueuedRecording): Int = when (item.state) {
     QueueState.RECORDED -> R.string.recordings_state_queued
+
     QueueState.UPLOADING -> R.string.recordings_state_uploading
+
     QueueState.UPLOADED, QueueState.DONE -> R.string.recordings_state_processing
+
     QueueState.FAILED -> when (item.lastError) {
         FailReason.QUOTA -> R.string.recordings_state_failed_quota
         FailReason.SIZE -> R.string.recordings_state_failed_size
@@ -395,8 +403,11 @@ private fun Reviews(state: RecordingsState) {
                 stringResource(R.string.recordings_reviews_failed),
                 color = MaterialTheme.colorScheme.error
             )
+
             reviews == null -> LoadingIndicator()
+
             reviews.isEmpty() -> Text(stringResource(R.string.recordings_reviews_empty))
+
             else -> reviews.forEach { ReviewView(it) }
         }
     }

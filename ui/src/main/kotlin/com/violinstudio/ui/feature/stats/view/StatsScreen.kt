@@ -70,16 +70,19 @@ fun StatsScreen(state: StatsState, onIntent: (StatsIntent) -> Unit, onBack: () -
         val stats = state.stats
         when {
             state.loading -> LoadingIndicator()
+
             state.failed || stats == null -> {
                 Text(stringResource(R.string.stats_error))
                 Button(onClick = { onIntent(StatsIntent.Retry) }, modifier = Modifier.testTag(STATS_RETRY_TAG)) {
                     Text(stringResource(R.string.stats_retry))
                 }
             }
+
             stats.sessionCount == 0 -> Text(
                 stringResource(R.string.stats_empty),
                 modifier = Modifier.testTag(STATS_EMPTY_TAG)
             )
+
             else -> StatsContent(stats)
         }
         if (!state.loading && !state.failed && stats != null && state.achievements.isNotEmpty()) {
@@ -187,12 +190,18 @@ private fun Achievement.title(): String = stringResource(
 @Composable
 private fun Achievement.description(): String = when (this) {
     Achievement.FIRST_SESSION -> stringResource(R.string.achievement_first_session_desc)
+
     Achievement.SESSIONS_10, Achievement.SESSIONS_50 -> stringResource(R.string.achievement_sessions_desc, target)
+
     Achievement.STREAK_3, Achievement.STREAK_7, Achievement.STREAK_30 ->
         stringResource(R.string.achievement_streak_desc, target)
+
     Achievement.HOURS_1 -> stringResource(R.string.achievement_hours_1_desc)
+
     Achievement.HOURS_10 -> stringResource(R.string.achievement_hours_desc, target)
+
     Achievement.FIRST_LESSON -> stringResource(R.string.achievement_first_lesson_desc)
+
     Achievement.ALL_LESSONS -> stringResource(R.string.achievement_all_lessons_desc, target)
 }
 

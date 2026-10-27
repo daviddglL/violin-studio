@@ -58,16 +58,24 @@ class StudentRecordingsViewModel @Inject constructor(
     override suspend fun handleIntent(intent: StudentRecordingsIntent) {
         when (intent) {
             StudentRecordingsIntent.Retry -> if (state.value.loadFailed) start()
+
             is StudentRecordingsIntent.Play -> onPlay(intent.id)
+
             StudentRecordingsIntent.Stop, StudentRecordingsIntent.Leave -> stopPlayback()
+
             is StudentRecordingsIntent.OpenReview -> onOpenReview(intent.id)
+
             is StudentRecordingsIntent.SetVerdict -> reduce(StudentRecordingsMutation.VerdictChosen(intent.verdict))
+
             is StudentRecordingsIntent.SetText -> reduce(StudentRecordingsMutation.Text(intent.text))
+
             StudentRecordingsIntent.SaveReview -> onSave()
+
             StudentRecordingsIntent.CloseReview -> {
                 editorJob?.cancel()
                 reduce(StudentRecordingsMutation.EditorClosed)
             }
+
             StudentRecordingsIntent.DismissMessage -> reduce(StudentRecordingsMutation.Message(null))
         }
     }

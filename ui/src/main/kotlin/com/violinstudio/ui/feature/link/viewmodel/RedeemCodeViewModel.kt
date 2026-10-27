@@ -10,9 +10,8 @@ import kotlinx.coroutines.CancellationException
 
 /** Sin logs: ni el código ni el uid del profesor salen de aquí. El rol lo comprueba la navegación, no este VM. */
 @HiltViewModel
-class RedeemCodeViewModel @Inject constructor(
-    private val redeem: RedeemTeacherCodeUseCase
-) : MviViewModel<RedeemCodeState, RedeemCodeIntent, RedeemCodeEffect>(RedeemCodeState()) {
+class RedeemCodeViewModel @Inject constructor(private val redeem: RedeemTeacherCodeUseCase) :
+    MviViewModel<RedeemCodeState, RedeemCodeIntent, RedeemCodeEffect>(RedeemCodeState()) {
     private var submitting = false
 
     override fun onIntent(intent: RedeemCodeIntent) {
@@ -31,9 +30,11 @@ class RedeemCodeViewModel @Inject constructor(
                 copy(code = intent.code.take(RedeemCodeState.MAX_INPUT), error = null)
             }
         }
+
         is RedeemCodeIntent.AcceptedChanged -> setState {
             if (isLoading || succeeded) this else copy(accepted = intent.accepted, error = null)
         }
+
         RedeemCodeIntent.Submit -> submit()
     }
 

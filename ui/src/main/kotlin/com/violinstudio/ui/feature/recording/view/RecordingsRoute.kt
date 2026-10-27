@@ -44,6 +44,7 @@ fun RecordingsRoute(
     ObserveAsEvents(viewModel.effects) { effect ->
         when (effect) {
             RecordingsEffect.RequestMicPermission -> launcher.launch(Manifest.permission.RECORD_AUDIO)
+
             RecordingsEffect.OpenAppSettings -> context.startActivity(
                 Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,

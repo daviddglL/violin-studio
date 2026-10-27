@@ -64,11 +64,13 @@ fun DeleteAccountEntry(
                 }
             }
         }
+
         state.step == DeleteStep.IDLE -> OutlinedButton(
             onClick = { onIntent(DeleteAccountIntent.Open) },
             enabled = enabled,
             modifier = Modifier.fillMaxWidth().testTag(DELETE_ACCOUNT_BUTTON_TAG)
         ) { Text(stringResource(R.string.delete_account_button)) }
+
         else -> Column(
             modifier = Modifier.fillMaxWidth().testTag(DELETE_ACCOUNT_PANEL_TAG),
             horizontalAlignment = Alignment.CenterHorizontally

@@ -127,10 +127,15 @@ class TeacherAssignmentsViewModel @Inject constructor(
             val target = assignments.firstOrNull { it.id == intent.id }
             if (isDeleting || target == null) this else copy(deleteTarget = target, error = null)
         }
+
         TeacherAssignmentsIntent.CancelDelete -> setState { if (isDeleting) this else copy(deleteTarget = null) }
+
         TeacherAssignmentsIntent.ConfirmDelete -> confirmDelete()
+
         TeacherAssignmentsIntent.DismissError -> setState { copy(error = null) }
+
         TeacherAssignmentsIntent.DismissNotice -> setState { copy(notice = null) }
+
         TeacherAssignmentsIntent.Retry -> retry()
     }
 

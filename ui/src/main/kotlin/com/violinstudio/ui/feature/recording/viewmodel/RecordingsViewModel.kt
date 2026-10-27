@@ -76,30 +76,52 @@ class RecordingsViewModel @Inject constructor(
     override suspend fun handleIntent(intent: RecordingsIntent) {
         when (intent) {
             RecordingsIntent.Refresh -> refresh()
+
             RecordingsIntent.GrantConsent -> onGrant()
+
             RecordingsIntent.AskRevoke -> reduce(RecordingsMutation.RevokePrompt(true))
+
             RecordingsIntent.CancelRevoke -> reduce(RecordingsMutation.RevokePrompt(false))
+
             RecordingsIntent.ConfirmRevoke -> onRevoke()
+
             is RecordingsIntent.Start -> onStart(intent.granted, intent.rationale)
+
             is RecordingsIntent.PermissionResult -> onPermission(intent.granted, intent.rationale)
+
             RecordingsIntent.ConfirmRationale -> {
                 reduce(RecordingsMutation.Mic(null))
                 sendEffect(RecordingsEffect.RequestMicPermission)
             }
+
             RecordingsIntent.DismissMic -> reduce(RecordingsMutation.Mic(null))
+
             RecordingsIntent.OpenAppSettings -> sendEffect(RecordingsEffect.OpenAppSettings)
+
             RecordingsIntent.Stop -> onStop()
+
             RecordingsIntent.Leave -> onLeave()
+
             is RecordingsIntent.Retry -> withUid { uid -> retryUpload(uid, intent.id) }
+
             is RecordingsIntent.Discard -> withUid { uid -> discardUpload(uid, intent.id) }
+
             is RecordingsIntent.AskDelete -> reduce(RecordingsMutation.DeletePrompt(intent.id))
+
             RecordingsIntent.CancelDelete -> reduce(RecordingsMutation.DeletePrompt(null))
+
             RecordingsIntent.ConfirmDelete -> onDelete()
+
             RecordingsIntent.DismissMessage -> reduce(RecordingsMutation.Message(null))
+
             is RecordingsIntent.Play -> onPlay(intent.id)
+
             RecordingsIntent.StopPlayback -> stopPlayback()
+
             is RecordingsIntent.ToggleReviews -> onToggleReviews(intent.id)
+
             is RecordingsIntent.SetGuardianEmail -> reduce(RecordingsMutation.GuardianEmail(intent.email))
+
             RecordingsIntent.RequestGuardian -> onRequestGuardian()
         }
     }
@@ -143,17 +165,25 @@ class RecordingsViewModel @Inject constructor(
     private suspend fun onConsentFailure(error: Throwable) {
         val message = when (error) {
             ConsentFailure.GuardianRequired -> RecordingsMessage.GUARDIAN_REQUIRED
+
             ConsentFailure.TemporarilyUnavailable -> RecordingsMessage.TEMPORARILY_UNAVAILABLE
+
             ConsentFailure.Network -> RecordingsMessage.OFFLINE
+
             ConsentFailure.GuardianEmailInvalid -> RecordingsMessage.GUARDIAN_EMAIL_INVALID
+
             ConsentFailure.GuardianEmailMismatch -> RecordingsMessage.GUARDIAN_MISMATCH
+
             ConsentFailure.GuardianLegacyConsent -> RecordingsMessage.GUARDIAN_LEGACY
+
             is ConsentFailure.RateLimited -> RecordingsMessage.RATE_LIMITED
+
             is ConsentFailure.InvalidArgument -> if (error.field == "guardianEmail") {
                 RecordingsMessage.GUARDIAN_EMAIL_INVALID
             } else {
                 RecordingsMessage.CONSENT_FAILED
             }
+
             else -> RecordingsMessage.CONSENT_FAILED
         }
         reduce(RecordingsMutation.Message(message))
@@ -209,13 +239,17 @@ class RecordingsViewModel @Inject constructor(
     private suspend fun onStartFailure(error: Throwable) {
         when (error) {
             RecordingFailure.PermissionDenied -> sendEffect(RecordingsEffect.RequestMicPermission)
+
             RecordingFailure.ConsentRequired, RecordingFailure.Disabled -> refresh()
+
             RecordingFailure.QuotaReached -> {
                 reduce(RecordingsMutation.Message(RecordingsMessage.QUOTA_REACHED))
                 refresh()
             }
+
             RecordingFailure.Busy, RecordingFailure.MicUnavailable ->
                 reduce(RecordingsMutation.Message(RecordingsMessage.MIC_BUSY))
+
             else -> reduce(RecordingsMutation.Message(RecordingsMessage.RECORDING_FAILED))
         }
     }

@@ -129,11 +129,13 @@ private fun ReadingPanel(state: TunerState) {
     }
     val description = when {
         pitch == null -> stringResource(R.string.tuner_wheel_description_empty)
+
         offScale -> stringResource(
             R.string.tuner_wheel_description_off_scale,
             pitch.target.note.label(),
             centsLabel(pitch.cents)
         )
+
         else -> stringResource(R.string.tuner_wheel_description, pitch.target.note.label(), centsLabel(pitch.cents))
     }
     TuningWheel(pitch?.cents, maxCents, state.isInTune, description)
@@ -168,14 +170,17 @@ private fun Actions(state: TunerState, onIntent: (TunerIntent) -> Unit, onStart:
             onClick = { onIntent(TunerIntent.OpenAppSettings) },
             modifier = Modifier.fillMaxWidth().testTag(TUNER_SETTINGS_TAG)
         ) { Text(stringResource(R.string.tuner_open_settings)) }
+
         state.error != null && state.error != TunerError.AUDIO_OUTPUT_UNAVAILABLE -> OutlinedButton(
             onClick = onStart,
             modifier = Modifier.fillMaxWidth().testTag(TUNER_RETRY_TAG)
         ) { Text(stringResource(R.string.tuner_retry)) }
+
         state.isListening -> OutlinedButton(
             onClick = { onIntent(TunerIntent.StopListening) },
             modifier = Modifier.fillMaxWidth().testTag(TUNER_STOP_TAG)
         ) { Text(stringResource(R.string.tuner_stop)) }
+
         else -> Button(
             onClick = onStart,
             modifier = Modifier.fillMaxWidth().testTag(TUNER_LISTEN_TAG)

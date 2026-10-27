@@ -45,13 +45,16 @@ class GuardianWaitViewModel @Inject constructor(
                 if (blocked) return
                 sendPending = true
             }
+
             GuardianWaitIntent.SignOut -> {
                 if (blocked) return
                 signOutPending = true
             }
+
             GuardianWaitIntent.ChangeEmail,
             GuardianWaitIntent.CancelChangeEmail,
             is GuardianWaitIntent.EmailChanged -> if (blocked) return
+
             else -> Unit
         }
         super.onIntent(intent)
@@ -69,14 +72,23 @@ class GuardianWaitViewModel @Inject constructor(
                 )
             }
         }
+
         GuardianWaitIntent.Resend -> onResend()
+
         GuardianWaitIntent.ChangeEmail -> reduce(GuardianWaitMutation.ChangeEmailStarted)
+
         GuardianWaitIntent.CancelChangeEmail -> reduce(GuardianWaitMutation.ChangeEmailCancelled)
+
         is GuardianWaitIntent.EmailChanged -> reduce(GuardianWaitMutation.EmailChanged(intent.email))
+
         GuardianWaitIntent.SubmitNewEmail -> onSubmitNewEmail()
+
         is GuardianWaitIntent.DeleteActiveChanged -> reduce(GuardianWaitMutation.DeleteActiveChanged(intent.active))
+
         GuardianWaitIntent.CheckAgain -> onCheckAgain()
+
         GuardianWaitIntent.RetryWaitElapsed -> reduce(GuardianWaitMutation.RetryWaitElapsed)
+
         GuardianWaitIntent.SignOut -> onSignOut()
     }
 
@@ -126,11 +138,13 @@ class GuardianWaitViewModel @Inject constructor(
                 reduce(
                     when (val outcome = it.toGuardianOutcome()) {
                         GuardianOutcome.EmailRejected -> GuardianWaitMutation.EmailRejected
+
                         GuardianOutcome.AlreadyApproved -> {
                             // La sesión puede no haberlo visto aún: que se resuelva de nuevo.
                             refreshTrigger.requestRefresh()
                             GuardianWaitMutation.AlreadyApproved
                         }
+
                         is GuardianOutcome.Failed -> {
                             outcome.retryAfterSeconds?.takeIf { s -> s > 0 }?.let(::liftResendBlockAfter)
                             GuardianWaitMutation.Failed(outcome.error, outcome.retryAfterSeconds)

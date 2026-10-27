@@ -77,6 +77,7 @@ fun StudentRecordingsScreen(
             Message(state.message, onIntent)
             when {
                 state.isLoading -> LoadingIndicator()
+
                 state.loadFailed -> {
                     Text(
                         stringResource(R.string.student_recordings_load_failed),
@@ -88,10 +89,12 @@ fun StudentRecordingsScreen(
                         Text(stringResource(R.string.student_recordings_retry))
                     }
                 }
+
                 state.recordings.isEmpty() -> Text(
                     stringResource(R.string.student_recordings_empty),
                     modifier = Modifier.testTag(STUDENT_RECORDINGS_EMPTY_TAG)
                 )
+
                 else -> state.recordings.forEach { StudentRecordingItem(it, state.playback, onIntent) }
             }
             TextButton(onClick = onBack, modifier = Modifier.testTag(STUDENT_RECORDINGS_BACK_TAG)) {

@@ -99,11 +99,14 @@ fun MyTeacherScreen(
                         }
                     )
                 }
+
                 state.loadFailed -> LoadFailed(onIntent)
+
                 teacher == null -> Text(
                     stringResource(R.string.link_my_teacher_none),
                     modifier = Modifier.testTag(MY_TEACHER_NONE_TAG)
                 )
+
                 else -> TeacherContent(teacher, state, onIntent, onOpenChat)
             }
         }

@@ -64,12 +64,7 @@ sealed interface RecordingOutcome {
 }
 
 /** Video difuminado listo para subir con el sello `blurApplied`/`blurPolicyVersion`. Sin ruta en `toString`. */
-data class BlurredVideo(
-    val path: String,
-    val durationMs: Long,
-    val sizeBytes: Long,
-    val policyVersion: Int
-) {
+data class BlurredVideo(val path: String, val durationMs: Long, val sizeBytes: Long, val policyVersion: Int) {
     override fun toString(): String = "BlurredVideo(durationMs=$durationMs, sizeBytes=$sizeBytes, v=$policyVersion)"
 }
 

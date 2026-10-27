@@ -91,10 +91,14 @@ class AssignmentEditViewModel @Inject constructor(
 
     override suspend fun handleIntent(intent: AssignmentEditIntent) = when (intent) {
         is AssignmentEditIntent.TitleChanged -> reduce(AssignmentEditMutation.TitleEdited(intent.title))
+
         is AssignmentEditIntent.DescriptionChanged ->
             reduce(AssignmentEditMutation.DescriptionEdited(intent.description))
+
         is AssignmentEditIntent.DueAtChanged -> reduce(AssignmentEditMutation.DueAtChanged(intent.dueAt))
+
         AssignmentEditIntent.DismissError -> reduce(AssignmentEditMutation.ErrorDismissed)
+
         AssignmentEditIntent.Save -> save()
     }
 

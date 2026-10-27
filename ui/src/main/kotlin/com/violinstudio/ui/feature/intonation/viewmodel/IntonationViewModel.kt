@@ -63,15 +63,22 @@ class IntonationViewModel @Inject constructor(
     override suspend fun handleIntent(intent: IntonationIntent) {
         when (intent) {
             is IntonationIntent.Start -> onStart(intent.granted)
+
             is IntonationIntent.PermissionResult -> onPermission(intent.granted, intent.rationale)
+
             IntonationIntent.Pause -> stopCapture()
+
             IntonationIntent.Skip -> onSkip()
+
             IntonationIntent.Restart -> onRestart()
+
             IntonationIntent.OpenAppSettings -> sendEffect(IntonationEffect.OpenAppSettings)
+
             IntonationIntent.SaveToolPractice -> {
                 val saved = offer.save(state.value.toolPractice)
                 setState { copy(toolPractice = saved) }
             }
+
             IntonationIntent.DismissToolPractice -> setState { copy(toolPractice = offer.dismiss()) }
         }
     }

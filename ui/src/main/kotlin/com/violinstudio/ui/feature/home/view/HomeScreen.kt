@@ -101,11 +101,14 @@ private fun HomeContent(
         Spacer(Modifier.height(24.dp))
         when (val status = state.status) {
             HealthStatus.Idle -> Text(stringResource(R.string.home_status_idle))
+
             HealthStatus.Loading -> LoadingIndicator()
+
             is HealthStatus.Ok -> Text(
                 text = stringResource(R.string.home_status_ok, status.version),
                 modifier = Modifier.testTag("health_ok")
             )
+
             is HealthStatus.Error -> ErrorView(status.message ?: stringResource(R.string.error_unknown))
         }
         Spacer(Modifier.height(24.dp))

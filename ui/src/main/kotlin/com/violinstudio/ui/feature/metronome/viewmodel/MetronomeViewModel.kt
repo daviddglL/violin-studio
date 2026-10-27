@@ -46,21 +46,29 @@ class MetronomeViewModel @Inject constructor(
     override suspend fun handleIntent(intent: MetronomeIntent) {
         when (intent) {
             is MetronomeIntent.SetBpm -> setBpm(intent.bpm)
+
             MetronomeIntent.Increment -> setBpm(state.value.tempo.bpm + 1)
+
             MetronomeIntent.Decrement -> setBpm(state.value.tempo.bpm - 1)
+
             is MetronomeIntent.SetSignature -> {
                 reduce(MetronomeMutation.SignatureSelected(intent.signature))
                 if (state.value.isPlaying) start()
             }
+
             MetronomeIntent.Tap -> tapTempo.tap()?.let { setBpm(it.bpm) }
+
             MetronomeIntent.Toggle -> {
                 if (state.value.isPlaying) stop() else start()
             }
+
             MetronomeIntent.Stop -> stop()
+
             MetronomeIntent.SaveToolPractice -> {
                 val saved = offer.save(state.value.toolPractice)
                 setState { copy(toolPractice = saved) }
             }
+
             MetronomeIntent.DismissToolPractice -> setState { copy(toolPractice = offer.dismiss()) }
         }
     }

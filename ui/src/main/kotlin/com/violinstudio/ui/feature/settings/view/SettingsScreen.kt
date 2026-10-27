@@ -211,7 +211,9 @@ private fun PrivacySection(state: SettingsState, onIntent: (SettingsIntent) -> U
     state.revokeError?.let { AuthMessage(stringResource(it.textRes()), isError = true) }
     when {
         state.revoked -> AuthMessage(stringResource(R.string.settings_revoked), isError = false)
+
         state.confirmingRevoke -> ConfirmRevokePanel(onIntent)
+
         state.revokeStalled -> {
             AuthMessage(stringResource(R.string.settings_revoke_stalled), isError = true)
             OutlinedButton(
@@ -219,6 +221,7 @@ private fun PrivacySection(state: SettingsState, onIntent: (SettingsIntent) -> U
                 modifier = Modifier.fillMaxWidth().testTag(SETTINGS_RETRY_TAG)
             ) { Text(stringResource(R.string.settings_revoke_retry)) }
         }
+
         state.revokeError != RevokeError.UNAVAILABLE -> OutlinedButton(
             onClick = { onIntent(SettingsIntent.RevokeConsent) },
             enabled = state.canRevoke,

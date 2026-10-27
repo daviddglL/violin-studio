@@ -15,6 +15,9 @@ internal fun Project.configureJUnit5() {
         useJUnitPlatform()
         // Red de seguridad: un worker colgado se mata y la build FALLA con el test visible, en vez de agotar el job.
         timeout.set(Duration.ofMinutes(TEST_TASK_TIMEOUT_MINUTES))
+        // Robolectric 4.17 con android-all 36 crea ApplicationSharedMemory y toca FileDescriptor por SharedSecrets;
+        // sin este export en JDK 21 todos los tests de Robolectric fallan al arrancar el sandbox.
+        jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
         testLogging {
             events("failed")
             exceptionFormat = TestExceptionFormat.FULL

@@ -13,9 +13,8 @@ import javax.inject.Singleton
  * limite de frecuencia y la regla de no degradar un Ready viven en el trigger y el caso de uso de sesion.
  */
 @Singleton
-class ForegroundSessionRefresh @Inject constructor(
-    private val trigger: SessionRefreshTrigger
-) : DefaultLifecycleObserver {
+class ForegroundSessionRefresh @Inject constructor(private val trigger: SessionRefreshTrigger) :
+    DefaultLifecycleObserver {
     override fun onStart(owner: LifecycleOwner) = trigger.requestForegroundRefresh()
 
     /** Se registra una sola vez desde `Application.onCreate`; [lifecycle] solo se cambia en tests. */

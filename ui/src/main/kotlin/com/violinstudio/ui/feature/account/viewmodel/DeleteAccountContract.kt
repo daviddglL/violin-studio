@@ -79,28 +79,34 @@ object DeleteAccountReducer {
     fun reduce(state: DeleteAccountState, mutation: DeleteAccountMutation): DeleteAccountState = when (mutation) {
         DeleteAccountMutation.Opened ->
             if (state.canOpen) state.copy(step = DeleteStep.CONFIRMING, error = null) else state
+
         DeleteAccountMutation.Cancelled ->
             if (state.canCancel) DeleteAccountState() else state
+
         DeleteAccountMutation.DeleteStarted ->
             if (state.canConfirm) state.copy(isWorking = true, error = null) else state
+
         is DeleteAccountMutation.ReauthRequired ->
             if (state.isWorking && !state.deleted) {
                 state.copy(step = DeleteStep.REAUTH, method = mutation.method, isWorking = false, error = null)
             } else {
                 state
             }
+
         is DeleteAccountMutation.PasswordChanged ->
             if (state.step == DeleteStep.REAUTH && state.method == ReauthMethod.PASSWORD && !state.isWorking) {
                 state.copy(password = mutation.value, error = null)
             } else {
                 state
             }
+
         DeleteAccountMutation.ReauthStarted ->
             if (state.step == DeleteStep.REAUTH && !state.isWorking && !state.deleted) {
                 state.copy(isWorking = true, error = null)
             } else {
                 state
             }
+
         is DeleteAccountMutation.ReauthFailed ->
             if (state.step == DeleteStep.REAUTH && !state.deleted) {
                 state.copy(
@@ -111,12 +117,14 @@ object DeleteAccountReducer {
             } else {
                 state
             }
+
         is DeleteAccountMutation.DeleteFailed ->
             if (state.isWorking) {
                 state.copy(step = DeleteStep.CONFIRMING, isWorking = false, password = "", error = mutation.error)
             } else {
                 state
             }
+
         DeleteAccountMutation.Deleted ->
             if (state.isWorking) state.copy(isWorking = false, deleted = true, password = "", error = null) else state
     }

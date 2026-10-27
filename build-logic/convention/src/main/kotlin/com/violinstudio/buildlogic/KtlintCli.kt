@@ -1,8 +1,22 @@
 package com.violinstudio.buildlogic
 
 import org.gradle.api.Project
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.JavaExec
 import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withGroovyBuilder
+
+/**
+ * Applies org.jlleitschuh.gradle.ktlint pinned to the same ktlint version as `ktlint-cli` in the catalog, so the
+ * `.kts`/JVM checks and [configureAndroidKtlintCli] enforce identical rules. The plugin is not on build-logic's
+ * compile classpath, hence the Groovy-style access to its `version` property.
+ */
+fun Project.applyKtlintGradle() {
+    pluginManager.apply("org.jlleitschuh.gradle.ktlint")
+    @Suppress("UNCHECKED_CAST")
+    val version = extensions.getByName("ktlint").withGroovyBuilder { getProperty("version") } as Property<String>
+    version.set(libs.version("ktlintCli"))
+}
 
 /**
  * Lints the Kotlin sources under `src` of Android modules (main, test, androidTest, debug,
@@ -24,9 +38,8 @@ import org.gradle.kotlin.dsl.register
  * closing marker below only partially closes -- it silently swallows the rest of the file into
  * the comment. Describe the glob in prose instead of spelling it out literally.
  *
- * Pinned to ktlint-cli 1.0.1: the exact version org.jlleitschuh.gradle.ktlint:12.2.0 resolves by
- * default for JVM modules (confirmed via `./gradlew :domain:dependencies --configuration
- * ktlint`), so both linting paths enforce identical rules. `.editorconfig` is honoured
+ * Uses the catalog's `ktlintCli` version, the same one [applyKtlintGradle] pins on
+ * org.jlleitschuh.gradle.ktlint, so both linting paths enforce identical rules. `.editorconfig` is honoured
  * automatically -- ktlint walks up from each linted file to find it -- no flag needed.
  */
 fun Project.configureAndroidKtlintCli() {
@@ -54,4 +67,13 @@ fun Project.configureAndroidKtlintCli() {
     }
 
     tasks.named("check") { dependsOn(ktlintCheckSources) }
+
+    tasks.register<JavaExec>("ktlintFormatAndroidSources") {
+        group = "formatting"
+        description = "Fixes what ktlintCheckAndroidSources reports, where ktlint can do it automatically."
+        classpath = ktlintClasspath
+        mainClass.set("com.pinterest.ktlint.Main")
+        workingDir(projectDirectory)
+        args("-F", sourceGlob)
+    }
 }

@@ -108,7 +108,9 @@ private fun ConsentReason.introRes() = when (this) {
 @Composable
 internal fun GuardianRequestError.message(retryAfterSeconds: Long?): String = when (this) {
     GuardianRequestError.NETWORK -> stringResource(R.string.guardian_request_error_network)
+
     GuardianRequestError.NOT_MINOR -> stringResource(R.string.guardian_request_error_not_minor)
+
     GuardianRequestError.RATE_LIMITED ->
         if (retryAfterSeconds != null && retryAfterSeconds > 0) {
             // Siempre hacia arriba: nunca se promete una espera menor que la real.
@@ -117,7 +119,9 @@ internal fun GuardianRequestError.message(retryAfterSeconds: Long?): String = wh
         } else {
             stringResource(R.string.guardian_request_error_rate_limited)
         }
+
     GuardianRequestError.UNAVAILABLE -> stringResource(R.string.guardian_request_error_unavailable)
+
     GuardianRequestError.UNKNOWN ->
         stringResource(R.string.guardian_request_error_unknown)
 }

@@ -17,10 +17,7 @@ class RetryUploadUseCase @Inject constructor(private val queue: RecordingQueue) 
  * Descarta una toma que aun no esta en el servidor (`recorded` o `failed`): borra el fichero y el elemento. Una toma
  * subiendo o ya subida no se descarta desde aqui (la borra el usuario desde sus grabaciones, A12).
  */
-class DiscardUploadUseCase @Inject constructor(
-    private val queue: RecordingQueue,
-    private val recorder: Recorder
-) {
+class DiscardUploadUseCase @Inject constructor(private val queue: RecordingQueue, private val recorder: Recorder) {
     suspend operator fun invoke(uid: String, id: String): Result<Unit> {
         val item = queue.observe(uid).first().firstOrNull { it.id == id } ?: return Result.success(Unit)
         if (item.state != QueueState.RECORDED && item.state != QueueState.FAILED) {

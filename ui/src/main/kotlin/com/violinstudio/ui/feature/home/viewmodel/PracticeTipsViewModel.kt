@@ -21,9 +21,8 @@ sealed interface PracticeTipsEffect : UiEffect
 
 /** Consejos de practica de inicio; si el historial no se puede leer no se muestra ninguno (nunca bloquea). */
 @HiltViewModel
-class PracticeTipsViewModel @Inject constructor(
-    observeTips: ObservePracticeTipsUseCase
-) : MviViewModel<PracticeTipsState, PracticeTipsIntent, PracticeTipsEffect>(PracticeTipsState()) {
+class PracticeTipsViewModel @Inject constructor(observeTips: ObservePracticeTipsUseCase) :
+    MviViewModel<PracticeTipsState, PracticeTipsIntent, PracticeTipsEffect>(PracticeTipsState()) {
     init {
         viewModelScope.launch {
             observeTips().catch { emit(emptyList()) }.collect { setState { copy(tips = it) } }

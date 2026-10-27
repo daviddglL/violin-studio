@@ -81,7 +81,9 @@ class OnboardingScreenTest {
             R.string.onboarding_instrument_cello,
             R.string.onboarding_instrument_double_bass,
             R.string.onboarding_instrument_other
-        )) compose.onNodeWithText(text(id)).performScrollTo().assertIsDisplayed()
+        )) {
+            compose.onNodeWithText(text(id)).performScrollTo().assertIsDisplayed()
+        }
     }
 
     @Test
@@ -210,7 +212,9 @@ class OnboardingScreenTest {
             R.string.onboarding_birth_day_desc,
             R.string.onboarding_birth_month_desc,
             R.string.onboarding_birth_year_desc
-        )) compose.onNodeWithContentDescription(text(id)).performScrollTo().assertIsDisplayed()
+        )) {
+            compose.onNodeWithContentDescription(text(id)).performScrollTo().assertIsDisplayed()
+        }
     }
 
     @Test

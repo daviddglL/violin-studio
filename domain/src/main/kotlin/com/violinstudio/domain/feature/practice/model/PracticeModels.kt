@@ -42,9 +42,12 @@ data class PracticeDraft private constructor(
         ): Result<PracticeDraft> {
             val failure = when {
                 id.isEmpty() || id.length > PracticeRules.ID_MAX -> PracticeFailure.InvalidId
+
                 durationSec !in PracticeRules.MIN_DURATION_SEC..PracticeRules.MAX_DURATION_SEC ->
                     PracticeFailure.InvalidDuration
+
                 startedAt.isAfter(now) -> PracticeFailure.InvalidStart
+
                 else -> null
             }
             if (failure != null) return Result.failure(failure)

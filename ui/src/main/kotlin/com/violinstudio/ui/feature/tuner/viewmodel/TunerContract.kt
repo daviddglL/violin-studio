@@ -63,10 +63,10 @@ sealed interface TunerIntent : UiIntent {
     /** Parada manual o `ON_STOP`: libera el micro y recuerda si había que reanudar. */
     data object Stop : TunerIntent
 
-    /** `ON_START`: reanuda solo si se paró por `ON_STOP` y el permiso sigue concedido. */
     /** El usuario pulsa "Parar": como [Stop] pero sin reanudar despues (a diferencia de `ON_STOP`). */
     data object StopListening : TunerIntent
 
+    /** `ON_START`: reanuda solo si se paró por `ON_STOP` y el permiso sigue concedido. */
     data class Resume(val granted: Boolean, val rationale: Boolean) : TunerIntent
 
     data class PermissionResult(val granted: Boolean, val rationale: Boolean) : TunerIntent

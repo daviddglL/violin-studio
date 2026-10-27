@@ -104,7 +104,9 @@ class ObserveSessionStateUseCase @Inject constructor(
                         val taken = prefetched.also { prefetched = null }
                         val (config, fromCache) = when {
                             taken != null -> taken to false
+
                             keepReady -> fetch(user.uid)?.let { it to false } ?: (known!! to lastFromCache)
+
                             else -> awaitConfig(user.uid, allowCache = known == null) {
                                 lastState = SessionState.Unavailable
                             }

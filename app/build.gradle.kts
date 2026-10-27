@@ -1,3 +1,5 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
+
 plugins {
     alias(libs.plugins.violin.android.application)
     alias(libs.plugins.violin.android.compose)
@@ -57,8 +59,9 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfigs.findByName("release")?.let { signingConfig = it }
-            // Solo CI debe subir el mapping de ofuscación; una release local no tiene por qué.
-            firebaseCrashlytics {
+            // Solo CI debe subir el mapping de ofuscación; una release local no tiene por qué. Con AGP 9.4 el accesor
+            // generado `firebaseCrashlytics` ya no existe en los build types: se configura la extensión por tipo.
+            (this as ExtensionAware).extensions.configure<CrashlyticsExtension> {
                 mappingFileUploadEnabled = providers.environmentVariable("CI").isPresent
             }
         }

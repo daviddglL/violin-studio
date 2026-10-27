@@ -88,7 +88,9 @@ class ProcessUploadQueueUseCase @Inject constructor(
         val refined = when {
             !account.recordingConsentGranted || account.consentEpoch != item.take.consentEpoch ->
                 UploadError.Unauthorized(consentRevoked = true)
+
             account.liveCount >= RecordingLimits.MAX_RECORDINGS_PER_OWNER -> UploadError.QuotaExceeded
+
             else -> error
         }
         return UploadFailureClassifier.classify(refined)
@@ -115,10 +117,13 @@ class ProcessUploadQueueUseCase @Inject constructor(
     private suspend fun checkFinalized(item: QueuedRecording): Step =
         when (val status = finalize.status(item.take.uid, item.id).getOrElse { return Step.WAIT }) {
             FinalizeStatus.Pending -> Step.WAIT
+
             FinalizeStatus.ConsentRejected -> drop(item)
+
             is FinalizeStatus.Rejected -> queue.update(item.take.uid, item.id) {
                 it.copy(state = QueueState.FAILED, lastError = status.reason)
             }.fold({ Step.PROGRESS }, { Step.STOP })
+
             FinalizeStatus.Ready -> queue.update(item.take.uid, item.id) { it.copy(state = QueueState.DONE) }
                 .fold({ drop(item) }, { Step.STOP })
         }

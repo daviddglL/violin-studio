@@ -30,6 +30,7 @@ class ConsentViewModel @Inject constructor(
                 if (acceptPending) return
                 acceptPending = true
             }
+
             else -> Unit
         }
         super.onIntent(intent)
@@ -76,15 +77,19 @@ class ConsentViewModel @Inject constructor(
 
     private suspend fun failureMutation(failure: Throwable): ConsentMutation = when (failure) {
         is ConsentFailure.PolicyOutdated -> reloadPolicy()
+
         ConsentFailure.AlreadyGranted -> {
             refreshTrigger.requestRefresh()
             ConsentMutation.Succeeded
         }
+
         ConsentFailure.Network ->
             ConsentMutation.Failed(ConsentError.NETWORK)
+
         ConsentFailure.GuardianRequired,
         ConsentFailure.UnderageNotAllowed ->
             ConsentMutation.Failed(ConsentError.GUARDIAN_REQUIRED)
+
         else -> ConsentMutation.Failed(ConsentError.UNKNOWN)
     }
 

@@ -26,10 +26,12 @@ class CurriculumViewModel @Inject constructor(
 
     override suspend fun handleIntent(intent: CurriculumIntent) = when (intent) {
         is CurriculumIntent.Toggle -> reduce(CurriculumMutation.Toggled(intent.id))
+
         is CurriculumIntent.SetDone -> setLessonCompleted(intent.id, intent.done).fold(
             onSuccess = {},
             onFailure = { reduce(CurriculumMutation.SaveFailed) }
         )
+
         CurriculumIntent.DismissMessage -> reduce(CurriculumMutation.MessageDismissed)
     }
 

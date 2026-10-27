@@ -11,9 +11,8 @@ import javax.inject.Inject
  * Adaptador fino sobre `MediaRecorder` (REQ-REC-03): AAC mono 44,1 kHz ~96 kbps en MP4. Sin logica propia ni logs;
  * no se prueba en JVM (necesita micro): verificacion en dispositivo pendiente (B12/C10).
  */
-class AndroidMediaRecorderFactory @Inject constructor(
-    @param:ApplicationContext private val context: Context
-) : MediaRecorderFactory {
+class AndroidMediaRecorderFactory @Inject constructor(@param:ApplicationContext private val context: Context) :
+    MediaRecorderFactory {
     override fun create(): MediaRecorderSession = RealSession(newRecorder())
 
     @Suppress("DEPRECATION")

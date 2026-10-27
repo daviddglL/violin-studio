@@ -12,9 +12,8 @@ import kotlinx.coroutines.CancellationException
  * email mal formado no llega a Firebase.
  */
 @HiltViewModel
-class ResetPasswordViewModel @Inject constructor(
-    private val sendPasswordReset: SendPasswordResetUseCase
-) : MviViewModel<ResetPasswordState, ResetPasswordIntent, ResetPasswordEffect>(ResetPasswordState()) {
+class ResetPasswordViewModel @Inject constructor(private val sendPasswordReset: SendPasswordResetUseCase) :
+    MviViewModel<ResetPasswordState, ResetPasswordIntent, ResetPasswordEffect>(ResetPasswordState()) {
     private var submitPending = false
 
     override fun onIntent(intent: ResetPasswordIntent) {

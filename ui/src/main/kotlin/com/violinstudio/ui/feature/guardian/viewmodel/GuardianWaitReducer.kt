@@ -5,15 +5,19 @@ import com.violinstudio.domain.feature.auth.usecase.isPlausibleEmail
 object GuardianWaitReducer {
     fun reduce(state: GuardianWaitState, mutation: GuardianWaitMutation): GuardianWaitState = when (mutation) {
         is GuardianWaitMutation.DeleteActiveChanged -> state.copy(deleteActive = mutation.active)
+
         is GuardianWaitMutation.SessionUpdated ->
             state.copy(
                 emailMasked = mutation.emailMasked,
                 sends = mutation.sends,
                 notice = state.notice.takeIf { it != GuardianWaitNotice.ALREADY_APPROVED }
             )
+
         is GuardianWaitMutation.CanResend -> state.copy(canResend = mutation.value)
+
         GuardianWaitMutation.ResendRequested ->
             if (state.canResendNow) startLoading(state) else state
+
         GuardianWaitMutation.ChangeEmailStarted ->
             if (state.busy) {
                 state
@@ -27,6 +31,7 @@ object GuardianWaitReducer {
                     notice = null
                 )
             }
+
         GuardianWaitMutation.ChangeEmailCancelled ->
             if (state.busy) {
                 state
@@ -39,13 +44,16 @@ object GuardianWaitReducer {
                     retryAfterSeconds = null
                 )
             }
+
         is GuardianWaitMutation.EmailChanged ->
             if (state.busy || !state.changingEmail) {
                 state
             } else {
                 state.copy(email = mutation.email, emailError = null, error = null, retryAfterSeconds = null)
             }
+
         GuardianWaitMutation.SubmitNewEmailRequested -> submitNewEmail(state)
+
         is GuardianWaitMutation.Succeeded -> state.copy(
             isLoading = false,
             changingEmail = false,
@@ -55,18 +63,26 @@ object GuardianWaitReducer {
             sends = state.sends + 1,
             notice = mutation.notice
         )
+
         GuardianWaitMutation.EmailRejected -> rejected(state, GuardianEmailError.INVALID)
+
         GuardianWaitMutation.OwnEmailRejected -> rejected(state, GuardianEmailError.OWN_EMAIL)
+
         GuardianWaitMutation.AlreadyApproved ->
             state.copy(isLoading = false, notice = GuardianWaitNotice.ALREADY_APPROVED)
+
         is GuardianWaitMutation.Failed -> failed(state, mutation)
+
         GuardianWaitMutation.NoticeCleared -> state.copy(notice = null)
+
         GuardianWaitMutation.RetryWaitElapsed -> state.copy(
             resendBlocked = false,
             error = state.error.takeIf { it != GuardianRequestError.RATE_LIMITED },
             retryAfterSeconds = null
         )
+
         GuardianWaitMutation.SignOutStarted -> state.copy(isSigningOut = true)
+
         GuardianWaitMutation.SignOutFinished -> state.copy(isSigningOut = false)
     }
 

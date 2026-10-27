@@ -40,6 +40,7 @@ fun IntonationRoute(onBack: () -> Unit, viewModel: IntonationViewModel = hiltVie
     ObserveAsEvents(viewModel.effects) { effect ->
         when (effect) {
             IntonationEffect.RequestMicPermission -> launcher.launch(Manifest.permission.RECORD_AUDIO)
+
             IntonationEffect.OpenAppSettings -> context.startActivity(
                 Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,

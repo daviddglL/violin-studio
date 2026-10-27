@@ -65,10 +65,8 @@ class AudioTrackOutputFocusTest {
     }
 
     /** Pista fake; tras [stallAfter] escrituras `write` se atasca hasta `pause`/`release` (como un `AudioTrack` real). */
-    private inner class Track(
-        private val stallAfter: Int = Int.MAX_VALUE,
-        private val failWrites: Boolean = false
-    ) : PcmTrack {
+    private inner class Track(private val stallAfter: Int = Int.MAX_VALUE, private val failWrites: Boolean = false) :
+        PcmTrack {
         val released = CountDownLatch(1)
         val stalled = CountDownLatch(1)
         val releases = AtomicInteger()

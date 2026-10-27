@@ -23,10 +23,7 @@ import kotlinx.coroutines.flow.map
  * Conversacion del par visto por el usuario actual; sin sesion no emite. Orden de llegada al servidor; los mensajes
  * aun sin `createdAt` (pendientes) van al final en el orden en que llegan del repositorio.
  */
-class ObserveChatUseCase @Inject constructor(
-    private val auth: AuthRepository,
-    private val repo: ChatRepository
-) {
+class ObserveChatUseCase @Inject constructor(private val auth: AuthRepository, private val repo: ChatRepository) {
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(teacherUid: String, studentUid: String): Flow<ChatThread> =
         auth.authUser.map { it?.uid }.distinctUntilChanged().flatMapLatest { uid ->

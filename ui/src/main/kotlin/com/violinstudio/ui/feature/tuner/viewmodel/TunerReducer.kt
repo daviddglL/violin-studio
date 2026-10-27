@@ -8,11 +8,17 @@ object TunerReducer {
     fun reduce(state: TunerState, mutation: TunerMutation): TunerState = when (mutation) {
         is TunerMutation.ProfileInstrument ->
             if (state.instrumentChosen) state else state.copy(instrument = mutation.instrument)
+
         is TunerMutation.ConfigLoaded -> state.copy(config = mutation.config)
+
         TunerMutation.ConfigOpened -> state.copy(showConfig = true, configError = null)
+
         TunerMutation.ConfigClosed -> state.copy(showConfig = false, configError = null)
+
         TunerMutation.ConfigErrorCleared -> state.copy(configError = null)
+
         is TunerMutation.ConfigFailed -> state.copy(configError = configErrorOf(mutation.failure))
+
         is TunerMutation.InstrumentSelected ->
             state.copy(
                 instrument = mutation.instrument,
@@ -20,16 +26,22 @@ object TunerReducer {
                 selectedString = null,
                 reading = TunerReading.Idle
             )
+
         is TunerMutation.StringSelected -> {
             val count = state.strings?.size ?: 0
             val valid = mutation.index == null || mutation.index in 0 until count
             if (valid) state.copy(selectedString = mutation.index, reading = TunerReading.Idle) else state
         }
+
         is TunerMutation.PermissionResolved ->
             state.copy(mic = micOf(mutation.granted, mutation.rationale), showRationale = false)
+
         TunerMutation.RationaleShown -> state.copy(showRationale = true)
+
         TunerMutation.RationaleDismissed -> state.copy(showRationale = false, mic = MicState.DENIED)
+
         TunerMutation.RationaleHidden -> state.copy(showRationale = false)
+
         TunerMutation.ListeningStarted ->
             state.copy(
                 isListening = true,
@@ -38,11 +50,16 @@ object TunerReducer {
                 error = null,
                 reading = TunerReading.Idle
             )
+
         TunerMutation.ListeningStopped -> state.copy(isListening = false, reading = TunerReading.Idle)
+
         is TunerMutation.Reading -> state.copy(reading = mutation.reading)
+
         is TunerMutation.Failed -> failed(state, mutation.failure)
+
         is TunerMutation.ReferenceFailed ->
             state.copy(isPlayingReference = false, error = TunerError.AUDIO_OUTPUT_UNAVAILABLE)
+
         is TunerMutation.ReferencePlaying ->
             state.copy(
                 isPlayingReference = mutation.playing && !state.isListening,
@@ -57,11 +74,17 @@ object TunerReducer {
             TunerField.LABEL -> ConfigError.LABEL
             TunerField.ID -> ConfigError.UNKNOWN
         }
+
         TunerFailure.DuplicatePresetLabel -> ConfigError.DUPLICATE_LABEL
+
         TunerFailure.PresetLimitReached -> ConfigError.PRESET_LIMIT
+
         TunerFailure.PresetNotFound -> ConfigError.PRESET_NOT_FOUND
+
         TunerFailure.StorageUnavailable -> ConfigError.STORAGE
+
         TunerFailure.NoSession -> ConfigError.NO_SESSION
+
         else -> ConfigError.UNKNOWN
     }
 

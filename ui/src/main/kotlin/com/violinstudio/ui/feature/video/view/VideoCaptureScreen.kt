@@ -68,7 +68,9 @@ private fun Controls(state: VideoCaptureState, onIntent: (VideoCaptureIntent) ->
         VideoPhase.IDLE -> Button(onClick = onRecord, modifier = Modifier.testTag(VIDEO_RECORD_TAG)) {
             Text(stringResource(R.string.video_record))
         }
+
         VideoPhase.STARTING, VideoPhase.STOPPING -> LoadingIndicator()
+
         VideoPhase.RECORDING -> {
             Text(
                 stringResource(
@@ -85,6 +87,7 @@ private fun Controls(state: VideoCaptureState, onIntent: (VideoCaptureIntent) ->
                 modifier = Modifier.testTag(VIDEO_STOP_TAG)
             ) { Text(stringResource(R.string.video_stop)) }
         }
+
         VideoPhase.BLURRING -> {
             Text(
                 stringResource(R.string.video_blurring),
@@ -99,12 +102,14 @@ private fun Controls(state: VideoCaptureState, onIntent: (VideoCaptureIntent) ->
 private fun Prompt(prompt: CameraPrompt?, onIntent: (VideoCaptureIntent) -> Unit) {
     when (prompt) {
         null -> Unit
+
         CameraPrompt.RATIONALE -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.video_permission_rationale), modifier = Modifier.weight(1f))
             TextButton(onClick = { onIntent(VideoCaptureIntent.ConfirmRationale) }) {
                 Text(stringResource(R.string.video_permission_allow))
             }
         }
+
         CameraPrompt.BLOCKED -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.video_permission_blocked), modifier = Modifier.weight(1f))
             TextButton(onClick = { onIntent(VideoCaptureIntent.OpenAppSettings) }) {

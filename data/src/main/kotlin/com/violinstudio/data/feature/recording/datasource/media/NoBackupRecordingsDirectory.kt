@@ -9,9 +9,8 @@ import javax.inject.Inject
  * `noBackupFilesDir/recordings/{uid}`: fuera de las copias de seguridad y de la transferencia entre dispositivos
  * (REQ-REC-03). Nunca `filesDir`, `cacheDir` ni almacenamiento externo.
  */
-class NoBackupRecordingsDirectory @Inject constructor(
-    @param:ApplicationContext private val context: Context
-) : RecordingsDirectory {
+class NoBackupRecordingsDirectory @Inject constructor(@param:ApplicationContext private val context: Context) :
+    RecordingsDirectory {
     override fun forUid(uid: String): File = File(File(context.noBackupFilesDir, ROOT), uid)
 
     private companion object {

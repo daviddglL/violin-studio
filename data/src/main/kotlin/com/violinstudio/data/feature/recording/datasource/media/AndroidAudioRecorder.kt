@@ -121,7 +121,8 @@ class AndroidAudioRecorder(
         private val session: MediaRecorderSession,
         private val part: File,
         private val finished: File
-    ) : RecordingHandle, MediaRecorderSession.Listener {
+    ) : RecordingHandle,
+        MediaRecorderSession.Listener {
         private val lock = Any()
         private var state = State.RECORDING
         private var take: RecordedTake? = null

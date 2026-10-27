@@ -12,7 +12,9 @@ object PracticeReducer {
     fun reduce(state: PracticeState, mutation: PracticeMutation): PracticeState = when (mutation) {
         is PracticeMutation.SessionOpened ->
             PracticeState(ready = true, instrument = mutation.instrument)
+
         PracticeMutation.SessionClosed -> PracticeState()
+
         is PracticeMutation.RunningChanged -> {
             val running = mutation.running
             state.copy(
@@ -22,9 +24,13 @@ object PracticeReducer {
                 draftNotes = if (running == null) "" else state.draftNotes
             )
         }
+
         is PracticeMutation.Tick -> state.copy(elapsedSec = elapsed(state.running, mutation.now))
+
         is PracticeMutation.HistoryLoaded -> state.copy(history = mutation.history)
+
         is PracticeMutation.WeeklyLoaded -> state.copy(weeklyTotalSec = mutation.seconds)
+
         is PracticeMutation.StreamFailed -> {
             val keep = state.message in INFORMATIVE
             state.copy(
@@ -34,15 +40,23 @@ object PracticeReducer {
                 retryable = if (keep) state.retryable else true
             )
         }
+
         is PracticeMutation.InstrumentSelected ->
             state.copy(instrument = mutation.instrument, instrumentChosen = true)
+
         is PracticeMutation.ProfileInstrumentChanged ->
             if (state.instrumentChosen) state else state.copy(instrument = mutation.instrument)
+
         PracticeMutation.SaveOpened -> state.copy(showSave = true)
+
         PracticeMutation.SaveClosed -> state.copy(showSave = false, draftNotes = "")
+
         is PracticeMutation.NotesEdited -> state.copy(draftNotes = mutation.notes)
+
         is PracticeMutation.Busy -> state.copy(busy = mutation.busy)
+
         is PracticeMutation.Failed -> failed(state, mutation.failure)
+
         is PracticeMutation.Stopped ->
             state.copy(
                 running = null,
@@ -52,7 +66,9 @@ object PracticeReducer {
                 message = if (mutation.clamped) PracticeMessage.CLAMPED else state.message,
                 retryable = state.retryable && !mutation.clamped
             )
+
         is PracticeMutation.DeleteRequested -> state.copy(confirmDeleteId = mutation.id)
+
         PracticeMutation.MessageDismissed -> state.copy(message = null, retryable = false)
     }
 
@@ -63,7 +79,9 @@ object PracticeReducer {
     private fun failed(state: PracticeState, failure: Throwable) = when (failure) {
         PracticeFailure.TooShort ->
             state.copy(showSave = false, draftNotes = "", message = PracticeMessage.TOO_SHORT, retryable = false)
+
         PracticeFailure.NotRunning -> state.copy(showSave = false, draftNotes = "")
+
         else -> state.copy(message = messageOf(failure), retryable = false)
     }
 

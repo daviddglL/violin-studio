@@ -11,10 +11,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * lo mejor posible y acotado a [UNREGISTER_TIMEOUT_MS]: sin conexion se cierra igual (el servidor retira el token
  * cuando FCM lo invalide, y un dispositivo compartido lo quita de la cuenta anterior al registrarse otra).
  */
-class SignOutUseCase @Inject constructor(
-    private val auth: AuthRepository,
-    private val push: PushTokenRepository
-) {
+class SignOutUseCase @Inject constructor(private val auth: AuthRepository, private val push: PushTokenRepository) {
     suspend operator fun invoke() {
         val uid = auth.authUser.first()?.uid
         if (uid != null) withTimeoutOrNull(UNREGISTER_TIMEOUT_MS) { push.unregister(uid) }

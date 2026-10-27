@@ -34,8 +34,10 @@ class DeleteAccountViewModel @Inject constructor(
                 if (workPending || !state.value.admits(intent)) return
                 workPending = true
             }
+
             DeleteAccountIntent.Cancel, is DeleteAccountIntent.PasswordChanged, DeleteAccountIntent.GoogleFailed ->
                 if (workPending) return
+
             DeleteAccountIntent.Open -> Unit
         }
         super.onIntent(intent)
@@ -43,17 +45,23 @@ class DeleteAccountViewModel @Inject constructor(
 
     override suspend fun handleIntent(intent: DeleteAccountIntent) = when (intent) {
         DeleteAccountIntent.Open -> reduce(DeleteAccountMutation.Opened)
+
         DeleteAccountIntent.Cancel -> reduce(DeleteAccountMutation.Cancelled)
+
         is DeleteAccountIntent.PasswordChanged -> reduce(DeleteAccountMutation.PasswordChanged(intent.value))
+
         DeleteAccountIntent.GoogleFailed ->
             reduce(DeleteAccountMutation.ReauthFailed(DeleteAccountError.PROVIDER_UNAVAILABLE))
+
         DeleteAccountIntent.Confirm -> work(DeleteAccountMutation.DeleteStarted) { delete() }
+
         DeleteAccountIntent.SubmitPassword -> {
             val state = state.value
             work(DeleteAccountMutation.ReauthStarted, enabled = state.canSubmitPassword) {
                 reauthThenDelete { reauthenticate(state.password) }
             }
         }
+
         is DeleteAccountIntent.GoogleToken ->
             work(DeleteAccountMutation.ReauthStarted, enabled = state.value.canReauthWithGoogle) {
                 reauthThenDelete { reauthenticate(intent.token) }

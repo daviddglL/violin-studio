@@ -4,12 +4,7 @@ import com.violinstudio.domain.feature.profile.model.Role
 
 enum class AuthProvider { PASSWORD, GOOGLE }
 
-data class AuthUser(
-    val uid: String,
-    val email: String?,
-    val emailVerified: Boolean,
-    val providers: Set<AuthProvider>
-) {
+data class AuthUser(val uid: String, val email: String?, val emailVerified: Boolean, val providers: Set<AuthProvider>) {
     val usesPassword: Boolean get() = AuthProvider.PASSWORD in providers
 
     override fun toString(): String = "AuthUser(emailVerified=$emailVerified, providers=$providers)"
