@@ -27,6 +27,14 @@ object ConsentResponseParser {
                 }
             } else {
                 1
+            },
+            // Ausente = sin minimo (servidor antiguo); negativo o de otro tipo = respuesta malformada.
+            minVersionCode = if ("minVersionCode" in map) {
+                map.int("identityConfig", "minVersionCode").also {
+                    if (it < 0) throw MalformedResponseException("identityConfig: 'minVersionCode' debe ser >= 0")
+                }
+            } else {
+                0
             }
         )
     }

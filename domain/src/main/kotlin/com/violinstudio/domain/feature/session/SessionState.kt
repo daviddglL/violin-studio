@@ -19,6 +19,9 @@ sealed interface SessionState {
 
     data object NeedsProfile : SessionState
 
+    /** La app es mas antigua que la version minima del servidor: solo se puede actualizar o cerrar sesion. */
+    data object UpdateRequired : SessionState
+
     /** [isMinor] lo fija el servidor: un menor necesita a su tutor en vez de aceptar él mismo. */
     data class ConsentPending(
         val config: IdentityConfig,

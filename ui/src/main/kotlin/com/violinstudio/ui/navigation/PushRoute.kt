@@ -6,10 +6,14 @@ import com.violinstudio.domain.feature.session.SessionState
 /** Clave del dato `kind` que manda functions en cada aviso (`notifications/fcm.ts`); llega como extra del intent. */
 const val PUSH_KIND_EXTRA = "kind"
 
+/** Tipo del recordatorio diario local (no viene de functions): abre el registro de practica. */
+const val PUSH_KIND_PRACTICE = "practice"
+
 /**
- * Pantalla que abre tocar un aviso de tipo [kind] (`chat`, `review`, `assignment`). El aviso no lleva ids (decisión
- * de privacidad de los avisos): se abre la lista donde está lo nuevo, a un toque del detalle. Nulo si el tipo es
- * desconocido o la ruta no está disponible para el rol o con su interruptor apagado: se queda en Home.
+ * Pantalla que abre tocar un aviso de tipo [kind] (`chat`, `review`, `assignment`, o el recordatorio local
+ * [PUSH_KIND_PRACTICE]). El aviso no lleva ids (decisión de privacidad de los avisos): se abre la lista donde está lo
+ * nuevo, a un toque del detalle. Nulo si el tipo es desconocido o la ruta no está disponible para el rol o con su
+ * interruptor apagado: se queda en Home.
  */
 fun SessionState.Ready.pushDestination(kind: String?): Any? {
     val role = profile.role
@@ -17,6 +21,7 @@ fun SessionState.Ready.pushDestination(kind: String?): Any? {
         "chat" -> (if (role == Role.STUDENT) MyTeacherDestination else StudentsDestination).takeIf { features.chat }
         "review" -> RecordingsDestination.takeIf { features.recordings }
         "assignment" -> AssignmentsDestination
+        PUSH_KIND_PRACTICE -> PracticeLogDestination
         else -> null
     } ?: return null
     return route.takeIf { role.allows(it::class) }

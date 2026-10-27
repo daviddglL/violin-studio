@@ -87,6 +87,8 @@ class PushNavTest {
         assertEquals(RecordingsDestination, independent.pushDestination("review"))
         assertEquals(AssignmentsDestination, student.pushDestination("assignment"))
         assertNull(teacher.pushDestination("assignment"))
+        assertEquals(PracticeLogDestination, student.pushDestination(PUSH_KIND_PRACTICE))
+        assertEquals(PracticeLogDestination, teacher.pushDestination(PUSH_KIND_PRACTICE))
         assertNull(student.pushDestination("otro"))
         assertNull(student.pushDestination(null))
     }

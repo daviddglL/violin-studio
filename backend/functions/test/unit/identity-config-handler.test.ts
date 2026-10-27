@@ -76,6 +76,14 @@ test("el interruptor del chat se expone; sin inyeccion sale del entorno (encendi
     .toMatchObject({ notificationsEnabled: true });
 });
 
+test("la version minima de la app se expone; sin inyeccion ni variable es 0", async () => {
+  const { db, auth } = fakes(granted, { role: "independent", consentOk: true });
+  expect(await identityConfigHandler(req(true), { db, auth, currentVersion: 1, minVersionCode: 120 } as never))
+    .toMatchObject({ minVersionCode: 120 });
+  expect(await identityConfigHandler(req(true), { db, auth, currentVersion: 1 } as never))
+    .toMatchObject({ minVersionCode: 0 });
+});
+
 describe("interruptores de grabación y versión del consentimiento (REQ-REC-02, A19)", () => {
   test("se exponen tal y como los entrega el servidor, con la versión vigente de grabación", async () => {
     const { db, auth } = fakes(granted, { role: "independent", consentOk: true });

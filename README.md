@@ -6,13 +6,16 @@ alumnos que trabajan con un profesor.
 ## Qué ofrece
 
 - **Práctica diaria**: afinador, metrónomo, registro de sesiones con notas, estadísticas (rachas, semana, últimos
-  30 días y gráfico de los últimos 7 días), 10 logros calculados en el dispositivo y un currículo de 12 lecciones en
-  3 niveles que enlaza con el afinador y el metrónomo (el progreso se guarda en la nube y sobrevive a un cambio de móvil).
+  30 días, gráfico de los últimos 7 días y totales de todo el historial), 10 logros calculados en el dispositivo y un
+  currículo de 12 lecciones en 3 niveles que enlaza con el afinador y el metrónomo (el progreso se guarda en la nube y
+  sobrevive a un cambio de móvil).
 - **Feedback de afinación**: en las lecciones de escalas y posiciones, un ejercicio escucha cada nota, la puntúa en cents,
   dice qué notas tiendes a tocar altas o bajas y guarda tu mejor puntuación en el móvil. Todo se analiza en el
   dispositivo, sin grabar.
 - **Consejos de práctica**: el inicio sugiere qué hacer hoy (mantener la racha, volver tras una pausa, igualar la
   semana pasada, alargar las sesiones o la siguiente lección), calculado en el móvil a partir de tu registro.
+- **Recordatorio diario** (opcional, apagado por defecto): en Ajustes se elige una hora y, si ese día aún no hay
+  práctica registrada, el móvil muestra un aviso local. No pasa por el servidor ni por FCM.
 - **Profesor y alumno**: el alumno canjea un código de su profesor; el profesor ve su registro de práctica y sus
   lecciones hechas, le asigna tareas que el alumno marca como hechas y ambos pueden escribirse por chat. Un adulto puede
   pedir desde la app que le den de alta como profesor.
@@ -50,7 +53,8 @@ El desarrollo va por fases:
 - **Calidad**: JUnit 5, Turbine, MockK, Robolectric, capturas con Roborazzi, JaCoCo (umbral del 80 %),
   ktlint, tests de reglas de seguridad contra los emuladores de Firebase y tests E2E instrumentados (práctica,
   menores, profesor–alumno, chat, subida de grabaciones y borrado de cuenta) que bloquean el CI si fallan.
-- **Entrega**: GitHub Actions y fastlane, que publica en Firebase App Distribution.
+- **Entrega**: GitHub Actions y fastlane, que publica en Firebase App Distribution y, con el secreto
+  `PLAY_SERVICE_ACCOUNT_JSON`, en la pista de pruebas internas de Google Play.
 
 ## Arquitectura
 
@@ -236,6 +240,10 @@ la app recibe los interruptores ya combinados por `identityConfig`.
 
 Para activar una función de forma escalonada: crea antes el campo a `false`, despliega con la variable a `true` en el
 `.env` y, cuando quieras abrirla, borra el campo o ponlo a `true`.
+
+El mismo documento admite `minVersionCode` (número): la app con un `versionCode` menor solo ofrece actualizarla. Ver
+[`docs/runbooks/operaciones.md`](docs/runbooks/operaciones.md), que también cubre copias de seguridad, presupuesto y
+alertas.
 
 ### App Check en prod
 

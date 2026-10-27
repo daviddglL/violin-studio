@@ -1,6 +1,7 @@
 package com.violinstudio.data.commons.datastore
 
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -31,6 +32,11 @@ object UserKeys {
     fun runningStartedAt(uid: String) = longPreferencesKey("${prefix(uid)}practice.running.started_at")
 
     fun runningInstrument(uid: String) = stringPreferencesKey("${prefix(uid)}practice.running.instrument")
+
+    fun reminderEnabled(uid: String) = booleanPreferencesKey("${prefix(uid)}practice.reminder.enabled")
+
+    /** Minuto del dia (0..1439) del recordatorio diario. */
+    fun reminderMinute(uid: String) = intPreferencesKey("${prefix(uid)}practice.reminder.minute")
 
     fun recQueue(uid: String) = stringPreferencesKey("${prefix(uid)}rec.queue")
 
