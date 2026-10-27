@@ -5,8 +5,10 @@ import com.violinstudio.domain.feature.metronome.TapTempoCalculator
 import com.violinstudio.domain.feature.metronome.model.Tempo
 import com.violinstudio.domain.feature.metronome.usecase.MetronomeSession
 import com.violinstudio.domain.feature.metronome.usecase.RunMetronomeUseCase
+import com.violinstudio.domain.feature.practice.usecase.LogToolPracticeUseCase
 import com.violinstudio.ui.commons.di.MonotonicClock
 import com.violinstudio.ui.commons.mvi.MviViewModel
+import com.violinstudio.ui.feature.practice.viewmodel.ToolPracticeOffer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
 import javax.inject.Inject
@@ -25,13 +27,19 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Exclusion con el tono de referencia: no hay estado compartido. Tono y metronomo viven en pantallas hermanas de
  * Home; la ruta que se abandona detiene su audio al salir de la composicion (`Stop`) y el Mutex de la salida unica
  * serializa cualquier solape de la transicion.
+ *
+ * El tiempo que suena se cronometra con [wallClock] y, al parar con 1 min o mas, se ofrece guardarlo como practica: no
+ * se guarda nada sin `SaveToolPractice` (REQ-PRA-02).
  */
 @HiltViewModel
 class MetronomeViewModel @Inject constructor(
     private val run: RunMetronomeUseCase,
-    @MonotonicClock clock: Clock
+    @MonotonicClock clock: Clock,
+    wallClock: Clock,
+    logToolPractice: LogToolPracticeUseCase
 ) : MviViewModel<MetronomeState, MetronomeIntent, MetronomeEffect>(MetronomeState()) {
     private val tapTempo = TapTempoCalculator(clock)
+    private val offer = ToolPracticeOffer(wallClock, logToolPractice)
     private var session: MetronomeSession? = null
     private var playJob: Job? = null
 
@@ -49,6 +57,11 @@ class MetronomeViewModel @Inject constructor(
                 if (state.value.isPlaying) stop() else start()
             }
             MetronomeIntent.Stop -> stop()
+            MetronomeIntent.SaveToolPractice -> {
+                val saved = offer.save(state.value.toolPractice)
+                setState { copy(toolPractice = saved) }
+            }
+            MetronomeIntent.DismissToolPractice -> setState { copy(toolPractice = offer.dismiss()) }
         }
     }
 
@@ -66,14 +79,17 @@ class MetronomeViewModel @Inject constructor(
         val next = run(current.tempo, current.signature)
         session = next
         reduce(MetronomeMutation.Started)
+        setState { copy(toolPractice = offer.started(toolPractice)) }
         playJob = viewModelScope.launch {
             try {
                 next.ticks.collect { reduce(MetronomeMutation.Beat(it)) }
                 reduce(MetronomeMutation.Stopped)
+                stopTimer()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 reduce(MetronomeMutation.Failed(e))
+                stopTimer()
             }
         }
     }
@@ -81,7 +97,10 @@ class MetronomeViewModel @Inject constructor(
     private suspend fun stop() {
         halt()
         reduce(MetronomeMutation.Stopped)
+        stopTimer()
     }
+
+    private fun stopTimer() = setState { copy(toolPractice = offer.stopped(toolPractice)) }
 
     /**
      * Cancela y espera la reproduccion, acotado: una salida que no termina de cancelarse no debe bloquear la cola
