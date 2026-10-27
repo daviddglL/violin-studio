@@ -302,6 +302,23 @@
     <string name="home_redeem_card">Link with a teacher</string>
     <string name="home_teacher_request_card">I want to teach</string>
     <string name="home_enable_notifications">Turn on notifications</string>
+    <string name="reminder_channel_name">Practice reminder</string>
+    <string name="reminder_channel_description">One notification a day, at the time you choose, if you haven\'t practiced yet.</string>
+    <string name="reminder_notification_title">Time to practice today?</string>
+    <string name="reminder_notification_text">You haven\'t logged any practice today. A few minutes count.</string>
+    <string name="settings_reminder_title">Daily reminder</string>
+    <string name="settings_reminder_switch">Remind me if I haven\'t practiced</string>
+    <string name="settings_reminder_time">Time: %1$s</string>
+    <string name="settings_reminder_time_title">Reminder time</string>
+    <string name="settings_reminder_time_ok">OK</string>
+    <string name="settings_reminder_time_cancel">Cancel</string>
+    <string name="settings_reminder_permission">To receive it, allow the app\'s notifications in the system settings.</string>
+    <string name="settings_reminder_error">The reminder could not be saved. Please try again.</string>
+    <string name="tool_practice_save">Save as practice</string>
+    <string name="tool_practice_dismiss">Not now</string>
+    <string name="tool_practice_saved">Saved to your practice log.</string>
+    <string name="tool_practice_error">It could not be saved. Please try again.</string>
+    <string name="tool_practice_error_running">You have a practice session running: that time is already being logged.</string>
     <string name="push_channel_name">Activity</string>
     <string name="push_channel_description">Messages, reviews and assignments from your teacher or students.</string>
     <string name="push_chat_title">New message</string>
@@ -714,6 +731,10 @@
     <string name="home_tips_title">Tips for today</string>
     <string name="tip_first_session">Start with your first session: 10 minutes is enough.</string>
     <string name="tip_come_back">It has been over a week since you practised: come back today with a short session.</string>
+    <plurals name="tool_practice_offer">
+        <item quantity="one">You practiced for %1$d minute. Save it to your log?</item>
+        <item quantity="other">You practiced for %1$d minutes. Save it to your log?</item>
+    </plurals>
     <plurals name="tip_keep_streak">
         <item quantity="one">You are on a %1$d-day streak: practise today to keep it.</item>
         <item quantity="other">You are on a %1$d-day streak: practise today to keep it.</item>

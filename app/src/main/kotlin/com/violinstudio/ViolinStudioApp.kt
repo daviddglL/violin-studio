@@ -18,6 +18,9 @@ class ViolinStudioApp : Application() {
     @Inject
     lateinit var uploadQueueStarter: UploadQueueStarter
 
+    @Inject
+    lateinit var practiceReminderStarter: PracticeReminderStarter
+
     override fun onCreate() {
         super.onCreate()
         AuthDiagnostics.verbose = BuildConfig.DEBUG
@@ -25,17 +28,26 @@ class ViolinStudioApp : Application() {
         // super.onCreate() de Hilt ya inyecto el campo: ON_START del proceso pide reevaluar la sesion.
         foregroundSessionRefresh.install()
         uploadQueueStarter.install()
-        createNotificationChannel()
+        createNotificationChannels()
+        practiceReminderStarter.install()
         Firebase.crashlytics.isCrashlyticsCollectionEnabled = BuildConfig.CRASHLYTICS_ENABLED
     }
 
-    /** Canal de los avisos push (chat, revisiones, tareas); crearlo no pide permisos ni genera ningun token. */
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
+    /**
+     * Canales de los avisos push (chat, revisiones, tareas) y del recordatorio diario local; crearlos no pide permisos
+     * ni genera ningun token.
+     */
+    private fun createNotificationChannels() {
+        val activity = NotificationChannel(
             ACTIVITY_CHANNEL_ID,
             getString(com.violinstudio.ui.R.string.push_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply { description = getString(com.violinstudio.ui.R.string.push_channel_description) }
-        getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+        val reminder = NotificationChannel(
+            REMINDER_CHANNEL_ID,
+            getString(com.violinstudio.ui.R.string.reminder_channel_name),
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply { description = getString(com.violinstudio.ui.R.string.reminder_channel_description) }
+        getSystemService(NotificationManager::class.java)?.createNotificationChannels(listOf(activity, reminder))
     }
 }

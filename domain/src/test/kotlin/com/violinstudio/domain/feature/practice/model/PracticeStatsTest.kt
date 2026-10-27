@@ -91,4 +91,16 @@ class PracticeStatsTest {
         assertTrue(many.practiceStats(now, zone, limit = 3).truncated)
         assertFalse(many.practiceStats(now, zone, limit = 4).truncated)
     }
+
+    @Test
+    fun `con los totales del servidor el recuento es exacto y suma lo pendiente`() {
+        val pending = session("2026-10-14T10:00:00Z", 120).copy(pendingSync = true)
+        val many = listOf(pending) + (1..2).map { session("2026-10-1${it}T10:00:00Z", 60) }
+        val stats = many.practiceStats(now, zone, limit = 3, totals = PracticeTotals(500, 30_000L))
+        assertFalse(stats.truncated)
+        assertEquals(501, stats.sessionCount)
+        assertEquals(30_120, stats.totalSec)
+        assertEquals(60, stats.averageSessionSec)
+        assertEquals(180, stats.weekSec)
+    }
 }

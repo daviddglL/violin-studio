@@ -30,8 +30,8 @@ data class AchievementProgress(val achievement: Achievement, val current: Int) {
 
 object Achievements {
     /**
-     * Avance de cada logro con [stats] y [lessonsDone] lecciones hechas. Las estadisticas usan como mucho las ultimas
-     * `HISTORY_LIMIT` sesiones, asi que con un historial truncado los logros de sesiones y horas pueden quedarse cortos.
+     * Avance de cada logro con [stats] y [lessonsDone] lecciones hechas. Con mas de `HISTORY_LIMIT` sesiones, los de
+     * sesiones y horas usan los totales del servidor; sin conexion pueden quedarse cortos hasta que vuelva.
      */
     fun of(stats: PracticeStats, lessonsDone: Int): List<AchievementProgress> = Achievement.entries.map {
         val value = when (it.metric) {

@@ -13,6 +13,12 @@ interface PracticeRemoteDataSource {
     /** Más recientes primero; el flujo falla si el listener falla. */
     fun observe(uid: String, limit: Int): Flow<List<PracticeDoc>>
 
+    /**
+     * Número de docs y suma de `durationSec` de toda la colección, calculados en el servidor (consulta de agregación:
+     * una lectura por cada 1000 docs). Lanza sin conexión o si vence el tiempo.
+     */
+    suspend fun totals(uid: String): Pair<Long, Long>
+
     /** Lee de la caché local (donde se ven las escrituras en cola); `false` si no está. */
     suspend fun exists(uid: String, id: String): Boolean
 
