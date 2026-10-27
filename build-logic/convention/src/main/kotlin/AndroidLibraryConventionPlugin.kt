@@ -3,6 +3,7 @@ import com.violinstudio.buildlogic.COMPILE_SDK
 import com.violinstudio.buildlogic.JAVA_VERSION
 import com.violinstudio.buildlogic.MIN_SDK
 import com.violinstudio.buildlogic.TARGET_SDK
+import com.violinstudio.buildlogic.applyKtlintGradle
 import com.violinstudio.buildlogic.configureAndroidKtlintCli
 import com.violinstudio.buildlogic.configureJUnit5
 import com.violinstudio.buildlogic.configureKotlinToolchain
@@ -14,7 +15,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply("com.android.library")
-            pluginManager.apply("org.jlleitschuh.gradle.ktlint")
+            applyKtlintGradle()
             extensions.configure<LibraryExtension> {
                 compileSdk = COMPILE_SDK
                 defaultConfig {
