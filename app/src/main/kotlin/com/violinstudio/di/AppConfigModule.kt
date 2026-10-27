@@ -3,6 +3,7 @@ package com.violinstudio.di
 import android.content.Context
 import com.violinstudio.BuildConfig
 import com.violinstudio.data.commons.firebase.EmulatorConfig
+import com.violinstudio.domain.feature.session.AppVersion
 import com.violinstudio.ui.commons.auth.GoogleSignInConfig
 import dagger.Module
 import dagger.Provides
@@ -16,6 +17,10 @@ object AppConfigModule {
     @Provides
     fun provideEmulatorConfig(): EmulatorConfig =
         EmulatorConfig(enabled = BuildConfig.USE_EMULATORS, host = BuildConfig.EMULATOR_HOST)
+
+    /** Se compara con `minVersionCode` de `identityConfig` (en CI, `versionCode` es el numero de run). */
+    @Provides
+    fun provideAppVersion(): AppVersion = AppVersion(BuildConfig.VERSION_CODE)
 
     /**
      * `default_web_client_id` lo genera el plugin de google-services por flavor, y solo si el `google-services.json`

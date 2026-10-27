@@ -36,6 +36,7 @@ import com.violinstudio.data.feature.notification.datasource.firebase.FirebasePu
 import com.violinstudio.data.feature.notification.repository.PushTokenRepositoryImpl
 import com.violinstudio.data.feature.practice.datasource.PracticeRemoteDataSource
 import com.violinstudio.data.feature.practice.datasource.firebase.FirebasePracticeRemoteDataSource
+import com.violinstudio.data.feature.practice.repository.DataStorePracticeReminderStore
 import com.violinstudio.data.feature.practice.repository.DataStoreRunningSessionStore
 import com.violinstudio.data.feature.practice.repository.FirestorePracticeLogRepository
 import com.violinstudio.data.feature.profile.datasource.IdentityFunctionsDataSource
@@ -61,6 +62,7 @@ import com.violinstudio.domain.feature.intonation.repository.IntonationScoreRepo
 import com.violinstudio.domain.feature.link.repository.LinkRepository
 import com.violinstudio.domain.feature.notification.repository.PushTokenRepository
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
+import com.violinstudio.domain.feature.practice.repository.PracticeReminderStore
 import com.violinstudio.domain.feature.practice.repository.RunningSessionStore
 import com.violinstudio.domain.feature.profile.repository.ProfileRepository
 import com.violinstudio.domain.feature.tuner.audio.AudioInputSource
@@ -130,6 +132,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindRunningSessionStore(impl: DataStoreRunningSessionStore): RunningSessionStore
+
+    @Binds
+    abstract fun bindPracticeReminderStore(impl: DataStorePracticeReminderStore): PracticeReminderStore
 
     @Binds
     abstract fun bindIdentityConfigCache(impl: DataStoreIdentityConfigCache): IdentityConfigCache

@@ -8,6 +8,7 @@ import com.violinstudio.data.feature.practice.utils.extensions.toDomain
 import com.violinstudio.data.feature.practice.utils.extensions.toFields
 import com.violinstudio.domain.feature.practice.model.PracticeDraft
 import com.violinstudio.domain.feature.practice.model.PracticeSession
+import com.violinstudio.domain.feature.practice.model.PracticeTotals
 import com.violinstudio.domain.feature.practice.repository.PracticeLogRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -22,6 +23,15 @@ class FirestorePracticeLogRepository @Inject constructor(private val remote: Pra
         .map { docs -> docs.mapNotNull { PracticeSessionParser.parse(it.id, it.data, it.hasPendingWrites).toDomain() } }
         .distinctUntilChanged()
         .catch { throw PracticeErrorMapper.map(it) }
+
+    override suspend fun totals(uid: String): PracticeTotals? = try {
+        val (count, seconds) = remote.totals(uid)
+        PracticeTotals(count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), seconds)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
 
     override suspend fun create(uid: String, draft: PracticeDraft): Result<Unit> =
         write { remote.create(uid, draft.id, draft.toFields()) }

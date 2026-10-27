@@ -91,6 +91,7 @@ export const identityConfig = onCall(callableOptions(), async (request) => {
     flags: live.flags,
     chatEnabled: live.chatEnabled,
     notificationsEnabled: live.notificationsEnabled,
+    minVersionCode: live.minVersionCode,
   });
 });
 

@@ -8,6 +8,9 @@
     <string name="session_loading">Cargando sesión</string>
     <string name="offline_title">Sin conexión</string>
     <string name="offline_message">Estamos reintentando. Puedes cerrar sesión mientras tanto.</string>
+    <string name="update_required_title">Actualiza la app</string>
+    <string name="update_required_message">Esta versión ya no es compatible. Instala la última versión para seguir practicando; tu progreso se conserva.</string>
+    <string name="update_required_action">Actualizar</string>
     <string name="verify_email_title">Verifica tu email</string>
     <string name="verify_email_message">Te hemos enviado un enlace de verificación a %1$s. Ábrelo y vuelve aquí.</string>
     <string name="verify_email_message_no_email">Te hemos enviado un enlace de verificación. Ábrelo y vuelve aquí.</string>
@@ -299,6 +302,23 @@
     <string name="home_redeem_card">Vincular con profesor</string>
     <string name="home_teacher_request_card">Quiero dar clase</string>
     <string name="home_enable_notifications">Activar avisos</string>
+    <string name="reminder_channel_name">Recordatorio de práctica</string>
+    <string name="reminder_channel_description">Un aviso al día, a la hora que elijas, si aún no has practicado.</string>
+    <string name="reminder_notification_title">¿Practicamos hoy?</string>
+    <string name="reminder_notification_text">Aún no has registrado práctica hoy. Unos minutos ya cuentan.</string>
+    <string name="settings_reminder_title">Recordatorio diario</string>
+    <string name="settings_reminder_switch">Avisarme si no he practicado</string>
+    <string name="settings_reminder_time">Hora: %1$s</string>
+    <string name="settings_reminder_time_title">Hora del recordatorio</string>
+    <string name="settings_reminder_time_ok">Aceptar</string>
+    <string name="settings_reminder_time_cancel">Cancelar</string>
+    <string name="settings_reminder_permission">Para recibirlo, permite los avisos de la app en los ajustes del sistema.</string>
+    <string name="settings_reminder_error">No se ha podido guardar el recordatorio. Inténtalo de nuevo.</string>
+    <string name="tool_practice_save">Guardar como práctica</string>
+    <string name="tool_practice_dismiss">Ahora no</string>
+    <string name="tool_practice_saved">Guardado en tu registro de práctica.</string>
+    <string name="tool_practice_error">No se ha podido guardar. Inténtalo de nuevo.</string>
+    <string name="tool_practice_error_running">Tienes una sesión de práctica en marcha: ese tiempo ya se está registrando.</string>
     <string name="push_channel_name">Actividad</string>
     <string name="push_channel_description">Mensajes, revisiones y tareas de tu profesor o de tus alumnos.</string>
     <string name="push_chat_title">Mensaje nuevo</string>
@@ -711,6 +731,11 @@
     <string name="home_tips_title">Consejos para hoy</string>
     <string name="tip_first_session">Empieza con tu primera sesión: con 10 minutos basta.</string>
     <string name="tip_come_back">Llevas más de una semana sin practicar: vuelve hoy con una sesión corta.</string>
+    <plurals name="tool_practice_offer">
+        <item quantity="one">Has practicado %1$d minuto. ¿Lo guardas en tu registro?</item>
+        <item quantity="many">Has practicado %1$d minutos. ¿Lo guardas en tu registro?</item>
+        <item quantity="other">Has practicado %1$d minutos. ¿Lo guardas en tu registro?</item>
+    </plurals>
     <plurals name="tip_keep_streak">
         <item quantity="one">Llevas %1$d día seguido: practica hoy para no perder la racha.</item>
         <item quantity="many">Llevas %1$d días seguidos: practica hoy para no perder la racha.</item>
