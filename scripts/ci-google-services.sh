@@ -2,6 +2,7 @@
 # Escribe app/src/{dev,prod}/google-services.json desde GS_DEV y GS_PROD (base64). Si un secreto llega vacío (las PRs de
 # Dependabot no reciben los secretos de Actions) escribe uno de PRUEBA: compila y basta contra los emuladores, pero no
 # habla con ningún proyecto real. El release no usa el de prueba: falla si faltan los secretos.
+# La api_key tiene el formato de una real (AIza + 35) porque Firebase Installations rechaza las que no lo cumplen.
 # Uso: GS_DEV=... GS_PROD=... ci-google-services.sh [--require]
 set -euo pipefail
 require="${1:-}"
@@ -22,7 +23,7 @@ placeholder() {
         "android_client_info": { "package_name": "$package" }
       },
       "oauth_client": [],
-      "api_key": [{ "current_key": "placeholder-not-a-real-key" }],
+      "api_key": [{ "current_key": "AIzaSyA0placeholder0not0a0real0key00000" }],
       "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
     }
   ],
