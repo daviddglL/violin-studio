@@ -10,9 +10,15 @@ import java.time.temporal.TemporalAdjusters
 data class DayTotal(val date: LocalDate, val seconds: Int)
 
 /**
+ * Totales de todo el historial segun el servidor (consulta de agregacion): no incluyen las escrituras aun en cola.
+ */
+data class PracticeTotals(val sessionCount: Int, val totalSec: Long)
+
+/**
  * Resumen del historial para la pantalla de estadisticas. Se calcula sobre lo que devuelve el historial (como mucho
- * [PracticeRules.HISTORY_LIMIT] sesiones): con [truncated] los totales globales y la racha mas larga pueden quedarse
- * cortos, y la UI lo avisa.
+ * [PracticeRules.HISTORY_LIMIT] sesiones); con el historial lleno, los totales globales salen de [PracticeTotals] si
+ * hay conexion. [truncated]: historial lleno y sin totales del servidor, asi que los totales globales pueden quedarse
+ * cortos, y la UI lo avisa. La racha mas larga se calcula siempre sobre el historial.
  */
 data class PracticeStats(
     val weekSec: Int,
@@ -29,11 +35,16 @@ data class PracticeStats(
     val truncated: Boolean
 )
 
-/** Estadisticas de estas sesiones en [now] y [zone]. Cada sesion cuenta entera en el dia de su `startedAt`. */
+/**
+ * Estadisticas de estas sesiones en [now] y [zone]. Cada sesion cuenta entera en el dia de su `startedAt`. Con
+ * [totals] (solo se piden con el historial lleno), el numero de sesiones y el total son los del servidor mas las
+ * sesiones de esta lista aun pendientes de confirmar.
+ */
 fun List<PracticeSession>.practiceStats(
     now: Instant,
     zone: ZoneId,
-    limit: Int = PracticeRules.HISTORY_LIMIT
+    limit: Int = PracticeRules.HISTORY_LIMIT,
+    totals: PracticeTotals? = null
 ): PracticeStats {
     val today = now.atZone(zone).toLocalDate()
     val byDay: Map<LocalDate, Int> = groupBy { it.startedAt.atZone(zone).toLocalDate() }
@@ -41,7 +52,13 @@ fun List<PracticeSession>.practiceStats(
     val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     fun sumBetween(fromInclusive: LocalDate, toExclusive: LocalDate) =
         byDay.filterKeys { it >= fromInclusive && it < toExclusive }.values.sum()
-    val total = sumOf { it.durationSec }
+    val pending = filter { it.pendingSync }
+    val count = totals?.let { it.sessionCount + pending.size } ?: size
+    val total = if (totals == null) {
+        sumOf { it.durationSec }
+    } else {
+        (totals.totalSec + pending.sumOf { it.durationSec }).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    }
     return PracticeStats(
         weekSec = sumBetween(monday, monday.plusWeeks(1)),
         previousWeekSec = sumBetween(monday.minusWeeks(1), monday),
@@ -49,10 +66,10 @@ fun List<PracticeSession>.practiceStats(
         last7Days = (6 downTo 0).map { back -> today.minusDays(back.toLong()).let { DayTotal(it, byDay[it] ?: 0) } },
         currentStreakDays = currentStreak(byDay.keys, today),
         longestStreakDays = longestStreak(byDay.keys),
-        sessionCount = size,
+        sessionCount = count,
         totalSec = total,
-        averageSessionSec = if (isEmpty()) 0 else total / size,
-        truncated = size >= limit
+        averageSessionSec = if (count == 0) 0 else total / count,
+        truncated = size >= limit && totals == null
     )
 }
 

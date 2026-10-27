@@ -9,11 +9,13 @@ import com.violinstudio.data.feature.practice.datasource.FakePracticeRemoteDataS
 import com.violinstudio.data.feature.practice.datasource.PracticeDoc
 import com.violinstudio.domain.feature.practice.failure.PracticeFailure
 import com.violinstudio.domain.feature.practice.model.PracticeDraft
+import com.violinstudio.domain.feature.practice.model.PracticeTotals
 import com.violinstudio.domain.feature.profile.model.Instrument
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -30,6 +32,14 @@ class FirestorePracticeLogRepositoryTest {
         mapOf("startedAt" to Timestamp(start.epochSecond, 0), "durationSec" to 60, "instrument" to "cello"),
         pending
     )
+
+    @Test
+    fun `totals traduce la agregacion del servidor y devuelve null si falla`() = runTest {
+        remote.totals = 250L to 90_000L
+        assertEquals(PracticeTotals(250, 90_000L), repo.totals("u1"))
+        remote.totals = null
+        assertNull(repo.totals("u1"))
+    }
 
     @Test
     fun `observeHistory mapea, omite docs ilegibles y marca pendientes`() = runTest {

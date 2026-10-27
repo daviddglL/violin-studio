@@ -1,5 +1,5 @@
 import { assertFails, assertSucceeds, RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { collection, collectionGroup, count, deleteDoc, deleteField, doc, getAggregateFromServer, getDoc, getDocs, serverTimestamp, setDoc, sum, Timestamp, updateDoc } from "firebase/firestore";
 import { Claims, createEnv, OK, seed, userDoc } from "./helpers";
 
 let env: RulesTestEnvironment;
@@ -41,6 +41,12 @@ describe("lectura (REQ-SEC-P01)", () => {
   test("el dueño lee y lista", async () => {
     await assertSucceeds(getDoc(doc(alice(), PATH)));
     await assertSucceeds(getDocs(collection(alice(), "users/alice/practiceSessions")));
+  });
+  test("el dueño suma su historial entero en el servidor (estadísticas de más de 200 sesiones)", async () => {
+    const totals = { n: count(), seconds: sum("durationSec") };
+    const snap = await assertSucceeds(getAggregateFromServer(collection(alice(), "users/alice/practiceSessions"), totals));
+    expect(snap.data()).toEqual({ n: 1, seconds: 600 });
+    await assertFails(getAggregateFromServer(collection(bob(), "users/alice/practiceSessions"), totals));
   });
   test("el dueño sin claims al día también lee", async () => {
     await assertSucceeds(getDoc(doc(as("alice", { email_verified: false, consentOk: false }), PATH)));

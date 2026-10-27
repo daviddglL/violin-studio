@@ -28,6 +28,7 @@ import com.violinstudio.ui.feature.intonation.viewmodel.IntonationError
 import com.violinstudio.ui.feature.intonation.viewmodel.IntonationIntent
 import com.violinstudio.ui.feature.intonation.viewmodel.IntonationMic
 import com.violinstudio.ui.feature.intonation.viewmodel.IntonationState
+import com.violinstudio.ui.feature.practice.view.ToolPracticeCard
 import com.violinstudio.ui.feature.tuner.view.InTuneGreen
 import com.violinstudio.ui.feature.tuner.view.centsLabel
 import kotlin.math.abs
@@ -61,6 +62,11 @@ fun IntonationScreen(
             Text(stringResource(exerciseTitle(exercise.id)), style = MaterialTheme.typography.titleMedium)
             val summary = state.summary
             if (summary == null) Exercise(state, onIntent, onStart) else Result(state, summary, onIntent)
+            ToolPracticeCard(
+                state.toolPractice,
+                onSave = { onIntent(IntonationIntent.SaveToolPractice) },
+                onDismiss = { onIntent(IntonationIntent.DismissToolPractice) }
+            )
         }
         TextButton(onClick = onBack, modifier = Modifier.testTag(INTONATION_BACK_TAG)) {
             Text(stringResource(R.string.intonation_back))

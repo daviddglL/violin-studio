@@ -22,6 +22,10 @@ data object ConsentDestination
 @Serializable
 data object GuardianWaitDestination
 
+/** La version instalada es anterior a la minima del servidor: solo actualizar o cerrar sesion. */
+@Serializable
+data object UpdateRequiredDestination
+
 /** Sin red y reintentando: no es terminal, la sesión lo sustituye sola cuando vuelve a resolverse. */
 @Serializable
 data object OfflineDestination
@@ -189,6 +193,7 @@ fun SessionState.rootRoute(): Any = when (this) {
     SessionState.LoggedOut -> AuthDestination
     is SessionState.EmailUnverified -> VerifyEmailDestination
     SessionState.NeedsProfile -> OnboardingDestination
+    SessionState.UpdateRequired -> UpdateRequiredDestination
     is SessionState.ConsentPending -> ConsentDestination
     is SessionState.ParentalPending -> GuardianWaitDestination
     is SessionState.Ready -> HomeDestination

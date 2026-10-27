@@ -1,7 +1,7 @@
 import { logger } from "firebase-functions/v2";
 import { HttpsError } from "firebase-functions/v2/https";
 import { ReevaluateDeps, reevaluateConsent } from "../consent/reevaluate";
-import { chatEnabled, notificationsEnabled, RecordingFlags, recordingFlags } from "../config/features";
+import { chatEnabled, minVersionCode, notificationsEnabled, RecordingFlags, recordingFlags } from "../config/features";
 import {
   CURRENT_POLICY_VERSION,
   DIGITAL_CONSENT_AGE,
@@ -19,6 +19,8 @@ export interface IdentityConfigDeps extends ReevaluateDeps {
   chatEnabled?: boolean;
   /** Interruptor de los avisos push; solo se inyecta en tests (en produccion, `notificationsEnabled()`). */
   notificationsEnabled?: boolean;
+  /** Version minima de la app; solo se inyecta en tests (en produccion, `minVersionCode()` y `appConfig/features`). */
+  minVersionCode?: number;
 }
 
 export interface IdentityConfig {
@@ -36,6 +38,8 @@ export interface IdentityConfig {
   chatEnabled: boolean;
   /** Avisos push: la app solo registra el token del dispositivo con este interruptor. */
   notificationsEnabled: boolean;
+  /** `versionCode` minimo: una app mas antigua solo muestra "Actualiza la app". 0 = sin minimo. */
+  minVersionCode: number;
 }
 
 /**
@@ -64,5 +68,6 @@ export async function identityConfigHandler(
     recordingConsentVersion: deps.currentRecordingVersion ?? RECORDING_CONSENT_VERSION,
     chatEnabled: deps.chatEnabled ?? chatEnabled(),
     notificationsEnabled: deps.notificationsEnabled ?? notificationsEnabled(),
+    minVersionCode: deps.minVersionCode ?? minVersionCode(),
   };
 }
