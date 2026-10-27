@@ -70,41 +70,60 @@ class TunerViewModel @Inject constructor(
     override suspend fun handleIntent(intent: TunerIntent) {
         when (intent) {
             is TunerIntent.Start -> onStart(intent.granted, intent.rationale)
+
             TunerIntent.Stop -> onStop()
+
             TunerIntent.StopListening -> {
                 resumeOnStart = false
                 onStop(keepResume = false)
             }
+
             is TunerIntent.Resume -> onResume(intent.granted, intent.rationale)
+
             is TunerIntent.PermissionResult -> {
                 reduce(TunerMutation.PermissionResolved(intent.granted, intent.rationale))
                 if (intent.granted) startCapture()
             }
+
             TunerIntent.ConfirmRationale -> {
                 reduce(TunerMutation.RationaleHidden)
                 sendEffect(TunerEffect.RequestMicPermission)
             }
+
             TunerIntent.DismissRationale -> reduce(TunerMutation.RationaleDismissed)
+
             TunerIntent.OpenAppSettings -> sendEffect(TunerEffect.OpenAppSettings)
+
             TunerIntent.ToggleReference -> onToggleReference()
+
             is TunerIntent.ProfileLoaded -> onProfileLoaded(intent.instrument)
+
             is TunerIntent.ConfigLoaded -> onConfigLoaded(intent.config)
+
             TunerIntent.OpenConfig -> reduce(TunerMutation.ConfigOpened)
+
             TunerIntent.CloseConfig -> reduce(TunerMutation.ConfigClosed)
+
             TunerIntent.ClearConfigError -> reduce(TunerMutation.ConfigErrorCleared)
+
             is TunerIntent.UpdateConfig -> configAction(closeOnSuccess = true) {
                 updateConfig(intent.referenceHz, intent.maxCents)
             }
+
             is TunerIntent.SavePreset -> configAction {
                 savePreset(intent.id, intent.label, intent.referenceHz, intent.maxCents)
             }
+
             is TunerIntent.DeletePreset -> configAction { deletePreset(intent.id) }
+
             is TunerIntent.SelectPreset -> configAction { selectPreset(intent.id) }
+
             is TunerIntent.SelectInstrument -> {
                 reduce(TunerMutation.InstrumentSelected(intent.instrument))
                 restartIfListening()
                 restartTone()
             }
+
             is TunerIntent.SelectString -> {
                 reduce(TunerMutation.StringSelected(intent.index))
                 restartIfListening()
@@ -200,7 +219,10 @@ class TunerViewModel @Inject constructor(
         val current = state.value
         when {
             current.isPlayingReference -> stopTone()
-            toneJob?.isActive == true -> Unit // ya esta arrancando: un segundo toque no cuenta
+
+            toneJob?.isActive == true -> Unit
+
+            // ya esta arrancando: un segundo toque no cuenta
             !current.isListening -> startTone()
         }
     }

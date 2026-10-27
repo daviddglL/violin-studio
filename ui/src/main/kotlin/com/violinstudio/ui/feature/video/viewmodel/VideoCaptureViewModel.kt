@@ -44,16 +44,24 @@ class VideoCaptureViewModel @Inject constructor(
     override suspend fun handleIntent(intent: VideoCaptureIntent) {
         when (intent) {
             is VideoCaptureIntent.Start -> onStart(intent.granted, intent.rationale)
+
             is VideoCaptureIntent.PermissionResult -> onPermission(intent.granted, intent.rationale)
+
             VideoCaptureIntent.ConfirmRationale -> {
                 reduce(VideoCaptureMutation.Prompt(null))
                 sendEffect(VideoCaptureEffect.RequestPermissions)
             }
+
             VideoCaptureIntent.DismissPrompt -> reduce(VideoCaptureMutation.Prompt(null))
+
             VideoCaptureIntent.OpenAppSettings -> sendEffect(VideoCaptureEffect.OpenAppSettings)
+
             VideoCaptureIntent.Stop -> onStop()
+
             is VideoCaptureIntent.CaptureFinalized -> onFinalized(intent.rawPath, intent.ok)
+
             VideoCaptureIntent.Leave -> onLeave()
+
             VideoCaptureIntent.DismissMessage -> reduce(VideoCaptureMutation.Message(null))
         }
     }

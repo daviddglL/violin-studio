@@ -91,15 +91,19 @@ class PracticeViewModel(
     override suspend fun handleIntent(intent: PracticeIntent) {
         when {
             intent is PracticeIntent.SessionChanged -> onSessionChanged(intent.uid, intent.instrument)
+
             intent is PracticeIntent.SessionFailed -> {
                 onSessionChanged(null, Instrument.OTHER)
                 reduce(PracticeMutation.StreamFailed(intent.failure, clearData = true))
             }
+
             intent is PracticeIntent.Retry && sessionJob?.isActive != true -> {
                 reduce(PracticeMutation.MessageDismissed)
                 observeProfileState()
             }
+
             intent.generationOrNull()?.let { it != generation } == true -> Unit
+
             state.value.ready -> handleReady(intent)
         }
     }
@@ -115,27 +119,45 @@ class PracticeViewModel(
     private suspend fun handleReady(intent: PracticeIntent) {
         when (intent) {
             is PracticeIntent.SessionChanged, is PracticeIntent.SessionFailed -> Unit
+
             PracticeIntent.Start -> onStart()
+
             PracticeIntent.Stop ->
                 if (state.value.running != null && !state.value.busy) reduce(PracticeMutation.SaveOpened)
+
             is PracticeIntent.EditNotes -> reduce(PracticeMutation.NotesEdited(intent.notes))
+
             PracticeIntent.Save -> onSave()
+
             PracticeIntent.Discard -> onDiscard()
+
             PracticeIntent.DismissSave -> reduce(PracticeMutation.SaveClosed)
+
             is PracticeIntent.SelectInstrument -> reduce(PracticeMutation.InstrumentSelected(intent.instrument))
+
             is PracticeIntent.UpdateNotes -> onUpdateNotes(intent.id, intent.notes)
+
             is PracticeIntent.RequestDelete -> reduce(PracticeMutation.DeleteRequested(intent.id))
+
             PracticeIntent.CancelDelete -> reduce(PracticeMutation.DeleteRequested(null))
+
             PracticeIntent.ConfirmDelete -> onConfirmDelete()
+
             PracticeIntent.DismissMessage -> reduce(PracticeMutation.MessageDismissed)
+
             PracticeIntent.Retry -> {
                 reduce(PracticeMutation.MessageDismissed)
                 startStreams()
             }
+
             is PracticeIntent.RunningChanged -> onRunning(intent.running)
+
             PracticeIntent.Tick -> reduce(PracticeMutation.Tick(clock.instant()))
+
             is PracticeIntent.HistoryLoaded -> reduce(PracticeMutation.HistoryLoaded(intent.history))
+
             is PracticeIntent.WeeklyLoaded -> reduce(PracticeMutation.WeeklyLoaded(intent.seconds))
+
             is PracticeIntent.StreamFailed ->
                 reduce(PracticeMutation.StreamFailed(intent.failure, intent.clearData))
         }

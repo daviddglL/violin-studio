@@ -14,9 +14,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * y solo un resultado completo y dentro de [RecordingLimits.MAX_VIDEO_BYTES] se renombra a [outputPath]. Cualquier
  * fallo o cancelacion borra el parcial. El original no se toca: lo borra quien llama, cuando ya tiene el difuminado.
  */
-class FaceBlurVideoProcessor @Inject constructor(
-    private val transcoder: BlurTranscoder
-) : VideoBlurrer {
+class FaceBlurVideoProcessor @Inject constructor(private val transcoder: BlurTranscoder) : VideoBlurrer {
     override suspend fun blur(sourcePath: String, outputPath: String): Result<BlurredVideo> {
         val source = File(sourcePath)
         val output = File(outputPath)

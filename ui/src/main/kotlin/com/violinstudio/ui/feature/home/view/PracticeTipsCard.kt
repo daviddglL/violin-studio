@@ -41,11 +41,16 @@ fun PracticeTipsCard(tips: List<PracticeTip>, modifier: Modifier = Modifier) {
 @Composable
 private fun tipText(tip: PracticeTip): String? = when (tip) {
     PracticeTip.FirstSession -> stringResource(R.string.tip_first_session)
+
     PracticeTip.ComeBack -> stringResource(R.string.tip_come_back)
+
     is PracticeTip.KeepStreak -> pluralStringResource(R.plurals.tip_keep_streak, tip.days, tip.days)
+
     is PracticeTip.CatchUpWeek -> pluralStringResource(R.plurals.tip_catch_up_week, tip.minutes, tip.minutes)
+
     is PracticeTip.LongerSessions ->
         pluralStringResource(R.plurals.tip_longer_sessions, tip.averageMinutes, tip.averageMinutes)
+
     is PracticeTip.NextLesson -> lessonTexts(tip.lesson.id)?.let {
         stringResource(R.string.tip_next_lesson, stringResource(it.title), tip.lesson.minutes)
     }

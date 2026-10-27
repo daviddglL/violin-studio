@@ -11,14 +11,21 @@ import javax.inject.Inject
 class SessionStateResolver @Inject constructor(private val appVersion: AppVersion) {
     operator fun invoke(user: AuthUser?, profile: UserProfile?, config: IdentityConfig): SessionState = when {
         user == null -> SessionState.LoggedOut
+
         needsEmailVerification(user) -> SessionState.EmailUnverified(user.email)
+
         // Antes que el perfil: una version retirada no debe llegar a escribir nada.
         config.minVersionCode > appVersion.code -> SessionState.UpdateRequired
+
         profile == null -> SessionState.NeedsProfile
+
         profile.deletionInProgress -> SessionState.Loading
+
         profile.consentStatus == ConsentStatus.PARENTAL_PENDING ->
             SessionState.ParentalPending(profile.guardian?.emailMasked, profile.guardian?.sends ?: 0)
+
         profile.isConsentCurrent(config.policyVersion) -> SessionState.Ready(profile, SessionFeatures.from(config))
+
         else -> SessionState.ConsentPending(config, profile.isMinor, profile.consentReason())
     }
 

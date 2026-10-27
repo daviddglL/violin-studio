@@ -7,10 +7,8 @@ import kotlin.math.sqrt
  * ~21-43 frames/s. Usa un [FftDifference] propio, por lo que NO es seguro entre hilos:
  * una instancia por detector.
  */
-class YinPitchDetector(
-    private val profile: DetectorProfile,
-    private val threshold: Double = DEFAULT_THRESHOLD
-) : PitchDetector {
+class YinPitchDetector(private val profile: DetectorProfile, private val threshold: Double = DEFAULT_THRESHOLD) :
+    PitchDetector {
     private val difference = FftDifference(profile.frameSize, profile.maxLag)
 
     private val centered = FloatArray(profile.frameSize)

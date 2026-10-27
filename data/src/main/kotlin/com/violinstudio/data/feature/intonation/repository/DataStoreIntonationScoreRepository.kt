@@ -20,9 +20,8 @@ import kotlinx.coroutines.flow.map
  * las borra con el resto del usuario). Leer con fallo de E-S da "sin puntuaciones"; valores de otro tipo se ignoran.
  */
 @Singleton
-class DataStoreIntonationScoreRepository @Inject constructor(
-    private val store: DataStore<Preferences>
-) : IntonationScoreRepository {
+class DataStoreIntonationScoreRepository @Inject constructor(private val store: DataStore<Preferences>) :
+    IntonationScoreRepository {
     override fun observeBest(uid: String): Flow<Map<String, Int>> {
         val prefix = UserKeys.intonationBestPrefix(uid)
         return store.data

@@ -27,6 +27,7 @@ class TestMviTest {
                 delay(100)
                 setState { copy(count = count + 1) }
             }
+
             CounterIntent.Notify -> sendEffect(CounterEffect("hola"))
         }
     }

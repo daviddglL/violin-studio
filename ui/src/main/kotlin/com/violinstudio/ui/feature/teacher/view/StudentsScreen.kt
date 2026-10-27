@@ -98,8 +98,11 @@ fun StudentsScreen(
                         }
                     )
                 }
+
                 state.loadFailed -> LoadFailed(onIntent)
+
                 state.students.isEmpty() -> Empty(state.error, onOpenCodes)
+
                 else -> StudentList(state, onIntent, onOpenStudent)
             }
         }

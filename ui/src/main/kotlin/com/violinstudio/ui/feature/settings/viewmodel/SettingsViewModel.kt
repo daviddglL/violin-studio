@@ -55,10 +55,12 @@ class SettingsViewModel @Inject constructor(
                 if (savePending || revokePending) return
                 savePending = true
             }
+
             SettingsIntent.ConfirmRevoke -> {
                 if (revokePending || savePending) return
                 revokePending = true
             }
+
             else -> Unit
         }
         super.onIntent(intent)
@@ -66,14 +68,23 @@ class SettingsViewModel @Inject constructor(
 
     override suspend fun handleIntent(intent: SettingsIntent) = when (intent) {
         is SettingsIntent.DisplayNameChanged -> reduce(SettingsMutation.DisplayNameChanged(intent.value))
+
         is SettingsIntent.InstrumentSelected -> reduce(SettingsMutation.InstrumentSelected(intent.value))
+
         is SettingsIntent.LocaleChanged -> reduce(SettingsMutation.LocaleChanged(intent.value))
+
         SettingsIntent.Save -> onSave()
+
         SettingsIntent.RevokeConsent -> reduce(SettingsMutation.RevokeAsked)
+
         SettingsIntent.CancelRevoke -> reduce(SettingsMutation.RevokeCancelled)
+
         SettingsIntent.ConfirmRevoke -> onRevoke()
+
         SettingsIntent.RetryRefresh -> onRetryRefresh()
+
         is SettingsIntent.LanguageSelected -> onLanguage(intent.value)
+
         SettingsIntent.RefreshLanguage ->
             reduce(SettingsMutation.LanguageSelected(AppLanguage.fromTags(appLocales.current())))
     }
@@ -166,23 +177,30 @@ class SettingsViewModel @Inject constructor(
     private fun Throwable.toSaveMutation(): SettingsMutation = when (this) {
         is ProfileFailure.InvalidInput -> field?.let { SettingsMutation.FieldRejected(it) }
             ?: SettingsMutation.SaveFailed(SettingsError.UNKNOWN)
+
         ProfileFailure.NotAllowed -> {
             // Claim o consentimiento obsoletos: que la sesión se reevalúe; el formulario sigue editable.
             refreshTrigger.requestRefresh()
             SettingsMutation.SaveFailed(SettingsError.NOT_ALLOWED)
         }
+
         ProfileFailure.Network -> SettingsMutation.SaveFailed(SettingsError.NETWORK)
+
         ProfileFailure.NoProfile, ProfileFailure.EmailNotVerified ->
             SettingsMutation.SaveFailed(SettingsError.UNAVAILABLE)
+
         ProfileFailure.UnderageNotAllowed, ProfileFailure.InvalidBirthDate, is ProfileFailure.Unknown ->
             SettingsMutation.SaveFailed(SettingsError.UNKNOWN)
+
         else -> SettingsMutation.SaveFailed(SettingsError.UNKNOWN)
     }
 
     private fun Throwable.toRevokeMutation(): SettingsMutation = when (this) {
         ConsentFailure.Network -> SettingsMutation.RevokeFailed(RevokeError.NETWORK)
+
         ConsentFailure.NoProfile, ConsentFailure.EmailNotVerified ->
             SettingsMutation.RevokeFailed(RevokeError.UNAVAILABLE)
+
         else -> SettingsMutation.RevokeFailed(RevokeError.UNKNOWN)
     }
 

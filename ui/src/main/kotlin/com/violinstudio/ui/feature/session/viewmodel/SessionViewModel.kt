@@ -71,7 +71,9 @@ class SessionViewModel @Inject constructor(
                     }
                 }
             }
+
             session is SessionState.LoggedOut -> pushSyncedFor = null
+
             else -> Unit
         }
     }

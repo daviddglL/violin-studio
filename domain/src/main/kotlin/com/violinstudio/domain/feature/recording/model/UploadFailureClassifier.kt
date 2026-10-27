@@ -43,12 +43,18 @@ object UploadFailureClassifier {
 
     fun classify(error: UploadError): UploadDecision = when (error) {
         UploadError.Network, UploadError.RetryLimitExceeded -> UploadDecision.Retry
+
         UploadError.ObjectAlreadyExists -> UploadDecision.AlreadyUploaded
+
         UploadError.QuotaExceeded -> UploadDecision.Fail(FailReason.QUOTA)
+
         UploadError.TooLarge -> UploadDecision.Fail(FailReason.SIZE)
+
         UploadError.Other -> UploadDecision.Fail(FailReason.UNKNOWN)
+
         is UploadError.Unauthorized ->
             if (error.consentRevoked) UploadDecision.ConsentRevoked else UploadDecision.Fail(FailReason.PERMISSION)
+
         is UploadError.Http -> when (error.code) {
             PRECONDITION_FAILED -> UploadDecision.AlreadyUploaded
             REQUEST_TIMEOUT, TOO_MANY_REQUESTS, in SERVER_ERRORS -> UploadDecision.Retry

@@ -114,6 +114,7 @@ fun StudentDetailScreen(
             }
             when {
                 state.isLoading -> item { Loading() }
+
                 state.unavailable -> item {
                     Text(
                         stringResource(R.string.teacher_student_detail_unavailable),
@@ -121,7 +122,9 @@ fun StudentDetailScreen(
                             .semantics { liveRegion = LiveRegionMode.Polite }
                     )
                 }
+
                 state.loadFailed -> item { LoadFailed(onIntent) }
+
                 else -> content(state, weekly, zone, onOpenAssignments, onOpenRecordings, onOpenChat)
             }
         }

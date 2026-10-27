@@ -37,7 +37,9 @@ object PracticeTips {
         val practicedToday = (stats.last7Days.lastOrNull()?.seconds ?: 0) > 0
         when {
             stats.sessionCount == 0 -> add(PracticeTip.FirstSession)
+
             stats.last7Days.all { it.seconds == 0 } -> add(PracticeTip.ComeBack)
+
             !practicedToday && stats.currentStreakDays >= MIN_STREAK_DAYS ->
                 add(PracticeTip.KeepStreak(stats.currentStreakDays))
         }

@@ -122,10 +122,12 @@ private fun Exercise(state: IntonationState, onIntent: (IntonationIntent) -> Uni
             onClick = { onIntent(IntonationIntent.OpenAppSettings) },
             modifier = Modifier.fillMaxWidth().testTag(INTONATION_SETTINGS_TAG)
         ) { Text(stringResource(R.string.tuner_open_settings)) }
+
         state.isListening -> OutlinedButton(
             onClick = { onIntent(IntonationIntent.Pause) },
             modifier = Modifier.fillMaxWidth().testTag(INTONATION_PAUSE_TAG)
         ) { Text(stringResource(R.string.intonation_pause)) }
+
         else -> Button(onClick = onStart, modifier = Modifier.fillMaxWidth().testTag(INTONATION_START_TAG)) {
             Text(stringResource(if (state.index == 0) R.string.intonation_start else R.string.intonation_continue))
         }

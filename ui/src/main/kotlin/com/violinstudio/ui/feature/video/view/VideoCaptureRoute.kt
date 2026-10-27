@@ -52,17 +52,22 @@ fun VideoCaptureRoute(onBack: () -> Unit, viewModel: VideoCaptureViewModel = hil
         when (effect) {
             VideoCaptureEffect.RequestPermissions ->
                 launcher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
+
             VideoCaptureEffect.OpenAppSettings -> context.startActivity(
                 Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.fromParts("package", context.packageName, null)
                 )
             )
+
             is VideoCaptureEffect.BeginCapture -> camera.start(effect.rawPath, effect.maxDurationMs) { path, ok ->
                 viewModel.onIntent(VideoCaptureIntent.CaptureFinalized(path, ok))
             }
+
             VideoCaptureEffect.EndCapture -> camera.stop()
+
             VideoCaptureEffect.CancelCapture -> camera.cancel()
+
             VideoCaptureEffect.Saved -> onBack()
         }
     }

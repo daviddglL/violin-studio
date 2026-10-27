@@ -43,7 +43,9 @@ class MviViewModelTest {
                 delay(intent.delayMs)
                 setState { copy(log = log + intent.value) }
             }
+
             TestIntent.Increment -> setState { copy(count = count + 1) }
+
             is TestIntent.Emit -> sendEffect(TestEffect(intent.value))
         }
     }

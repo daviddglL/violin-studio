@@ -7,8 +7,10 @@ import com.violinstudio.domain.feature.assignment.failure.AssignmentFailure
 object AssignmentErrorMapper {
     fun map(error: Throwable): AssignmentFailure = when {
         error is AssignmentFailure -> error
+
         error is FirebaseFirestoreException && error.code == Code.PERMISSION_DENIED ->
             AssignmentFailure.PermissionDenied
+
         else -> AssignmentFailure.Unknown
     }
 }

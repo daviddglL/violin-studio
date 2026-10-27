@@ -84,10 +84,12 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit, onBack: () -> U
             )
             when {
                 state.isLoading -> LoadingIndicator()
+
                 state.disabled -> Text(
                     stringResource(R.string.chat_disabled),
                     modifier = Modifier.testTag(CHAT_DISABLED_TAG)
                 )
+
                 state.loadFailed -> {
                     Text(
                         stringResource(R.string.chat_load_failed),
@@ -101,6 +103,7 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit, onBack: () -> U
                         Text(stringResource(R.string.link_retry))
                     }
                 }
+
                 else -> Conversation(state, onIntent, Modifier.weight(1f))
             }
         }

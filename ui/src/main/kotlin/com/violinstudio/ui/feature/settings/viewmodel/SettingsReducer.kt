@@ -11,29 +11,44 @@ object SettingsReducer {
             val untouched = !state.loaded || state.fields == state.baseline
             state.copy(baseline = mutation.fields, fields = if (untouched) mutation.fields else state.fields)
         }
+
         is SettingsMutation.DisplayNameChanged ->
             state.edited(ProfileField.DISPLAY_NAME) { it.copy(displayName = mutation.value) }
+
         is SettingsMutation.InstrumentSelected ->
             state.edited(ProfileField.INSTRUMENT) { it.copy(instrument = mutation.value) }
+
         is SettingsMutation.LocaleChanged -> state.edited(ProfileField.LOCALE) { it.copy(locale = mutation.value) }
+
         SettingsMutation.SaveRequested -> {
             val errors = validate(state.fields)
             state.copy(fieldErrors = errors, error = null, saved = false, isSaving = errors.isEmpty())
         }
+
         is SettingsMutation.Saved ->
             state.copy(isSaving = false, saved = true, baseline = mutation.fields, fields = mutation.fields)
+
         is SettingsMutation.FieldRejected ->
             state.copy(isSaving = false, fieldErrors = state.fieldErrors + mutation.field)
+
         is SettingsMutation.SaveFailed -> state.copy(isSaving = false, error = mutation.error)
+
         SettingsMutation.RevokeAsked ->
             state.copy(confirmingRevoke = state.confirmingRevoke || state.canRevoke, saved = false)
+
         SettingsMutation.RevokeCancelled -> state.copy(confirmingRevoke = false)
+
         SettingsMutation.RevokeStarted -> state.copy(confirmingRevoke = false, isRevoking = true, revokeError = null)
+
         SettingsMutation.RevokeSucceeded -> state.copy(isRevoking = false, revoked = true)
+
         is SettingsMutation.RevokeFailed -> state.copy(isRevoking = false, revokeError = mutation.error)
+
         SettingsMutation.RevokeStalled ->
             if (state.revoked) state.copy(revoked = false, revokeStalled = true) else state
+
         is SettingsMutation.LanguageSelected -> state.copy(language = mutation.value)
+
         SettingsMutation.RefreshRetried ->
             if (state.revokeStalled) state.copy(revokeStalled = false, revoked = true) else state
     }

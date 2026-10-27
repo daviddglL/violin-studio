@@ -126,7 +126,9 @@ fun TeacherCodesScreen(state: TeacherCodesState, onIntent: (TeacherCodesIntent) 
                         }
                     )
                 }
+
                 state.loadFailed -> LoadFailed(onIntent)
+
                 else -> Content(state, onIntent)
             }
         }

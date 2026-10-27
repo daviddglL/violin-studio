@@ -89,11 +89,16 @@ class RegisterViewModel @Inject constructor(
 
     private fun Throwable.toMutation(): RegisterMutation = when (this) {
         AuthFailure.WeakPassword -> RegisterMutation.Rejected(null, RegisterFieldError.PASSWORD_WEAK)
+
         AuthFailure.InvalidEmail -> RegisterMutation.Rejected(RegisterFieldError.EMAIL_INVALID, null)
+
         AuthFailure.EmailAlreadyInUse, AuthFailure.AccountExistsWithOtherProvider ->
             RegisterMutation.Failed(RegisterError.ACCOUNT_UNAVAILABLE)
+
         AuthFailure.TooManyRequests -> RegisterMutation.Failed(RegisterError.TOO_MANY_REQUESTS)
+
         AuthFailure.Network -> RegisterMutation.Failed(RegisterError.NETWORK)
+
         else -> RegisterMutation.Failed(RegisterError.UNKNOWN)
     }
 

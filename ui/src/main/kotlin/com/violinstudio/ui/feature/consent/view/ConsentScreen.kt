@@ -161,13 +161,17 @@ private fun versioned(id: Int, version: Int?): String =
 @Composable
 private fun ConsentError.message(version: Int?): String = when (this) {
     ConsentError.NETWORK -> stringResource(R.string.consent_error_network)
+
     ConsentError.POLICY_CHANGED ->
         if (version != null) {
             stringResource(R.string.consent_error_policy_changed, version)
         } else {
             stringResource(R.string.consent_error_policy_unavailable)
         }
+
     ConsentError.POLICY_UNAVAILABLE -> stringResource(R.string.consent_error_policy_unavailable)
+
     ConsentError.GUARDIAN_REQUIRED -> stringResource(R.string.consent_error_guardian)
+
     ConsentError.UNKNOWN -> stringResource(R.string.consent_error_unknown)
 }

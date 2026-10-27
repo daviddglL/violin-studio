@@ -33,6 +33,7 @@ class OnboardingViewModel @Inject constructor(
                 if (submitPending) return
                 submitPending = true
             }
+
             else -> Unit
         }
         super.onIntent(intent)
@@ -40,11 +41,16 @@ class OnboardingViewModel @Inject constructor(
 
     override suspend fun handleIntent(intent: OnboardingIntent) = when (intent) {
         is OnboardingIntent.DisplayNameChanged -> reduce(OnboardingMutation.DisplayNameChanged(intent.value))
+
         is OnboardingIntent.InstrumentSelected -> reduce(OnboardingMutation.InstrumentSelected(intent.value))
+
         is OnboardingIntent.BirthDateChanged ->
             reduce(OnboardingMutation.BirthDateChanged(intent.day, intent.month, intent.year))
+
         OnboardingIntent.Submit -> onSubmit()
+
         OnboardingIntent.SignOut -> onSignOut()
+
         is OnboardingIntent.DeleteActiveChanged -> reduce(OnboardingMutation.DeleteActiveChanged(intent.active))
     }
 
@@ -90,10 +96,14 @@ class OnboardingViewModel @Inject constructor(
 
     private fun Throwable.toMutation(): OnboardingMutation = when (this) {
         ProfileFailure.UnderageNotAllowed -> OnboardingMutation.Failed(OnboardingError.UNDERAGE_NOT_ALLOWED)
+
         ProfileFailure.InvalidBirthDate -> OnboardingMutation.FieldRejected(ProfileField.BIRTH_DATE)
+
         is ProfileFailure.InvalidInput -> field?.let { OnboardingMutation.FieldRejected(it) }
             ?: OnboardingMutation.Failed(OnboardingError.UNKNOWN)
+
         ProfileFailure.Network -> OnboardingMutation.Failed(OnboardingError.NETWORK)
+
         else -> OnboardingMutation.Failed(OnboardingError.UNKNOWN)
     }
 

@@ -41,6 +41,7 @@ fun TunerRoute(onBack: () -> Unit, viewModel: TunerViewModel = hiltViewModel()) 
     ObserveAsEvents(viewModel.effects) { effect ->
         when (effect) {
             TunerEffect.RequestMicPermission -> launcher.launch(Manifest.permission.RECORD_AUDIO)
+
             TunerEffect.OpenAppSettings -> context.startActivity(
                 Intent(
                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,

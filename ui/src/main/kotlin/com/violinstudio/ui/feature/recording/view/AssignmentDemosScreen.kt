@@ -54,6 +54,7 @@ fun AssignmentDemosScreen(state: AssignmentDemosState, onIntent: (AssignmentDemo
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             when {
                 state.isLoading -> LoadingIndicator()
+
                 state.loadFailed -> {
                     Text(
                         stringResource(R.string.assignment_demos_load_failed),
@@ -66,10 +67,12 @@ fun AssignmentDemosScreen(state: AssignmentDemosState, onIntent: (AssignmentDemo
                         modifier = Modifier.testTag(ASSIGNMENT_DEMOS_RETRY_TAG)
                     ) { Text(stringResource(R.string.link_retry)) }
                 }
+
                 state.demos.isEmpty() -> Text(
                     stringResource(R.string.assignment_demos_empty),
                     modifier = Modifier.testTag(ASSIGNMENT_DEMOS_EMPTY_TAG)
                 )
+
                 else -> state.demos.forEach { demo ->
                     Card(Modifier.fillMaxWidth().testTag(recordingTag(demo.id))) {
                         Column(Modifier.padding(12.dp)) {

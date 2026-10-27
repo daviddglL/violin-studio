@@ -6,9 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
-    private val checkHealth: CheckHealthUseCase
-) : MviViewModel<HomeState, HomeIntent, HomeEffect>(HomeState()) {
+class HomeViewModel @Inject constructor(private val checkHealth: CheckHealthUseCase) :
+    MviViewModel<HomeState, HomeIntent, HomeEffect>(HomeState()) {
 
     override suspend fun handleIntent(intent: HomeIntent) = when (intent) {
         HomeIntent.CheckHealth -> onCheckHealth()

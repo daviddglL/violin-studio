@@ -111,12 +111,15 @@ fun TeacherAssignmentsScreen(
             )
             when {
                 state.isLoading -> AssignmentLoading(TEACHER_TASKS_LOADING_TAG)
+
                 state.unavailable -> Text(
                     stringResource(R.string.assignment_teacher_unavailable),
                     modifier = Modifier.testTag(TEACHER_TASKS_UNAVAILABLE_TAG)
                         .semantics { liveRegion = LiveRegionMode.Polite }
                 )
+
                 state.loadFailed -> LoadFailed(onIntent)
+
                 else -> Content(state, onIntent, onCreate, onEdit, zone, onDemo)
             }
         }

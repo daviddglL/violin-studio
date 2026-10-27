@@ -29,10 +29,7 @@ private fun Flow<AuthUser?>.links(observe: (String) -> Flow<List<TeacherLink>>):
     }
 
 /** El vínculo más antiguo del alumno, o `null` si es independiente. */
-class ObserveMyTeacherUseCase @Inject constructor(
-    private val auth: AuthRepository,
-    private val repo: LinkRepository
-) {
+class ObserveMyTeacherUseCase @Inject constructor(private val auth: AuthRepository, private val repo: LinkRepository) {
     private val oldestFirst = compareBy<TeacherLink> { it.createdAt }.thenBy { it.teacherUid }
 
     operator fun invoke(): Flow<TeacherLink?> =
@@ -40,10 +37,7 @@ class ObserveMyTeacherUseCase @Inject constructor(
 }
 
 /** Alumnos del profesor por nombre, sin distinguir mayúsculas. */
-class ObserveMyStudentsUseCase @Inject constructor(
-    private val auth: AuthRepository,
-    private val repo: LinkRepository
-) {
+class ObserveMyStudentsUseCase @Inject constructor(private val auth: AuthRepository, private val repo: LinkRepository) {
     operator fun invoke(): Flow<List<TeacherLink>> = auth.authUser.links(repo::observeAsTeacher).map { list ->
         list.sortedBy { it.studentDisplayName.lowercase() }
     }

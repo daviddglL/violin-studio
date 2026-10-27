@@ -32,21 +32,15 @@ sealed interface RecordingAccess {
      * concederlo (por correo). [version]: la que se acepta al conceder. [guardianPending]: ya se pidio al tutor y
      * esta pendiente de su respuesta.
      */
-    data class NeedsConsent(
-        val selfGrant: Boolean,
-        val version: Int,
-        val guardianPending: Boolean = false
-    ) : RecordingAccess
+    data class NeedsConsent(val selfGrant: Boolean, val version: Int, val guardianPending: Boolean = false) :
+        RecordingAccess
 
     /**
      * Se puede grabar. [maxDurationMs] por rol; [quotaFull] con 20 grabaciones vivas o en cola; [videoEnabled] si
      * ademas se ofrece grabar video (flag `VIDEO_ENABLED`).
      */
-    data class Allowed(
-        val maxDurationMs: Long,
-        val quotaFull: Boolean,
-        val videoEnabled: Boolean = false
-    ) : RecordingAccess
+    data class Allowed(val maxDurationMs: Long, val quotaFull: Boolean, val videoEnabled: Boolean = false) :
+        RecordingAccess
 }
 
 /** Cola local + grabaciones del servidor del usuario [uid]; una toma que ya esta en el servidor no se repite. */

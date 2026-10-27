@@ -61,8 +61,11 @@ class MyTeacherViewModel @Inject constructor(
         MyTeacherIntent.RequestUnlink -> setState {
             if (teacher == null || isUnlinking) this else copy(confirmingUnlink = true, error = null)
         }
+
         MyTeacherIntent.CancelUnlink -> setState { if (isUnlinking) this else copy(confirmingUnlink = false) }
+
         MyTeacherIntent.ConfirmUnlink -> confirmUnlink()
+
         MyTeacherIntent.Retry -> retry()
     }
 

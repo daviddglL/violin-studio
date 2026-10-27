@@ -200,12 +200,14 @@ private fun LessonCard(
 private fun ToolButton(id: String, tool: LessonTool, navigation: CurriculumNavigation) {
     when (tool) {
         LessonTool.None -> Unit
+
         LessonTool.Tuner -> OutlinedButton(
             onClick = navigation.onOpenTuner,
             modifier = Modifier.testTag(lessonToolTag(id))
         ) {
             Text(stringResource(R.string.curriculum_open_tuner))
         }
+
         is LessonTool.Metronome -> OutlinedButton(
             onClick = navigation.onOpenMetronome,
             modifier = Modifier.testTag(lessonToolTag(id))

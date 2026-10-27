@@ -8,9 +8,7 @@ import javax.inject.Singleton
 
 /** `commit()` (no `apply()`): la marca debe estar en disco aunque el proceso muera justo despues del borrado. */
 @Singleton
-class SharedPrefsCachePurgeFlag @Inject constructor(
-    @ApplicationContext context: Context
-) : CachePurgeFlag {
+class SharedPrefsCachePurgeFlag @Inject constructor(@ApplicationContext context: Context) : CachePurgeFlag {
     private val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     override fun request() {

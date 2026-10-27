@@ -54,10 +54,12 @@ class TeacherCodesViewModel internal constructor(
                 if (creating || !state.value.canCreate) return
                 creating = true
             }
+
             TeacherCodesIntent.ConfirmRevoke -> {
                 if (revoking) return
                 revoking = true
             }
+
             else -> Unit
         }
         super.onIntent(intent)
@@ -65,19 +67,27 @@ class TeacherCodesViewModel internal constructor(
 
     override suspend fun handleIntent(intent: TeacherCodesIntent) = when (intent) {
         TeacherCodesIntent.Create -> create()
+
         TeacherCodesIntent.DismissCreated -> dismissCreated()
+
         TeacherCodesIntent.Copy -> state.value.created?.code?.let { code ->
             setState { copy(copied = true) }
             sendEffect(TeacherCodesEffect.CopyToClipboard(code))
         } ?: Unit
+
         TeacherCodesIntent.Share -> state.value.created?.code?.let { sendEffect(TeacherCodesEffect.ShareCode(it)) }
             ?: Unit
+
         is TeacherCodesIntent.RequestRevoke -> setState {
             if (isRevoking) this else copy(revokeTarget = intent.code.copy(code = null), error = null)
         }
+
         TeacherCodesIntent.CancelRevoke -> setState { if (isRevoking) this else copy(revokeTarget = null) }
+
         TeacherCodesIntent.ConfirmRevoke -> revoke()
+
         TeacherCodesIntent.Retry -> retry()
+
         TeacherCodesIntent.Refresh -> if (state.value.run { !isLoading && !loadFailed }) load(silent = true) else Unit
     }
 

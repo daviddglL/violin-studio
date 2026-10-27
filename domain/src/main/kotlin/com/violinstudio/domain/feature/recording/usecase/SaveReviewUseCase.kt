@@ -8,10 +8,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 
 /** El texto se recorta y se limita a [Review.MAX_TEXT] antes de llegar a las reglas (que lo repiten). */
-class SaveReviewUseCase @Inject constructor(
-    private val auth: AuthRepository,
-    private val reviews: RecordingReviews
-) {
+class SaveReviewUseCase @Inject constructor(private val auth: AuthRepository, private val reviews: RecordingReviews) {
     suspend operator fun invoke(studentUid: String, recordingId: String, verdict: Verdict, text: String): Result<Unit> {
         val reviewer = auth.authUser.first()?.uid ?: return Result.failure(IllegalStateException("Sin sesion"))
         val clean = text.trim()

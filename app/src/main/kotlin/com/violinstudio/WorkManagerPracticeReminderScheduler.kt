@@ -14,9 +14,8 @@ import javax.inject.Inject
  * Un unico trabajo con nombre ([WORK_NAME]) y espera inicial hasta la hora del aviso; sin restricciones (el aviso es
  * local). Un trabajo de un solo uso por dia, no periodico, para que siga la hora local aunque cambie la zona o la hora.
  */
-class WorkManagerPracticeReminderScheduler @Inject constructor(
-    @ApplicationContext private val context: Context
-) : PracticeReminderScheduler {
+class WorkManagerPracticeReminderScheduler @Inject constructor(@ApplicationContext private val context: Context) :
+    PracticeReminderScheduler {
     override fun schedule(delay: Duration, afterCurrent: Boolean) {
         val request = OneTimeWorkRequestBuilder<PracticeReminderWorker>()
             .setInitialDelay(delay.toMillis(), TimeUnit.MILLISECONDS)

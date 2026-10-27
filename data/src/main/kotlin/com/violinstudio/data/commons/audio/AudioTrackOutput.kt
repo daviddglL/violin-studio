@@ -162,7 +162,9 @@ class AudioTrackOutput @Inject constructor(
             val n = session.track.write(buffer, offset, buffer.size - offset)
             when {
                 n < 0 -> throw TunerFailure.AudioOutputUnavailable
+
                 n == 0 -> if (++zeroWrites >= MAX_ZERO_WRITES) throw TunerFailure.AudioOutputUnavailable
+
                 else -> {
                     zeroWrites = 0
                     offset += n

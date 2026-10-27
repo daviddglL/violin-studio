@@ -22,9 +22,8 @@ import kotlinx.coroutines.flow.map
  * [TunerFailure.StorageUnavailable], para que el dominio no conozca `java.io` y el afinador nunca caiga por el disco.
  */
 @Singleton
-class DataStoreTunerConfigRepository @Inject constructor(
-    private val store: DataStore<Preferences>
-) : TunerConfigRepository {
+class DataStoreTunerConfigRepository @Inject constructor(private val store: DataStore<Preferences>) :
+    TunerConfigRepository {
     override fun observe(uid: String): Flow<TunerConfig> = store.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { TunerConfigParser.read(it, uid) }

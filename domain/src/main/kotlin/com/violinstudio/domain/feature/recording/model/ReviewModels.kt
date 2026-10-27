@@ -14,12 +14,7 @@ enum class Verdict(val wire: String) {
  * Revision de una grabacion. [fromTeacher] `false` en una revision anonimizada (el profesor borro su cuenta: el texto
  * se conserva sin autor). El texto es del profesor para el alumno: no sale en `toString`.
  */
-data class Review(
-    val verdict: Verdict,
-    val text: String,
-    val updatedAtMs: Long?,
-    val fromTeacher: Boolean = true
-) {
+data class Review(val verdict: Verdict, val text: String, val updatedAtMs: Long?, val fromTeacher: Boolean = true) {
     override fun toString(): String = "Review(verdict=$verdict)"
 
     companion object {

@@ -32,10 +32,12 @@ class GuardianRequestViewModel @Inject constructor(
                 if (busy) return
                 submitPending = true
             }
+
             GuardianRequestIntent.SignOut -> {
                 if (busy) return
                 signOutPending = true
             }
+
             else -> Unit
         }
         super.onIntent(intent)
@@ -43,9 +45,13 @@ class GuardianRequestViewModel @Inject constructor(
 
     override suspend fun handleIntent(intent: GuardianRequestIntent) = when (intent) {
         is GuardianRequestIntent.SessionUpdated -> reduce(GuardianRequestMutation.SessionUpdated(intent.reason))
+
         is GuardianRequestIntent.EmailChanged -> reduce(GuardianRequestMutation.EmailChanged(intent.email))
+
         GuardianRequestIntent.SubmitGuardianEmail -> onSubmit()
+
         GuardianRequestIntent.SignOut -> onSignOut()
+
         is GuardianRequestIntent.DeleteActiveChanged ->
             reduce(GuardianRequestMutation.DeleteActiveChanged(intent.active))
     }
@@ -72,11 +78,13 @@ class GuardianRequestViewModel @Inject constructor(
     private fun failureMutation(failure: Throwable): GuardianRequestMutation =
         when (val outcome = failure.toGuardianOutcome()) {
             GuardianOutcome.EmailRejected -> GuardianRequestMutation.EmailRejected
+
             GuardianOutcome.AlreadyApproved -> {
                 // La sesión puede no haberlo visto aún: que se resuelva de nuevo.
                 refreshTrigger.requestRefresh()
                 GuardianRequestMutation.AlreadyApproved
             }
+
             is GuardianOutcome.Failed -> GuardianRequestMutation.Failed(outcome.error, outcome.retryAfterSeconds)
         }
 

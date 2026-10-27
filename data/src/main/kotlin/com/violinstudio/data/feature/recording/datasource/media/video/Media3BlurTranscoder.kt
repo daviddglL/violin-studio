@@ -30,9 +30,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * logs; no se prueba en JVM.
  */
 @OptIn(UnstableApi::class)
-class Media3BlurTranscoder @Inject constructor(
-    @param:ApplicationContext private val context: Context
-) : BlurTranscoder {
+class Media3BlurTranscoder @Inject constructor(@param:ApplicationContext private val context: Context) :
+    BlurTranscoder {
     override suspend fun export(source: File, output: File): Long {
         val thread = HandlerThread("video-blur").apply { start() }
         val handler = Handler(thread.looper)

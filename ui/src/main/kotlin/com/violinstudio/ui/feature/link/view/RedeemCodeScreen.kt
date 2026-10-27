@@ -157,17 +157,25 @@ private fun ErrorText(error: RedeemError) {
 @Composable
 private fun RedeemError.message(): String = when (this) {
     RedeemError.InvalidCode -> stringResource(R.string.link_error_invalid_code)
+
     is RedeemError.RateLimited ->
         if (minutes != null) {
             stringResource(R.string.link_error_rate_limited, minutes)
         } else {
             stringResource(R.string.link_error_rate_limited_unknown)
         }
+
     RedeemError.TeacherFull -> stringResource(R.string.link_error_teacher_full)
+
     RedeemError.AlreadyLinked -> stringResource(R.string.link_error_already_linked)
+
     RedeemError.NoticeOutdated -> stringResource(R.string.link_error_notice_outdated)
+
     RedeemError.NotEligible -> stringResource(R.string.link_error_not_eligible)
+
     RedeemError.Offline -> stringResource(R.string.link_error_offline)
+
     RedeemError.TemporarilyUnavailable -> stringResource(R.string.link_error_temporarily_unavailable)
+
     RedeemError.Unknown -> stringResource(R.string.link_error_unknown)
 }

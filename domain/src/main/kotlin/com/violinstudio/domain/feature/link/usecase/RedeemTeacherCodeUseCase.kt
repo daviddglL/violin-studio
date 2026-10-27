@@ -12,10 +12,7 @@ import javax.inject.Inject
  * Normaliza y valida el código antes de tocar la red (REQ-LNK-03). Tras canjear refresca los claims en la medida
  * de lo posible (un intento): el canje ya está hecho en el servidor y el rol de sesión sale del perfil.
  */
-class RedeemTeacherCodeUseCase @Inject constructor(
-    private val repo: LinkRepository,
-    private val auth: AuthRepository
-) {
+class RedeemTeacherCodeUseCase @Inject constructor(private val repo: LinkRepository, private val auth: AuthRepository) {
     /** Devuelve el uid del profesor vinculado. */
     suspend operator fun invoke(rawCode: String, ackVersion: Int): Result<String> {
         val code = TeacherCodeInput.normalize(rawCode) ?: return Result.failure(LinkFailure.InvalidCode)

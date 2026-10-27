@@ -12,9 +12,9 @@ import org.junit.jupiter.api.extension.ExtensionContext
 
 /** Sustituye Dispatchers.Main por un TestDispatcher; runTest reutiliza su scheduler. */
 @OptIn(ExperimentalCoroutinesApi::class)
-class MainDispatcherExtension(
-    val dispatcher: TestDispatcher = StandardTestDispatcher()
-) : BeforeEachCallback, AfterEachCallback {
+class MainDispatcherExtension(val dispatcher: TestDispatcher = StandardTestDispatcher()) :
+    BeforeEachCallback,
+    AfterEachCallback {
     override fun beforeEach(context: ExtensionContext) = Dispatchers.setMain(dispatcher)
 
     override fun afterEach(context: ExtensionContext) = Dispatchers.resetMain()

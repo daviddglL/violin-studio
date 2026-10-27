@@ -17,9 +17,8 @@ import javax.inject.Inject
  * WorkManager lo repite con espera exponencial desde [BACKOFF_SECONDS]. Sin servicio en primer plano: un video de
  * hasta 60 MB que no acabe en una ejecucion sigue en la siguiente desde la sesion reanudable de Storage.
  */
-class WorkManagerUploadScheduler @Inject constructor(
-    @ApplicationContext private val context: Context
-) : UploadScheduler {
+class WorkManagerUploadScheduler @Inject constructor(@ApplicationContext private val context: Context) :
+    UploadScheduler {
     override fun schedule(restart: Boolean) {
         val request = OneTimeWorkRequestBuilder<UploadQueueWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())

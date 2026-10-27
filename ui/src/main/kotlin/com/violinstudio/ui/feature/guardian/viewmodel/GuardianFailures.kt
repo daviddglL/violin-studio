@@ -13,19 +13,26 @@ internal sealed interface GuardianOutcome {
 /** Cada [ConsentFailure] cae en un resultado explícito: terminal (UNAVAILABLE) o reintentable. */
 internal fun Throwable.toGuardianOutcome(): GuardianOutcome = when (this) {
     ConsentFailure.GuardianEmailInvalid -> GuardianOutcome.EmailRejected
+
     is ConsentFailure.InvalidArgument ->
         if (field == "guardianEmail") {
             GuardianOutcome.EmailRejected
         } else {
             GuardianOutcome.Failed(GuardianRequestError.UNKNOWN)
         }
+
     ConsentFailure.UnderageNotAllowed,
     ConsentFailure.NoProfile,
     ConsentFailure.EmailNotVerified -> GuardianOutcome.Failed(GuardianRequestError.UNAVAILABLE)
+
     ConsentFailure.AlreadyGranted -> GuardianOutcome.AlreadyApproved
+
     is ConsentFailure.RateLimited -> GuardianOutcome.Failed(GuardianRequestError.RATE_LIMITED, retryAfterSeconds)
+
     ConsentFailure.NotMinor -> GuardianOutcome.Failed(GuardianRequestError.NOT_MINOR)
+
     ConsentFailure.Network -> GuardianOutcome.Failed(GuardianRequestError.NETWORK)
+
     else -> GuardianOutcome.Failed(GuardianRequestError.UNKNOWN)
 }
 

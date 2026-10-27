@@ -19,13 +19,20 @@ object StorageErrorMapper {
 
     fun map(errorCode: Int, httpCode: Int, networkCause: Boolean): UploadError = when {
         errorCode == ERROR_RETRY_LIMIT_EXCEEDED -> UploadError.RetryLimitExceeded
+
         errorCode == ERROR_QUOTA_EXCEEDED -> UploadError.QuotaExceeded
+
         errorCode == ERROR_NOT_AUTHENTICATED || errorCode == ERROR_NOT_AUTHORIZED ->
             UploadError.Unauthorized(consentRevoked = false)
+
         httpCode == PRECONDITION_FAILED -> UploadError.ObjectAlreadyExists
+
         httpCode == PAYLOAD_TOO_LARGE -> UploadError.TooLarge
+
         httpCode >= HTTP_ERRORS -> UploadError.Http(httpCode)
+
         networkCause -> UploadError.Network
+
         else -> UploadError.Other
     }
 }
