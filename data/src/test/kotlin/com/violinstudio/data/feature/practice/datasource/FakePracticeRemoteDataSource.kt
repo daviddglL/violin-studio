@@ -9,6 +9,7 @@ class FakePracticeRemoteDataSource : PracticeRemoteDataSource {
     var observeFailure: Exception? = null
     var writeFailure: Exception? = null
     var existing = emptySet<String>()
+    var totals: Pair<Long, Long>? = null
     val observed = mutableListOf<Pair<String, Int>>()
     val creates = mutableListOf<Triple<String, String, Map<String, Any>>>()
     val updates = mutableListOf<Triple<String, String, Map<String, Any>>>()
@@ -19,6 +20,8 @@ class FakePracticeRemoteDataSource : PracticeRemoteDataSource {
         observeFailure?.let { throw it }
         snapshots.collect { emit(it) }
     }
+
+    override suspend fun totals(uid: String): Pair<Long, Long> = totals ?: throw IllegalStateException("offline")
 
     override suspend fun exists(uid: String, id: String) = id in existing
 

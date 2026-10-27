@@ -40,6 +40,7 @@ import com.violinstudio.ui.feature.auth.view.AuthScaffold
 import com.violinstudio.ui.feature.metronome.viewmodel.MetronomeError
 import com.violinstudio.ui.feature.metronome.viewmodel.MetronomeIntent
 import com.violinstudio.ui.feature.metronome.viewmodel.MetronomeState
+import com.violinstudio.ui.feature.practice.view.ToolPracticeCard
 import kotlin.math.roundToInt
 
 const val METRONOME_TAG = "metronome"
@@ -75,6 +76,11 @@ fun MetronomeScreen(state: MetronomeState, onIntent: (MetronomeIntent) -> Unit, 
         }
         Spacer(Modifier.height(16.dp))
         Actions(state, onIntent)
+        ToolPracticeCard(
+            state.toolPractice,
+            onSave = { onIntent(MetronomeIntent.SaveToolPractice) },
+            onDismiss = { onIntent(MetronomeIntent.DismissToolPractice) }
+        )
         TextButton(onClick = onBack, modifier = Modifier.testTag(METRONOME_BACK_TAG)) {
             Text(stringResource(R.string.metronome_back))
         }

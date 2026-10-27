@@ -28,11 +28,11 @@ export const ADULT_AGE = 18;
 /** Vínculo profesor-alumno (design §3.1). */
 export const LINK_NOTICE_VERSION = 2;
 /**
- * Versiones del aviso que el canje aun acepta. La v2 menciona el progreso del curriculo; la 1 se mantiene para que
- * las builds anteriores sigan canjeando mientras se actualizan. Quitar la 1 cuando ya no haya builds antiguas
- * (el vinculo guarda `ackVersion`, asi que se sabe quien acepto cada una).
+ * Versiones del aviso que el canje acepta. Solo la v2 (menciona el progreso del curriculo): la 1 se retiro antes del
+ * primer despliegue con la versión mínima, que obliga a actualizar las builds que aún la enviaban. Los vínculos ya
+ * creados guardan su `ackVersion` y no se tocan.
  */
-export const ACCEPTED_LINK_NOTICE_VERSIONS: readonly number[] = [1, LINK_NOTICE_VERSION];
+export const ACCEPTED_LINK_NOTICE_VERSIONS: readonly number[] = [LINK_NOTICE_VERSION];
 export const MAX_STUDENTS_PER_TEACHER = 30;
 export const MAX_TEACHERS_PER_STUDENT = 1;
 export const TEACHER_CODE_TTL_DAYS = 7;

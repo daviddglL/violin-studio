@@ -6,6 +6,7 @@ import com.violinstudio.domain.feature.metronome.model.TimeSignature
 import com.violinstudio.ui.commons.mvi.UiEffect
 import com.violinstudio.ui.commons.mvi.UiIntent
 import com.violinstudio.ui.commons.mvi.UiState
+import com.violinstudio.ui.feature.practice.viewmodel.ToolPracticeUi
 
 enum class MetronomeError { OUTPUT_UNAVAILABLE, UNKNOWN }
 
@@ -16,7 +17,9 @@ data class MetronomeState(
     val isPlaying: Boolean = false,
     /** Tiempo que suena ahora (de los frames reproducidos); `null` parado o antes del primer clic. */
     val tick: BeatTick? = null,
-    val error: MetronomeError? = null
+    val error: MetronomeError? = null,
+    /** Al pararlo tras 1 min o mas, la oferta de guardarlo como practica. */
+    val toolPractice: ToolPracticeUi = ToolPracticeUi()
 ) : UiState
 
 sealed interface MetronomeIntent : UiIntent {
@@ -37,6 +40,11 @@ sealed interface MetronomeIntent : UiIntent {
 
     /** Parada manual, `ON_STOP` o salir de la ruta: idempotente; no se reanuda sola al volver. */
     data object Stop : MetronomeIntent
+
+    /** Guarda como practica el tiempo que ha sonado (solo si hay oferta). */
+    data object SaveToolPractice : MetronomeIntent
+
+    data object DismissToolPractice : MetronomeIntent
 }
 
 /** Sin efectos de un solo uso: todo pasa por el estado. */
