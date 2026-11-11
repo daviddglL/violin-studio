@@ -43,7 +43,7 @@
     "jest": "^30.5.2",
     "node-fetch-cjs": "npm:node-fetch@^2.7.0",
     "ts-jest": "^29.4.15",
-    "typescript": "^5.7.2",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.72.1"
   }
 }
