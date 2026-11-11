@@ -25,6 +25,11 @@ updates:
     groups:
       npm-minor:
         update-types: [minor, patch]
+    # Mayor bloqueada por dependencias de pares (npm ci da ERESOLVE). Quitar la regla cuando se desbloquee:
+    # - typescript 7: typescript-eslint 8 pide typescript <6.1 y ts-jest 29 <7 (PRs #146 y #147).
+    ignore:
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
