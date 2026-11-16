@@ -28,7 +28,7 @@
     "test:mail-extension": "firebase emulators:exec --only functions,auth,firestore,extensions --project demo-violin-studio \"node scripts/mail-extension-smoke.js\""
   },
   "dependencies": {
-    "firebase-admin": "^14.5.0",
+    "firebase-admin": "^14.5.1",
     "firebase-functions": "^7.4.0"
   },
   "overrides": {
@@ -44,6 +44,6 @@
     "node-fetch-cjs": "npm:node-fetch@^2.7.0",
     "ts-jest": "^29.4.15",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.2"
   }
 }
